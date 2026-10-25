@@ -1045,15 +1045,21 @@ window.FMCUData = {
     }
   },
 
-  updateUserLocation(userId, lat, lng, status = 'ON_DUTY') {
+  updateUserLocation(userId, lat, lng, storeVisit = null, status = 'LIVE_GPS') {
     const users = this.getUsers();
-    const idx = users.findIndex((u) => u.id === userId);
+    const idx = users.findIndex(
+      (u) =>
+        u.id === userId ||
+        String(u.nik) === String(userId) ||
+        String(u.username).toLowerCase() === String(userId).toLowerCase()
+    );
     if (idx === -1) return;
     const loc = {
-      lat,
-      lng,
+      lat: Number(Number(lat).toFixed(5)),
+      lng: Number(Number(lng).toFixed(5)),
       updatedAt: new Date().toISOString(),
-      status
+      storeVisit: storeVisit || users[idx].lastLocation?.storeVisit || null,
+      status: status || users[idx].lastLocation?.status || 'LIVE_GPS'
     };
     users[idx].lastLocation = loc;
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
