@@ -103,94 +103,122 @@
 
   <!-- ====================================================================
        GLOBAL AUTH LOGIN OVERLAY (WAJIB LOGIN SETIAP BUKA TAB / WEB APP BARU)
+       Pada Mobile: Menampilkan Animasi Loading Informasi FMCU terlebih dahulu
+       sebelum otomatis beralih ke Form Login 1 layar penuh.
        ==================================================================== -->
   <div id="auth-screen" class="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
     <div class="bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200 max-w-4xl w-full overflow-hidden grid grid-cols-1 lg:grid-cols-12 my-auto view-section">
-      <!-- Left Visual Corporate Branding Panel (Compact on Mobile so Login fits in 1 screen) -->
-      <div class="lg:col-span-5 fm-gradient px-5 py-4 sm:p-6 lg:p-8 text-white flex flex-col justify-between relative overflow-hidden">
-        <div class="relative z-10 flex lg:block items-center justify-between gap-3">
-          <div>
-            <div class="inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold tracking-wider uppercase mb-1.5 lg:mb-6">
-              <span class="w-2 h-2 rounded-full bg-emerald-300 animate-ping"></span>
-              FamilyMart Indonesia • FMCU
-            </div>
-            <h1 class="text-lg sm:text-2xl lg:text-3xl font-extrabold leading-tight tracking-tight">
-              FMCU VISIT STORE REPORT
-            </h1>
+
+      <!-- PANEL 1: VISUAL CORPORATE BRANDING & MOBILE INTRO LOADING ANIMATION -->
+      <div id="auth-splash-panel" onclick="FMCUApp.skipMobileAuthSplash()" class="lg:col-span-5 fm-gradient p-6 sm:p-8 text-white flex flex-col justify-between relative overflow-hidden cursor-pointer lg:cursor-default">
+        <div class="relative z-10 splash-anim-1">
+          <div class="inline-flex items-center gap-2.5 bg-white/15 backdrop-blur-sm px-3.5 py-1.5 rounded-full text-xs font-bold tracking-wider uppercase mb-5">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-300 animate-ping"></span>
+            FamilyMart Indonesia • FMCU
           </div>
-          <p class="hidden lg:block text-white/85 text-sm mt-3 leading-relaxed">
+          <h1 class="text-2xl sm:text-3xl font-extrabold leading-tight tracking-tight">
+            FMCU VISIT STORE REPORT
+          </h1>
+          <p class="text-white/85 text-xs sm:text-sm mt-3 leading-relaxed">
             Platform terpadu laporan audit kunjungan toko, pemantauan Live GPS Location, Actual In-Out, Analitik Trend Temuan & Toko, serta generator laporan PDF otomatis.
           </p>
         </div>
 
-        <div class="hidden lg:block space-y-3 my-8 relative z-10 text-xs text-white/90">
-          <div class="flex items-center gap-3 bg-white/10 rounded-xl p-3">
-            <i class="fa-solid fa-location-crosshairs text-lg text-emerald-200"></i>
+        <div class="space-y-2.5 sm:space-y-3 my-6 sm:my-8 relative z-10 text-xs text-white/90">
+          <div class="flex items-center gap-3 bg-white/10 rounded-xl p-3 splash-anim-2">
+            <i class="fa-solid fa-location-crosshairs text-lg text-emerald-200 shrink-0"></i>
             <div>
               <div class="font-bold">Live Location & Actual In-Out</div>
-              <div class="text-white/75">Validasi titik koordinat GPS aktual & durasi kunjungan auditor</div>
+              <div class="text-white/75 text-[11px] sm:text-xs">Validasi titik koordinat GPS aktual & durasi kunjungan auditor</div>
             </div>
           </div>
-          <div class="flex items-center gap-3 bg-white/10 rounded-xl p-3">
-            <i class="fa-solid fa-file-pdf text-lg text-emerald-200"></i>
+          <div class="flex items-center gap-3 bg-white/10 rounded-xl p-3 splash-anim-3">
+            <i class="fa-solid fa-file-pdf text-lg text-emerald-200 shrink-0"></i>
             <div>
               <div class="font-bold">Auto PDF Presentation 16:9</div>
-              <div class="text-white/75">Cetak laporan PDF standar korporat & sinkronisasi ke Google Drive + Email</div>
+              <div class="text-white/75 text-[11px] sm:text-xs">Cetak laporan PDF standar korporat & sinkronisasi ke Google Drive + Email</div>
             </div>
           </div>
-          <div class="flex items-center gap-3 bg-white/10 rounded-xl p-3">
-            <i class="fa-solid fa-chart-line text-lg text-emerald-200"></i>
+          <div class="flex items-center gap-3 bg-white/10 rounded-xl p-3 splash-anim-4">
+            <i class="fa-solid fa-chart-line text-lg text-emerald-200 shrink-0"></i>
             <div>
               <div class="font-bold">Analitik Performa & Trend Temuan</div>
-              <div class="text-white/75">Pantau efektivitas tim auditor, trend temuan QSC, & ranking toko</div>
+              <div class="text-white/75 text-[11px] sm:text-xs">Pantau efektivitas tim auditor, trend temuan QSC, & ranking toko</div>
             </div>
           </div>
         </div>
 
-        <div class="hidden lg:flex text-[11px] text-white/70 relative z-10 items-center justify-between border-t border-white/15 pt-4">
+        <!-- Mobile Animated Loading Bar (Tampil saat animasi awal di Mobile) -->
+        <div id="auth-mobile-loading-box" class="lg:hidden relative z-10 mb-4 space-y-2 splash-anim-4">
+          <div class="flex items-center justify-between text-[11px] font-bold text-emerald-100">
+            <span class="flex items-center gap-1.5">
+              <i class="fa-solid fa-circle-notch fa-spin text-emerald-200"></i>
+              <span>Memuat Portal Login FMCU...</span>
+            </span>
+            <span class="text-[10px] text-white/75">Ketuk untuk lewati &rarr;</span>
+          </div>
+          <div class="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
+            <div id="auth-splash-progress" class="h-full bg-white rounded-full splash-progress-bar"></div>
+          </div>
+        </div>
+
+        <div class="text-[11px] text-white/70 relative z-10 flex items-center justify-between border-t border-white/15 pt-3.5 splash-anim-4">
           <span>FMCU Digital Audit System</span>
           <span>100% Responsive Web App</span>
         </div>
       </div>
 
-      <!-- Right Login Form Panel (Fits 1 Mobile Screen without scrolling) -->
-      <div class="lg:col-span-7 p-5 sm:p-8 lg:p-10 flex flex-col justify-center bg-white">
-        <div class="mb-3.5 sm:mb-6">
-          <span class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full">Portal Akses Otoritas</span>
-          <h2 class="text-lg sm:text-2xl font-extrabold text-slate-900 mt-1.5">Masuk ke Sistem FMCU</h2>
-          <p class="text-[11px] sm:text-sm text-slate-500 mt-0.5">Pilih akun user terdaftar dan masukkan password otoritas Anda.</p>
+      <!-- PANEL 2: RIGHT LOGIN FORM PANEL (Muncul otomatis setelah loading selesai di Mobile, 1 Layar Penuh) -->
+      <div id="auth-login-panel" class="hidden lg:flex lg:col-span-7 flex-col justify-between bg-white view-section">
+        <!-- Compact Header Khusus Mobile saat sudah masuk ke Form Login -->
+        <div class="lg:hidden fm-gradient px-5 py-3.5 text-white flex items-center justify-between">
+          <div>
+            <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-200">FamilyMart Indonesia • FMCU</div>
+            <div class="text-sm font-extrabold tracking-tight">FMCU VISIT STORE REPORT</div>
+          </div>
+          <button type="button" onclick="FMCUApp.triggerMobileAuthSplash()" title="Lihat Info Sistem" class="w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-xs text-white cursor-pointer">
+            <i class="fa-solid fa-circle-info"></i>
+          </button>
         </div>
 
-        <form id="login-form" class="space-y-3 sm:space-y-4">
-          <div>
-            <label class="block text-[11px] sm:text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Pilih User Terdaftar</label>
-            <div class="relative">
-              <i class="fa-regular fa-user absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
-              <select id="login-username" required class="fm-input pl-10 font-bold text-slate-800 cursor-pointer">
-                <option value="">-- Pilih User / Akun Terdaftar --</option>
-              </select>
-            </div>
+        <div class="p-5 sm:p-8 lg:p-10 flex-1 flex flex-col justify-center">
+          <div class="mb-3.5 sm:mb-6">
+            <span class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full">Portal Akses Otoritas</span>
+            <h2 class="text-lg sm:text-2xl font-extrabold text-slate-900 mt-1.5">Masuk ke Sistem FMCU</h2>
+            <p class="text-[11px] sm:text-sm text-slate-500 mt-0.5">Pilih akun user terdaftar dan masukkan password otoritas Anda.</p>
           </div>
-          <div>
-            <label class="block text-[11px] sm:text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Password / PIN Otoritas</label>
-            <div class="relative">
-              <i class="fa-solid fa-lock absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
-              <input type="password" id="login-password" required autocomplete="current-password" placeholder="Masukkan password" class="fm-input pl-10" value="" />
-            </div>
-          </div>
-          <div id="login-error" class="hidden text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg p-2"></div>
-          <button type="submit" class="w-full fm-gradient hover:opacity-95 text-white font-bold py-2.5 sm:py-3 px-5 rounded-xl shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 cursor-pointer text-xs sm:text-sm">
-            <i class="fa-solid fa-right-to-bracket"></i>
-            <span>Masuk ke Sistem FMCU</span>
-          </button>
-        </form>
 
-        <!-- Session Security Info Banner (Compact on Mobile) -->
-        <div class="mt-4 sm:mt-6 pt-3 sm:pt-5 border-t border-slate-100">
-          <div class="p-2.5 sm:p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-2.5 text-[11px] sm:text-xs text-slate-600">
-            <i class="fa-solid fa-shield-halved text-[#009944] text-sm sm:text-base mt-0.5"></i>
-            <div class="leading-snug sm:leading-relaxed">
-              <span class="font-extrabold text-slate-800">Time Session Aktif:</span> Sesi otomatis berakhir & wajib login ulang saat tutup tab/aplikasi atau idle 15 menit.
+          <form id="login-form" class="space-y-3 sm:space-y-4">
+            <div>
+              <label class="block text-[11px] sm:text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Pilih User Terdaftar</label>
+              <div class="relative">
+                <i class="fa-regular fa-user absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+                <select id="login-username" required class="fm-input pl-10 font-bold text-slate-800 cursor-pointer">
+                  <option value="">-- Pilih User / Akun Terdaftar --</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="block text-[11px] sm:text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Password / PIN Otoritas</label>
+              <div class="relative">
+                <i class="fa-solid fa-lock absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+                <input type="password" id="login-password" required autocomplete="current-password" placeholder="Masukkan password" class="fm-input pl-10" value="" />
+              </div>
+            </div>
+            <div id="login-error" class="hidden text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg p-2"></div>
+            <button type="submit" class="w-full fm-gradient hover:opacity-95 text-white font-bold py-2.5 sm:py-3 px-5 rounded-xl shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 cursor-pointer text-xs sm:text-sm">
+              <i class="fa-solid fa-right-to-bracket"></i>
+              <span>Masuk ke Sistem FMCU</span>
+            </button>
+          </form>
+
+          <!-- Session Security Info Banner (Compact on Mobile) -->
+          <div class="mt-4 sm:mt-6 pt-3 sm:pt-5 border-t border-slate-100">
+            <div class="p-2.5 sm:p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-2.5 text-[11px] sm:text-xs text-slate-600">
+              <i class="fa-solid fa-shield-halved text-[#009944] text-sm sm:text-base mt-0.5"></i>
+              <div class="leading-snug sm:leading-relaxed">
+                <span class="font-extrabold text-slate-800">Time Session Aktif:</span> Sesi otomatis berakhir & wajib login ulang saat tutup tab/aplikasi atau idle 15 menit.
+              </div>
             </div>
           </div>
         </div>

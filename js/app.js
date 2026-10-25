@@ -63,6 +63,9 @@ window.FMCUApp = {
     if (authScreen) {
       authScreen.classList.toggle('hidden', Boolean(this.currentUser));
     }
+    if (!this.currentUser) {
+      this.triggerMobileAuthSplash();
+    }
 
     // Check if there was an active store check-in session
     const activeCheckIn = window.FMCUData.getActiveCheckIn();
@@ -323,6 +326,9 @@ window.FMCUApp = {
     this.applyGpsCoordinates(lat, lng, accuracy);
     if (firstUnlock) {
       this.showToast(`Lokasi GPS Aktif (${lat.toFixed(5)}, ${lng.toFixed(5)}). Akses web dibuka.`, 'success');
+      if (!this.currentUser) {
+        this.triggerMobileAuthSplash();
+      }
       setTimeout(() => {
         if (this.homeMap) this.homeMap.invalidateSize();
       }, 250);
@@ -465,6 +471,56 @@ window.FMCUApp = {
 
     const authScreen = document.getElementById('auth-screen');
     if (authScreen) authScreen.classList.remove('hidden');
+    this.triggerMobileAuthSplash();
+  },
+
+  // ==========================================================================
+  // MOBILE INTRO SPLASH LOADING ANIMATION BEFORE LOGIN FORM
+  // ==========================================================================
+  triggerMobileAuthSplash() {
+    if (this._splashTimer) {
+      clearTimeout(this._splashTimer);
+      this._splashTimer = null;
+    }
+    const splashPanel = document.getElementById('auth-splash-panel');
+    const loginPanel = document.getElementById('auth-login-panel');
+    const progressEl = document.getElementById('auth-splash-progress');
+
+    if (splashPanel) {
+      splashPanel.classList.remove('hidden');
+      splashPanel.classList.add('flex');
+    }
+    if (loginPanel) {
+      loginPanel.classList.add('hidden');
+      loginPanel.classList.remove('flex');
+    }
+    if (progressEl) {
+      progressEl.classList.remove('splash-progress-bar');
+      void progressEl.offsetWidth;
+      progressEl.classList.add('splash-progress-bar');
+    }
+
+    this._splashTimer = setTimeout(() => {
+      this.skipMobileAuthSplash();
+    }, 2600);
+  },
+
+  skipMobileAuthSplash() {
+    if (this._splashTimer) {
+      clearTimeout(this._splashTimer);
+      this._splashTimer = null;
+    }
+    const splashPanel = document.getElementById('auth-splash-panel');
+    const loginPanel = document.getElementById('auth-login-panel');
+
+    if (splashPanel) {
+      splashPanel.classList.add('hidden', 'lg:flex');
+      splashPanel.classList.remove('flex');
+    }
+    if (loginPanel) {
+      loginPanel.classList.remove('hidden');
+      loginPanel.classList.add('flex');
+    }
   },
 
   hasAuthority(authKey, user = this.currentUser) {

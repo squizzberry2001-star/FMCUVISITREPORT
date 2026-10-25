@@ -182,3 +182,49 @@ body {
   font-family: inherit;
   z-index: 10 !important;
 }
+
+/* Mobile Intro Splash Loading Animations before Login Form */
+@keyframes splashCardIn {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes splashProgressFill {
+  0% {
+    width: 0%;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+.splash-anim-1 {
+  opacity: 0;
+  animation: splashCardIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.08s forwards;
+}
+
+.splash-anim-2 {
+  opacity: 0;
+  animation: splashCardIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.25s forwards;
+}
+
+.splash-anim-3 {
+  opacity: 0;
+  animation: splashCardIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.42s forwards;
+}
+
+.splash-anim-4 {
+  opacity: 0;
+  animation: splashCardIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.58s forwards;
+}
+
+.splash-progress-bar {
+  width: 0%;
+  animation: splashProgressFill 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
