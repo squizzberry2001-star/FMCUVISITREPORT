@@ -959,7 +959,7 @@
                 </div>
               </div>
 
-              <!-- AUTOMATIC GPS GEOFENCE RADAR & AUTO IN/OUT STATUS (50m Radius & 15m Away Span) -->
+              <!-- AUTOMATIC GPS GEOFENCE RADAR & AUTO IN/OUT STATUS (15m Radius & 15m Away Span) -->
               <div class="flex flex-wrap items-center gap-2.5">
                 <!-- Auto Actual In Card -->
                 <div class="bg-white/10 backdrop-blur-sm border border-emerald-400/30 rounded-xl px-3 py-2 min-w-[125px]">
@@ -971,7 +971,7 @@
                     <span id="form-auto-in-status" class="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
                     <input type="text" id="form-actual-in" readonly placeholder="--:-- WIB" class="bg-transparent font-extrabold text-sm text-white w-24 focus:outline-none cursor-default placeholder:text-white/40" value="" />
                   </div>
-                  <div class="text-[9px] text-emerald-200/80">Buka Web &le; 08:30 (Radius &le; 50m)</div>
+                  <div class="text-[9px] text-emerald-200/80">Buka Web &le; 08:30 (Radius &le; 15m)</div>
                 </div>
 
                 <!-- Auto Actual Out Card -->
@@ -984,14 +984,14 @@
                     <span id="form-auto-out-status" class="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
                     <input type="text" id="form-actual-out" readonly placeholder="--:-- WIB" class="bg-transparent font-extrabold text-sm text-white w-24 focus:outline-none cursor-default placeholder:text-white/40" value="" />
                   </div>
-                  <div class="text-[9px] text-amber-200/80">Buka Web &ge; 17:30 (Radius &le; 50m)</div>
+                  <div class="text-[9px] text-amber-200/80">Buka Web &ge; 17:30 (Radius &le; 15m)</div>
                 </div>
 
                 <!-- Live Geofence Radar Pill -->
                 <div id="form-geofence-radar-pill" class="bg-emerald-500/20 border border-emerald-400/40 rounded-xl px-3 py-2 text-xs flex items-center gap-2">
                   <div class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping shrink-0"></div>
                   <div>
-                    <div id="form-geofence-radar-title" class="font-extrabold text-[11px] text-emerald-200 leading-tight">Radar Geofence 50m Aktif</div>
+                    <div id="form-geofence-radar-title" class="font-extrabold text-[11px] text-emerald-200 leading-tight">Radar Geofence 15m Aktif</div>
                     <div id="form-geofence-radar-desc" class="text-[10px] text-emerald-300/80">Mendeteksi jarak toko...</div>
                   </div>
                 </div>
@@ -2278,7 +2278,7 @@ service cloud.firestore {
             </div>
             <div class="min-w-0">
               <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Kepatuhan Radius</div>
-              <div class="text-lg sm:text-xl font-extrabold text-slate-900 mt-0.5">50 Meter</div>
+              <div class="text-lg sm:text-xl font-extrabold text-slate-900 mt-0.5">15 Meter</div>
               <div class="text-[10px] text-amber-700 font-bold mt-0.5">Otomatis In (09:30) / Out (17:30)</div>
             </div>
           </div>
@@ -2326,7 +2326,7 @@ service cloud.firestore {
               <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 font-bold border border-amber-200 cursor-pointer text-xs">
                 <input type="checkbox" id="layer-toggle-geofence" checked onchange="FMCUApp.toggleLiveLocLayer('geofence', this.checked)" class="accent-amber-600 w-3.5 h-3.5" />
                 <i class="fa-solid fa-bullseye text-[11px]"></i>
-                <span>Geofence 50m</span>
+                <span>Geofence 15m</span>
               </label>
 
               <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-800 font-bold border border-indigo-200 cursor-pointer text-xs">
@@ -2402,7 +2402,7 @@ service cloud.firestore {
                 </span>
                 <span class="inline-flex items-center gap-1.5 font-semibold">
                   <span class="w-3.5 h-0 border-b-2 border-dashed border-[#009944]"></span>
-                  Geofence 50m
+                  Geofence 15m
                 </span>
               </div>
               <div class="text-[10px] text-slate-400">
@@ -2633,7 +2633,7 @@ service cloud.firestore {
           </span>
           <span class="flex items-center gap-1.5">
             <span class="w-3 h-3 rounded-full bg-amber-500 border-2 border-white shadow-xs"></span>
-            <span>Toko Visit Hari Ini (Radius 50m)</span>
+            <span>Toko Visit Hari Ini (Radius 15m)</span>
           </span>
         </div>
         <div class="text-[10px] text-slate-400">Ketuk titik toko untuk melihat info rute & detail alamat</div>
