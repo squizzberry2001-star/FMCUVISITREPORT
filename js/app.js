@@ -402,12 +402,16 @@ window.FMCUApp = {
     const users = window.FMCUData.getUsers();
 
     const found = users.find(
-      (u) => (u.username.toLowerCase() === uInput || (u.email && u.email.toLowerCase() === uInput)) && u.password === pInput
+      (u) =>
+        (String(u.username || '').toLowerCase() === uInput ||
+          (u.nik && String(u.nik).toLowerCase() === uInput) ||
+          (u.email && u.email.toLowerCase() === uInput)) &&
+        (String(u.password || '') === pInput || (u.nik && String(u.nik) === pInput))
     );
 
     const errEl = document.getElementById('login-error');
     if (!found) {
-      errEl.textContent = 'Username atau Password tidak sesuai.';
+      errEl.textContent = 'Akun User atau Password/NIK tidak sesuai.';
       errEl.classList.remove('hidden');
       return;
     }
@@ -3102,43 +3106,71 @@ window.FMCUApp = {
     this.renderAdminStoresTable();
 
     // 3. Render Admin Users & Authorities Table
+    const userSearchQ = (document.getElementById('adm-user-search-input')?.value || '').trim().toLowerCase();
+    const filteredUsers = users.filter((u) => {
+      if (!userSearchQ) return true;
+      return (
+        String(u.name || '').toLowerCase().includes(userSearchQ) ||
+        String(u.nik || '').toLowerCase().includes(userSearchQ) ||
+        String(u.username || '').toLowerCase().includes(userSearchQ) ||
+        String(u.jabatan || '').toLowerCase().includes(userSearchQ) ||
+        String(u.roleBadge || '').toLowerCase().includes(userSearchQ) ||
+        String(u.region || '').toLowerCase().includes(userSearchQ)
+      );
+    });
+
+    const usrCountEl = document.getElementById('admin-user-count');
+    if (usrCountEl) {
+      usrCountEl.textContent =
+        filteredUsers.length === users.length
+          ? `${users.length} User`
+          : `${filteredUsers.length} / ${users.length} User`;
+    }
+
     const usrTbody = document.getElementById('admin-users-tbody');
     if (usrTbody) {
-      usrTbody.innerHTML = users
-        .map(
-          (u) => `
-          <tr class="hover:bg-slate-50">
-            <td class="py-2.5 px-3">
-              <div class="font-bold text-slate-900">${u.name}</div>
-              <div class="text-[11px] font-mono text-slate-400">@${u.username}</div>
-            </td>
-            <td class="py-2.5 px-3">
-              <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                u.role === 'SUPER_ADMIN'
-                  ? 'bg-emerald-100 text-emerald-800'
-                  : u.role === 'ADMIN_SCHEDULE'
-                  ? 'bg-amber-100 text-amber-800'
-                  : 'bg-teal-100 text-teal-800'
-              }">${u.roleBadge || u.role}</span>
-              <div class="text-[10px] text-slate-400 mt-0.5">${u.region || '-'}</div>
-            </td>
-            <td class="py-2.5 px-3">
-              <div class="flex flex-wrap gap-1 max-w-xs">
-                ${(u.authorities || []).map((a) => `<span class="text-[9px] bg-slate-100 px-1.5 py-0.5 rounded font-mono">${a}</span>`).join('')}
-              </div>
-            </td>
-            <td class="py-2.5 px-3 font-mono text-[11px] text-slate-600">
-              ${u.lastLocation && u.lastLocation.lat ? `${u.lastLocation.lat}, ${u.lastLocation.lng}` : '-'}
-            </td>
-            <td class="py-2.5 px-3 text-right space-x-2">
-              <button onclick="FMCUApp.editUser('${u.id}')" class="text-emerald-700 hover:underline font-bold cursor-pointer">Edit / Password</button>
-              <button onclick="FMCUApp.quickLoginById('${u.id}')" class="text-[#0099A6] hover:underline font-bold cursor-pointer">Pakai Akun</button>
-              <button onclick="FMCUApp.deleteUser('${u.id}')" class="text-rose-600 hover:underline font-bold cursor-pointer">Hapus</button>
-            </td>
-          </tr>
-        `
-        )
-        .join('');
+      if (filteredUsers.length === 0) {
+        usrTbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-slate-400">Tidak ada user yang sesuai kata kunci pencarian.</td></tr>`;
+      } else {
+        usrTbody.innerHTML = filteredUsers
+          .map(
+            (u) => `
+            <tr class="hover:bg-slate-50">
+              <td class="py-2.5 px-3">
+                <div class="font-bold text-slate-900">${u.name}</div>
+                <div class="flex flex-wrap items-center gap-1.5 mt-0.5 text-[10px] font-mono">
+                  <span class="px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 font-bold">NIK/User: ${u.nik || u.username}</span>
+                  <span class="px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 font-bold">PIN/Pass: ${u.password || '-'}</span>
+                </div>
+              </td>
+              <td class="py-2.5 px-3">
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                  u.role === 'SUPER_ADMIN'
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : u.role === 'ADMIN_SCHEDULE'
+                    ? 'bg-amber-100 text-amber-800'
+                    : 'bg-teal-100 text-teal-800'
+                }">${u.roleBadge || u.role}</span>
+                <div class="text-[10px] text-slate-500 mt-0.5">${u.jabatan ? u.jabatan + (u.region && u.region !== '-' ? ' • ' + u.region : '') : u.region || '-'}</div>
+              </td>
+              <td class="py-2.5 px-3">
+                <div class="flex flex-wrap gap-1 max-w-xs">
+                  ${(u.authorities || []).map((a) => `<span class="text-[9px] bg-slate-100 px-1.5 py-0.5 rounded font-mono">${a}</span>`).join('')}
+                </div>
+              </td>
+              <td class="py-2.5 px-3 font-mono text-[11px] text-slate-600">
+                ${u.lastLocation && u.lastLocation.lat ? `${u.lastLocation.lat}, ${u.lastLocation.lng}` : '-'}
+              </td>
+              <td class="py-2.5 px-3 text-right whitespace-nowrap space-x-2">
+                <button onclick="FMCUApp.editUser('${u.id}')" class="text-emerald-700 hover:underline font-bold cursor-pointer">Edit / Password</button>
+                <button onclick="FMCUApp.quickLoginById('${u.id}')" class="text-[#0099A6] hover:underline font-bold cursor-pointer">Pakai Akun</button>
+                <button onclick="FMCUApp.deleteUser('${u.id}')" class="text-rose-600 hover:underline font-bold cursor-pointer">Hapus</button>
+              </td>
+            </tr>
+          `
+          )
+          .join('');
+      }
     }
 
     // 4. Populate Integration Settings Form
@@ -4469,13 +4501,204 @@ window.FMCUApp = {
     });
   },
 
+  onInputUserNik(val) {
+    const cleanNik = String(val || '').trim();
+    const uEl = document.getElementById('adm-usr-username');
+    const pEl = document.getElementById('adm-usr-password');
+    if (uEl && (!uEl.value || uEl.dataset.autoFromNik === '1')) {
+      uEl.value = cleanNik.toLowerCase();
+      uEl.dataset.autoFromNik = cleanNik ? '1' : '';
+    }
+    if (pEl && (!pEl.value || pEl.dataset.autoFromNik === '1')) {
+      pEl.value = cleanNik;
+      pEl.dataset.autoFromNik = cleanNik ? '1' : '';
+    }
+  },
+
+  mergeOrReplaceImportedUsers(extractedUsers, mode = 'merge') {
+    const currentUsers = window.FMCUData.getUsers();
+    if (mode === 'replace') {
+      // Pertahankan akun Super Admin & Admin Jadwal agar akses Admin tetap aman, ganti seluruh akun Visitor
+      const preservedAdmins = currentUsers.filter(
+        (u) => u.role === 'SUPER_ADMIN' || u.role === 'ADMIN_SCHEDULE'
+      );
+      const adminKeys = new Set(
+        preservedAdmins.map((u) => String(u.nik || u.username || '').toLowerCase())
+      );
+      const nonDuplicateImported = extractedUsers.filter(
+        (u) => !adminKeys.has(String(u.nik || u.username || '').toLowerCase())
+      );
+      return [...preservedAdmins, ...nonDuplicateImported];
+    }
+
+    // Mode Merge: Tambah user baru & perbarui user dengan NIK / Username / Nama yang sama
+    const finalUsers = [...currentUsers];
+    extractedUsers.forEach((imp) => {
+      const impNik = String(imp.nik || '').trim().toLowerCase();
+      const impUser = String(imp.username || '').trim().toLowerCase();
+      const impName = String(imp.name || '').trim().toLowerCase();
+
+      const existIdx = finalUsers.findIndex((u) => {
+        const uNik = String(u.nik || '').trim().toLowerCase();
+        const uUser = String(u.username || '').trim().toLowerCase();
+        const uName = String(u.name || '').trim().toLowerCase();
+        return (
+          (impNik && (uNik === impNik || uUser === impNik)) ||
+          (impUser && uUser === impUser) ||
+          (impName && uName === impName && u.role !== 'SUPER_ADMIN')
+        );
+      });
+
+      if (existIdx !== -1) {
+        const prev = finalUsers[existIdx];
+        finalUsers[existIdx] = {
+          ...prev,
+          ...imp,
+          id: prev.id || imp.id,
+          lastLocation: prev.lastLocation || null
+        };
+      } else {
+        finalUsers.push(imp);
+      }
+    });
+
+    return finalUsers;
+  },
+
+  async handleUploadUserExcel() {
+    const fileInput = document.getElementById('adm-user-excel-file-input');
+    const passModeSelect = document.getElementById('adm-user-excel-pass-mode');
+    const importModeSelect = document.getElementById('adm-user-excel-import-mode');
+    const statusBox = document.getElementById('adm-user-excel-upload-status');
+    const btn = document.getElementById('btn-upload-excel-users');
+
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+      this.showToast('Silakan pilih file Excel (.xlsx / .xls / .csv) berisi tabel Nama, NIK, JABATAN terlebih dahulu.', 'warning');
+      return;
+    }
+
+    const file = fileInput.files[0];
+    const passwordMode = passModeSelect ? passModeSelect.value : 'nik';
+    const importMode = importModeSelect ? importModeSelect.value : 'merge';
+
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>Mengimport...</span>`;
+    }
+    if (statusBox) {
+      statusBox.className = 'text-xs font-semibold p-3 rounded-xl bg-teal-50 text-teal-900 border border-teal-200 block';
+      statusBox.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5"></i>Sedang membaca & mengekstraksi tabel karyawan/user dari file <strong>${file.name}</strong>...`;
+    }
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const extracted = window.FMCUData.parseUsersFromExcelArrayBuffer(arrayBuffer, { passwordMode });
+
+      if (!extracted || extracted.length === 0) {
+        throw new Error('Tidak ditemukan baris data user yang valid di dalam file Excel tersebut.');
+      }
+
+      const finalUsers = this.mergeOrReplaceImportedUsers(extracted, importMode);
+      window.FMCUData.saveUsers(finalUsers);
+      this.populateHeaderRoleSwitcher();
+      this.renderAllViews();
+      this.updateAdminFirestoreSummary();
+
+      if (statusBox) {
+        statusBox.className = 'text-xs font-semibold p-3 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200 block';
+        statusBox.innerHTML = `✅ Berhasil meng-import <strong>${extracted.length} User Karyawan</strong> dari file <strong>${file.name}</strong> (Total User Terdaftar: <strong>${finalUsers.length} Akun</strong>) dan menyinkronkannya ke Cloud Firestore!`;
+      }
+      this.showToast(`Berhasil import ${extracted.length} User dari ${file.name}!`, 'success');
+      fileInput.value = '';
+    } catch (err) {
+      console.error('User Excel upload parse error:', err);
+      if (statusBox) {
+        statusBox.className = 'text-xs font-semibold p-3 rounded-xl bg-rose-50 text-rose-900 border border-rose-200 block';
+        statusBox.innerHTML = `❌ Gagal membaca file Excel: ${err.message || 'Pastikan terdapat kolom Nama, NIK, JABATAN'}`;
+      }
+      this.showToast('Gagal mengekstrak file Excel User: ' + (err.message || ''), 'error');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-file-import"></i><span>Import User Excel</span>`;
+      }
+    }
+  },
+
+  async reloadDefaultExcelUsers() {
+    const passModeSelect = document.getElementById('adm-user-excel-pass-mode');
+    const importModeSelect = document.getElementById('adm-user-excel-import-mode');
+    const statusBox = document.getElementById('adm-user-excel-upload-status');
+    const passwordMode = passModeSelect ? passModeSelect.value : 'nik';
+    const importMode = importModeSelect ? importModeSelect.value : 'merge';
+
+    if (statusBox) {
+      statusBox.className = 'text-xs font-semibold p-3 rounded-xl bg-teal-50 text-teal-900 border border-teal-200 block';
+      statusBox.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5"></i>Membaca & meng-import data dari file <code>Data_Karyawan_NIK.xlsx</code>...`;
+    }
+
+    const extracted = await window.FMCUData.fetchAndExtractProjectUserExcelFile({ passwordMode });
+    if (extracted && extracted.length > 0) {
+      const finalUsers = this.mergeOrReplaceImportedUsers(extracted, importMode);
+      window.FMCUData.saveUsers(finalUsers);
+      this.populateHeaderRoleSwitcher();
+      this.renderAllViews();
+      this.updateAdminFirestoreSummary();
+
+      if (statusBox) {
+        statusBox.className = 'text-xs font-semibold p-3 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200 block';
+        statusBox.innerHTML = `✅ Berhasil mengekstrak & meng-import <strong>${extracted.length} Karyawan (Nama, NIK, JABATAN)</strong> dari <code>Data_Karyawan_NIK.xlsx</code> (Total User: <strong>${finalUsers.length} Akun</strong>) dan menyinkronkannya ke Cloud Firestore!`;
+      }
+      this.showToast(`${extracted.length} User dari Data_Karyawan_NIK.xlsx berhasil di-import!`, 'success');
+    } else {
+      this.showToast('Gagal memuat file Data_Karyawan_NIK.xlsx.', 'error');
+    }
+  },
+
+  downloadUserExcelTemplate() {
+    if (typeof XLSX === 'undefined') {
+      this.showToast('Library Excel (SheetJS) belum termuat.', 'error');
+      return;
+    }
+    const seedRows = (window.FMCUData.EMPLOYEE_NIK_SEED_ROWS || []).map((r) => ({
+      Nama: r.name,
+      NIK: r.nik,
+      JABATAN: r.jabatan
+    }));
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(
+      seedRows.length > 0
+        ? seedRows
+        : [
+            { Nama: 'Aan Bagus Permana', NIK: '210822947', JABATAN: 'Regional Bestie' },
+            { Nama: 'Anggi Novita', NIK: '230723742', JABATAN: 'Regional Bestie' }
+          ]
+    );
+    ws['!cols'] = [{ wch: 32 }, { wch: 18 }, { wch: 24 }];
+    XLSX.utils.book_append_sheet(wb, ws, 'Data_Karyawan_NIK');
+    XLSX.writeFile(wb, 'Data_Karyawan_NIK_Template.xlsx');
+    this.showToast('Template Excel (Nama, NIK, JABATAN) berhasil diunduh!', 'success');
+  },
+
   editUser(userId) {
     const users = window.FMCUData.getUsers();
     const u = users.find((x) => x.id === userId);
     if (!u) return;
     document.getElementById('adm-usr-name').value = u.name || '';
-    document.getElementById('adm-usr-username').value = u.username || '';
-    document.getElementById('adm-usr-password').value = u.password || '';
+    const nikEl = document.getElementById('adm-usr-nik');
+    if (nikEl) nikEl.value = u.nik || '';
+    const jabEl = document.getElementById('adm-usr-jabatan');
+    if (jabEl) jabEl.value = u.jabatan || 'Regional Bestie';
+    const uEl = document.getElementById('adm-usr-username');
+    if (uEl) {
+      uEl.value = u.username || '';
+      uEl.dataset.autoFromNik = '';
+    }
+    const pEl = document.getElementById('adm-usr-password');
+    if (pEl) {
+      pEl.value = u.password || '';
+      pEl.dataset.autoFromNik = '';
+    }
     document.getElementById('adm-usr-role').value = u.role || 'AUDITOR';
     document.getElementById('adm-usr-region').value = u.region || '';
     document.getElementById('adm-usr-email').value = u.email || '';
@@ -4483,12 +4706,14 @@ window.FMCUApp = {
     document.querySelectorAll('input[name="adm-auth"]').forEach((cb) => {
       cb.checked = this.hasAuthority(cb.value, u);
     });
-    this.showToast(`Memuat akun @${u.username} untuk ubah data / password / otoritas`, 'info');
+    this.showToast(`Memuat akun ${u.name} (NIK/User: ${u.nik || u.username}) ke form edit`, 'info');
   },
 
   handleSaveUser(event) {
     event.preventDefault();
     const name = document.getElementById('adm-usr-name').value.trim();
+    const nik = (document.getElementById('adm-usr-nik')?.value || '').trim();
+    const jabatan = (document.getElementById('adm-usr-jabatan')?.value || 'Regional Bestie').trim();
     const username = document.getElementById('adm-usr-username').value.trim().toLowerCase();
     const password = document.getElementById('adm-usr-password').value.trim();
     const role = document.getElementById('adm-usr-role').value;
@@ -4497,15 +4722,21 @@ window.FMCUApp = {
 
     const checkedAuths = Array.from(document.querySelectorAll('input[name="adm-auth"]:checked')).map((el) => el.value);
     const roleBadges = {
-      AUDITOR: 'Visitor / Regional Bestie',
+      AUDITOR: jabatan ? `Visitor / ${jabatan}` : 'Visitor / Regional Bestie',
       ADMIN_SCHEDULE: 'Admin Jadwal',
       SUPER_ADMIN: 'Super Admin FMCU'
     };
 
     const users = window.FMCUData.getUsers();
-    const existingIdx = users.findIndex((u) => u.username.toLowerCase() === username);
+    const existingIdx = users.findIndex(
+      (u) =>
+        u.username.toLowerCase() === username ||
+        (nik && u.nik && String(u.nik).toLowerCase() === nik.toLowerCase())
+    );
     const newUser = {
-      id: existingIdx !== -1 ? users[existingIdx].id : 'usr-' + Date.now(),
+      id: existingIdx !== -1 ? users[existingIdx].id : nik ? `usr-${nik}` : 'usr-' + Date.now(),
+      nik,
+      jabatan: jabatan || 'Regional Bestie',
       username,
       password,
       name,
@@ -4535,7 +4766,7 @@ window.FMCUApp = {
     }
     event.target.reset();
     this.onChangeUserRolePreset('AUDITOR');
-    this.showToast(`User ${name} (@${username}) beserta otoritas menu sidebar berhasil disimpan ke Firestore!`, 'success');
+    this.showToast(`User ${name} (NIK/User: ${nik || username}) berhasil disimpan ke Firestore!`, 'success');
   },
 
   deleteUser(userId) {

@@ -1741,84 +1741,165 @@ service cloud.firestore {
             </div>
           </div>
 
-          <!-- ADMIN TAB 3: USER MANAGEMENT & OTORITAS LOGIN -->
-          <div id="admin-tab-users" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div class="lg:col-span-4 fm-card p-5 space-y-4 self-start">
-              <h3 class="font-extrabold text-base text-slate-900 border-b border-slate-100 pb-3">
-                <i class="fa-solid fa-user-plus text-[#009944] mr-1.5"></i>Tambah User & Otoritas Login
-              </h3>
-              <form id="admin-user-form" onsubmit="FMCUApp.handleSaveUser(event)" class="space-y-3">
-                <div>
-                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Lengkap *</label>
-                  <input type="text" id="adm-usr-name" required placeholder="Nama Lengkap User" class="fm-input" />
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                  <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Username Login *</label>
-                    <input type="text" id="adm-usr-username" required placeholder="username" class="fm-input font-mono" />
+          <!-- ADMIN TAB 3: USER MANAGEMENT & OTORITAS LOGIN (+ BULK EXCEL IMPORT SYSTEM) -->
+          <div id="admin-tab-users" class="hidden space-y-6">
+            <!-- EXCEL BULK USER IMPORT BANNER (MEMBACA FORMAT Data_Karyawan_NIK.xlsx: Nama, NIK, JABATAN) -->
+            <div class="fm-card p-5 bg-gradient-to-r from-emerald-50/80 via-white to-teal-50/80 border border-emerald-200 space-y-4">
+              <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div class="space-y-1">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="px-2.5 py-0.5 rounded-full bg-[#009944] text-white text-[10px] font-extrabold uppercase tracking-wider">
+                      <i class="fa-solid fa-file-excel mr-1"></i>Bulk Import User & NIK Excel
+                    </span>
+                    <span class="text-xs font-bold text-slate-600">File Referensi: <code>Data_Karyawan_NIK.xlsx</code> (18 Karyawan)</span>
                   </div>
-                  <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Password *</label>
-                    <input type="text" id="adm-usr-password" required placeholder="Password" class="fm-input font-mono" />
-                  </div>
+                  <h3 class="font-extrabold text-base text-slate-900">
+                    Import & Tambahkan Banyak User Sekaligus dari Tabel Excel (`.xlsx` / `.xls` / `.csv`)
+                  </h3>
+                  <p class="text-xs text-slate-600 leading-relaxed">
+                    Sistem otomatis membaca tabel dengan struktur kolom <strong>Nama</strong>, <strong>NIK</strong> (digunakan sebagai Username & Password/PIN login default), dan <strong>JABATAN</strong> (otomatis dipetakan ke Role & Otoritas seperti <em>Regional Bestie / Visitor</em>, <em>Admin Jadwal</em>, dll.) lalu menyinkronkannya ke Cloud Firestore.
+                  </p>
                 </div>
-                <div>
-                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Level Otoritas Utama *</label>
-                  <select id="adm-usr-role" onchange="FMCUApp.onChangeUserRolePreset(this.value)" class="fm-input font-semibold">
-                    <option value="AUDITOR">VISITOR (Regional Bestie / Trainer)</option>
-                    <option value="ADMIN_SCHEDULE">ADMIN JADWAL (Regional / Area Manager)</option>
-                    <option value="SUPER_ADMIN">SUPER ADMIN FMCU (Full Akses)</option>
+
+                <div class="flex flex-wrap items-center gap-2 shrink-0">
+                  <button type="button" onclick="FMCUApp.downloadUserExcelTemplate()" class="px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                    <i class="fa-solid fa-download text-[#0099A6]"></i>
+                    <span>Template Excel (<code>Nama, NIK, JABATAN</code>)</span>
+                  </button>
+                  <button type="button" onclick="FMCUApp.reloadDefaultExcelUsers()" class="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-extrabold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                    <i class="fa-solid fa-bolt text-[#009944]"></i>
+                    <span>Import <code>Data_Karyawan_NIK.xlsx</code></span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Upload Excel User Controls -->
+              <div class="p-4 rounded-xl bg-white border border-slate-200 grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                <div class="md:col-span-4">
+                  <label class="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">Pilih File Excel Data Karyawan / User (`.xlsx` / `.xls` / `.csv`)</label>
+                  <input type="file" id="adm-user-excel-file-input" accept=".xlsx,.xls,.csv" class="fm-input text-xs py-1.5 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer" />
+                </div>
+                <div class="md:col-span-3">
+                  <label class="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">Setelan Password Login</label>
+                  <select id="adm-user-excel-pass-mode" class="fm-input text-xs font-semibold">
+                    <option value="nik" selected>Sesuai Kolom NIK (Rekomendasi)</option>
+                    <option value="default123">Password Default: 123</option>
                   </select>
                 </div>
-                <div>
-                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Region / Area Tugas</label>
-                  <input type="text" id="adm-usr-region" placeholder="Masukkan Area / Region" class="fm-input" />
+                <div class="md:col-span-3">
+                  <label class="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">Mode Penyimpanan Data</label>
+                  <select id="adm-user-excel-import-mode" class="fm-input text-xs font-semibold">
+                    <option value="merge" selected>Tambah Baru & Perbarui NIK Sama (Merge)</option>
+                    <option value="replace">Ganti Seluruh User Visitor (Replace)</option>
+                  </select>
                 </div>
-                <div>
-                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Email Resmi</label>
-                  <input type="email" id="adm-usr-email" placeholder="Masukkan Email" class="fm-input" />
+                <div class="md:col-span-2">
+                  <button type="button" id="btn-upload-excel-users" onclick="FMCUApp.handleUploadUserExcel()" class="w-full fm-gradient text-white font-bold py-2.5 px-3 rounded-xl shadow-sm hover:opacity-95 transition text-xs flex items-center justify-center gap-1.5 cursor-pointer">
+                    <i class="fa-solid fa-file-import"></i>
+                    <span>Import User Excel</span>
+                  </button>
                 </div>
-
-                <!-- Granular Authority Checkboxes (Directly controls Sidebar Buttons & Admin Sub-tabs) -->
-                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5">
-                  <div class="text-[11px] font-extrabold text-slate-600 uppercase">Hak Akses Menu Side Navbar:</div>
-                  <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="view_home" checked /> <span><strong>Menu Home</strong> (Jadwal Toko & History)</span></label>
-                  <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="view_analytics" checked /> <span><strong>Menu Analitik Dashboard</strong></span></label>
-                  <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="create_visit" checked /> <span><strong>Menu Form Visit Store</strong> (Check-In & Input)</span></label>
-                  <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="export_pdf" checked /> <span><strong>Menu Preview & Unduh PDF</strong> (+ Email/GDrive)</span></label>
-                  <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="manage_schedule" /> <span><strong>Menu Atur Jadwal Visit</strong> (Side Navbar)</span></label>
-                  <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="manage_stores" /> <span><strong>Menu Master Toko</strong> (Side Navbar)</span></label>
-                  <div class="border-t border-slate-200 my-1.5 pt-1.5 text-[10px] font-extrabold text-amber-700 uppercase">Hak Akses Portal Admin:</div>
-                  <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="manage_users" /> <span><strong>Portal Admin:</strong> Kelola User & Otoritas</span></label>
-                  <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="manage_integrations" /> <span><strong>Portal Admin:</strong> Integrasi Email & GDrive</span></label>
-                </div>
-
-                <button type="submit" class="w-full fm-gradient text-white font-bold py-2.5 rounded-xl shadow-sm hover:opacity-95 transition text-xs sm:text-sm cursor-pointer">
-                  <i class="fa-solid fa-user-check mr-1"></i>Simpan User & Otoritas
-                </button>
-              </form>
+              </div>
+              <div id="adm-user-excel-upload-status" class="hidden text-xs font-semibold p-3 rounded-xl"></div>
             </div>
 
-            <div class="lg:col-span-8 fm-card p-5 space-y-4">
-              <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h3 class="font-extrabold text-base text-slate-900">Daftar Akun User, Otoritas & Live Location</h3>
-                <button type="button" onclick="FMCUApp.clearAllDataConfirm()" class="text-xs font-bold text-rose-600 hover:underline cursor-pointer">
-                  <i class="fa-solid fa-trash-can mr-1"></i>Bersihkan Seluruh Data
-                </button>
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div class="lg:col-span-4 fm-card p-5 space-y-4 self-start">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <h3 class="font-extrabold text-base text-slate-900">
+                    <i class="fa-solid fa-user-plus text-[#009944] mr-1.5"></i>Tambah / Edit User
+                  </h3>
+                  <button type="button" onclick="document.getElementById('admin-user-form').reset(); FMCUApp.onChangeUserRolePreset('AUDITOR');" class="text-[11px] font-bold text-slate-400 hover:text-slate-600 cursor-pointer">Reset Form</button>
+                </div>
+                <form id="admin-user-form" onsubmit="FMCUApp.handleSaveUser(event)" class="space-y-3">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Lengkap *</label>
+                    <input type="text" id="adm-usr-name" required placeholder="Nama Lengkap User" class="fm-input" />
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <label class="block text-xs font-bold text-slate-700 uppercase mb-1">NIK Karyawan</label>
+                      <input type="text" id="adm-usr-nik" oninput="FMCUApp.onInputUserNik(this.value)" placeholder="Contoh: 210822947" class="fm-input font-mono font-bold" />
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Jabatan</label>
+                      <input type="text" id="adm-usr-jabatan" value="Regional Bestie" placeholder="Regional Bestie" class="fm-input" />
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Username Login *</label>
+                      <input type="text" id="adm-usr-username" required placeholder="NIK / username" class="fm-input font-mono" />
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Password / PIN *</label>
+                      <input type="text" id="adm-usr-password" required placeholder="Password / NIK" class="fm-input font-mono" />
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Level Otoritas Utama *</label>
+                    <select id="adm-usr-role" onchange="FMCUApp.onChangeUserRolePreset(this.value)" class="fm-input font-semibold">
+                      <option value="AUDITOR">VISITOR (Regional Bestie / Trainer)</option>
+                      <option value="ADMIN_SCHEDULE">ADMIN JADWAL (Regional / Area Manager)</option>
+                      <option value="SUPER_ADMIN">SUPER ADMIN FMCU (Full Akses)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Region / Area Tugas</label>
+                    <input type="text" id="adm-usr-region" placeholder="Masukkan Area / Region" class="fm-input" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Email Resmi</label>
+                    <input type="email" id="adm-usr-email" placeholder="Masukkan Email" class="fm-input" />
+                  </div>
+
+                  <!-- Granular Authority Checkboxes (Directly controls Sidebar Buttons & Admin Sub-tabs) -->
+                  <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5">
+                    <div class="text-[11px] font-extrabold text-slate-600 uppercase">Hak Akses Menu Side Navbar:</div>
+                    <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="view_home" checked /> <span><strong>Menu Home</strong> (Jadwal Toko & History)</span></label>
+                    <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="view_analytics" checked /> <span><strong>Menu Analitik Dashboard</strong></span></label>
+                    <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="create_visit" checked /> <span><strong>Menu Form Visit Store</strong> (Check-In & Input)</span></label>
+                    <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="export_pdf" checked /> <span><strong>Menu Preview & Unduh PDF</strong> (+ Email/GDrive)</span></label>
+                    <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="manage_schedule" /> <span><strong>Menu Atur Jadwal Visit</strong> (Side Navbar)</span></label>
+                    <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="manage_stores" /> <span><strong>Menu Master Toko</strong> (Side Navbar)</span></label>
+                    <div class="border-t border-slate-200 my-1.5 pt-1.5 text-[10px] font-extrabold text-amber-700 uppercase">Hak Akses Portal Admin:</div>
+                    <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="manage_users" /> <span><strong>Portal Admin:</strong> Kelola User & Otoritas</span></label>
+                    <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="manage_integrations" /> <span><strong>Portal Admin:</strong> Integrasi Email & GDrive</span></label>
+                  </div>
+
+                  <button type="submit" class="w-full fm-gradient text-white font-bold py-2.5 rounded-xl shadow-sm hover:opacity-95 transition text-xs sm:text-sm cursor-pointer">
+                    <i class="fa-solid fa-user-check mr-1"></i>Simpan User & Otoritas
+                  </button>
+                </form>
               </div>
-              <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr class="bg-slate-50 text-slate-600 border-y border-slate-200 uppercase">
-                      <th class="py-2.5 px-3">Nama & Username</th>
-                      <th class="py-2.5 px-3">Role Otoritas</th>
-                      <th class="py-2.5 px-3">Hak Akses</th>
-                      <th class="py-2.5 px-3">Live GPS Terakhir</th>
-                      <th class="py-2.5 px-3 text-right">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody id="admin-users-tbody" class="divide-y divide-slate-100"></tbody>
-                </table>
+
+              <div class="lg:col-span-8 fm-card p-5 space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                  <div class="flex items-center gap-2">
+                    <h3 class="font-extrabold text-base text-slate-900">Daftar Akun User, NIK & Otoritas</h3>
+                    <span id="admin-user-count" class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">0 User</span>
+                  </div>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <input type="text" id="adm-user-search-input" oninput="FMCUApp.renderAdminView()" placeholder="🔍 Cari Nama, NIK, Jabatan..." class="fm-input text-xs py-1.5 w-48 sm:w-56" />
+                    <button type="button" onclick="FMCUApp.clearAllDataConfirm()" class="text-xs font-bold text-rose-600 hover:underline cursor-pointer">
+                      <i class="fa-solid fa-trash-can mr-1"></i>Reset Data
+                    </button>
+                  </div>
+                </div>
+                <div class="overflow-x-auto max-h-[640px] overflow-y-auto border border-slate-200 rounded-xl">
+                  <table class="w-full text-left border-collapse text-xs">
+                    <thead class="sticky top-0 z-10 bg-slate-100 text-slate-700 border-b border-slate-200 uppercase text-[10px]">
+                      <tr>
+                        <th class="py-2.5 px-3">Nama, NIK & Login</th>
+                        <th class="py-2.5 px-3">Jabatan & Role</th>
+                        <th class="py-2.5 px-3">Hak Akses</th>
+                        <th class="py-2.5 px-3">Live GPS Terakhir</th>
+                        <th class="py-2.5 px-3 text-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody id="admin-users-tbody" class="divide-y divide-slate-100"></tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>

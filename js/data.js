@@ -98,10 +98,112 @@ const DEFAULT_SETTINGS = {
   autoSyncGDrive: true
 };
 
-// Hanya menyisakan akun akses sistem dasar (Tanpa nama/data dummy)
+// Data Karyawan hasil ekstraksi "Data_Karyawan_NIK.xlsx" (Nama, NIK, JABATAN)
+const EMPLOYEE_NIK_SEED_ROWS = [
+  { name: 'Aan Bagus Permana', nik: '210822947', jabatan: 'Regional Bestie' },
+  { name: 'Anggi Novita', nik: '230723742', jabatan: 'Regional Bestie' },
+  { name: 'Bagus Pradika', nik: '210823002', jabatan: 'Regional Bestie' },
+  { name: 'Cindy Silvia Sahyu', nik: '210923054', jabatan: 'Regional Bestie' },
+  { name: 'Edi Sukarno', nik: '210822948', jabatan: 'Regional Bestie' },
+  { name: 'Fajar Saputra', nik: '230623709', jabatan: 'Regional Bestie' },
+  { name: 'Fendi Setiawan', nik: '230523581', jabatan: 'Regional Bestie' },
+  { name: 'Fiqri Amatul Firdaus', nik: '210923070', jabatan: 'Regional Bestie' },
+  { name: 'Karlina Endah Puji Astuti', nik: '211123186', jabatan: 'Regional Bestie' },
+  { name: 'Malik Ibrahim', nik: '200622511', jabatan: 'Regional Bestie' },
+  { name: 'Muhammad Fikri', nik: '230723758', jabatan: 'Regional Bestie' },
+  { name: 'Novilya Dwi Rahman', nik: '201222610', jabatan: 'Regional Bestie' },
+  { name: 'Rani Ismawati', nik: '210722912', jabatan: 'Regional Bestie' },
+  { name: 'Rully Alfandi', nik: '210822981', jabatan: 'Regional Bestie' },
+  { name: 'Seftiana Putri Rahmawati', nik: '220623417', jabatan: 'Regional Bestie' },
+  { name: 'Tia Fitri', nik: '230523599', jabatan: 'Regional Bestie' },
+  { name: 'Widia Astuti', nik: '170621535', jabatan: 'Regional Bestie' },
+  { name: 'Yuyun Yuliyanti', nik: '230823803', jabatan: 'Regional Bestie' }
+];
+
+function mapEmployeeRowToUserObject(row, index = 0, options = {}) {
+  const rawName = String(row.name || row.Nama || '').trim();
+  const rawNik = String(row.nik || row.NIK || '').trim();
+  const rawJabatan = String(row.jabatan || row.JABATAN || 'Regional Bestie').trim();
+  const rawUsername = String(row.username || '').trim().toLowerCase();
+  const rawPassword = String(row.password || '').trim();
+  const rawRegion = String(row.region || '').trim();
+  const rawEmail = String(row.email || '').trim();
+
+  const cleanSlug = rawName.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const username = rawUsername || (rawNik ? rawNik.toLowerCase() : cleanSlug || `user${index + 1}`);
+  const passwordMode = options.passwordMode || 'nik';
+  const password =
+    rawPassword ||
+    (passwordMode === 'default123'
+      ? '123'
+      : rawNik || '123');
+
+  const jabLower = rawJabatan.toLowerCase();
+  let role = 'AUDITOR';
+  let roleBadge = 'Visitor / Regional Bestie';
+  let authorities = ['view_home', 'view_analytics', 'create_visit', 'export_pdf'];
+
+  if (jabLower.includes('super admin')) {
+    role = 'SUPER_ADMIN';
+    roleBadge = 'Super Admin FMCU';
+    authorities = [
+      'view_home',
+      'view_analytics',
+      'create_visit',
+      'export_pdf',
+      'manage_schedule',
+      'manage_stores',
+      'manage_users',
+      'manage_integrations'
+    ];
+  } else if (
+    jabLower.includes('admin jadwal') ||
+    jabLower.includes('regional manager') ||
+    jabLower.includes('area manager') ||
+    jabLower === 'rm' ||
+    jabLower === 'am'
+  ) {
+    role = 'ADMIN_SCHEDULE';
+    roleBadge = rawJabatan ? `Admin Jadwal (${rawJabatan})` : 'Admin Jadwal';
+    authorities = ['view_home', 'view_analytics', 'create_visit', 'export_pdf', 'manage_schedule'];
+  } else {
+    role = 'AUDITOR';
+    if (jabLower.includes('visitor')) {
+      roleBadge = rawJabatan;
+    } else if (rawJabatan) {
+      roleBadge = `Visitor / ${rawJabatan}`;
+    } else {
+      roleBadge = 'Visitor / Regional Bestie';
+    }
+  }
+
+  const palette = ['#0099A6', '#009944', '#0284C7', '#0D9488', '#059669', '#2563EB'];
+  return {
+    id: rawNik ? `usr-${rawNik}` : `usr-${username}`,
+    nik: rawNik,
+    jabatan: rawJabatan || 'Regional Bestie',
+    username,
+    password,
+    name: rawName,
+    email: rawEmail,
+    role,
+    roleBadge,
+    region: rawRegion || '-',
+    phone: '',
+    avatarColor: role === 'SUPER_ADMIN' ? '#009944' : palette[index % palette.length],
+    active: true,
+    authorities,
+    _v2AuthSchema: true,
+    lastLocation: null
+  };
+}
+
+// Akun akses sistem dasar + 18 Karyawan dari Data_Karyawan_NIK.xlsx
 const INITIAL_USERS = [
   {
     id: 'usr-admin',
+    nik: 'ADMIN',
+    jabatan: 'Super Admin FMCU',
     username: 'admin',
     password: '123',
     name: 'Admin FMCU',
@@ -123,23 +225,10 @@ const INITIAL_USERS = [
       'manage_users',
       'manage_integrations'
     ],
+    _v2AuthSchema: true,
     lastLocation: null
   },
-  {
-    id: 'usr-auditor',
-    username: 'auditor',
-    password: '123',
-    name: 'Visitor FMCU',
-    email: '',
-    role: 'AUDITOR',
-    roleBadge: 'Visitor / Regional Bestie',
-    region: '-',
-    phone: '',
-    avatarColor: '#0099A6',
-    active: true,
-    authorities: ['view_home', 'create_visit', 'view_analytics', 'export_pdf', 'live_checkin'],
-    lastLocation: null
-  }
+  ...EMPLOYEE_NIK_SEED_ROWS.map((row, idx) => mapEmployeeRowToUserObject(row, idx, { passwordMode: 'nik' }))
 ];
 
 function sanitizeForFirestore(obj) {
@@ -192,7 +281,11 @@ function prepareReportForFirestore(report) {
 window.FMCUData = {
   FINDING_PRESETS,
   FIREBASE_CONFIG,
+  DEFAULT_USERS: INITIAL_USERS,
+  EMPLOYEE_NIK_SEED_ROWS,
+  mapEmployeeRowToUserObject,
   DEFAULT_EXCEL_FILE_PATH: '10. List PIC Oktober 2026_rev01.xlsx',
+  DEFAULT_USER_EXCEL_FILE_PATH: 'Data_Karyawan_NIK.xlsx',
   SESSION_TIMEOUT_MS: 15 * 60 * 1000, // 15 menit batas waktu sesi idle
   TAB_UNLOAD_KEY: 'fmcu_tab_unload_ts_v2',
   firebaseApp: null,
@@ -228,6 +321,20 @@ window.FMCUData = {
 
     if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(INITIAL_USERS));
+    } else {
+      // Pastikan 18 karyawan dari Data_Karyawan_NIK.xlsx otomatis ter-seed jika belum ada
+      const existingUsers = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
+      const existingNiks = new Set(existingUsers.map((u) => String(u.nik || u.username || '').toLowerCase()));
+      let addedSeed = false;
+      EMPLOYEE_NIK_SEED_ROWS.forEach((row, idx) => {
+        if (!existingNiks.has(String(row.nik).toLowerCase())) {
+          existingUsers.push(mapEmployeeRowToUserObject(row, idx, { passwordMode: 'nik' }));
+          addedSeed = true;
+        }
+      });
+      if (addedSeed) {
+        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(existingUsers));
+      }
     }
 
     // Otomatis isi Master Toko dari hasil ekstraksi "10. List PIC Oktober 2026_rev01.xlsx" jika masih kosong
@@ -377,6 +484,136 @@ window.FMCUData = {
   },
 
   // ==========================================================================
+  // EKSTRAKTOR FILE EXCEL DATA KARYAWAN / USER MASSAL (.XLSX / .XLS / .CSV)
+  // Membaca format tabel seperti "Data_Karyawan_NIK.xlsx" dengan kolom:
+  //   - Nama / Nama Lengkap / Nama Karyawan
+  //   - NIK / Nomor Induk Karyawan / NIP (otomatis menjadi Username & Password)
+  //   - JABATAN / Role / Posisi (misal: Regional Bestie, Admin Jadwal, dll.)
+  //   - Opsional: Username, Password, Region / Area, Email
+  // ==========================================================================
+  parseUsersFromExcelArrayBuffer(arrayBuffer, options = {}) {
+    if (typeof window.XLSX === 'undefined') {
+      throw new Error('Library SheetJS (XLSX) belum termuat di browser.');
+    }
+
+    const workbook = window.XLSX.read(arrayBuffer, { type: 'array' });
+    const targetSheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[targetSheetName];
+    if (!worksheet) {
+      throw new Error('Sheet data karyawan/user tidak ditemukan di dalam file Excel.');
+    }
+
+    const rows = window.XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+    if (!rows || rows.length === 0) {
+      throw new Error('File Excel kosong.');
+    }
+
+    let headerRowIndex = -1;
+    let colMap = {};
+
+    for (let r = 0; r < Math.min(rows.length, 20); r++) {
+      const rowCells = (rows[r] || []).map((cell) => String(cell || '').trim().toLowerCase());
+      const hasName = rowCells.some((c) =>
+        ['nama', 'nama lengkap', 'nama karyawan', 'name', 'full name', 'nama user'].includes(c)
+      );
+      const hasSecondCol = rowCells.some((c) =>
+        [
+          'nik',
+          'no nik',
+          'nomor induk karyawan',
+          'nip',
+          'id karyawan',
+          'jabatan',
+          'role',
+          'posisi',
+          'position',
+          'username'
+        ].includes(c)
+      );
+
+      if (hasName && hasSecondCol) {
+        headerRowIndex = r;
+        rowCells.forEach((colName, idx) => {
+          if (['nama', 'nama lengkap', 'nama karyawan', 'name', 'full name', 'nama user'].includes(colName)) {
+            colMap.name = idx;
+          } else if (['nik', 'no nik', 'nomor induk karyawan', 'nip', 'id karyawan', 'employee id'].includes(colName)) {
+            colMap.nik = idx;
+          } else if (['jabatan', 'role', 'posisi', 'position', 'title', 'level'].includes(colName)) {
+            colMap.jabatan = idx;
+          } else if (['username', 'user login', 'akun'].includes(colName)) {
+            colMap.username = idx;
+          } else if (['password', 'pin', 'kata sandi', 'pass'].includes(colName)) {
+            colMap.password = idx;
+          } else if (['region', 'area', 'wilayah', 'cabang'].includes(colName)) {
+            colMap.region = idx;
+          } else if (['email', 'e-mail', 'alamat email'].includes(colName)) {
+            colMap.email = idx;
+          }
+        });
+        break;
+      }
+    }
+
+    if (headerRowIndex === -1 || colMap.name === undefined) {
+      throw new Error(
+        'Header kolom "Nama" dan "NIK" / "JABATAN" tidak ditemukan. Pastikan tabel Excel memiliki kolom: Nama, NIK, JABATAN (seperti pada Data_Karyawan_NIK.xlsx).'
+      );
+    }
+
+    const extractedUsers = [];
+    for (let i = headerRowIndex + 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.length === 0) continue;
+
+      const rawName = String(row[colMap.name] ?? '').trim();
+      const rawNik = colMap.nik !== undefined ? String(row[colMap.nik] ?? '').trim() : '';
+      const rawJabatan =
+        colMap.jabatan !== undefined ? String(row[colMap.jabatan] ?? '').trim() : 'Regional Bestie';
+      const rawUsername = colMap.username !== undefined ? String(row[colMap.username] ?? '').trim() : '';
+      const rawPassword = colMap.password !== undefined ? String(row[colMap.password] ?? '').trim() : '';
+      const rawRegion = colMap.region !== undefined ? String(row[colMap.region] ?? '').trim() : '';
+      const rawEmail = colMap.email !== undefined ? String(row[colMap.email] ?? '').trim() : '';
+
+      if (!rawName && !rawNik) continue;
+
+      const userObj = mapEmployeeRowToUserObject(
+        {
+          name: rawName || `User ${rawNik}`,
+          nik: rawNik,
+          jabatan: rawJabatan || 'Regional Bestie',
+          username: rawUsername,
+          password: rawPassword,
+          region: rawRegion,
+          email: rawEmail
+        },
+        extractedUsers.length,
+        options
+      );
+      extractedUsers.push(userObj);
+    }
+
+    return extractedUsers;
+  },
+
+  // Membaca langsung file "Data_Karyawan_NIK.xlsx" dari root folder project
+  async fetchAndExtractProjectUserExcelFile(options = {}) {
+    try {
+      const response = await fetch(encodeURI(this.DEFAULT_USER_EXCEL_FILE_PATH));
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const buffer = await response.arrayBuffer();
+      const parsed = this.parseUsersFromExcelArrayBuffer(buffer, options);
+      if (parsed.length > 0) {
+        return parsed;
+      }
+    } catch (err) {
+      console.warn('Menggunakan pre-extracted seed dari Data_Karyawan_NIK.xlsx:', err);
+    }
+    return EMPLOYEE_NIK_SEED_ROWS.map((row, idx) => mapEmployeeRowToUserObject(row, idx, options));
+  },
+
+  // ==========================================================================
   // CLOUD FIRESTORE INITIALIZATION & REAL-TIME LISTENERS
   // ==========================================================================
   initFirestore() {
@@ -462,6 +699,24 @@ window.FMCUData = {
         });
 
         if (cloudUsers.length > 0) {
+          // One-time auto-seed 18 karyawan Data_Karyawan_NIK.xlsx ke Cloud Firestore apabila belum ada di database
+          if (!localStorage.getItem('fmcu_employee_nik_cloud_seeded_v1')) {
+            localStorage.setItem('fmcu_employee_nik_cloud_seeded_v1', '1');
+            const cloudNikSet = new Set(cloudUsers.map((u) => String(u.nik || u.username || '').toLowerCase()));
+            EMPLOYEE_NIK_SEED_ROWS.forEach((row, idx) => {
+              if (!cloudNikSet.has(String(row.nik).toLowerCase())) {
+                const seededU = mapEmployeeRowToUserObject(row, idx, { passwordMode: 'nik' });
+                cloudUsers.push(seededU);
+                const docId = String(seededU.id || seededU.username);
+                this.db
+                  .collection('users')
+                  .doc(docId)
+                  .set(sanitizeForFirestore({ ...seededU, id: docId, updatedAt: new Date().toISOString() }), { merge: true })
+                  .catch(() => {});
+              }
+            });
+          }
+
           localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(cloudUsers));
           const activeSession = this.getSession();
           if (activeSession) {
