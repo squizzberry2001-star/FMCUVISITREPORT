@@ -1,6 +1,6 @@
 # FMCU VISIT STORE REPORT
 
-Platform Web App Audit Kunjungan Toko (**FamilyMart Indonesia - FMCU**), dilengkapi dengan Analitik Performa & Aktivitas Auditor, Trend Temuan & Trend Toko, Manajemen Jadwal Visit, Kontrol Otoritas Login (RBAC), Pemantauan **Live Location GPS**, Perekaman **Actual In & Actual Out**, serta Generator Laporan **PDF 16:9 Landscape** otomatis yang terintegrasi ke **Email & Folder Google Drive**.
+Platform Web App Audit Kunjungan Toko (**FamilyMart Corporate University - FMCU**), dilengkapi dengan Analitik Performa & Aktivitas Auditor, Trend Temuan & Trend Toko, Manajemen Jadwal Visit, Kontrol Otoritas Login (RBAC), Pemantauan **Live Location GPS**, Perekaman **Actual In & Actual Out**, serta Generator Laporan **PDF 16:9 Landscape** otomatis yang terintegrasi ke **Email & Folder Google Drive**.
 
 ---
 
