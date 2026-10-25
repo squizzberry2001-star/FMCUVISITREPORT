@@ -129,10 +129,10 @@ const INITIAL_USERS = [
     id: 'usr-auditor',
     username: 'auditor',
     password: '123',
-    name: 'Auditor FMCU',
+    name: 'Visitor FMCU',
     email: '',
     role: 'AUDITOR',
-    roleBadge: 'Auditor / Regional Bestie',
+    roleBadge: 'Visitor / Regional Bestie',
     region: '-',
     phone: '',
     avatarColor: '#0099A6',
@@ -690,7 +690,12 @@ window.FMCUData = {
   // CRUD METHODS (WRITE-THROUGH KE LOCALSTORAGE + CLOUD FIRESTORE)
   // ==========================================================================
   getUsers() {
-    return JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
+    return raw.map((u) => ({
+      ...u,
+      name: u.name === 'Auditor FMCU' ? 'Visitor FMCU' : u.name,
+      roleBadge: String(u.roleBadge || '').replace(/Auditor/gi, 'Visitor')
+    }));
   },
   saveUsers(users) {
     const prevUsers = this.getUsers();

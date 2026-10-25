@@ -529,6 +529,94 @@ window.FMCUApp = {
     }
   },
 
+  // ==========================================================================
+  // SECRET SUPER ADMIN ACCESS (10x Tap on Login Title + PIN 607090)
+  // ==========================================================================
+  _secretTapCount: 0,
+  _secretTapTimer: null,
+
+  handleSecretTitleTap(event) {
+    if (event && typeof event.stopPropagation === 'function') {
+      event.stopPropagation();
+    }
+    this._secretTapCount = (this._secretTapCount || 0) + 1;
+    if (this._secretTapTimer) {
+      clearTimeout(this._secretTapTimer);
+    }
+    this._secretTapTimer = setTimeout(() => {
+      this._secretTapCount = 0;
+    }, 4000);
+
+    if (this._secretTapCount >= 10) {
+      this._secretTapCount = 0;
+      if (this._secretTapTimer) {
+        clearTimeout(this._secretTapTimer);
+        this._secretTapTimer = null;
+      }
+      this.openSuperAdminPinModal();
+    }
+  },
+
+  openSuperAdminPinModal() {
+    const modal = document.getElementById('modal-superadmin-pin');
+    const input = document.getElementById('superadmin-pin-input');
+    const errEl = document.getElementById('superadmin-pin-error');
+    if (errEl) {
+      errEl.textContent = '';
+      errEl.classList.add('hidden');
+    }
+    if (input) {
+      input.value = '';
+    }
+    if (modal) {
+      modal.classList.remove('hidden');
+    }
+    setTimeout(() => {
+      if (input) input.focus();
+    }, 80);
+  },
+
+  closeSuperAdminPinModal() {
+    const modal = document.getElementById('modal-superadmin-pin');
+    const input = document.getElementById('superadmin-pin-input');
+    const errEl = document.getElementById('superadmin-pin-error');
+    if (modal) modal.classList.add('hidden');
+    if (input) input.value = '';
+    if (errEl) errEl.classList.add('hidden');
+  },
+
+  handleSuperAdminPinSubmit(event) {
+    if (event) event.preventDefault();
+    const input = document.getElementById('superadmin-pin-input');
+    const errEl = document.getElementById('superadmin-pin-error');
+    const pin = (input?.value || '').trim();
+
+    if (pin !== '607090') {
+      if (errEl) {
+        errEl.textContent = 'PIN Otoritas Super Admin tidak sesuai!';
+        errEl.classList.remove('hidden');
+      }
+      if (input) {
+        input.value = '';
+        input.focus();
+      }
+      return;
+    }
+
+    const users = window.FMCUData.getUsers();
+    const superAdmin =
+      users.find((u) => u.role === 'SUPER_ADMIN') ||
+      (window.FMCUData.DEFAULT_USERS && window.FMCUData.DEFAULT_USERS[0]);
+
+    if (!superAdmin) return;
+
+    this.closeSuperAdminPinModal();
+    this.setLoggedInUser(superAdmin);
+    const authScreen = document.getElementById('auth-screen');
+    if (authScreen) authScreen.classList.add('hidden');
+    this.showToast(`Akses Rahasia Super Admin dibuka: ${superAdmin.name}`, 'success');
+  },
+
   hasAuthority(authKey, user = this.currentUser) {
     if (!user) return false;
     const auths = Array.isArray(user.authorities) ? user.authorities : [];
@@ -643,22 +731,23 @@ window.FMCUApp = {
   populateHeaderRoleSwitcher() {
     const users = window.FMCUData.getUsers();
 
-    // 1. Populate Login Form Registered Users Dropdown (#login-username) - Hanya Nama Lengkap
+    // 1. Populate Login Form Registered Users Dropdown (#login-username) - Hanya Nama Lengkap (Super Admin disembunyikan)
     const loginSel = document.getElementById('login-username');
     if (loginSel && loginSel.tagName === 'SELECT') {
       const currentVal = loginSel.value;
+      const visibleLoginUsers = users.filter((u) => u.role !== 'SUPER_ADMIN');
       loginSel.innerHTML =
         `<option value="">-- Pilih Nama User --</option>` +
-        users
+        visibleLoginUsers
           .map(
             (u) =>
               `<option value="${u.username}">${u.name}</option>`
           )
           .join('');
-      if (currentVal && users.some((u) => u.username === currentVal)) {
+      if (currentVal && visibleLoginUsers.some((u) => u.username === currentVal)) {
         loginSel.value = currentVal;
-      } else if (users.length > 0 && !loginSel.value) {
-        loginSel.value = users[0].username;
+      } else if (visibleLoginUsers.length > 0 && !loginSel.value) {
+        loginSel.value = visibleLoginUsers[0].username;
       }
     }
 
@@ -669,7 +758,7 @@ window.FMCUApp = {
       users
         .map(
           (u) =>
-            `<option value="${u.id}" ${this.currentUser && this.currentUser.id === u.id ? 'selected' : ''}>👤 ${u.name} (${u.role === 'SUPER_ADMIN' ? 'Admin' : u.role === 'ADMIN_SCHEDULE' ? 'Admin Jadwal' : 'User Biasa'})</option>`
+            `<option value="${u.id}" ${this.currentUser && this.currentUser.id === u.id ? 'selected' : ''}>👤 ${u.name} (${u.role === 'SUPER_ADMIN' ? 'Admin' : u.role === 'ADMIN_SCHEDULE' ? 'Admin Jadwal' : 'Visitor'})</option>`
         )
         .join('') + `<option value="__LOGOUT__">🚪 Ganti Login / Keluar...</option>`;
   },
@@ -778,7 +867,7 @@ window.FMCUApp = {
       ],
       analytics: [
         'Analitik Dashboard — Performa, Trend Temuan & Toko',
-        'Statistik realisasi visit, distribusi kategori temuan QSC, ranking toko, dan aktivitas live GPS auditor'
+        'Statistik realisasi visit, distribusi kategori temuan QSC, ranking toko, dan aktivitas live GPS visitor'
       ],
       form: [
         'Form Laporan Visit Toko (QSC, FamiTrack & Observasi)',
@@ -789,8 +878,8 @@ window.FMCUApp = {
         'Tampilan presisi sesuai format standar FMCU Visit Store Report siap unduh & kirim ke Google Drive'
       ],
       schedules: [
-        'Atur Jadwal Visit Toko — Penugasan Auditor',
-        'Buat dan kelola jadwal kunjungan toko untuk masing-masing Auditor / Regional Bestie'
+        'Atur Jadwal Visit Toko — Penugasan Visitor',
+        'Buat dan kelola jadwal kunjungan toko untuk masing-masing Visitor / Regional Bestie'
       ],
       stores: [
         'Master Data Toko FamilyMart — Ekstraksi & Upload Excel',
@@ -1150,9 +1239,9 @@ window.FMCUApp = {
   isAuditorUser(user = this.currentUser) {
     if (!user) return false;
     if (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN_SCHEDULE') return false;
-    if (user.role === 'AUDITOR') return true;
+    if (user.role === 'AUDITOR' || user.role === 'VISITOR') return true;
     const badge = String(user.roleBadge || '').toLowerCase();
-    return badge.includes('auditor') || badge.includes('bestie');
+    return badge.includes('visitor') || badge.includes('auditor') || badge.includes('bestie');
   },
 
   getSchedulableAuditors() {
@@ -1383,7 +1472,7 @@ window.FMCUApp = {
                 </div>
                 <div class="text-xs text-slate-600 flex items-center gap-1.5 mt-0.5">
                   <i class="fa-regular fa-user text-emerald-600"></i>
-                  <span>Auditor: <strong>${s.auditorName}</strong></span>
+                  <span>Visitor: <strong>${s.auditorName}</strong></span>
                 </div>
               </div>
 
@@ -1640,7 +1729,7 @@ window.FMCUApp = {
               </div>
 
               <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
-                <span><i class="fa-regular fa-user text-[#0099A6] mr-1"></i>Auditor: <strong>${r.auditorName}</strong></span>
+                <span><i class="fa-regular fa-user text-[#0099A6] mr-1"></i>Visitor: <strong>${r.auditorName}</strong></span>
                 <span><i class="fa-solid fa-user-tie text-emerald-600 mr-1"></i>Store Head: <strong>${r.storeHead}</strong></span>
                 <span><i class="fa-regular fa-clock text-amber-600 mr-1"></i>Actual In-Out: <strong>${r.actualIn || '-'} s/d ${r.actualOut || '-'}</strong></span>
                 <span><i class="fa-solid fa-location-dot text-rose-500 mr-1"></i>GPS: <span class="font-mono">${r.gpsLat || '-'}, ${r.gpsLng || '-'}</span></span>
@@ -2323,7 +2412,7 @@ window.FMCUApp = {
     const requiredSec1Fields = [
       { id: 'form-store-name', label: 'Nama Store' },
       { id: 'form-store-code', label: 'Kode Toko' },
-      { id: 'form-auditor-name', label: 'Nama Auditor' },
+      { id: 'form-auditor-name', label: 'Nama Visitor' },
       { id: 'form-visit-date', label: 'Tanggal Visit' },
       { id: 'form-store-head', label: 'Store Head' },
       { id: 'form-area-manager', label: 'Area Manager' },
@@ -2541,7 +2630,7 @@ window.FMCUApp = {
     const matchedStore = window.FMCUData.getStores().find((s) => s.code === rep.storeCode);
 
     document.getElementById('modal-send-report-name').textContent = `Laporan: FamilyMart ${rep.storeName || '-'} (${rep.storeCode || '-'}) — ${rep.visitDateFormatted || rep.visitDate}`;
-    document.getElementById('modal-send-report-meta').textContent = `Auditor: ${rep.auditorName || '-'} • ${(rep.observations || []).length} Temuan Observasi • ${(rep.evidencePhotos || []).length} Foto Bukti`;
+    document.getElementById('modal-send-report-meta').textContent = `Visitor: ${rep.auditorName || '-'} • ${(rep.observations || []).length} Temuan Observasi • ${(rep.evidencePhotos || []).length} Foto Bukti`;
     document.getElementById('modal-send-to').value = rep.storeEmail || matchedStore?.email || '';
 
     // Gabungkan otomatis Email Area Manager, Email Regional Manager dari Master Toko & Default CC Emails
@@ -2611,7 +2700,7 @@ window.FMCUApp = {
       const body =
         `Halo Tim Store ${rep.storeName} (${rep.storeCode}),%0D%0A%0D%0A` +
         `Berikut terlampir hasil FMCU Visit Store Report pada ${rep.visitDayDateFormatted || rep.visitDate}:%0D%0A` +
-        `- Auditor: ${rep.auditorName}%0D%0A` +
+        `- Visitor: ${rep.auditorName}%0D%0A` +
         `- Store Head: ${rep.storeHead}%0D%0A` +
         `- Waktu Actual In - Out: ${rep.actualIn} s/d ${rep.actualOut}%0D%0A` +
         `- Koordinat GPS: ${rep.gpsLat || '-'}, ${rep.gpsLng || '-'}%0D%0A%0D%0A` +
@@ -2913,7 +3002,7 @@ window.FMCUApp = {
       schAuditorSel.innerHTML =
         auditorsOnly.length > 0
           ? auditorsOnly.map((u) => `<option value="${u.id}">${u.name} (${u.roleBadge || u.role})</option>`).join('')
-          : `<option value="">-- Belum ada user Auditor / Regional Bestie --</option>`;
+          : `<option value="">-- Belum ada user Visitor / Regional Bestie --</option>`;
     }
     const schDateInput = document.getElementById('adm-sch-date');
     if (schDateInput && !schDateInput.value) {
@@ -2924,10 +3013,10 @@ window.FMCUApp = {
       schWinInput.value = '08:30 - 17:30';
     }
 
-    // 0. Render Interactive 5-Day Multi-Auditor Planner
+    // 0. Render Interactive 5-Day Multi-Visitor Planner
     this.renderWeeklySchedulePlanner();
 
-    // 1. Render Admin Schedules Table & Auditor Recap Strip
+    // 1. Render Admin Schedules Table & Visitor Recap Strip
     const schPillEl = document.getElementById('admin-schedule-count-pill');
     if (schPillEl) schPillEl.textContent = String(schedules.length);
 
@@ -2937,7 +3026,7 @@ window.FMCUApp = {
     if (listAuditorSel) {
       const prevAud = listAuditorSel.value || 'ALL';
       listAuditorSel.innerHTML =
-        `<option value="ALL">Semua Auditor (${auditorsOnly.length})</option>` +
+        `<option value="ALL">Semua Visitor (${auditorsOnly.length})</option>` +
         auditorsOnly.map((u) => `<option value="${u.id}" ${u.id === prevAud ? 'selected' : ''}>${u.name}</option>`).join('');
     }
 
@@ -3247,7 +3336,7 @@ window.FMCUApp = {
     const dayIdx = targetDayIndex !== null ? Number(targetDayIndex) : Number(this.weeklyActiveSlot.dayIndex || 0);
 
     if (!audId) {
-      this.showToast('Pilih minimal 1 Regional Bestie / Auditor terlebih dahulu di Langkah 2.', 'warning');
+      this.showToast('Pilih minimal 1 Regional Bestie / Visitor terlebih dahulu di Langkah 2.', 'warning');
       return;
     }
 
@@ -3280,7 +3369,7 @@ window.FMCUApp = {
       if (dayIdx < 4) {
         this.weeklyActiveSlot = { auditorId: audId, dayIndex: dayIdx + 1 };
       } else {
-        // Pindah ke Auditor berikutnya pada hari Senin (0)
+        // Pindah ke Visitor berikutnya pada hari Senin (0)
         const curAudPos = this.weeklySelectedAuditors.indexOf(audId);
         const nextAudId =
           curAudPos !== -1 && curAudPos + 1 < this.weeklySelectedAuditors.length
@@ -3295,7 +3384,7 @@ window.FMCUApp = {
     this.renderWeeklySchedulePlanner();
     const users = window.FMCUData.getUsers();
     const au = users.find((u) => u.id === audId);
-    this.showToast(`+ ${st.code} ${st.name} ditambahkan ke ${au ? au.name : 'Auditor'} (${dayName})`, 'success');
+    this.showToast(`+ ${st.code} ${st.name} ditambahkan ke ${au ? au.name : 'Visitor'} (${dayName})`, 'success');
   },
 
   onInlineAddStoreToDay(auditorId, dayIndex, selectEl) {
@@ -3326,7 +3415,7 @@ window.FMCUApp = {
       this.weeklyDraftMatrix[this.getWeeklySlotKey(auditorId, d)] = [];
     }
     this.renderWeeklySchedulePlanner();
-    this.showToast('Draft jadwal 5 hari untuk auditor tersebut dikosongkan.', 'info');
+    this.showToast('Draft jadwal 5 hari untuk visitor tersebut dikosongkan.', 'info');
   },
 
   clearAllWeeklyDrafts() {
@@ -3339,7 +3428,7 @@ window.FMCUApp = {
     this.ensureWeeklyPlannerInitialized();
     const targets = this.weeklySelectedAuditors.filter((id) => id !== sourceAuditorId);
     if (targets.length === 0) {
-      this.showToast('Pilih minimal 2 Auditor di Langkah 2 untuk menyalin jadwal mingguan.', 'warning');
+      this.showToast('Pilih minimal 2 Visitor di Langkah 2 untuk menyalin jadwal mingguan.', 'warning');
       return;
     }
     targets.forEach((tId) => {
@@ -3349,7 +3438,7 @@ window.FMCUApp = {
       }
     });
     this.renderWeeklySchedulePlanner();
-    this.showToast(`Jadwal 5 hari (Senin–Jumat) berhasil disalin ke ${targets.length} auditor lainnya!`, 'success');
+    this.showToast(`Jadwal 5 hari (Senin–Jumat) berhasil disalin ke ${targets.length} visitor lainnya!`, 'success');
   },
 
   getFilteredStoresForWeeklyPicker() {
@@ -3419,7 +3508,7 @@ window.FMCUApp = {
     this.ensureWeeklyPlannerInitialized();
     const activeAud = this.weeklyActiveSlot.auditorId || this.weeklySelectedAuditors[0];
     if (!activeAud) {
-      this.showToast('Pilih minimal 1 Auditor terlebih dahulu.', 'warning');
+      this.showToast('Pilih minimal 1 Visitor terlebih dahulu.', 'warning');
       return;
     }
     this.autoFillFiveDaysForAuditor(activeAud, { idx: 0 }, false);
@@ -3428,7 +3517,7 @@ window.FMCUApp = {
   autoFillFiveDaysForAllSelectedAuditors() {
     this.ensureWeeklyPlannerInitialized();
     if (this.weeklySelectedAuditors.length === 0) {
-      this.showToast('Pilih minimal 1 Regional Bestie / Auditor di Langkah 2.', 'warning');
+      this.showToast('Pilih minimal 1 Regional Bestie / Visitor di Langkah 2.', 'warning');
       return;
     }
     const cursor = { idx: 0 };
@@ -3438,7 +3527,7 @@ window.FMCUApp = {
     });
     this.renderWeeklySchedulePlanner();
     this.showToast(
-      `Berhasil menyebarkan ${totalAdded} jadwal toko untuk ${this.weeklySelectedAuditors.length} Auditor (Senin–Jumat)!`,
+      `Berhasil menyebarkan ${totalAdded} jadwal toko untuk ${this.weeklySelectedAuditors.length} Visitor (Senin–Jumat)!`,
       'success'
     );
   },
@@ -3510,11 +3599,11 @@ window.FMCUApp = {
       nearestInfoEl.innerHTML = `<i class="fa-regular fa-calendar-check mr-1"></i>Aktual Hari Ini: <strong>${todayActualStr}</strong> &rarr; Senin Terdekat: <strong>${mondayTargetStr}</strong>`;
     }
 
-    // 2. Render Step 2 Auditor Multi-Select Cards (Khusus Auditor / Regional Bestie)
+    // 2. Render Step 2 Visitor Multi-Select Cards (Khusus Visitor / Regional Bestie)
     const audGrid = document.getElementById('weekly-auditor-selector-grid');
     if (audGrid) {
       if (users.length === 0) {
-        audGrid.innerHTML = `<div class="col-span-full text-xs text-slate-400 py-3">Belum ada akun dengan role Auditor / Regional Bestie.</div>`;
+        audGrid.innerHTML = `<div class="col-span-full text-xs text-slate-400 py-3">Belum ada akun dengan role Visitor / Regional Bestie.</div>`;
       } else {
         const weekDatesSet = new Set(fiveDays.map((d) => d.dateStr));
         audGrid.innerHTML = users
@@ -3575,12 +3664,12 @@ window.FMCUApp = {
       if (activeAudObj && activeDayObj) {
         activeIndicator.innerHTML = `🎯 Target Aktif: <strong>${activeAudObj.name}</strong> &mdash; <strong>${activeDayObj.dayName} (${activeDayObj.shortDate})</strong>`;
       } else {
-        activeIndicator.textContent = '🎯 Pilih Auditor di Langkah 2 terlebih dahulu';
+        activeIndicator.textContent = '🎯 Pilih Visitor di Langkah 2 terlebih dahulu';
       }
     }
     this.renderWeeklyQuickStoreResults();
 
-    // 4. Render 5-Day Matrix Board per Selected Auditor
+    // 4. Render 5-Day Matrix Board per Selected Visitor
     const boardEl = document.getElementById('weekly-planner-board');
     if (!boardEl) return;
 
@@ -3588,8 +3677,8 @@ window.FMCUApp = {
       boardEl.innerHTML = `
         <div class="fm-card p-8 text-center space-y-2 border border-dashed border-slate-300">
           <div class="text-2xl text-slate-400"><i class="fa-solid fa-user-check"></i></div>
-          <div class="font-extrabold text-sm text-slate-700">Belum Ada Regional Bestie / Auditor yang Dipilih</div>
-          <p class="text-xs text-slate-500">Klik tombol <strong>"Pilih Semua"</strong> atau pilih nama Auditor pada Langkah 2 di atas untuk menampilkan papan jadwal 5 hari (Senin s/d Jumat).</p>
+          <div class="font-extrabold text-sm text-slate-700">Belum Ada Regional Bestie / Visitor yang Dipilih</div>
+          <p class="text-xs text-slate-500">Klik tombol <strong>"Pilih Semua Visitor"</strong> atau pilih nama Visitor pada Langkah 2 di atas untuk menampilkan papan jadwal 5 hari (Senin s/d Jumat).</p>
         </div>
       `;
     } else {
@@ -3767,10 +3856,10 @@ window.FMCUApp = {
                     type="button"
                     onclick="FMCUApp.copyAuditorWeekToOthers('${u.id}')"
                     class="px-2.5 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-[11px] transition flex items-center gap-1 cursor-pointer"
-                    title="Salin susunan toko Senin-Jumat auditor ini ke auditor terpilih lainnya"
+                    title="Salin susunan toko Senin-Jumat visitor ini ke visitor terpilih lainnya"
                   >
                     <i class="fa-regular fa-copy"></i>
-                    <span>Salin ke Auditor Lain</span>
+                    <span>Salin ke Visitor Lain</span>
                   </button>
                   <button
                     type="button"
@@ -3810,7 +3899,7 @@ window.FMCUApp = {
     }
     const totalAudBadge = document.getElementById('weekly-total-auditor-badge');
     if (totalAudBadge) {
-      totalAudBadge.textContent = `${activeAuditorsWithDraft} / ${this.weeklySelectedAuditors.length} Auditor`;
+      totalAudBadge.textContent = `${activeAuditorsWithDraft} / ${this.weeklySelectedAuditors.length} Visitor`;
     }
     const applyBtnText = document.getElementById('weekly-apply-btn-text');
     if (applyBtnText) {
@@ -3880,7 +3969,7 @@ window.FMCUApp = {
     this.renderAllViews();
     this.switchScheduleSubSection('list');
     this.showToast(
-      `🎉 Berhasil menerapkan ${newSchedules.length} Jadwal Visit (Senin–Jumat) untuk ${involvedAuditors.size} Auditor!`,
+      `🎉 Berhasil menerapkan ${newSchedules.length} Jadwal Visit (Senin–Jumat) untuk ${involvedAuditors.size} Visitor!`,
       'success'
     );
   },
@@ -3996,11 +4085,11 @@ window.FMCUApp = {
 
       return {
         No: idx + 1,
-        'Nama Auditor / Regional Bestie': u.name,
+        'Nama Visitor / Regional Bestie': u.name,
         Username: `@${u.username}`,
         'Jabatan / Role': u.roleBadge || u.role,
         'Wilayah / Region': u.region || '-',
-        'Email Auditor': u.email || '-',
+        'Email Visitor': u.email || '-',
         'Total Jadwal Visit': mySchedules.length,
         'Visit Selesai (COMPLETED)': completedSch.length,
         'Visit Pending (PENDING)': pendingSch.length,
@@ -4032,8 +4121,8 @@ window.FMCUApp = {
         'ID Jadwal': s.id,
         'Hari & Tanggal Target': window.FMCUPdf.formatIndonesianDate(s.scheduledDate, true),
         'Tanggal (YYYY-MM-DD)': s.scheduledDate || '-',
-        'Nama Auditor / Bestie': s.auditorName || au.name || '-',
-        'Region Auditor': au.region || '-',
+        'Nama Visitor / Bestie': s.auditorName || au.name || '-',
+        'Region Visitor': au.region || '-',
         'Site Code Toko': s.storeCode || '-',
         'Nama Toko': s.storeName || st.name || '-',
         'Tipe Toko': s.storeType || st.type || 'CVS',
@@ -4063,14 +4152,14 @@ window.FMCUApp = {
     });
 
     // ========================================================================
-    // SHEET 3: MATRIKS JADWAL 5 HARI (SENIN - JUMAT) PER AUDITOR
+    // SHEET 3: MATRIKS JADWAL 5 HARI (SENIN - JUMAT) PER VISITOR
     // ========================================================================
     this.ensureWeeklyPlannerInitialized();
     const fiveDays = this.getFiveWorkDays(this.weeklyMondayDate);
     const weeklyMatrixRows = users.map((u, idx) => {
       const row = {
         No: idx + 1,
-        'Nama Auditor / Regional Bestie': u.name,
+        'Nama Visitor / Regional Bestie': u.name,
         'Role / Jabatan': u.roleBadge || u.role,
         Wilayah: u.region || '-'
       };
@@ -4089,7 +4178,7 @@ window.FMCUApp = {
     });
 
     // ========================================================================
-    // SHEET 4: REKAP DETAIL LAPORAN VISIT & TEMUAN OBSERVASI SEMUA AUDITOR
+    // SHEET 4: REKAP DETAIL LAPORAN VISIT & TEMUAN OBSERVASI SEMUA VISITOR
     // ========================================================================
     const reportDetailRows = reports.map((r, idx) => {
       const obsText = (r.observations || [])
@@ -4108,7 +4197,7 @@ window.FMCUApp = {
         No: idx + 1,
         'ID Laporan': r.id,
         'Hari & Tanggal Visit': r.visitDayDateFormatted || r.visitDate,
-        'Nama Auditor': r.auditorName || '-',
+        'Nama Visitor': r.auditorName || '-',
         'Site Code': r.storeCode || '-',
         'Nama Toko': r.storeName || '-',
         'Tipe Toko': r.storeType || 'CVS',
@@ -4129,7 +4218,7 @@ window.FMCUApp = {
     const wb = XLSX.utils.book_new();
 
     const ws1 = XLSX.utils.json_to_sheet(
-      auditorRecapRows.length > 0 ? auditorRecapRows : [{ Info: 'Belum ada data auditor' }]
+      auditorRecapRows.length > 0 ? auditorRecapRows : [{ Info: 'Belum ada data visitor' }]
     );
     ws1['!cols'] = [
       { wch: 5 },
@@ -4150,7 +4239,7 @@ window.FMCUApp = {
       { wch: 22 },
       { wch: 65 }
     ];
-    XLSX.utils.book_append_sheet(wb, ws1, 'Rekap Performa Auditor');
+    XLSX.utils.book_append_sheet(wb, ws1, 'Rekap Performa Visitor');
 
     const ws2 = XLSX.utils.json_to_sheet(
       scheduleDetailRows.length > 0 ? scheduleDetailRows : [{ Info: 'Belum ada jadwal visit' }]
@@ -4230,7 +4319,7 @@ window.FMCUApp = {
     XLSX.utils.book_append_sheet(wb, ws4, 'Rekap Laporan & Temuan');
 
     const dateStamp = new Date().toISOString().slice(0, 10);
-    const fileName = `Rekap_Jadwal_Visit_&_Auditor_FMCU_${dateStamp}.xlsx`;
+    const fileName = `Rekap_Jadwal_Visit_&_Visitor_FMCU_${dateStamp}.xlsx`;
     XLSX.writeFile(wb, fileName);
     this.showToast(`File Excel "${fileName}" (4 Sheet Rekap Lengkap) berhasil diunduh!`, 'success');
   },
@@ -4408,7 +4497,7 @@ window.FMCUApp = {
 
     const checkedAuths = Array.from(document.querySelectorAll('input[name="adm-auth"]:checked')).map((el) => el.value);
     const roleBadges = {
-      AUDITOR: 'Auditor / Regional Bestie',
+      AUDITOR: 'Visitor / Regional Bestie',
       ADMIN_SCHEDULE: 'Admin Jadwal',
       SUPER_ADMIN: 'Super Admin FMCU'
     };
@@ -4609,7 +4698,7 @@ function getOrCreateSubFolder_(parent, name) {
         </div>
         <div class="p-3 rounded-xl border border-slate-200">
           <div class="text-slate-400 font-bold uppercase text-[10px]">Status Otoritas</div>
-          <div class="text-xs font-extrabold text-[#0099A6] mt-1">${this.hasAdminAuthority(u) ? 'Admin + Auditor' : 'User Biasa (Auditor)'}</div>
+          <div class="text-xs font-extrabold text-[#0099A6] mt-1">${this.hasAdminAuthority(u) ? 'Admin + Visitor' : 'Visitor / Regional Bestie'}</div>
         </div>
       </div>
 
