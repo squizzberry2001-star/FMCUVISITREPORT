@@ -713,11 +713,23 @@
                   </div>
                   <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tipe Toko *</label>
-                    <select id="form-store-type" class="fm-input font-semibold">
-                      <option value="CVS">CVS</option>
-                      <option value="FC">FC (FamiCafe)</option>
-                      <option value="KIOSK">KIOSK</option>
-                    </select>
+                    <input type="text" id="form-store-type" list="store-type-datalist" value="CVS" placeholder="CVS / FamiSuper / Housing..." class="fm-input font-semibold" />
+                    <datalist id="store-type-datalist">
+                      <option value="CVS"></option>
+                      <option value="FamiSuper"></option>
+                      <option value="Housing"></option>
+                      <option value="Office"></option>
+                      <option value="Mall"></option>
+                      <option value="Airport"></option>
+                      <option value="Hotel/ Rumah Sakit"></option>
+                      <option value="Public Area"></option>
+                      <option value="Container"></option>
+                      <option value="KIOS"></option>
+                      <option value="Koperasi"></option>
+                      <option value="Office Booth"></option>
+                      <option value="Food Truck"></option>
+                      <option value="FC"></option>
+                    </datalist>
                   </div>
                 </div>
 
@@ -1094,8 +1106,9 @@ service cloud.firestore {
                 <i class="fa-solid fa-calendar-plus text-[#009944] mr-1.5"></i>Buat / Assign Jadwal Visit Baru
               </h3>
               <form id="admin-schedule-form" onsubmit="FMCUApp.handleSaveSchedule(event)" class="space-y-3">
-                <div>
-                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Pilih Toko *</label>
+                <div class="space-y-1.5">
+                  <label class="block text-xs font-bold text-slate-700 uppercase">Pilih Toko (Dari Master Toko) *</label>
+                  <input type="text" id="adm-sch-store-search" oninput="FMCUApp.filterAdminScheduleStoreDropdown(this.value)" placeholder="🔍 Ketik Site / Nama Toko / City untuk filter cepat..." class="fm-input text-xs bg-slate-50" />
                   <select id="adm-sch-store" required class="fm-input"></select>
                 </div>
                 <div>
@@ -1152,84 +1165,180 @@ service cloud.firestore {
             </div>
           </div>
 
-          <!-- ADMIN TAB 2: MASTER DATA TOKO -->
-          <div id="admin-tab-stores" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div class="lg:col-span-4 fm-card p-5 space-y-4 self-start">
-              <h3 class="font-extrabold text-base text-slate-900 border-b border-slate-100 pb-3">
-                <i class="fa-solid fa-store text-[#0099A6] mr-1.5"></i>Tambah / Edit Master Toko
-              </h3>
-              <form id="admin-store-form" onsubmit="FMCUApp.handleSaveStore(event)" class="space-y-3">
-                <div class="grid grid-cols-2 gap-2">
-                  <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Kode Toko *</label>
-                    <input type="text" id="adm-st-code" required placeholder="Kode Toko" class="fm-input font-mono" />
+          <!-- ADMIN TAB 2: MASTER DATA TOKO (AUTO-EXTRACTED DARI EXCEL + UPLOAD EXCEL LANGSUNG) -->
+          <div id="admin-tab-stores" class="hidden space-y-6">
+
+            <!-- EXCEL UPLOAD & AUTO-EXTRACTION BANNER -->
+            <div class="fm-card p-5 bg-gradient-to-r from-emerald-50/80 via-white to-teal-50/80 border border-emerald-200 space-y-4">
+              <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div class="space-y-1">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="px-2.5 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-extrabold uppercase tracking-wider">
+                      <i class="fa-solid fa-file-excel mr-1"></i>Auto-Extract Excel Master Store
+                    </span>
+                    <span class="text-xs font-bold text-slate-600">File Aktif: <code>10. List PIC Oktober 2026_rev01.xlsx</code></span>
+                  </div>
+                  <h3 class="font-extrabold text-base text-slate-900">
+                    Upload & Ekstraksi Otomatis Master Data Toko dari File Excel (`.xlsx` / `.xls` / `.csv`)
+                  </h3>
+                  <p class="text-xs text-slate-600 leading-relaxed">
+                    Sistem secara otomatis membaca baris tabel dan mengekstraksi kolom:
+                    <strong>Site (Kode Toko)</strong>, <strong>Type</strong>, <strong>City</strong>, <strong>Address</strong>, <strong>Email</strong>, <strong>Store Mobile Phone</strong>, <strong>Store Head</strong>, <strong>Area Manager</strong>, <strong>Email Area Manager</strong>, <strong>Regional Manager</strong>, dan <strong>Email Regional Manager</strong>.
+                  </p>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2 shrink-0">
+                  <button type="button" onclick="FMCUApp.reloadDefaultExcelStores()" class="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-emerald-800 border border-emerald-300 font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                    <i class="fa-solid fa-rotate"></i>
+                    <span>Ekstrak Ulang <code>10. List PIC Oktober 2026_rev01.xlsx</code></span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Upload Excel Controls -->
+              <div class="p-4 rounded-xl bg-white border border-slate-200 grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                <div class="md:col-span-5">
+                  <label class="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">Pilih File Excel Master Store Baru (`.xlsx` / `.xls` / `.csv`)</label>
+                  <input type="file" id="adm-excel-file-input" accept=".xlsx,.xls,.csv" class="fm-input text-xs py-1.5 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer" />
+                </div>
+                <div class="md:col-span-4">
+                  <label class="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">Mode Penyimpanan Data</label>
+                  <select id="adm-excel-import-mode" class="fm-input text-xs font-semibold">
+                    <option value="replace">Ganti Seluruh Master Toko dengan File Excel Ini (Replace)</option>
+                    <option value="merge">Perbarui Site yang Sama & Tambah Toko Baru (Merge)</option>
+                  </select>
+                </div>
+                <div class="md:col-span-3">
+                  <button type="button" id="btn-upload-excel-stores" onclick="FMCUApp.handleUploadStoreExcel()" class="w-full fm-gradient text-white font-bold py-2.5 px-4 rounded-xl shadow-sm hover:opacity-95 transition text-xs flex items-center justify-center gap-1.5 cursor-pointer">
+                    <i class="fa-solid fa-file-import"></i>
+                    <span>Upload & Ekstraksi Excel</span>
+                  </button>
+                </div>
+              </div>
+              <div id="adm-excel-upload-status" class="hidden text-xs font-semibold p-3 rounded-xl"></div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <!-- Manual Add / Edit Store Form -->
+              <div class="lg:col-span-4 fm-card p-5 space-y-4 self-start">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <h3 class="font-extrabold text-base text-slate-900">
+                    <i class="fa-solid fa-store text-[#0099A6] mr-1.5"></i>Tambah / Edit Master Toko
+                  </h3>
+                  <button type="button" onclick="document.getElementById('admin-store-form').reset()" class="text-[11px] font-bold text-slate-400 hover:text-slate-600 cursor-pointer">Reset Form</button>
+                </div>
+                <form id="admin-store-form" onsubmit="FMCUApp.handleSaveStore(event)" class="space-y-3">
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Site (Kode Toko) *</label>
+                      <input type="text" id="adm-st-code" required placeholder="Contoh: 0001" class="fm-input font-mono font-bold" />
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Type *</label>
+                      <input type="text" id="adm-st-type" list="store-type-datalist" required placeholder="CVS / FamiSuper / Housing" value="CVS" class="fm-input font-semibold" />
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Toko (SiteDescr) *</label>
+                      <input type="text" id="adm-st-name" required placeholder="CIBUBUR" class="fm-input uppercase font-bold" />
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-slate-700 uppercase mb-1">City *</label>
+                      <input type="text" id="adm-st-city" required placeholder="Kota / Kabupaten" class="fm-input" />
+                    </div>
                   </div>
                   <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tipe Toko *</label>
-                    <select id="adm-st-type" class="fm-input">
-                      <option value="CVS">CVS</option>
-                      <option value="FC">FC</option>
-                      <option value="KIOSK">KIOSK</option>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Address *</label>
+                    <textarea id="adm-st-address" rows="2" required placeholder="Alamat lengkap toko..." class="fm-input text-xs"></textarea>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Email Toko</label>
+                      <input type="email" id="adm-st-email" placeholder="store.xxx@familymartindonesia.com" class="fm-input text-xs" />
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Store Mobile Phone</label>
+                      <input type="text" id="adm-st-phone" placeholder="0811xxxxxxx" class="fm-input font-mono text-xs" />
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Store Head *</label>
+                    <input type="text" id="adm-st-head" required placeholder="Nama Store Head" class="fm-input" />
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Area Manager *</label>
+                      <input type="text" id="adm-st-am" required placeholder="Nama Area Manager" class="fm-input text-xs" />
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Email Area Manager</label>
+                      <input type="email" id="adm-st-am-email" placeholder="am@familymartindonesia.com" class="fm-input text-xs" />
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Regional Manager *</label>
+                      <input type="text" id="adm-st-rm" required placeholder="Nama Regional Manager" class="fm-input text-xs" />
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Email Regional Manager</label>
+                      <input type="email" id="adm-st-rm-email" placeholder="rm@familymartindonesia.com" class="fm-input text-xs" />
+                    </div>
+                  </div>
+                  <button type="submit" class="w-full fm-gradient text-white font-bold py-2.5 rounded-xl shadow-sm hover:opacity-95 transition text-xs sm:text-sm cursor-pointer">
+                    <i class="fa-solid fa-floppy-disk mr-1"></i>Simpan Master Toko
+                  </button>
+                </form>
+              </div>
+
+              <!-- Master Store Table with Search & Filter -->
+              <div class="lg:col-span-8 fm-card p-5 space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                  <div>
+                    <h3 class="font-extrabold text-base text-slate-900">Database Master Toko FamilyMart</h3>
+                    <p class="text-[11px] text-slate-500">Menampilkan kolom hasil ekstraksi: Site, Type, City, Address, Email, Store Mobile Phone, Store Head, AM & Email AM, RM & Email RM</p>
+                  </div>
+                  <span id="admin-store-count" class="text-xs font-bold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 shrink-0">0 Toko</span>
+                </div>
+
+                <!-- Search, Type Filter & Row Limit Controls -->
+                <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                  <div class="sm:col-span-6">
+                    <input type="text" id="adm-store-search-input" oninput="FMCUApp.renderAdminStoresTable()" placeholder="🔍 Cari Site (0001), Nama Toko, City, Store Head, AM, RM..." class="fm-input text-xs" />
+                  </div>
+                  <div class="sm:col-span-3">
+                    <select id="adm-store-type-filter" onchange="FMCUApp.renderAdminStoresTable()" class="fm-input text-xs font-semibold">
+                      <option value="ALL">Semua Type Toko</option>
+                    </select>
+                  </div>
+                  <div class="sm:col-span-3">
+                    <select id="adm-store-limit-select" onchange="FMCUApp.renderAdminStoresTable()" class="fm-input text-xs font-semibold">
+                      <option value="50">Tampilkan 50 Baris</option>
+                      <option value="150">Tampilkan 150 Baris</option>
+                      <option value="300">Tampilkan 300 Baris</option>
+                      <option value="9999" selected>Tampilkan Semua Toko</option>
                     </select>
                   </div>
                 </div>
-                <div>
-                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Toko *</label>
-                  <input type="text" id="adm-st-name" required placeholder="Nama Toko" class="fm-input uppercase" />
-                </div>
-                <div>
-                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Store Head *</label>
-                  <input type="text" id="adm-st-head" required placeholder="Nama Store Head" class="fm-input" />
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                  <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Area Manager *</label>
-                    <input type="text" id="adm-st-am" required placeholder="Nama Area Manager" class="fm-input" />
-                  </div>
-                  <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Regional Manager *</label>
-                    <input type="text" id="adm-st-rm" required placeholder="Nama Regional Manager" class="fm-input" />
-                  </div>
-                </div>
-                <div>
-                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Email Resmi Toko</label>
-                  <input type="email" id="adm-st-email" placeholder="Email Toko" class="fm-input" />
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                  <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Latitude GPS</label>
-                    <input type="number" step="any" id="adm-st-lat" placeholder="Latitude" value="" class="fm-input font-mono" />
-                  </div>
-                  <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Longitude GPS</label>
-                    <input type="number" step="any" id="adm-st-lng" placeholder="Longitude" value="" class="fm-input font-mono" />
-                  </div>
-                </div>
-                <button type="submit" class="w-full fm-gradient text-white font-bold py-2.5 rounded-xl shadow-sm hover:opacity-95 transition text-xs sm:text-sm cursor-pointer">
-                  <i class="fa-solid fa-floppy-disk mr-1"></i>Simpan Master Toko
-                </button>
-              </form>
-            </div>
 
-            <div class="lg:col-span-8 fm-card p-5 space-y-4">
-              <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h3 class="font-extrabold text-base text-slate-900">Database Master Toko FamilyMart</h3>
-                <span id="admin-store-count" class="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">0 Toko</span>
-              </div>
-              <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr class="bg-slate-50 text-slate-600 border-y border-slate-200 uppercase">
-                      <th class="py-2.5 px-3">Kode</th>
-                      <th class="py-2.5 px-3">Nama Toko</th>
-                      <th class="py-2.5 px-3">Tipe</th>
-                      <th class="py-2.5 px-3">Store Head</th>
-                      <th class="py-2.5 px-3">AM / RM</th>
-                      <th class="py-2.5 px-3 text-right">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody id="admin-stores-tbody" class="divide-y divide-slate-100"></tbody>
-                </table>
+                <div class="overflow-x-auto max-h-[640px] overflow-y-auto border border-slate-200 rounded-xl">
+                  <table class="w-full text-left border-collapse text-xs">
+                    <thead class="sticky top-0 z-10 bg-slate-100 text-slate-700 border-b border-slate-200 uppercase text-[10px]">
+                      <tr>
+                        <th class="py-2.5 px-3">Site & Nama Toko</th>
+                        <th class="py-2.5 px-3">Type & City</th>
+                        <th class="py-2.5 px-3 min-w-[200px]">Address</th>
+                        <th class="py-2.5 px-3">Email & Store Mobile Phone</th>
+                        <th class="py-2.5 px-3">Store Head</th>
+                        <th class="py-2.5 px-3">Area Manager & Email AM</th>
+                        <th class="py-2.5 px-3">Regional Manager & Email RM</th>
+                        <th class="py-2.5 px-3 text-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody id="admin-stores-tbody" class="divide-y divide-slate-100"></tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
@@ -1497,6 +1606,9 @@ service cloud.firestore {
   <!-- Toast Notification Container -->
   <div id="toast-container" class="fixed bottom-16 lg:bottom-6 right-4 z-50 space-y-2 pointer-events-none"></div>
 
+  <!-- SheetJS (XLSX) Library for Reading & Extracting Excel Master Store Files -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
   <!-- Firebase JS SDK (Cloud Firestore & Analytics for fmcu-visit-database) -->
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
@@ -1504,6 +1616,7 @@ service cloud.firestore {
 
   <!-- Application Scripts -->
   <script src="js/pdf-assets.js"></script>
+  <script src="js/master-stores-seed.js"></script>
   <script src="js/data.js"></script>
   <script src="js/pdf-generator.js"></script>
   <script src="js/app.js"></script>

@@ -1,12 +1,7 @@
 // ============================================================================
-// FMCU VISIT STORE REPORT - Cloud Firestore + Local Cache Data Store & RBAC
+// FMCU VISIT STORE REPORT - Cloud Firestore + Excel Master Store Extractor
 // Terhubung ke Firebase Project: fmcu-visit-database
-// Koleksi Firestore:
-//   - users      (User, Password, Role & Otoritas)
-//   - stores     (Master Toko)
-//   - schedules  (Master Jadwal Visit & Actual In/Out)
-//   - reports    (Arsip Laporan Visit & Temuan Observasi)
-//   - settings   (Konfigurasi Global Integrasi Email/GDrive)
+// Sumber Master Store Default: "10. List PIC Oktober 2026_rev01.xlsx" (610 Toko)
 // ============================================================================
 
 const FIREBASE_CONFIG = {
@@ -145,21 +140,18 @@ const INITIAL_USERS = [
   }
 ];
 
-// Helper untuk membersihkan nilai undefined sebelum dikirim ke Firestore
 function sanitizeForFirestore(obj) {
   return JSON.parse(
     JSON.stringify(obj, (key, value) => (value === undefined ? null : value))
   );
 }
 
-// Helper untuk membuat salinan ringan laporan jika ukuran dokumen melebihi batas 1MB Firestore
 function prepareReportForFirestore(report) {
   const clean = sanitizeForFirestore(report);
   const rawSize = JSON.stringify(clean).length;
   if (rawSize <= 850000) {
     return clean;
   }
-  // Jika foto beresolusi besar membuat ukuran > 850KB, simpan metadata & observasi ke Firestore
   return {
     ...clean,
     qscPhotos: (clean.qscPhotos || []).map((p) => ({
@@ -182,15 +174,16 @@ function prepareReportForFirestore(report) {
 window.FMCUData = {
   FINDING_PRESETS,
   FIREBASE_CONFIG,
+  DEFAULT_EXCEL_FILE_PATH: '10. List PIC Oktober 2026_rev01.xlsx',
   firebaseApp: null,
   db: null,
   analytics: null,
-  cloudStatus: 'CONNECTING', // CONNECTING | ONLINE | PERMISSION_DENIED | OFFLINE
+  cloudStatus: 'CONNECTING',
   cloudErrorMsg: '',
   unsubscribers: [],
 
   init() {
-    // Hapus seluruh cache data dummy versi lama (v1) jika pernah tersimpan di browser
+    // Hapus seluruh cache data dummy versi lama (v1)
     [
       'fmcu_users_v1',
       'fmcu_stores_v1',
@@ -206,9 +199,15 @@ window.FMCUData = {
     if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(INITIAL_USERS));
     }
-    if (!localStorage.getItem(STORAGE_KEYS.STORES)) {
+
+    // Otomatis isi Master Toko dari hasil ekstraksi "10. List PIC Oktober 2026_rev01.xlsx" jika masih kosong
+    const currentStores = JSON.parse(localStorage.getItem(STORAGE_KEYS.STORES) || '[]');
+    if (currentStores.length === 0 && Array.isArray(window.FMCU_INITIAL_STORES) && window.FMCU_INITIAL_STORES.length > 0) {
+      localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(window.FMCU_INITIAL_STORES));
+    } else if (!localStorage.getItem(STORAGE_KEYS.STORES)) {
       localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify([]));
     }
+
     if (!localStorage.getItem(STORAGE_KEYS.SCHEDULES)) {
       localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify([]));
     }
@@ -226,6 +225,130 @@ window.FMCUData = {
     this.initFirestore();
   },
 
+  // ==========================================================================
+  // EKSTRAKTOR FILE EXCEL MASTER TOKO (.XLSX / .XLS / .CSV)
+  // Hanya membaca kolom:
+  //   Site (Kode Toko), SiteDescr (Nama Toko), Type, City, Address, Email,
+  //   Store Mobile Phone, Store Head, Area Manager, Email Area Manager,
+  //   Regional Manager, Email Regional Manager
+  // ==========================================================================
+  parseStoresFromExcelArrayBuffer(arrayBuffer) {
+    if (typeof window.XLSX === 'undefined') {
+      throw new Error('Library SheetJS (XLSX) belum termuat di browser.');
+    }
+
+    const workbook = window.XLSX.read(arrayBuffer, { type: 'array' });
+    // Prioritaskan sheet bernama "List" sesuai struktur "10. List PIC Oktober 2026_rev01.xlsx"
+    const targetSheetName =
+      workbook.SheetNames.find((n) => n.trim().toLowerCase() === 'list') || workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[targetSheetName];
+    if (!worksheet) {
+      throw new Error('Sheet data toko tidak ditemukan di dalam file Excel.');
+    }
+
+    const rows = window.XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+    if (!rows || rows.length === 0) {
+      throw new Error('File Excel kosong.');
+    }
+
+    // Cari baris header (di "10. List PIC Oktober 2026_rev01.xlsx" berada di Row 4 / index 3)
+    let headerRowIndex = -1;
+    let colMap = {};
+
+    for (let r = 0; r < Math.min(rows.length, 20); r++) {
+      const rowCells = (rows[r] || []).map((cell) => String(cell || '').trim().toLowerCase());
+      const hasSite = rowCells.some((c) => c === 'site' || c === 'kode toko' || c === 'store code');
+      const hasOtherKey = rowCells.some(
+        (c) =>
+          c === 'type' ||
+          c === 'city' ||
+          c === 'store head' ||
+          c === 'area manager' ||
+          c === 'regional manager'
+      );
+      if (hasSite && hasOtherKey) {
+        headerRowIndex = r;
+        rowCells.forEach((colName, idx) => {
+          if (colName === 'site' || colName === 'kode toko' || colName === 'store code') colMap.site = idx;
+          else if (colName === 'sitedescr' || colName === 'site descr' || colName === 'nama toko' || colName === 'store name') colMap.name = idx;
+          else if (colName === 'type' || colName === 'tipe' || colName === 'tipe toko') colMap.type = idx;
+          else if (colName === 'city' || colName === 'kota') colMap.city = idx;
+          else if (colName === 'address' || colName === 'alamat') colMap.address = idx;
+          else if (colName === 'email' || colName === 'store email' || colName === 'email toko') colMap.email = idx;
+          else if (colName === 'store mobile phone' || colName === 'mobile phone' || colName === 'no telp toko' || colName === 'store phone') colMap.storePhone = idx;
+          else if (colName === 'store head' || colName === 'kepala toko') colMap.storeHead = idx;
+          else if (colName === 'area manager' || colName === 'am') colMap.areaManager = idx;
+          else if (colName === 'area manager email' || colName === 'email area manager' || colName === 'am email') colMap.areaManagerEmail = idx;
+          else if (colName === 'regional manager' || colName === 'rm') colMap.regionalManager = idx;
+          else if (colName === 'regional manager email' || colName === 'email regional manager' || colName === 'rm email') colMap.regionalManagerEmail = idx;
+        });
+        break;
+      }
+    }
+
+    if (headerRowIndex === -1 || colMap.site === undefined) {
+      throw new Error(
+        'Header kolom "Site" tidak ditemukan. Pastikan format tabel Excel memiliki kolom: Site, Type, City, Address, Email, Store Mobile Phone, Store Head, Area Manager, Area Manager Email, Regional Manager, Regional Manager Email.'
+      );
+    }
+
+    const extractedStores = [];
+    for (let i = headerRowIndex + 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.length === 0) continue;
+
+      let rawSite = String(row[colMap.site] ?? '').trim();
+      const rawName = colMap.name !== undefined ? String(row[colMap.name] ?? '').trim() : '';
+      if (!rawSite && !rawName) continue;
+
+      // Normalisasi kode Site 4 digit apabila terformat angka di Excel (misal 1 -> 0001)
+      if (/^\d{1,3}$/.test(rawSite)) {
+        rawSite = rawSite.padStart(4, '0');
+      }
+
+      const storeHeadVal = colMap.storeHead !== undefined ? String(row[colMap.storeHead] ?? '').trim() : '';
+
+      // Hanya ekstrak kolom yang diminta
+      extractedStores.push({
+        code: rawSite,
+        name: (rawName || rawSite).toUpperCase(),
+        type: colMap.type !== undefined ? String(row[colMap.type] ?? '').trim() : 'CVS',
+        city: colMap.city !== undefined ? String(row[colMap.city] ?? '').trim() : '',
+        address: colMap.address !== undefined ? String(row[colMap.address] ?? '').trim() : '',
+        email: colMap.email !== undefined ? String(row[colMap.email] ?? '').trim() : '',
+        storePhone: colMap.storePhone !== undefined ? String(row[colMap.storePhone] ?? '').trim() : '',
+        storeHead: storeHeadVal,
+        areaManager: colMap.areaManager !== undefined ? String(row[colMap.areaManager] ?? '').trim() : '',
+        areaManagerEmail: colMap.areaManagerEmail !== undefined ? String(row[colMap.areaManagerEmail] ?? '').trim() : '',
+        regionalManager: colMap.regionalManager !== undefined ? String(row[colMap.regionalManager] ?? '').trim() : '',
+        regionalManagerEmail: colMap.regionalManagerEmail !== undefined ? String(row[colMap.regionalManagerEmail] ?? '').trim() : ''
+      });
+    }
+
+    return extractedStores;
+  },
+
+  // Membaca langsung file "10. List PIC Oktober 2026_rev01.xlsx" dari root folder project
+  async fetchAndExtractProjectExcelFile() {
+    try {
+      const response = await fetch(encodeURI(this.DEFAULT_EXCEL_FILE_PATH));
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const buffer = await response.arrayBuffer();
+      const parsed = this.parseStoresFromExcelArrayBuffer(buffer);
+      if (parsed.length > 0) {
+        return parsed;
+      }
+    } catch (err) {
+      console.warn('Menggunakan pre-extracted seed dari 10. List PIC Oktober 2026_rev01.xlsx:', err);
+    }
+    return Array.isArray(window.FMCU_INITIAL_STORES) ? window.FMCU_INITIAL_STORES : [];
+  },
+
+  // ==========================================================================
+  // CLOUD FIRESTORE INITIALIZATION & REAL-TIME LISTENERS
+  // ==========================================================================
   initFirestore() {
     if (typeof window.firebase === 'undefined') {
       this.setCloudStatus('OFFLINE', 'Firebase SDK belum dimuat');
@@ -242,9 +365,7 @@ window.FMCUData = {
       if (typeof window.firebase.analytics === 'function') {
         try {
           this.analytics = window.firebase.analytics();
-        } catch (e) {
-          // Analytics bisa diblokir oleh adblocker browser, abaikan dengan aman
-        }
+        } catch (e) {}
       }
 
       this.db = window.firebase.firestore();
@@ -266,7 +387,6 @@ window.FMCUData = {
   startRealtimeListeners() {
     if (!this.db) return;
 
-    // Bersihkan listener lama jika ada
     this.unsubscribers.forEach((unsub) => {
       try {
         unsub();
@@ -286,12 +406,11 @@ window.FMCUData = {
       }
     };
 
-    // 1. REAL-TIME LISTENER: USERS (Password, User, Role & Otoritas)
+    // 1. REAL-TIME LISTENER: USERS
     const unsubUsers = this.db.collection('users').onSnapshot(
       (snapshot) => {
         this.setCloudStatus('ONLINE');
         if (snapshot.empty) {
-          // Jika koleksi users di Firestore masih kosong saat pertama kali dibuat, seed akun sistem dasar
           const seedUsers = this.getUsers().length > 0 ? this.getUsers() : INITIAL_USERS;
           seedUsers.forEach((u) => {
             const docId = String(u.id || u.username);
@@ -314,7 +433,6 @@ window.FMCUData = {
 
         if (cloudUsers.length > 0) {
           localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(cloudUsers));
-          // Perbarui sesi aktif apabila user yang sedang login mengalami perubahan otoritas/nama/password
           const activeSession = this.getSession();
           if (activeSession) {
             const updatedSelf = cloudUsers.find((u) => u.id === activeSession.id || u.username === activeSession.username);
@@ -331,28 +449,34 @@ window.FMCUData = {
     );
     this.unsubscribers.push(unsubUsers);
 
-    // 2. REAL-TIME LISTENER: STORES (Master Toko)
-    const unsubStores = this.db.collection('stores').onSnapshot(
-      (snapshot) => {
-        this.setCloudStatus('ONLINE');
-        const cloudStores = [];
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          if (data && data.code) {
-            cloudStores.push(data);
+    // 2. REAL-TIME LISTENER: MASTER STORES CATALOG (Mendukung 610+ Toko dalam 1 Dokumen Katalog Cepat)
+    const unsubStoresCatalog = this.db
+      .collection('settings')
+      .doc('master_stores_catalog')
+      .onSnapshot(
+        (doc) => {
+          this.setCloudStatus('ONLINE');
+          if (!doc.exists) {
+            // Seed 610 toko dari "10. List PIC Oktober 2026_rev01.xlsx" ke Firestore saat pertama kali terhubung
+            const initialStores = this.getStores();
+            if (initialStores.length > 0) {
+              this.saveStoresCatalogToCloud(initialStores);
+            }
+            return;
           }
-        });
-        cloudStores.sort((a, b) => String(a.code).localeCompare(String(b.code)));
-        localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(cloudStores));
-        if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
-          window.FMCUApp.onCloudDataUpdated('stores');
-        }
-      },
-      (err) => handleSnapshotError('stores', err)
-    );
-    this.unsubscribers.push(unsubStores);
+          const data = doc.data();
+          if (data && Array.isArray(data.stores) && data.stores.length > 0) {
+            localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(data.stores));
+            if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
+              window.FMCUApp.onCloudDataUpdated('stores');
+            }
+          }
+        },
+        (err) => handleSnapshotError('master_stores_catalog', err)
+      );
+    this.unsubscribers.push(unsubStoresCatalog);
 
-    // 3. REAL-TIME LISTENER: SCHEDULES (Master Jadwal Visit & Actual In/Out)
+    // 3. REAL-TIME LISTENER: SCHEDULES
     const unsubSchedules = this.db.collection('schedules').onSnapshot(
       (snapshot) => {
         this.setCloudStatus('ONLINE');
@@ -363,7 +487,6 @@ window.FMCUData = {
             cloudSchedules.push(data);
           }
         });
-        // Urutkan jadwal terbaru di atas
         cloudSchedules.sort((a, b) => String(b.scheduledDate || '').localeCompare(String(a.scheduledDate || '')));
         localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(cloudSchedules));
         if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
@@ -374,7 +497,7 @@ window.FMCUData = {
     );
     this.unsubscribers.push(unsubSchedules);
 
-    // 4. REAL-TIME LISTENER: REPORTS (Arsip Laporan Visit)
+    // 4. REAL-TIME LISTENER: REPORTS
     const unsubReports = this.db.collection('reports').onSnapshot(
       (snapshot) => {
         this.setCloudStatus('ONLINE');
@@ -383,7 +506,6 @@ window.FMCUData = {
         snapshot.forEach((doc) => {
           const data = doc.data();
           if (data && data.id) {
-            // Pertahankan foto lokal beresolusi penuh jika dokumen cloud dipangkas karena batas 1MB
             const localMatch = localReports.find((r) => r.id === data.id);
             if (data._photosTrimmedForCloudLimit && localMatch) {
               cloudReports.push({
@@ -406,7 +528,7 @@ window.FMCUData = {
     );
     this.unsubscribers.push(unsubReports);
 
-    // 5. REAL-TIME LISTENER: SETTINGS (Konfigurasi Global)
+    // 5. REAL-TIME LISTENER: SETTINGS
     const unsubSettings = this.db
       .collection('settings')
       .doc('global_config')
@@ -432,7 +554,36 @@ window.FMCUData = {
     this.unsubscribers.push(unsubSettings);
   },
 
-  // Sinkronisasi paksa seluruh data lokal ke Firestore (untuk tombol Manual Sync di Admin)
+  async saveStoresCatalogToCloud(stores, syncIndividualCollection = false) {
+    if (!this.db) return;
+    const cleanStores = sanitizeForFirestore(stores);
+    await this.db
+      .collection('settings')
+      .doc('master_stores_catalog')
+      .set({
+        totalStores: cleanStores.length,
+        sourceFile: this.DEFAULT_EXCEL_FILE_PATH,
+        updatedAt: new Date().toISOString(),
+        stores: cleanStores
+      });
+
+    // Jika diminta sinkronisasi penuh ke koleksi `stores` (dengan chunking 400 dokumen per WriteBatch)
+    if (syncIndividualCollection && cleanStores.length > 0) {
+      const chunkSize = 400;
+      for (let i = 0; i < cleanStores.length; i += chunkSize) {
+        const chunk = cleanStores.slice(i, i + chunkSize);
+        const batch = this.db.batch();
+        chunk.forEach((st) => {
+          if (st.code) {
+            const ref = this.db.collection('stores').doc(String(st.code));
+            batch.set(ref, { ...st, updatedAt: new Date().toISOString() }, { merge: true });
+          }
+        });
+        await batch.commit();
+      }
+    }
+  },
+
   async forcePushAllToCloud() {
     if (!this.db) {
       throw new Error('Firestore belum terinisialisasi.');
@@ -449,13 +600,6 @@ window.FMCUData = {
       const docId = String(u.id || u.username);
       batchPromises.push(
         this.db.collection('users').doc(docId).set(sanitizeForFirestore({ ...u, id: docId, updatedAt: new Date().toISOString() }), { merge: true })
-      );
-    });
-
-    stores.forEach((s) => {
-      const docId = String(s.code);
-      batchPromises.push(
-        this.db.collection('stores').doc(docId).set(sanitizeForFirestore({ ...s, updatedAt: new Date().toISOString() }), { merge: true })
       );
     });
 
@@ -477,6 +621,8 @@ window.FMCUData = {
       this.db.collection('settings').doc('global_config').set(sanitizeForFirestore(settings), { merge: true })
     );
 
+    batchPromises.push(this.saveStoresCatalogToCloud(stores, true));
+
     await Promise.all(batchPromises);
     this.setCloudStatus('ONLINE');
     return {
@@ -488,12 +634,11 @@ window.FMCUData = {
   },
 
   clearAllData() {
-    const prevStores = this.getStores();
     const prevSchedules = this.getSchedules();
     const prevReports = this.getReports();
 
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(INITIAL_USERS));
-    localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(window.FMCU_INITIAL_STORES || []));
     localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
@@ -502,9 +647,6 @@ window.FMCUData = {
     localStorage.removeItem(STORAGE_KEYS.DRAFT_REPORT);
 
     if (this.db) {
-      prevStores.forEach((s) => {
-        if (s.code) this.db.collection('stores').doc(String(s.code)).delete().catch(() => {});
-      });
       prevSchedules.forEach((sch) => {
         if (sch.id) this.db.collection('schedules').doc(String(sch.id)).delete().catch(() => {});
       });
@@ -546,27 +688,25 @@ window.FMCUData = {
   getStores() {
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.STORES) || '[]');
   },
-  saveStores(stores) {
-    const prevStores = this.getStores();
+  saveStores(stores, changedStore = null, deletedCode = null) {
     localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(stores));
 
     if (this.db) {
-      const newCodes = new Set(stores.map((s) => String(s.code)));
-      prevStores.forEach((oldS) => {
-        const oldCode = String(oldS.code);
-        if (oldCode && !newCodes.has(oldCode)) {
-          this.db.collection('stores').doc(oldCode).delete().catch((e) => console.warn('Delete store error:', e));
-        }
-      });
-      stores.forEach((s) => {
-        if (!s.code) return;
-        const docId = String(s.code);
+      this.saveStoresCatalogToCloud(stores, false).catch((e) => console.warn('Save stores catalog error:', e));
+      if (changedStore && changedStore.code) {
         this.db
           .collection('stores')
-          .doc(docId)
-          .set(sanitizeForFirestore({ ...s, updatedAt: new Date().toISOString() }), { merge: true })
-          .catch((e) => console.warn('Save store error:', e));
-      });
+          .doc(String(changedStore.code))
+          .set(sanitizeForFirestore({ ...changedStore, updatedAt: new Date().toISOString() }), { merge: true })
+          .catch(() => {});
+      }
+      if (deletedCode) {
+        this.db
+          .collection('stores')
+          .doc(String(deletedCode))
+          .delete()
+          .catch(() => {});
+      }
     }
   },
 

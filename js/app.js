@@ -1964,11 +1964,24 @@ window.FMCUApp = {
     const rep = this.getActivePreviewReport();
     if (!rep) return;
     const settings = window.FMCUData.getSettings();
+    const matchedStore = window.FMCUData.getStores().find((s) => s.code === rep.storeCode);
 
     document.getElementById('modal-send-report-name').textContent = `Laporan: FamilyMart ${rep.storeName || '-'} (${rep.storeCode || '-'}) — ${rep.visitDateFormatted || rep.visitDate}`;
     document.getElementById('modal-send-report-meta').textContent = `Auditor: ${rep.auditorName || '-'} • ${(rep.observations || []).length} Temuan Observasi • ${(rep.evidencePhotos || []).length} Foto Bukti`;
-    document.getElementById('modal-send-to').value = rep.storeEmail || '';
-    document.getElementById('modal-send-cc').value = settings.defaultCcEmails || '';
+    document.getElementById('modal-send-to').value = rep.storeEmail || matchedStore?.email || '';
+
+    // Gabungkan otomatis Email Area Manager, Email Regional Manager dari Master Toko & Default CC Emails
+    const ccSet = new Set();
+    if (matchedStore?.areaManagerEmail) ccSet.add(matchedStore.areaManagerEmail.trim());
+    if (matchedStore?.regionalManagerEmail) ccSet.add(matchedStore.regionalManagerEmail.trim());
+    if (settings.defaultCcEmails) {
+      settings.defaultCcEmails
+        .split(',')
+        .map((e) => e.trim())
+        .filter(Boolean)
+        .forEach((e) => ccSet.add(e));
+    }
+    document.getElementById('modal-send-cc').value = Array.from(ccSet).join(', ');
     document.getElementById('modal-send-folder').value = settings.gdriveFolderId || '';
 
     const statusEl = document.getElementById('modal-send-status');
@@ -2092,20 +2105,222 @@ window.FMCUApp = {
     });
   },
 
-  renderAdminView() {
+  filterAdminScheduleStoreDropdown(query = '') {
+    const schStoreSel = document.getElementById('adm-sch-store');
+    if (!schStoreSel) return;
     const stores = window.FMCUData.getStores();
+    const q = String(query || '').trim().toLowerCase();
+    const filtered = q
+      ? stores.filter(
+          (s) =>
+            String(s.code || '').toLowerCase().includes(q) ||
+            String(s.name || '').toLowerCase().includes(q) ||
+            String(s.city || '').toLowerCase().includes(q) ||
+            String(s.type || '').toLowerCase().includes(q)
+        )
+      : stores;
+
+    schStoreSel.innerHTML =
+      filtered.length > 0
+        ? filtered
+            .map(
+              (s) =>
+                `<option value="${s.code}">${s.code} - ${s.name} (${s.type || 'CVS'}${s.city ? ' • ' + s.city : ''})</option>`
+            )
+            .join('')
+        : `<option value="">-- Tidak ada toko yang cocok dengan pencarian --</option>`;
+  },
+
+  renderAdminStoresTable() {
+    const stores = window.FMCUData.getStores();
+    const countEl = document.getElementById('admin-store-count');
+    const stTbody = document.getElementById('admin-stores-tbody');
+    if (!stTbody) return;
+
+    const searchQ = (document.getElementById('adm-store-search-input')?.value || '').trim().toLowerCase();
+    const typeFilter = document.getElementById('adm-store-type-filter')?.value || 'ALL';
+    const limitVal = parseInt(document.getElementById('adm-store-limit-select')?.value || '9999', 10);
+
+    // Populate unique Store Types in filter dropdown
+    const typeSelect = document.getElementById('adm-store-type-filter');
+    if (typeSelect) {
+      const uniqueTypes = Array.from(new Set(stores.map((s) => s.type).filter(Boolean))).sort();
+      const prevVal = typeSelect.value || 'ALL';
+      typeSelect.innerHTML =
+        `<option value="ALL">Semua Type (${stores.length})</option>` +
+        uniqueTypes.map((t) => `<option value="${t}" ${t === prevVal ? 'selected' : ''}>${t}</option>`).join('');
+    }
+
+    const filtered = stores.filter((st) => {
+      if (typeFilter !== 'ALL' && st.type !== typeFilter) return false;
+      if (!searchQ) return true;
+      return (
+        String(st.code || '').toLowerCase().includes(searchQ) ||
+        String(st.name || '').toLowerCase().includes(searchQ) ||
+        String(st.city || '').toLowerCase().includes(searchQ) ||
+        String(st.address || '').toLowerCase().includes(searchQ) ||
+        String(st.email || '').toLowerCase().includes(searchQ) ||
+        String(st.storePhone || '').toLowerCase().includes(searchQ) ||
+        String(st.storeHead || '').toLowerCase().includes(searchQ) ||
+        String(st.areaManager || '').toLowerCase().includes(searchQ) ||
+        String(st.areaManagerEmail || '').toLowerCase().includes(searchQ) ||
+        String(st.regionalManager || '').toLowerCase().includes(searchQ) ||
+        String(st.regionalManagerEmail || '').toLowerCase().includes(searchQ)
+      );
+    });
+
+    if (countEl) {
+      countEl.textContent =
+        filtered.length === stores.length
+          ? `${stores.length} Master Toko`
+          : `${filtered.length} / ${stores.length} Toko`;
+    }
+
+    if (filtered.length === 0) {
+      stTbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-slate-400">Tidak ada data master toko yang sesuai filter pencarian.</td></tr>`;
+      return;
+    }
+
+    const displayed = filtered.slice(0, limitVal);
+    stTbody.innerHTML = displayed
+      .map(
+        (st) => `
+        <tr class="hover:bg-slate-50 align-top">
+          <td class="py-2.5 px-3">
+            <div class="font-mono font-extrabold text-[#0099A6] text-xs">${st.code || '-'}</div>
+            <div class="font-extrabold text-slate-900 text-xs mt-0.5">${st.name || '-'}</div>
+          </td>
+          <td class="py-2.5 px-3">
+            <span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-[10px]">${st.type || '-'}</span>
+            <div class="text-[11px] font-semibold text-slate-600 mt-1">${st.city || '-'}</div>
+          </td>
+          <td class="py-2.5 px-3 text-[11px] text-slate-600 max-w-[240px] leading-snug">
+            ${st.address || '-'}
+          </td>
+          <td class="py-2.5 px-3 text-[11px]">
+            <div class="font-mono text-slate-700 break-all">${st.email || '-'}</div>
+            <div class="font-mono text-emerald-700 font-bold mt-0.5"><i class="fa-solid fa-phone text-[9px] mr-1"></i>${st.storePhone || '-'}</div>
+          </td>
+          <td class="py-2.5 px-3 font-bold text-slate-800 text-xs">
+            ${st.storeHead || '-'}
+          </td>
+          <td class="py-2.5 px-3 text-[11px]">
+            <div class="font-bold text-slate-900">${st.areaManager || '-'}</div>
+            <div class="font-mono text-[10px] text-slate-500 break-all">${st.areaManagerEmail || '-'}</div>
+          </td>
+          <td class="py-2.5 px-3 text-[11px]">
+            <div class="font-bold text-slate-900">${st.regionalManager || '-'}</div>
+            <div class="font-mono text-[10px] text-slate-500 break-all">${st.regionalManagerEmail || '-'}</div>
+          </td>
+          <td class="py-2.5 px-3 text-right whitespace-nowrap space-x-2">
+            <button onclick="FMCUApp.editStore('${st.code}')" class="text-[#0099A6] hover:underline font-bold cursor-pointer">Edit</button>
+            <button onclick="FMCUApp.deleteStore('${st.code}')" class="text-rose-600 hover:underline font-bold cursor-pointer">Hapus</button>
+          </td>
+        </tr>
+      `
+      )
+      .join('');
+  },
+
+  async handleUploadStoreExcel() {
+    const fileInput = document.getElementById('adm-excel-file-input');
+    const modeSelect = document.getElementById('adm-excel-import-mode');
+    const statusBox = document.getElementById('adm-excel-upload-status');
+    const btn = document.getElementById('btn-upload-excel-stores');
+
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+      this.showToast('Silakan pilih file Excel (.xlsx / .xls / .csv) terlebih dahulu.', 'warning');
+      return;
+    }
+
+    const file = fileInput.files[0];
+    const mode = modeSelect ? modeSelect.value : 'replace';
+
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>Mengekstrak Excel...</span>`;
+    }
+    if (statusBox) {
+      statusBox.className = 'text-xs font-semibold p-3 rounded-xl bg-teal-50 text-teal-900 border border-teal-200 block';
+      statusBox.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5"></i>Sedang membaca & mengekstraksi kolom dari file <strong>${file.name}</strong>...`;
+    }
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const extracted = window.FMCUData.parseStoresFromExcelArrayBuffer(arrayBuffer);
+
+      if (!extracted || extracted.length === 0) {
+        throw new Error('Tidak ditemukan baris data toko yang valid di dalam file Excel tersebut.');
+      }
+
+      let finalStores = [];
+      if (mode === 'replace') {
+        finalStores = extracted;
+      } else {
+        const existingMap = new Map();
+        window.FMCUData.getStores().forEach((s) => existingMap.set(String(s.code), s));
+        extracted.forEach((s) => existingMap.set(String(s.code), s));
+        finalStores = Array.from(existingMap.values()).sort((a, b) => String(a.code).localeCompare(String(b.code)));
+      }
+
+      window.FMCUData.saveStores(finalStores);
+      this.populateMasterStoreSelect();
+      this.renderAllViews();
+      this.updateAdminFirestoreSummary();
+
+      if (statusBox) {
+        statusBox.className = 'text-xs font-semibold p-3 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200 block';
+        statusBox.innerHTML = `✅ Berhasil mengekstrak <strong>${extracted.length} Toko</strong> dari file <strong>${file.name}</strong> (Total Master Toko: <strong>${finalStores.length} Toko</strong>) dan menyinkronkannya ke Cloud Firestore!`;
+      }
+      this.showToast(`Berhasil import ${extracted.length} Master Toko dari ${file.name}!`, 'success');
+      fileInput.value = '';
+    } catch (err) {
+      console.error('Excel upload parse error:', err);
+      if (statusBox) {
+        statusBox.className = 'text-xs font-semibold p-3 rounded-xl bg-rose-50 text-rose-900 border border-rose-200 block';
+        statusBox.innerHTML = `❌ Gagal membaca file Excel: ${err.message || 'Format kolom tidak sesuai'}`;
+      }
+      this.showToast('Gagal mengekstrak file Excel: ' + (err.message || ''), 'error');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-file-import"></i><span>Upload & Ekstraksi Excel</span>`;
+      }
+    }
+  },
+
+  async reloadDefaultExcelStores() {
+    const statusBox = document.getElementById('adm-excel-upload-status');
+    if (statusBox) {
+      statusBox.className = 'text-xs font-semibold p-3 rounded-xl bg-teal-50 text-teal-900 border border-teal-200 block';
+      statusBox.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5"></i>Mengekstrak ulang data dari file <code>10. List PIC Oktober 2026_rev01.xlsx</code>...`;
+    }
+
+    const extracted = await window.FMCUData.fetchAndExtractProjectExcelFile();
+    if (extracted && extracted.length > 0) {
+      window.FMCUData.saveStores(extracted);
+      this.populateMasterStoreSelect();
+      this.renderAllViews();
+      this.updateAdminFirestoreSummary();
+      if (statusBox) {
+        statusBox.className = 'text-xs font-semibold p-3 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200 block';
+        statusBox.innerHTML = `✅ Berhasil mengekstrak ulang <strong>${extracted.length} Master Toko</strong> dari <code>10. List PIC Oktober 2026_rev01.xlsx</code> dan menyinkronkannya ke Cloud Firestore!`;
+      }
+      this.showToast(`${extracted.length} Master Toko dari 10. List PIC Oktober 2026_rev01.xlsx berhasil dimuat!`, 'success');
+    } else {
+      this.showToast('Gagal memuat file Excel default.', 'error');
+    }
+  },
+
+  renderAdminView() {
     const users = window.FMCUData.getUsers();
     const schedules = window.FMCUData.getSchedules();
     const settings = window.FMCUData.getSettings();
 
-    // Populate Schedule Form Dropdowns
-    const schStoreSel = document.getElementById('adm-sch-store');
-    if (schStoreSel) {
-      schStoreSel.innerHTML =
-        stores.length > 0
-          ? stores.map((s) => `<option value="${s.code}">${s.code} - ${s.name} (${s.type})</option>`).join('')
-          : `<option value="">-- Tambahkan Master Toko Terlebih Dahulu --</option>`;
-    }
+    // Populate Schedule Form Dropdowns with Search Filter
+    const searchVal = document.getElementById('adm-sch-store-search')?.value || '';
+    this.filterAdminScheduleStoreDropdown(searchVal);
+
     const schAuditorSel = document.getElementById('adm-sch-auditor');
     if (schAuditorSel) {
       schAuditorSel.innerHTML = users.map((u) => `<option value="${u.id}">${u.name} (${u.roleBadge || u.role})</option>`).join('');
@@ -2129,7 +2344,7 @@ window.FMCUApp = {
               <td class="py-2.5 px-3 font-semibold">${window.FMCUPdf.formatIndonesianDate(s.scheduledDate, false)}</td>
               <td class="py-2.5 px-3">
                 <div class="font-bold text-slate-900">${s.storeName}</div>
-                <div class="text-[10px] font-mono text-slate-400">Kode: ${s.storeCode} (${s.storeType})</div>
+                <div class="text-[10px] font-mono text-slate-400">Site: ${s.storeCode} (${s.storeType})</div>
               </td>
               <td class="py-2.5 px-3 font-medium">${s.auditorName}</td>
               <td class="py-2.5 px-3 text-[11px] font-mono">
@@ -2151,35 +2366,8 @@ window.FMCUApp = {
       }
     }
 
-    // 2. Render Admin Master Stores Table
-    document.getElementById('admin-store-count').textContent = `${stores.length} Toko`;
-    const stTbody = document.getElementById('admin-stores-tbody');
-    if (stTbody) {
-      if (stores.length === 0) {
-        stTbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400">Belum ada data master toko. Silakan tambahkan toko di form sebelah kiri.</td></tr>`;
-      } else {
-        stTbody.innerHTML = stores
-          .map(
-            (st) => `
-            <tr class="hover:bg-slate-50">
-              <td class="py-2.5 px-3 font-mono font-bold text-[#0099A6]">${st.code}</td>
-              <td class="py-2.5 px-3 font-extrabold text-slate-900">${st.name}</td>
-              <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded bg-slate-100 font-bold">${st.type}</span></td>
-              <td class="py-2.5 px-3">${st.storeHead}</td>
-              <td class="py-2.5 px-3 text-[11px]">
-                <div>AM: <strong>${st.areaManager}</strong></div>
-                <div>RM: <strong>${st.regionalManager}</strong></div>
-              </td>
-              <td class="py-2.5 px-3 text-right space-x-2">
-                <button onclick="FMCUApp.editStore('${st.code}')" class="text-[#0099A6] hover:underline font-bold cursor-pointer">Edit</button>
-                <button onclick="FMCUApp.deleteStore('${st.code}')" class="text-rose-600 hover:underline font-bold cursor-pointer">Hapus</button>
-              </td>
-            </tr>
-          `
-          )
-          .join('');
-      }
-    }
+    // 2. Render Admin Master Stores Table (610+ Stores with Search & Filter)
+    this.renderAdminStoresTable();
 
     // 3. Render Admin Users & Authorities Table
     const usrTbody = document.getElementById('admin-users-tbody');
@@ -2283,16 +2471,17 @@ window.FMCUApp = {
   handleSaveStore(event) {
     event.preventDefault();
     const code = document.getElementById('adm-st-code').value.trim();
-    const type = document.getElementById('adm-st-type').value;
+    const type = document.getElementById('adm-st-type').value.trim() || 'CVS';
     const name = document.getElementById('adm-st-name').value.trim().toUpperCase();
+    const city = document.getElementById('adm-st-city')?.value.trim() || '';
+    const address = document.getElementById('adm-st-address')?.value.trim() || '';
+    const email = document.getElementById('adm-st-email').value.trim();
+    const storePhone = document.getElementById('adm-st-phone')?.value.trim() || '';
     const head = document.getElementById('adm-st-head').value.trim();
     const am = document.getElementById('adm-st-am').value.trim();
+    const amEmail = document.getElementById('adm-st-am-email')?.value.trim() || '';
     const rm = document.getElementById('adm-st-rm').value.trim();
-    const email = document.getElementById('adm-st-email').value.trim();
-    const latVal = document.getElementById('adm-st-lat').value;
-    const lngVal = document.getElementById('adm-st-lng').value;
-    const lat = latVal !== '' ? parseFloat(latVal) : null;
-    const lng = lngVal !== '' ? parseFloat(lngVal) : null;
+    const rmEmail = document.getElementById('adm-st-rm-email')?.value.trim() || '';
 
     const stores = window.FMCUData.getStores();
     const existingIdx = stores.findIndex((s) => s.code === code);
@@ -2300,30 +2489,28 @@ window.FMCUApp = {
       code,
       name,
       type,
+      city,
+      address,
+      email,
+      storePhone,
       storeHead: head,
       areaManager: am,
+      areaManagerEmail: amEmail,
       regionalManager: rm,
-      email,
-      lat,
-      lng,
-      defaultCrew: [
-        { role: 'Store Head', name: head, jobLevel: '' },
-        { role: 'Shift Leader', name: '', jobLevel: '' },
-        { role: 'Crew Store 1', name: '', jobLevel: '' },
-        { role: 'Crew Store 2', name: '', jobLevel: '' }
-      ]
+      regionalManagerEmail: rmEmail
     };
 
     if (existingIdx !== -1) {
       stores[existingIdx] = storeObj;
     } else {
-      stores.push(storeObj);
+      stores.unshift(storeObj);
     }
-    window.FMCUData.saveStores(stores);
+    window.FMCUData.saveStores(stores, storeObj, null);
     this.populateMasterStoreSelect();
     this.renderAllViews();
+    this.updateAdminFirestoreSummary();
     event.target.reset();
-    this.showToast(`Master Toko ${name} (${code}) berhasil disimpan!`, 'success');
+    this.showToast(`Master Toko ${name} (Site: ${code}) berhasil disimpan & disinkronkan ke Firestore!`, 'success');
   },
 
   editStore(code) {
@@ -2333,21 +2520,25 @@ window.FMCUApp = {
     document.getElementById('adm-st-code').value = st.code || '';
     document.getElementById('adm-st-type').value = st.type || 'CVS';
     document.getElementById('adm-st-name').value = st.name || '';
+    if (document.getElementById('adm-st-city')) document.getElementById('adm-st-city').value = st.city || '';
+    if (document.getElementById('adm-st-address')) document.getElementById('adm-st-address').value = st.address || '';
+    document.getElementById('adm-st-email').value = st.email || '';
+    if (document.getElementById('adm-st-phone')) document.getElementById('adm-st-phone').value = st.storePhone || '';
     document.getElementById('adm-st-head').value = st.storeHead || '';
     document.getElementById('adm-st-am').value = st.areaManager || '';
+    if (document.getElementById('adm-st-am-email')) document.getElementById('adm-st-am-email').value = st.areaManagerEmail || '';
     document.getElementById('adm-st-rm').value = st.regionalManager || '';
-    document.getElementById('adm-st-email').value = st.email || '';
-    document.getElementById('adm-st-lat').value = st.lat !== null && st.lat !== undefined ? st.lat : '';
-    document.getElementById('adm-st-lng').value = st.lng !== null && st.lng !== undefined ? st.lng : '';
-    this.showToast(`Memuat data toko ${st.name} (${st.code}) untuk diedit`, 'info');
+    if (document.getElementById('adm-st-rm-email')) document.getElementById('adm-st-rm-email').value = st.regionalManagerEmail || '';
+    this.showToast(`Memuat data toko ${st.name} (Site: ${st.code}) ke form edit`, 'info');
   },
 
   deleteStore(code) {
     const stores = window.FMCUData.getStores().filter((s) => s.code !== code);
-    window.FMCUData.saveStores(stores);
+    window.FMCUData.saveStores(stores, null, code);
     this.populateMasterStoreSelect();
     this.renderAllViews();
-    this.showToast(`Toko kode ${code} dihapus dari Firestore`, 'info');
+    this.updateAdminFirestoreSummary();
+    this.showToast(`Toko Site ${code} dihapus dari Master Toko & Firestore`, 'info');
   },
 
   editUser(userId) {
