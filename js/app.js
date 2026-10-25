@@ -901,30 +901,44 @@ window.FMCUApp = {
   },
 
   switchScheduleSubSection(subSec, scrollTop = true) {
-    const mode = subSec === 'list' ? 'list' : 'create';
+    const mode = subSec === 'list' ? 'list' : subSec === 'single' ? 'single' : 'create';
     this.currentScheduleSubSection = mode;
 
     const createSec = document.getElementById('schedule-section-create');
     const listSec = document.getElementById('schedule-section-list');
     const btnCreate = document.getElementById('sch-subtab-btn-create');
+    const btnSingle = document.getElementById('sch-subtab-btn-single');
     const btnList = document.getElementById('sch-subtab-btn-list');
     const countPill = document.getElementById('admin-schedule-count-pill');
 
-    if (createSec) createSec.classList.toggle('hidden', mode !== 'create');
+    if (createSec) createSec.classList.toggle('hidden', mode === 'list');
     if (listSec) listSec.classList.toggle('hidden', mode !== 'list');
+
+    if (mode === 'create') {
+      this.switchScheduleCreateMode('weekly');
+    } else if (mode === 'single') {
+      this.switchScheduleCreateMode('single');
+    }
 
     if (btnCreate) {
       btnCreate.className =
         mode === 'create'
-          ? 'px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-[#009944] text-white shadow-xs'
-          : 'px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white';
+          ? 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-[#009944] text-white shadow-xs'
+          : 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white';
+    }
+
+    if (btnSingle) {
+      btnSingle.className =
+        mode === 'single'
+          ? 'flex-1 sm:flex-initial px-3 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-[#009944] text-white shadow-xs'
+          : 'flex-1 sm:flex-initial px-3 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white';
     }
 
     if (btnList) {
       btnList.className =
         mode === 'list'
-          ? 'px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-[#0099A6] text-white shadow-xs'
-          : 'px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white';
+          ? 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-[#0099A6] text-white shadow-xs'
+          : 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white';
     }
 
     if (countPill) {
