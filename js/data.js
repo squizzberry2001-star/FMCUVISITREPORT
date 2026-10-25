@@ -1258,6 +1258,16 @@ window.FMCUData = {
     return ok;
   },
 
+  deleteReport(reportId) {
+    if (!reportId) return;
+    const reports = this.getReports().filter((r) => String(r.id) !== String(reportId));
+    this.saveReportsLocalOnly(reports);
+    if (this.db) {
+      this.db.collection('reports').doc(String(reportId)).delete().catch((e) => console.warn('Delete report error:', e));
+    }
+    return reports;
+  },
+
   getSettings() {
     return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(STORAGE_KEYS.SETTINGS) || '{}') };
   },

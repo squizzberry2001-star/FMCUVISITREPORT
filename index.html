@@ -621,6 +621,60 @@
            ================================================================== -->
       <main id="view-analytics" class="view-section p-4 sm:p-6 max-w-7xl w-full mx-auto space-y-6 hidden">
 
+        <!-- SUB-SECTION SWITCHER BAR KHUSUS ADMIN JADWAL & SUPER ADMIN -->
+        <div id="analytics-admin-switcher-box" class="hidden fm-card p-3.5 sm:p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-gradient-to-r from-emerald-50/70 via-white to-teal-50/70 border border-emerald-200">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl fm-gradient text-white flex items-center justify-center text-base shrink-0 shadow-xs">
+              <i class="fa-solid fa-chart-pie"></i>
+            </div>
+            <div>
+              <h2 class="font-extrabold text-sm sm:text-base text-slate-900">Analitik Dashboard & Riwayat Audit FMCU</h2>
+              <p class="text-[11px] text-slate-500">History kunjungan visit toko, arsip laporan PDF seluruh toko, analitik performa, dan monitoring live location user</p>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1.5 rounded-xl border border-slate-200 w-full lg:w-auto">
+            <button type="button" id="analytics-subtab-btn-history" onclick="FMCUApp.switchAnalyticsSubSection('history')" class="flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-[#009944] text-white shadow-xs">
+              <i class="fa-solid fa-clock-rotate-left"></i>
+              <span>History Visit & Arsip Laporan PDF</span>
+              <span id="analytics-history-count-pill" class="px-1.5 py-0.2 rounded-full text-[10px] bg-white/25 text-white font-extrabold">0</span>
+            </button>
+            <button type="button" id="analytics-subtab-btn-performance" onclick="FMCUApp.switchAnalyticsSubSection('performance')" class="flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white">
+              <i class="fa-solid fa-users-gear"></i>
+              <span>Analitik Performa & Aktivitas User</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- SUB-SECTION 1: HISTORY VISIT & ARSIP LAPORAN PDF SELURUH TOKO -->
+        <div id="analytics-subsection-history" class="space-y-4">
+          <div class="fm-card p-5 sm:p-6 space-y-4">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-5 rounded-full bg-[#0099A6]"></span>
+                  <h3 class="text-base sm:text-lg font-extrabold text-slate-900">History Visit & Arsip Laporan PDF Seluruh Toko</h3>
+                </div>
+                <p class="text-xs text-slate-500 mt-0.5">Daftar seluruh riwayat laporan audit kunjungan toko yang telah selesai dilaporkan oleh para Visitor, lengkap dengan akses Preview Slide 16:9 dan Unduh PDF resmi.</p>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-2">
+                <select id="analytics-history-visitor-filter" onchange="FMCUApp.renderAnalyticsHistory()" class="text-xs font-semibold border border-slate-200 rounded-xl px-3 py-2 bg-slate-50">
+                  <option value="ALL">Semua Visitor</option>
+                </select>
+                <div class="relative">
+                  <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                  <input type="text" id="analytics-history-search" oninput="FMCUApp.renderAnalyticsHistory()" placeholder="🔍 Cari Toko / Site / Visitor..." class="fm-input pl-8 py-1.5 text-xs w-48 sm:w-60" />
+                </div>
+              </div>
+            </div>
+
+            <div id="analytics-history-list" class="space-y-3"></div>
+          </div>
+        </div>
+
+        <!-- SUB-SECTION 2: ANALITIK PERFORMA & AKTIVITAS USER (LIVE LOCATION & ACTUAL IN/OUT) -->
+        <div id="analytics-subsection-performance" class="space-y-6">
         <!-- 4 Executive KPI Cards -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div class="fm-card fm-card-hover p-4 sm:p-5">
@@ -736,6 +790,7 @@
             </table>
           </div>
         </div>
+        </div> <!-- end #analytics-subsection-performance -->
 
       </main>
 

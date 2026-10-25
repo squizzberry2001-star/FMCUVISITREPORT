@@ -10,6 +10,7 @@ window.FMCUApp = {
   currentView: 'home',
   currentAdminTab: 'schedules',
   currentScheduleSubSection: 'create',
+  currentAnalyticsSubSection: 'history',
   scheduleCreateMode: 'weekly',
   weeklyMondayDate: '',
   weeklySelectedAuditors: [],
@@ -91,6 +92,10 @@ window.FMCUApp = {
       const savedSchSub = sessionStorage.getItem('fmcu_active_sch_subtab');
       if (savedSchSub && (savedSchSub === 'create' || savedSchSub === 'list')) {
         this.currentScheduleSubSection = savedSchSub;
+      }
+      const savedAnalyticsSub = sessionStorage.getItem('fmcu_active_analytics_subtab');
+      if (savedAnalyticsSub && (savedAnalyticsSub === 'history' || savedAnalyticsSub === 'performance')) {
+        this.currentAnalyticsSubSection = savedAnalyticsSub;
       }
       const savedAdminTab = sessionStorage.getItem('fmcu_active_admin_tab');
       const savedView = sessionStorage.getItem('fmcu_active_view');
@@ -509,6 +514,7 @@ window.FMCUApp = {
       sessionStorage.removeItem('fmcu_active_subtab');
       sessionStorage.removeItem('fmcu_active_sch_subtab');
       sessionStorage.removeItem('fmcu_active_admin_tab');
+      sessionStorage.removeItem('fmcu_active_analytics_subtab');
     } catch (e) {}
     this.currentView = 'home';
 
@@ -1436,14 +1442,210 @@ window.FMCUApp = {
   },
 
   renderAnalyticsView() {
+    const isAdmin = Boolean(
+      this.currentUser &&
+      (this.currentUser.role === 'ADMIN_SCHEDULE' || this.currentUser.role === 'SUPER_ADMIN')
+    );
+
+    const switcherBox = document.getElementById('analytics-admin-switcher-box');
+    if (switcherBox) {
+      switcherBox.classList.toggle('hidden', !isAdmin);
+    }
+
+    if (isAdmin) {
+      const savedSub = sessionStorage.getItem('fmcu_active_analytics_subtab');
+      const targetSub = savedSub && (savedSub === 'performance' || savedSub === 'history')
+        ? savedSub
+        : this.currentAnalyticsSubSection || 'history';
+      this.switchAnalyticsSubSection(targetSub, false);
+    } else {
+      const historySec = document.getElementById('analytics-subsection-history');
+      const perfSec = document.getElementById('analytics-subsection-performance');
+      if (historySec) historySec.classList.add('hidden');
+      if (perfSec) perfSec.classList.remove('hidden');
+      this.renderAnalyticsPerformance();
+    }
+  },
+
+  switchAnalyticsSubSection(subSec, scrollTop = true) {
+    const mode = subSec === 'performance' ? 'performance' : 'history';
+    this.currentAnalyticsSubSection = mode;
+    try {
+      sessionStorage.setItem('fmcu_active_analytics_subtab', mode);
+    } catch (e) {}
+
+    const historySec = document.getElementById('analytics-subsection-history');
+    const perfSec = document.getElementById('analytics-subsection-performance');
+    const btnHistory = document.getElementById('analytics-subtab-btn-history');
+    const btnPerf = document.getElementById('analytics-subtab-btn-performance');
+    const countPill = document.getElementById('analytics-history-count-pill');
+
+    if (historySec) historySec.classList.toggle('hidden', mode !== 'history');
+    if (perfSec) perfSec.classList.toggle('hidden', mode !== 'performance');
+
+    if (btnHistory) {
+      btnHistory.className =
+        mode === 'history'
+          ? 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-[#009944] text-white shadow-xs'
+          : 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white';
+    }
+
+    if (btnPerf) {
+      btnPerf.className =
+        mode === 'performance'
+          ? 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-[#0099A6] text-white shadow-xs'
+          : 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white';
+    }
+
+    if (countPill) {
+      countPill.className =
+        mode === 'history'
+          ? 'px-1.5 py-0.2 rounded-full text-[10px] bg-white/25 text-white font-extrabold'
+          : 'px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-extrabold';
+    }
+
+    if (mode === 'history') {
+      this.renderAnalyticsHistory();
+    } else {
+      this.renderAnalyticsPerformance();
+    }
+
+    if (scrollTop) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  },
+
+  renderAnalyticsHistory() {
+    const container = document.getElementById('analytics-history-list');
+    const countPill = document.getElementById('analytics-history-count-pill');
+    if (!container) return;
+
+    const allReports = window.FMCUData.getReports();
+    if (countPill) countPill.textContent = String(allReports.length);
+
+    // Populate Visitor Filter dropdown
+    const visFilterEl = document.getElementById('analytics-history-visitor-filter');
+    if (visFilterEl) {
+      const auditors = this.getSchedulableAuditors();
+      const curVal = visFilterEl.value || 'ALL';
+      visFilterEl.innerHTML =
+        `<option value="ALL">Semua Visitor (${allReports.length} Laporan)</option>` +
+        auditors
+          .map((u) => {
+            const count = allReports.filter((r) => r.auditorId === u.id || r.auditorName === u.name).length;
+            return `<option value="${u.id}" ${u.id === curVal ? 'selected' : ''}>${u.name} (${count})</option>`;
+          })
+          .join('');
+    }
+
+    const searchQ = (document.getElementById('analytics-history-search')?.value || '').trim().toLowerCase();
+    const selectedVis = document.getElementById('analytics-history-visitor-filter')?.value || 'ALL';
+
+    const filtered = allReports.filter((r) => {
+      if (selectedVis !== 'ALL' && r.auditorId !== selectedVis && r.auditorName !== selectedVis) {
+        return false;
+      }
+      if (!searchQ) return true;
+      return (
+        String(r.storeName || '').toLowerCase().includes(searchQ) ||
+        String(r.storeCode || '').toLowerCase().includes(searchQ) ||
+        String(r.auditorName || '').toLowerCase().includes(searchQ) ||
+        String(r.storeHead || '').toLowerCase().includes(searchQ) ||
+        String(r.visitDate || '').toLowerCase().includes(searchQ)
+      );
+    });
+
+    if (filtered.length === 0) {
+      container.innerHTML = `
+        <div class="border border-dashed border-slate-200 rounded-2xl py-12 px-4 text-center space-y-2 bg-slate-50/50">
+          <div class="text-3xl text-slate-300"><i class="fa-solid fa-file-circle-question"></i></div>
+          <div class="text-slate-600 text-xs sm:text-sm font-bold">Tidak ada riwayat visit yang sesuai filter / pencarian.</div>
+          <p class="text-xs text-slate-400">Silakan ubah filter Visitor atau kata kunci pencarian toko.</p>
+        </div>
+      `;
+      return;
+    }
+
+    const canDelete = Boolean(
+      this.currentUser &&
+      (this.currentUser.role === 'ADMIN_SCHEDULE' || this.currentUser.role === 'SUPER_ADMIN')
+    );
+
+    container.innerHTML = filtered
+      .map((r) => {
+        const obsCount = (r.observations || []).length;
+        const evCount = (r.evidencePhotos || []).length;
+        const dateText = r.visitDayDateFormatted || window.FMCUPdf.formatIndonesianDate(r.visitDate, true);
+        return `
+          <div class="border border-slate-200 hover:border-teal-300 rounded-2xl p-4 sm:p-5 bg-white flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition shadow-xs hover:shadow-sm">
+            <div class="space-y-1.5">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="px-2.5 py-0.5 rounded-md bg-teal-50 text-[#0099A6] font-extrabold text-xs">
+                  Site ${r.storeCode} • ${r.storeType || 'CVS'}
+                </span>
+                <h4 class="font-extrabold text-base sm:text-lg text-slate-900">FamilyMart ${r.storeName}</h4>
+                <span class="text-xs text-slate-400">•</span>
+                <span class="text-xs font-semibold text-slate-600">${dateText}</span>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+                <span><i class="fa-regular fa-user text-[#0099A6] mr-1"></i>Visitor: <strong>${r.auditorName || '-'}</strong></span>
+                <span><i class="fa-solid fa-user-tie text-emerald-600 mr-1"></i>Store Head: <strong>${r.storeHead || '-'}</strong></span>
+                <span><i class="fa-regular fa-clock text-amber-600 mr-1"></i>Actual In-Out: <strong>${r.actualIn || '-'} s/d ${r.actualOut || '-'}</strong></span>
+                <span><i class="fa-solid fa-location-dot text-rose-500 mr-1"></i>GPS: <span class="font-mono">${r.gpsLat || '-'}, ${r.gpsLng || '-'}</span></span>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-2 pt-1">
+                <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                  ${obsCount} Temuan Observasi
+                </span>
+                <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-800 border border-sky-200">
+                  ${evCount} Foto Bukti Evidence
+                </span>
+                <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  Skor QSC: ${r.qscScore || 0}%
+                </span>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 shrink-0">
+              <button type="button" onclick="FMCUApp.editReportById('${r.id}')" class="px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition cursor-pointer">
+                <i class="fa-solid fa-pen mr-1"></i>Buka Form
+              </button>
+              <button type="button" onclick="FMCUApp.openReportPreview('${r.id}')" class="px-3.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition flex items-center gap-1.5 cursor-pointer">
+                <i class="fa-solid fa-display"></i>
+                <span>Preview Slide PDF</span>
+              </button>
+              <button type="button" onclick="FMCUApp.downloadReportById('${r.id}')" class="fm-gradient hover:opacity-95 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                <i class="fa-solid fa-file-arrow-down"></i>
+                <span>Unduh PDF</span>
+              </button>
+              ${
+                canDelete
+                  ? `<button type="button" onclick="FMCUApp.deleteReportById('${r.id}')" class="px-3 py-2 rounded-xl border border-rose-200 hover:bg-rose-50 text-rose-600 font-bold text-xs transition flex items-center gap-1 cursor-pointer" title="Hapus Laporan Visit">
+                      <i class="fa-solid fa-trash-can"></i>
+                      <span>Hapus</span>
+                    </button>`
+                  : ''
+              }
+            </div>
+          </div>
+        `;
+      })
+      .join('');
+  },
+
+  renderAnalyticsPerformance() {
     const schedules = window.FMCUData.getSchedules();
     const reports = window.FMCUData.getReports();
 
     const completedSchedules = schedules.filter((s) => s.status === 'COMPLETED').length;
     const totalSchedules = schedules.length;
     const compRate = totalSchedules > 0 ? Math.round((completedSchedules / totalSchedules) * 100) : 0;
-    document.getElementById('kpi-total-visits').textContent = `${reports.length} Visit`;
-    document.getElementById('kpi-completion-rate').textContent = `${completedSchedules}/${totalSchedules} Jadwal (${compRate}%)`;
+    const kpiVisEl = document.getElementById('kpi-total-visits');
+    if (kpiVisEl) kpiVisEl.textContent = `${reports.length} Visit`;
+    const kpiCompEl = document.getElementById('kpi-completion-rate');
+    if (kpiCompEl) kpiCompEl.textContent = `${completedSchedules}/${totalSchedules} Jadwal (${compRate}%)`;
 
     let totalFindings = 0;
     let openFindings = 0;
@@ -1462,19 +1664,64 @@ window.FMCUApp = {
       totalScore += Number(r.qscScore || 0);
     });
 
-    document.getElementById('kpi-total-findings').textContent = String(totalFindings);
-    document.getElementById('kpi-open-findings').textContent = `${openFindings} Open • ${closedFindings} Closed`;
+    const kpiFindEl = document.getElementById('kpi-total-findings');
+    if (kpiFindEl) kpiFindEl.textContent = String(totalFindings);
+    const kpiOpenEl = document.getElementById('kpi-open-findings');
+    if (kpiOpenEl) kpiOpenEl.textContent = `${openFindings} Open • ${closedFindings} Closed`;
 
     const avgDur = reports.length > 0 ? Math.round(totalDuration / reports.length) : 0;
     const hrs = Math.floor(avgDur / 60);
     const mins = avgDur % 60;
-    document.getElementById('kpi-avg-duration').textContent = `${hrs}j ${mins}m`;
+    const kpiDurEl = document.getElementById('kpi-avg-duration');
+    if (kpiDurEl) kpiDurEl.textContent = `${hrs}j ${mins}m`;
 
     const avgScore = reports.length > 0 ? (totalScore / reports.length).toFixed(1) : '0';
-    document.getElementById('kpi-avg-score').textContent = `${avgScore}%`;
+    const kpiScoreEl = document.getElementById('kpi-avg-score');
+    if (kpiScoreEl) kpiScoreEl.textContent = `${avgScore}%`;
 
     this.renderAnalyticsCharts();
     this.renderUserPerformanceTable();
+  },
+
+  deleteReportById(reportId) {
+    const isAdmin = Boolean(
+      this.currentUser &&
+      (this.currentUser.role === 'ADMIN_SCHEDULE' || this.currentUser.role === 'SUPER_ADMIN')
+    );
+    if (!isAdmin) {
+      this.showToast('Hanya Admin Jadwal dan Super Admin yang memiliki otoritas untuk menghapus history laporan visit.', 'warning');
+      return;
+    }
+
+    const reports = window.FMCUData.getReports();
+    const rep = reports.find((r) => String(r.id) === String(reportId));
+    if (!rep) return;
+
+    const confirmMsg = `Hapus laporan visit FamilyMart ${rep.storeName || ''} (${rep.storeCode || ''}) tanggal ${rep.visitDate || ''}?\n\nTindakan ini akan menghapus arsip PDF dan history laporan secara permanen dari database.`;
+    if (!confirm(confirmMsg)) return;
+
+    // Lepaskan tautan dari jadwal jika ada
+    const schedules = window.FMCUData.getSchedules();
+    let schUpdated = false;
+    schedules.forEach((s) => {
+      if (s.reportId === reportId || (s.storeCode === rep.storeCode && s.scheduledDate === rep.visitDate && s.status === 'COMPLETED')) {
+        s.reportId = null;
+        s.status = 'PENDING';
+        s.actualOut = null;
+        schUpdated = true;
+      }
+    });
+    if (schUpdated) {
+      window.FMCUData.saveSchedules(schedules);
+    }
+
+    window.FMCUData.deleteReport(reportId);
+
+    // Refresh views
+    this.renderAnalyticsHistory();
+    this.renderHomeHistory();
+    this.renderCurrentActiveView();
+    this.showToast(`Laporan visit Toko ${rep.storeName} berhasil dihapus dari database!`, 'success');
   },
 
   renderHomeSchedules() {
@@ -1771,6 +2018,11 @@ window.FMCUApp = {
       return;
     }
 
+    const isAdmin = Boolean(
+      this.currentUser &&
+        (this.currentUser.role === 'ADMIN_SCHEDULE' || this.currentUser.role === 'SUPER_ADMIN')
+    );
+
     container.innerHTML = reports
       .map((r) => {
         const obsCount = (r.observations || []).length;
@@ -1820,6 +2072,16 @@ window.FMCUApp = {
                 <i class="fa-solid fa-file-arrow-down"></i>
                 <span>Unduh PDF</span>
               </button>
+              ${
+                isAdmin
+                  ? `
+                <button onclick="FMCUApp.deleteReportById('${r.id}')" class="px-3 py-2 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer" title="Hapus Riwayat Laporan Visit">
+                  <i class="fa-regular fa-trash-can"></i>
+                  <span>Hapus</span>
+                </button>
+              `
+                  : ''
+              }
             </div>
           </div>
         `;
