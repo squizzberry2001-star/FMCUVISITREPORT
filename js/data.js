@@ -175,6 +175,8 @@ window.FMCUData = {
   FINDING_PRESETS,
   FIREBASE_CONFIG,
   DEFAULT_EXCEL_FILE_PATH: '10. List PIC Oktober 2026_rev01.xlsx',
+  SESSION_TIMEOUT_MS: 15 * 60 * 1000, // 15 menit batas waktu sesi idle
+  TAB_UNLOAD_KEY: 'fmcu_tab_unload_ts_v2',
   firebaseApp: null,
   db: null,
   analytics: null,
@@ -183,7 +185,7 @@ window.FMCUData = {
   unsubscribers: [],
 
   init() {
-    // Hapus seluruh cache data dummy versi lama (v1)
+    // Hapus seluruh cache data dummy versi lama (v1) dan hapus sesi persisten lama di localStorage
     [
       'fmcu_users_v1',
       'fmcu_stores_v1',
@@ -193,8 +195,16 @@ window.FMCUData = {
       'fmcu_active_checkin_v1',
       'fmcu_draft_report_v1',
       'fmcu_settings_v1',
-      'fmcu_attendance_logs_v1'
+      'fmcu_attendance_logs_v1',
+      STORAGE_KEYS.ACTIVE_SESSION
     ].forEach((oldKey) => localStorage.removeItem(oldKey));
+
+    // Jika tab/web app sempat ditutup dan dibuka kembali (> 4 detik jeda unload), wajibkan login ulang
+    const unloadTs = Number(sessionStorage.getItem(this.TAB_UNLOAD_KEY) || 0);
+    if (unloadTs > 0 && Date.now() - unloadTs > 4000) {
+      sessionStorage.removeItem(STORAGE_KEYS.ACTIVE_SESSION);
+    }
+    sessionStorage.removeItem(this.TAB_UNLOAD_KEY);
 
     if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(INITIAL_USERS));
@@ -437,7 +447,7 @@ window.FMCUData = {
           if (activeSession) {
             const updatedSelf = cloudUsers.find((u) => u.id === activeSession.id || u.username === activeSession.username);
             if (updatedSelf) {
-              localStorage.setItem(STORAGE_KEYS.ACTIVE_SESSION, JSON.stringify(updatedSelf));
+              this.setSession(updatedSelf);
             }
           }
           if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
@@ -795,22 +805,65 @@ window.FMCUData = {
     localStorage.setItem(STORAGE_KEYS.ATTENDANCE_LOGS, JSON.stringify(logs));
   },
 
+  // ==========================================================================
+  // SESSION MANAGEMENT (TAB-SCOPED sessionStorage + TIME SESSION EXPIRY)
+  // Otomatis terhapus saat tutup tab / tutup web app atau melewati batas waktu
+  // ==========================================================================
   getSession() {
-    const raw = localStorage.getItem(STORAGE_KEYS.ACTIVE_SESSION);
+    localStorage.removeItem(STORAGE_KEYS.ACTIVE_SESSION);
+    const raw = sessionStorage.getItem(STORAGE_KEYS.ACTIVE_SESSION);
     if (!raw) return null;
     try {
       const parsed = JSON.parse(raw);
-      const freshUser = this.getUsers().find((u) => u.id === parsed.id || u.username === parsed.username);
-      return freshUser || parsed;
+      // Cek apakah format baru { user, expiresAt } atau format objek user langsung
+      if (parsed && parsed.expiresAt && Date.now() > parsed.expiresAt) {
+        sessionStorage.removeItem(STORAGE_KEYS.ACTIVE_SESSION);
+        return null;
+      }
+      const userObj = parsed && parsed.user ? parsed.user : parsed;
+      if (!userObj || !userObj.username) return null;
+      const freshUser = this.getUsers().find((u) => u.id === userObj.id || u.username === userObj.username);
+      return freshUser || userObj;
     } catch {
       return null;
     }
   },
+
   setSession(user) {
+    localStorage.removeItem(STORAGE_KEYS.ACTIVE_SESSION);
     if (!user) {
-      localStorage.removeItem(STORAGE_KEYS.ACTIVE_SESSION);
+      sessionStorage.removeItem(STORAGE_KEYS.ACTIVE_SESSION);
     } else {
-      localStorage.setItem(STORAGE_KEYS.ACTIVE_SESSION, JSON.stringify(user));
+      const payload = {
+        user,
+        loginAt: Date.now(),
+        expiresAt: Date.now() + this.SESSION_TIMEOUT_MS
+      };
+      sessionStorage.setItem(STORAGE_KEYS.ACTIVE_SESSION, JSON.stringify(payload));
+    }
+  },
+
+  touchSession() {
+    const raw = sessionStorage.getItem(STORAGE_KEYS.ACTIVE_SESSION);
+    if (!raw) return false;
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.expiresAt && Date.now() > parsed.expiresAt) {
+        sessionStorage.removeItem(STORAGE_KEYS.ACTIVE_SESSION);
+        return false;
+      }
+      const userObj = parsed && parsed.user ? parsed.user : parsed;
+      sessionStorage.setItem(
+        STORAGE_KEYS.ACTIVE_SESSION,
+        JSON.stringify({
+          user: userObj,
+          loginAt: parsed.loginAt || Date.now(),
+          expiresAt: Date.now() + this.SESSION_TIMEOUT_MS
+        })
+      );
+      return true;
+    } catch {
+      return false;
     }
   },
 

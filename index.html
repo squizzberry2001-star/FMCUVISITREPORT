@@ -102,9 +102,9 @@
   </div>
 
   <!-- ====================================================================
-       GLOBAL AUTH LOGIN OVERLAY
+       GLOBAL AUTH LOGIN OVERLAY (WAJIB LOGIN SETIAP BUKA TAB / WEB APP BARU)
        ==================================================================== -->
-  <div id="auth-screen" class="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 hidden overflow-y-auto">
+  <div id="auth-screen" class="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
     <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-4xl w-full overflow-hidden grid grid-cols-1 lg:grid-cols-12 my-auto view-section">
       <!-- Left Visual Corporate Branding Panel -->
       <div class="lg:col-span-5 fm-gradient p-8 text-white flex flex-col justify-between relative overflow-hidden">
@@ -156,7 +156,7 @@
         <div class="mb-6">
           <span class="text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">Portal Akses Otoritas</span>
           <h2 class="text-2xl font-extrabold text-slate-900 mt-2">Masuk ke Sistem FMCU</h2>
-          <p class="text-xs sm:text-sm text-slate-500 mt-1">Gunakan kredensial sesuai otoritas Anda (Auditor / Admin FMCU).</p>
+          <p class="text-xs sm:text-sm text-slate-500 mt-1">Gunakan kredensial sesuai otoritas Anda yang terdaftar di Cloud Firestore.</p>
         </div>
 
         <form id="login-form" class="space-y-4">
@@ -164,14 +164,14 @@
             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Username / Email</label>
             <div class="relative">
               <i class="fa-regular fa-user absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
-              <input type="text" id="login-username" required placeholder="Masukkan username (auditor / admin)" class="fm-input pl-10" value="" />
+              <input type="text" id="login-username" required autocomplete="username" placeholder="Masukkan username Anda" class="fm-input pl-10" value="" />
             </div>
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Password / PIN Otoritas</label>
             <div class="relative">
               <i class="fa-solid fa-lock absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
-              <input type="password" id="login-password" required placeholder="Masukkan password" class="fm-input pl-10" value="" />
+              <input type="password" id="login-password" required autocomplete="current-password" placeholder="Masukkan password" class="fm-input pl-10" value="" />
             </div>
           </div>
           <div id="login-error" class="hidden text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg p-2.5"></div>
@@ -181,27 +181,14 @@
           </button>
         </form>
 
-        <!-- Role Access Selector -->
-        <div class="mt-7 pt-6 border-t border-slate-100">
-          <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center justify-between">
-            <span>Pilih Otoritas Akses Cepat:</span>
-            <span class="text-[11px] font-normal text-slate-400">Default Password: 123</span>
-          </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <button type="button" onclick="FMCUApp.quickLogin('auditor')" class="text-left p-3 rounded-xl border border-teal-200 bg-teal-50/50 hover:bg-teal-50 transition flex items-center gap-3 cursor-pointer">
-              <div class="w-9 h-9 rounded-full bg-[#0099A6] text-white font-bold flex items-center justify-center shrink-0 text-xs">AU</div>
-              <div class="overflow-hidden">
-                <div class="font-bold text-xs text-slate-900 truncate">Auditor FMCU</div>
-                <div class="text-[11px] text-teal-700 font-medium">User Biasa (Auditor)</div>
-              </div>
-            </button>
-            <button type="button" onclick="FMCUApp.quickLogin('admin')" class="text-left p-3 rounded-xl border border-emerald-200 bg-emerald-50/50 hover:bg-emerald-50 transition flex items-center gap-3 cursor-pointer">
-              <div class="w-9 h-9 rounded-full bg-[#009944] text-white font-bold flex items-center justify-center shrink-0 text-xs">AD</div>
-              <div class="overflow-hidden">
-                <div class="font-bold text-xs text-slate-900 truncate">Admin FMCU</div>
-                <div class="text-[11px] text-emerald-700 font-medium">Super Admin (Full Otoritas)</div>
-              </div>
-            </button>
+        <!-- Session Security Info Banner -->
+        <div class="mt-7 pt-5 border-t border-slate-100">
+          <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-3 text-xs text-slate-600">
+            <i class="fa-solid fa-shield-halved text-[#009944] text-base mt-0.5"></i>
+            <div class="leading-relaxed">
+              <div class="font-extrabold text-slate-800">Keamanan Time Session Aktif</div>
+              <div>Sesi login bersifat sementara per tab. Jika Anda <strong>menutup tab / menutup aplikasi web</strong> atau tidak ada aktivitas selama <strong>15 menit</strong>, sistem otomatis mengakhiri sesi dan meminta login kembali.</div>
+            </div>
           </div>
         </div>
       </div>

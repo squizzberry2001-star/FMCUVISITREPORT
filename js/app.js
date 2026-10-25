@@ -55,14 +55,13 @@ window.FMCUApp = {
       }
     });
 
-    // Default to Auditor (User Biasa) on first load if no session exists
-    let sessionUser = window.FMCUData.getSession();
-    if (!sessionUser) {
-      const users = window.FMCUData.getUsers();
-      sessionUser = users.find((u) => u.role === 'AUDITOR') || users[0] || null;
-      if (sessionUser) window.FMCUData.setSession(sessionUser);
+    // Cek sesi login aktif di tab ini (sessionStorage). Jika tutup tab / buka baru / expired -> wajib login!
+    const sessionUser = window.FMCUData.getSession();
+    this.currentUser = sessionUser || null;
+    const authScreen = document.getElementById('auth-screen');
+    if (authScreen) {
+      authScreen.classList.toggle('hidden', Boolean(this.currentUser));
     }
-    this.currentUser = sessionUser;
 
     // Check if there was an active store check-in session
     const activeCheckIn = window.FMCUData.getActiveCheckIn();
@@ -78,8 +77,58 @@ window.FMCUApp = {
     this.populateGasScriptPreview();
     this.onCloudStatusChanged(window.FMCUData.cloudStatus, window.FMCUData.cloudErrorMsg);
 
+    // Aktifkan pemantau Time Session & Tab Close
+    this.initSessionMonitor();
+
     // Auto-request Mandatory GPS Permission on load
     this.initMandatoryGpsSystem();
+  },
+
+  // ==========================================================================
+  // TIME SESSION & TAB/APP CLOSE MONITOR
+  // Otomatis meminta login kembali jika tutup tab / tutup web app / sesi habis
+  // ==========================================================================
+  initSessionMonitor() {
+    // 1. Tandai waktu saat tab atau web app ditutup / di-unload
+    const markUnload = () => {
+      try {
+        sessionStorage.setItem(window.FMCUData.TAB_UNLOAD_KEY, String(Date.now()));
+      } catch (e) {}
+    };
+    window.addEventListener('pagehide', markUnload);
+    window.addEventListener('beforeunload', markUnload);
+
+    // 2. Perpanjang sesi aktif saat user berinteraksi (throttled tiap 10 detik)
+    let lastTouch = 0;
+    const onUserActivity = () => {
+      if (!this.currentUser) return;
+      const now = Date.now();
+      if (now - lastTouch > 10000) {
+        lastTouch = now;
+        const ok = window.FMCUData.touchSession();
+        if (!ok) {
+          this.logout('Sesi waktu login Anda telah berakhir. Silakan login kembali.');
+        }
+      }
+    };
+    ['click', 'keydown', 'touchstart', 'scroll'].forEach((evt) => {
+      window.addEventListener(evt, onUserActivity, { passive: true });
+    });
+
+    // 3. Cek kedaluwarsa sesi secara berkala & saat kembali ke tab/aplikasi
+    const checkSessionValidity = () => {
+      if (!this.currentUser) return;
+      const validUser = window.FMCUData.getSession();
+      if (!validUser) {
+        this.logout('Sesi waktu login Anda telah berakhir. Silakan login kembali.');
+      }
+    };
+    setInterval(checkSessionValidity, 5000);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        checkSessionValidity();
+      }
+    });
   },
 
   // ==========================================================================
@@ -392,9 +441,27 @@ window.FMCUApp = {
     }
   },
 
-  logout() {
+  logout(reasonMsg = '') {
+    window.FMCUData.setSession(null);
+    this.currentUser = null;
     this.closeModal('modal-user-profile');
-    document.getElementById('auth-screen').classList.remove('hidden');
+
+    const passInput = document.getElementById('login-password');
+    if (passInput) passInput.value = '';
+
+    const errEl = document.getElementById('login-error');
+    if (errEl) {
+      if (typeof reasonMsg === 'string' && reasonMsg.trim()) {
+        errEl.textContent = reasonMsg;
+        errEl.classList.remove('hidden');
+        this.showToast(reasonMsg, 'warning');
+      } else {
+        errEl.classList.add('hidden');
+      }
+    }
+
+    const authScreen = document.getElementById('auth-screen');
+    if (authScreen) authScreen.classList.remove('hidden');
   },
 
   hasAdminAuthority(user = this.currentUser) {
