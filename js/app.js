@@ -1,6 +1,6 @@
 // ============================================================================
-// FMCU VISIT STORE REPORT - Main Application Controller (UI, Analytics, GPS,
-// Actual In/Out, Multi-Section Form, PDF Slide Preview, Admin RBAC & GDrive)
+// FMCU VISIT STORE REPORT - Main Application Controller
+// (Seluruh data dummy dan informasi dummy telah dikosongkan)
 // ============================================================================
 
 window.FMCUApp = {
@@ -8,10 +8,10 @@ window.FMCUApp = {
   currentAdminTab: 'schedules',
   currentUser: null,
   liveGps: {
-    lat: -6.15682,
-    lng: 106.75824,
-    accuracy: 12,
-    status: 'VERIFIED'
+    lat: null,
+    lng: null,
+    accuracy: null,
+    status: 'WAITING'
   },
   homeMap: null,
   userMarker: null,
@@ -26,7 +26,7 @@ window.FMCUApp = {
   formEvidencePhotos: [],
 
   // PDF Preview State
-  activePreviewReportId: 'rep-taman-kota-0404',
+  activePreviewReportId: '__LIVE_FORM__',
   previewMode: 'slide',
   previewSlides: [],
   currentSlideIndex: 0,
@@ -48,19 +48,19 @@ window.FMCUApp = {
       }
     });
 
-    // Check active session or auto-login default auditor for smooth experience
+    // Check active session or default to first system account
     let sessionUser = window.FMCUData.getSession();
     if (!sessionUser) {
       const users = window.FMCUData.getUsers();
-      sessionUser = users[0]; // Default to Rani Ismawati (Auditor)
-      window.FMCUData.setSession(sessionUser);
+      sessionUser = users[0] || null;
+      if (sessionUser) window.FMCUData.setSession(sessionUser);
     }
     this.currentUser = sessionUser;
 
     this.populateHeaderRoleSwitcher();
     this.updateUserHeaderUI();
     this.refreshGpsLocation(false);
-    this.loadSampleTamanKotaToForm(true);
+    this.resetVisitForm(true);
     this.renderAllViews();
     this.populateGasScriptPreview();
   },
@@ -112,7 +112,7 @@ window.FMCUApp = {
 
     const errEl = document.getElementById('login-error');
     if (!found) {
-      errEl.textContent = 'Username atau Password tidak sesuai. Gunakan password demo: 123';
+      errEl.textContent = 'Username atau Password tidak sesuai.';
       errEl.classList.remove('hidden');
       return;
     }
@@ -173,12 +173,13 @@ window.FMCUApp = {
     const sel = document.getElementById('header-role-switcher');
     if (!sel) return;
     const users = window.FMCUData.getUsers();
-    sel.innerHTML = users
-      .map(
-        (u) =>
-          `<option value="${u.id}" ${this.currentUser && this.currentUser.id === u.id ? 'selected' : ''}>👤 ${u.name} (${u.role === 'SUPER_ADMIN' ? 'Admin' : u.role === 'ADMIN_SCHEDULE' ? 'RM/Admin' : 'Auditor'})</option>`
-      )
-      .join('') + `<option value="__LOGOUT__">🚪 Ganti Login / Keluar...</option>`;
+    sel.innerHTML =
+      users
+        .map(
+          (u) =>
+            `<option value="${u.id}" ${this.currentUser && this.currentUser.id === u.id ? 'selected' : ''}>👤 ${u.name} (${u.role === 'SUPER_ADMIN' ? 'Admin' : u.role === 'ADMIN_SCHEDULE' ? 'Admin Jadwal' : 'Auditor'})</option>`
+        )
+        .join('') + `<option value="__LOGOUT__">🚪 Ganti Login / Keluar...</option>`;
   },
 
   updateUserHeaderUI() {
@@ -208,7 +209,7 @@ window.FMCUApp = {
     if (roleEl) roleEl.textContent = u.roleBadge || u.role;
 
     const welcomeRole = document.getElementById('home-welcome-role');
-    if (welcomeRole) welcomeRole.textContent = `Otoritas: ${u.roleBadge || u.role} • ${u.region || ''}`;
+    if (welcomeRole) welcomeRole.textContent = `Otoritas: ${u.roleBadge || u.role}`;
 
     const lockBadge = document.getElementById('sidebar-admin-lock');
     if (lockBadge) {
@@ -235,10 +236,10 @@ window.FMCUApp = {
       if (mainEl) mainEl.classList.toggle('hidden', v !== viewName);
 
       const dNav = document.getElementById(`nav-${v}`);
-      if (dNav) dNav.classList.toggle('active', v !== viewName ? false : true);
+      if (dNav) dNav.classList.toggle('active', v === viewName);
 
       const mNav = document.getElementById(`mnav-${v}`);
-      if (mNav) mNav.classList.toggle('active', v !== viewName ? false : true);
+      if (mNav) mNav.classList.toggle('active', v === viewName);
     });
 
     const titles = {
@@ -248,7 +249,7 @@ window.FMCUApp = {
       ],
       form: [
         'Form Laporan Visit Toko (QSC, FamiTrack & Observasi)',
-        'Lengkapi data kunjungan toko, bukti foto otomatis ber-watermark GPS, dan analisis akar masalah'
+        'Lengkapi data kunjungan toko, bukti foto ber-watermark GPS, dan analisis akar masalah'
       ],
       preview: [
         'Preview Hasil PDF (Slide 16:9) & Download PDF',
@@ -284,36 +285,44 @@ window.FMCUApp = {
   // LIVE GPS GEOLOCATION & LEAFLET MAP TRACKING
   // ==========================================================================
   refreshGpsLocation(notify = false) {
-    const updateUIWithCoords = (lat, lng, accuracy = 10, isReal = true) => {
+    const applyCoords = (lat, lng, accuracy = null, isActual = true) => {
       this.liveGps = {
-        lat: Number(lat.toFixed(5)),
-        lng: Number(lng.toFixed(5)),
-        accuracy: Math.round(accuracy),
-        status: isReal ? 'GPS AKTUAL' : 'GPS AKTIF'
+        lat: lat !== null ? Number(lat.toFixed(5)) : null,
+        lng: lng !== null ? Number(lng.toFixed(5)) : null,
+        accuracy: accuracy ? Math.round(accuracy) : null,
+        status: isActual ? 'GPS AKTUAL' : 'BELUM TERDETEKSI'
       };
 
-      const coordStr = `${this.liveGps.lat}, ${this.liveGps.lng}`;
+      const hasCoords = this.liveGps.lat !== null && this.liveGps.lng !== null;
+      const coordStr = hasCoords ? `${this.liveGps.lat}, ${this.liveGps.lng}` : 'Izin GPS belum aktif';
+
       const sideEl = document.getElementById('sidebar-gps-coords');
-      if (sideEl) sideEl.textContent = `${coordStr} (±${this.liveGps.accuracy}m)`;
+      if (sideEl) sideEl.textContent = hasCoords ? `${coordStr} (±${this.liveGps.accuracy || 10}m)` : coordStr;
 
       const headEl = document.getElementById('header-gps-text');
-      if (headEl) headEl.textContent = `GPS: ${coordStr}`;
+      if (headEl) headEl.textContent = hasCoords ? `GPS: ${coordStr}` : 'Klik untuk Aktifkan GPS';
 
       const homeEl = document.getElementById('home-gps-latlng');
       if (homeEl) homeEl.textContent = coordStr;
 
-      const formGpsEl = document.getElementById('form-banner-gps');
-      if (formGpsEl) {
-        formGpsEl.innerHTML = `<i class="fa-solid fa-location-dot text-emerald-400"></i><span>Live GPS User: ${coordStr} (±${this.liveGps.accuracy}m • Terverifikasi)</span>`;
+      const badgeEl = document.getElementById('home-gps-status-badge');
+      if (badgeEl) {
+        badgeEl.textContent = hasCoords ? 'GPS Terkunci' : 'Menunggu GPS';
+        badgeEl.className = hasCoords
+          ? 'text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800'
+          : 'text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-600';
       }
 
-      // Persist last location for current user
-      if (this.currentUser) {
+      const formGpsEl = document.getElementById('form-banner-gps');
+      if (formGpsEl) {
+        formGpsEl.innerHTML = `<i class="fa-solid fa-location-dot text-emerald-400"></i><span>Live GPS User: ${coordStr}</span>`;
+      }
+
+      if (hasCoords && this.currentUser) {
         const users = window.FMCUData.getUsers();
         const idx = users.findIndex((u) => u.id === this.currentUser.id);
         if (idx !== -1) {
           users[idx].lastLocation = {
-            ...(users[idx].lastLocation || {}),
             lat: this.liveGps.lat,
             lng: this.liveGps.lng,
             updatedAt: new Date().toISOString(),
@@ -325,25 +334,26 @@ window.FMCUApp = {
 
       this.initOrUpdateHomeMap();
       if (notify) {
-        this.showToast(`Titik Live Location diperbarui: ${coordStr}`, 'success');
+        if (hasCoords) {
+          this.showToast(`Titik Live Location diperbarui: ${coordStr}`, 'success');
+        } else {
+          this.showToast('Tidak dapat mengakses sensor GPS perangkat. Pastikan izin lokasi browser aktif.', 'warning');
+        }
       }
     };
 
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          updateUIWithCoords(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy, true);
+          applyCoords(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy, true);
         },
         () => {
-          // Fallback to user's last known or Taman Kota store GPS so demo never breaks
-          const fallbackLat = this.currentUser?.lastLocation?.lat || -6.15682;
-          const fallbackLng = this.currentUser?.lastLocation?.lng || 106.75824;
-          updateUIWithCoords(fallbackLat, fallbackLng, 14, false);
+          applyCoords(null, null, null, false);
         },
-        { enableHighAccuracy: true, timeout: 5000 }
+        { enableHighAccuracy: true, timeout: 6000 }
       );
     } else {
-      updateUIWithCoords(-6.15682, 106.75824, 15, false);
+      applyCoords(null, null, null, false);
     }
   },
 
@@ -351,26 +361,30 @@ window.FMCUApp = {
     const mapContainer = document.getElementById('home-live-map');
     if (!mapContainer || typeof L === 'undefined') return;
 
-    const { lat, lng } = this.liveGps;
+    const centerLat = this.liveGps.lat !== null ? this.liveGps.lat : -6.2088;
+    const centerLng = this.liveGps.lng !== null ? this.liveGps.lng : 106.8456;
+
     if (!this.homeMap) {
       this.homeMap = L.map('home-live-map', {
         zoomControl: false,
         attributionControl: false
-      }).setView([lat, lng], 12);
+      }).setView([centerLat, centerLng], 11);
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19
       }).addTo(this.homeMap);
-    } else {
-      this.homeMap.setView([lat, lng], this.homeMap.getZoom());
+    } else if (this.liveGps.lat !== null) {
+      this.homeMap.setView([centerLat, centerLng], 14);
     }
 
-    // Clear previous markers
-    if (this.userMarker) this.homeMap.removeLayer(this.userMarker);
+    if (this.userMarker) {
+      this.homeMap.removeLayer(this.userMarker);
+      this.userMarker = null;
+    }
     this.storeMarkers.forEach((m) => this.homeMap.removeLayer(m));
     this.storeMarkers = [];
 
-    // Draw Store Markers
+    // Draw Store Markers from Master Data
     const stores = window.FMCUData.getStores();
     stores.forEach((st) => {
       if (st.lat && st.lng) {
@@ -382,21 +396,23 @@ window.FMCUApp = {
           fillOpacity: 0.9
         })
           .addTo(this.homeMap)
-          .bindPopup(`<b>FamilyMart ${st.name} (${st.code})</b><br/>Store Head: ${st.storeHead}`);
+          .bindPopup(`<b>FamilyMart ${st.name} (${st.code})</b><br/>Store Head: ${st.storeHead || '-'}`);
         this.storeMarkers.push(m);
       }
     });
 
-    // Draw Current User Live GPS Marker
-    this.userMarker = L.circleMarker([lat, lng], {
-      radius: 8,
-      fillColor: '#0099A6',
-      color: '#ffffff',
-      weight: 3,
-      fillOpacity: 1
-    })
-      .addTo(this.homeMap)
-      .bindPopup(`<b>Lokasi Aktual Anda (${this.currentUser?.name || 'Auditor'})</b><br/>GPS: ${lat}, ${lng}`);
+    // Draw User Marker if Live GPS is detected
+    if (this.liveGps.lat !== null && this.liveGps.lng !== null) {
+      this.userMarker = L.circleMarker([this.liveGps.lat, this.liveGps.lng], {
+        radius: 8,
+        fillColor: '#0099A6',
+        color: '#ffffff',
+        weight: 3,
+        fillOpacity: 1
+      })
+        .addTo(this.homeMap)
+        .bindPopup(`<b>Lokasi Aktual Anda (${this.currentUser?.name || 'User'})</b><br/>GPS: ${this.liveGps.lat}, ${this.liveGps.lng}`);
+    }
   },
 
   // ==========================================================================
@@ -411,7 +427,7 @@ window.FMCUApp = {
     const timeStr = this.getCurrentTimeWIB();
     if (type === 'in') {
       document.getElementById('form-actual-in').value = timeStr;
-      this.showToast(`Waktu Actual In tercatat: ${timeStr} pada GPS ${this.liveGps.lat}, ${this.liveGps.lng}`, 'success');
+      this.showToast(`Waktu Actual In tercatat: ${timeStr}`, 'success');
     } else {
       document.getElementById('form-actual-out').value = timeStr;
       this.showToast(`Waktu Actual Out tercatat: ${timeStr}`, 'info');
@@ -426,17 +442,17 @@ window.FMCUApp = {
     if (active) {
       if (sideWidget) {
         sideWidget.classList.remove('hidden');
-        document.getElementById('sidebar-checkin-time').textContent = active.actualIn;
-        document.getElementById('sidebar-checkin-store').textContent = `${active.storeName} (${active.storeCode})`;
+        document.getElementById('sidebar-checkin-time').textContent = active.actualIn || '-';
+        document.getElementById('sidebar-checkin-store').textContent = `${active.storeName || 'Toko'} (${active.storeCode || '-'})`;
       }
       if (homeSummary) {
-        homeSummary.textContent = `Check-In: ${active.storeName} (${active.actualIn})`;
+        homeSummary.textContent = `Check-In: ${active.storeName || 'Toko'} (${active.actualIn || '-'})`;
         homeSummary.className = 'font-bold text-emerald-700 mt-0.5 truncate';
       }
     } else {
       if (sideWidget) sideWidget.classList.add('hidden');
       if (homeSummary) {
-        homeSummary.textContent = 'Siap Check-In Toko';
+        homeSummary.textContent = 'Belum Check-In';
         homeSummary.className = 'font-bold text-slate-700 mt-0.5 truncate';
       }
     }
@@ -446,12 +462,13 @@ window.FMCUApp = {
     const stores = window.FMCUData.getStores();
     const sel = document.getElementById('modal-visit-store-select');
     if (sel) {
-      sel.innerHTML = stores
-        .map((s) => `<option value="${s.code}">${s.code} — ${s.name} (${s.type})</option>`)
-        .join('');
+      sel.innerHTML =
+        `<option value="">-- Input Manual di Form Visit --</option>` +
+        stores.map((s) => `<option value="${s.code}">${s.code} — ${s.name} (${s.type})</option>`).join('');
     }
     document.getElementById('modal-checkin-clock').textContent = this.getCurrentTimeWIB();
-    document.getElementById('modal-checkin-gps').textContent = `Koordinat GPS Aktual: ${this.liveGps.lat}, ${this.liveGps.lng}`;
+    const gpsText = this.liveGps.lat !== null ? `${this.liveGps.lat}, ${this.liveGps.lng}` : 'Menunggu GPS aktif';
+    document.getElementById('modal-checkin-gps').textContent = `Koordinat GPS Aktual: ${gpsText}`;
     document.getElementById('modal-new-visit').classList.remove('hidden');
   },
 
@@ -461,15 +478,23 @@ window.FMCUApp = {
     this.checkInAndOpenForm(storeCode, null);
   },
 
-  checkInAndOpenForm(storeCode, scheduleId = null) {
+  checkInAndOpenForm(storeCode = '', scheduleId = null) {
     const stores = window.FMCUData.getStores();
-    const store = stores.find((s) => s.code === storeCode) || stores[0];
+    const store = stores.find((s) => s.code === storeCode) || null;
     const nowTime = this.getCurrentTimeWIB();
-    const todayStr = new Date().toISOString().slice(0, 10);
+
+    this.resetVisitForm(true);
+    document.getElementById('form-schedule-id').value = scheduleId || '';
+    document.getElementById('form-actual-in').value = nowTime;
+
+    if (store) {
+      document.getElementById('form-store-select').value = store.code;
+      this.onSelectMasterStore(store.code);
+    }
 
     const checkInObj = {
-      storeCode: store.code,
-      storeName: store.name,
+      storeCode: store ? store.code : '-',
+      storeName: store ? store.name : 'Kunjungan Baru',
       scheduleId: scheduleId,
       actualIn: nowTime,
       latIn: this.liveGps.lat,
@@ -479,42 +504,8 @@ window.FMCUApp = {
     window.FMCUData.setActiveCheckIn(checkInObj);
     this.updateActiveCheckInUI();
 
-    // Populate Form Visit with this Store's fresh data
-    this.populateMasterStoreSelect();
-    document.getElementById('form-report-id').value = '';
-    document.getElementById('form-schedule-id').value = scheduleId || '';
-    document.getElementById('form-store-select').value = store.code;
-    this.onSelectMasterStore(store.code);
-
-    document.getElementById('form-auditor-name').value = this.currentUser?.name || 'Rani Ismawati';
-    document.getElementById('form-visit-date').value = todayStr;
-    document.getElementById('form-actual-in').value = nowTime;
-    document.getElementById('form-actual-out').value = '15:00 WIB';
-
-    // Default 2 QSC photo slots and 2 blank/template observation cards
-    const PA = window.PDF_ASSETS || {};
-    this.formQscPhotos = [
-      { id: 'qsc-new-1', caption: 'Foto QSC / Famitrack 1', dataUrl: PA.sampleQsc1 || '' },
-      { id: 'qsc-new-2', caption: 'Foto QSC / Famitrack 2', dataUrl: PA.sampleQsc2 || '' }
-    ];
-    this.formObservations = [
-      {
-        id: 'obs-new-1',
-        category: 'Food Safety & Expired',
-        temuan: '',
-        kondisiIdeal: '',
-        penyebab: '',
-        dampak: '',
-        tindakanPerbaikan: '',
-        hasil: 'Akan di monitoring visit berikutnya',
-        deadline: todayStr
-      }
-    ];
-    this.formEvidencePhotos = [];
-
-    this.renderFormDynamicSections();
     this.navigate('form');
-    this.showToast(`Check-In (Actual In: ${nowTime}) di Toko ${store.name} berhasil direkam!`, 'success');
+    this.showToast(`Check-In (Actual In: ${nowTime}) berhasil direkam! Silakan isi Form Visit.`, 'success');
   },
 
   // ==========================================================================
@@ -530,11 +521,10 @@ window.FMCUApp = {
     const schedules = window.FMCUData.getSchedules();
     const reports = window.FMCUData.getReports();
 
-    // Update KPI Cards
     const completedSchedules = schedules.filter((s) => s.status === 'COMPLETED').length;
     const totalSchedules = schedules.length;
-    const compRate = totalSchedules > 0 ? Math.round((completedSchedules / totalSchedules) * 100) : 100;
-    document.getElementById('kpi-total-visits').textContent = `${ reports.length } Visit`;
+    const compRate = totalSchedules > 0 ? Math.round((completedSchedules / totalSchedules) * 100) : 0;
+    document.getElementById('kpi-total-visits').textContent = `${reports.length} Visit`;
     document.getElementById('kpi-completion-rate').textContent = `${completedSchedules}/${totalSchedules} Jadwal (${compRate}%)`;
 
     let totalFindings = 0;
@@ -550,8 +540,8 @@ window.FMCUApp = {
         if (o.status === 'CLOSED') closedFindings++;
         else openFindings++;
       });
-      totalDuration += Number(r.durationMinutes || 240);
-      totalScore += Number(r.qscScore || 85);
+      totalDuration += Number(r.durationMinutes || 0);
+      totalScore += Number(r.qscScore || 0);
     });
 
     document.getElementById('kpi-total-findings').textContent = String(totalFindings);
@@ -562,7 +552,7 @@ window.FMCUApp = {
     const mins = avgDur % 60;
     document.getElementById('kpi-avg-duration').textContent = `${hrs}j ${mins}m`;
 
-    const avgScore = reports.length > 0 ? (totalScore / reports.length).toFixed(1) : '0.0';
+    const avgScore = reports.length > 0 ? (totalScore / reports.length).toFixed(1) : '0';
     document.getElementById('kpi-avg-score').textContent = `${avgScore}%`;
 
     this.renderHomeSchedules();
@@ -588,8 +578,11 @@ window.FMCUApp = {
 
     if (schedules.length === 0) {
       container.innerHTML = `
-        <div class="col-span-full text-center py-8 text-slate-400 text-xs">
-          Tidak ada jadwal visit yang sesuai dengan filter.
+        <div class="col-span-full border border-dashed border-slate-200 rounded-2xl py-10 px-4 text-center space-y-2 bg-slate-50/50">
+          <div class="text-slate-400 text-xs font-medium">Belum ada jadwal visit toko yang terdaftar.</div>
+          <button onclick="FMCUApp.navigate('admin', 'schedules')" class="text-xs font-bold text-[#009944] hover:underline cursor-pointer">
+            + Buat Jadwal Visit di Portal Admin
+          </button>
         </div>
       `;
       return;
@@ -615,7 +608,7 @@ window.FMCUApp = {
                 <h4 class="font-extrabold text-base text-slate-900">FamilyMart ${s.storeName}</h4>
                 <div class="text-xs text-slate-600 flex items-center gap-1.5 mt-0.5">
                   <i class="fa-regular fa-calendar text-[#0099A6]"></i>
-                  <span>${dateFormatted} (${s.shiftWindow || '09:00 - 15:00'})</span>
+                  <span>${dateFormatted} (${s.shiftWindow || '-'})</span>
                 </div>
                 <div class="text-xs text-slate-600 flex items-center gap-1.5 mt-0.5">
                   <i class="fa-regular fa-user text-emerald-600"></i>
@@ -624,7 +617,7 @@ window.FMCUApp = {
               </div>
 
               <p class="text-[11px] text-slate-500 bg-slate-100/80 p-2.5 rounded-xl leading-relaxed">
-                ${s.auditFocus || 'Audit standar operasional QSC & FamiTrack'}
+                ${s.auditFocus || '-'}
               </p>
             </div>
 
@@ -635,9 +628,11 @@ window.FMCUApp = {
                 <div class="text-[11px] text-emerald-700 font-semibold">
                   <i class="fa-solid fa-clock-rotate-left mr-1"></i>In: ${s.actualIn || '-'} • Out: ${s.actualOut || '-'}
                 </div>
-                <button onclick="FMCUApp.openReportPreview('${s.reportId || 'rep-taman-kota-0404'}')" class="px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition cursor-pointer">
-                  Lihat PDF →
-                </button>
+                ${
+                  s.reportId
+                    ? `<button onclick="FMCUApp.openReportPreview('${s.reportId}')" class="px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition cursor-pointer">Lihat PDF →</button>`
+                    : ''
+                }
               `
                   : `
                 <div class="text-[11px] text-slate-400 font-medium">Siap Check-In GPS</div>
@@ -657,12 +652,13 @@ window.FMCUApp = {
   renderAnalyticsCharts() {
     const reports = window.FMCUData.getReports();
 
-    // 1. Aggregate Findings by Category
     const catCounts = {};
     reports.forEach((r) => {
       (r.observations || []).forEach((o) => {
-        const cat = o.category || 'Temuan Operasional QSC';
-        catCounts[cat] = (catCounts[cat] || 0) + 1;
+        if (o.temuan && o.temuan.trim() !== '') {
+          const cat = o.category || 'Temuan Operasional QSC';
+          catCounts[cat] = (catCounts[cat] || 0) + 1;
+        }
       });
     });
 
@@ -676,11 +672,11 @@ window.FMCUApp = {
       this.chartFindings = new Chart(ctx1, {
         type: 'doughnut',
         data: {
-          labels: catLabels,
+          labels: catLabels.length > 0 ? catLabels : ['Belum Ada Data Temuan'],
           datasets: [
             {
-              data: catValues,
-              backgroundColor: palette,
+              data: catValues.length > 0 ? catValues : [1],
+              backgroundColor: catValues.length > 0 ? palette : ['#E2E8F0'],
               borderWidth: 2,
               borderColor: '#ffffff'
             }
@@ -690,34 +686,36 @@ window.FMCUApp = {
           responsive: true,
           maintainAspectRatio: false,
           cutout: '62%',
-          plugins: {
-            legend: { display: false }
-          }
+          plugins: { legend: { display: false } }
         }
       });
     }
 
     const legendEl = document.getElementById('trend-findings-legend');
     if (legendEl) {
-      legendEl.innerHTML = catLabels
-        .map(
-          (lbl, i) => `
-          <div class="flex items-center justify-between bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100">
-            <div class="flex items-center gap-2 truncate">
-              <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${palette[i % palette.length]}"></span>
-              <span class="text-slate-700 font-medium truncate">${lbl}</span>
+      if (catLabels.length === 0) {
+        legendEl.innerHTML = `<div class="col-span-2 text-center text-slate-400 text-xs py-1">Belum ada data temuan observasi yang disimpan.</div>`;
+      } else {
+        legendEl.innerHTML = catLabels
+          .map(
+            (lbl, i) => `
+            <div class="flex items-center justify-between bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100">
+              <div class="flex items-center gap-2 truncate">
+                <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${palette[i % palette.length]}"></span>
+                <span class="text-slate-700 font-medium truncate">${lbl}</span>
+              </div>
+              <span class="font-extrabold text-slate-900 ml-2">${catValues[i]}</span>
             </div>
-            <span class="font-extrabold text-slate-900 ml-2">${catValues[i]}</span>
-          </div>
-        `
-        )
-        .join('');
+          `
+          )
+          .join('');
+      }
     }
 
-    // 2. Store Trend Chart (Findings Count & QSC Score per Store)
+    // Store Trend Chart
     const storeNames = reports.map((r) => r.storeName);
     const storeFindings = reports.map((r) => (r.observations || []).length);
-    const storeScores = reports.map((r) => Number(r.qscScore || 85));
+    const storeScores = reports.map((r) => Number(r.qscScore || 0));
 
     const ctx2 = document.getElementById('chart-trend-stores');
     if (ctx2 && typeof Chart !== 'undefined') {
@@ -725,18 +723,18 @@ window.FMCUApp = {
       this.chartStores = new Chart(ctx2, {
         type: 'bar',
         data: {
-          labels: storeNames,
+          labels: storeNames.length > 0 ? storeNames : ['Belum Ada Visit'],
           datasets: [
             {
               label: 'Jumlah Temuan',
-              data: storeFindings,
+              data: storeFindings.length > 0 ? storeFindings : [0],
               backgroundColor: '#0099A6',
               borderRadius: 6,
               yAxisID: 'y'
             },
             {
               label: 'Skor QSC (%)',
-              data: storeScores,
+              data: storeScores.length > 0 ? storeScores : [0],
               backgroundColor: '#009944',
               borderRadius: 6,
               yAxisID: 'y1'
@@ -747,18 +745,8 @@ window.FMCUApp = {
           responsive: true,
           maintainAspectRatio: false,
           scales: {
-            y: {
-              beginAtZero: true,
-              position: 'left',
-              title: { display: true, text: 'Temuan' }
-            },
-            y1: {
-              beginAtZero: true,
-              max: 100,
-              position: 'right',
-              grid: { drawOnChartArea: false },
-              title: { display: true, text: 'Skor QSC %' }
-            }
+            y: { beginAtZero: true, position: 'left', title: { display: true, text: 'Temuan' } },
+            y1: { beginAtZero: true, max: 100, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Skor QSC %' } }
           },
           plugins: {
             legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } }
@@ -769,17 +757,21 @@ window.FMCUApp = {
 
     const storeSummaryEl = document.getElementById('trend-stores-summary');
     if (storeSummaryEl) {
-      storeSummaryEl.innerHTML = reports
-        .slice(0, 3)
-        .map(
-          (r) => `
-          <div class="bg-slate-50 p-2 rounded-lg border border-slate-100 text-center">
-            <div class="font-extrabold text-slate-800 truncate">${r.storeName}</div>
-            <div class="text-[11px] text-slate-500 mt-0.5">${(r.observations || []).length} Temuan • QSC ${r.qscScore || 85}%</div>
-          </div>
-        `
-        )
-        .join('');
+      if (reports.length === 0) {
+        storeSummaryEl.innerHTML = `<div class="col-span-3 text-center text-slate-400 text-xs py-1">Belum ada data laporan toko yang masuk.</div>`;
+      } else {
+        storeSummaryEl.innerHTML = reports
+          .slice(0, 3)
+          .map(
+            (r) => `
+            <div class="bg-slate-50 p-2 rounded-lg border border-slate-100 text-center">
+              <div class="font-extrabold text-slate-800 truncate">${r.storeName}</div>
+              <div class="text-[11px] text-slate-500 mt-0.5">${(r.observations || []).length} Temuan • QSC ${r.qscScore || 0}%</div>
+            </div>
+          `
+          )
+          .join('');
+      }
     }
   },
 
@@ -795,7 +787,7 @@ window.FMCUApp = {
         const assigned = schedules.filter((s) => s.auditorId === u.id || s.auditorName === u.name).length;
         const userReports = reports.filter((r) => r.auditorId === u.id || r.auditorName === u.name);
         const totalObs = userReports.reduce((acc, r) => acc + (r.observations ? r.observations.length : 0), 0);
-        const loc = u.lastLocation || {};
+        const loc = u.lastLocation || null;
 
         return `
           <tr class="hover:bg-slate-50/80 transition">
@@ -806,7 +798,7 @@ window.FMCUApp = {
                 </div>
                 <div>
                   <div class="font-bold text-slate-900">${u.name}</div>
-                  <div class="text-[11px] text-slate-400">${u.email || u.username}</div>
+                  <div class="text-[11px] text-slate-400">@${u.username}</div>
                 </div>
               </div>
             </td>
@@ -820,12 +812,15 @@ window.FMCUApp = {
             </td>
             <td class="py-3 px-4 text-center font-bold text-amber-700">${totalObs} Temuan</td>
             <td class="py-3 px-4">
-              <div class="text-xs font-medium text-slate-800 truncate max-w-xs">${loc.address || 'Jakarta'}</div>
-              <div class="text-[10px] font-mono text-slate-400">GPS: ${loc.lat || '-6.1568'}, ${loc.lng || '106.7582'}</div>
+              ${
+                loc && loc.lat
+                  ? `<div class="text-[11px] font-mono text-slate-700">GPS: ${loc.lat}, ${loc.lng}</div>`
+                  : `<span class="text-xs text-slate-400">Belum ada titik GPS</span>`
+              }
             </td>
             <td class="py-3 px-4 text-center">
               <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>${loc.status || 'ACTIVE'}
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>AKTIF
               </span>
             </td>
           </tr>
@@ -848,7 +843,14 @@ window.FMCUApp = {
     });
 
     if (reports.length === 0) {
-      container.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">Belum ada laporan visit yang cocok.</div>`;
+      container.innerHTML = `
+        <div class="border border-dashed border-slate-200 rounded-2xl py-10 px-4 text-center space-y-2 bg-slate-50/50">
+          <div class="text-slate-400 text-xs font-medium">Belum ada riwayat laporan visit yang tersimpan.</div>
+          <button onclick="FMCUApp.navigate('form')" class="text-xs font-bold text-[#0099A6] hover:underline cursor-pointer">
+            + Isi Form Visit Baru Sekarang
+          </button>
+        </div>
+      `;
       return;
     }
 
@@ -884,7 +886,7 @@ window.FMCUApp = {
                   ${evCount} Foto Bukti Evidence
                 </span>
                 <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                  Skor QSC: ${r.qscScore || 85}%
+                  Skor QSC: ${r.qscScore || 0}%
                 </span>
               </div>
             </div>
@@ -916,7 +918,7 @@ window.FMCUApp = {
     if (!sel) return;
     const stores = window.FMCUData.getStores();
     sel.innerHTML =
-      `<option value="">-- Pilih dari Master Toko FamilyMart --</option>` +
+      `<option value="">-- Pilih dari Master Toko / Input Manual --</option>` +
       stores.map((s) => `<option value="${s.code}">${s.code} - ${s.name} (${s.type})</option>`).join('');
   },
 
@@ -942,15 +944,63 @@ window.FMCUApp = {
     }
   },
 
-  loadSampleTamanKotaToForm(silent = false) {
+  resetVisitForm(silent = false) {
     this.populateMasterStoreSelect();
-    const reports = window.FMCUData.getReports();
-    const sample = reports.find((r) => r.id === 'rep-taman-kota-0404') || reports[0];
-    if (!sample) return;
+    const todayStr = new Date().toISOString().slice(0, 10);
 
-    this.loadReportObjectToForm(sample);
+    document.getElementById('form-report-id').value = '';
+    document.getElementById('form-schedule-id').value = '';
+    document.getElementById('form-store-select').value = '';
+    document.getElementById('form-store-name').value = '';
+    document.getElementById('form-store-code').value = '';
+    document.getElementById('form-store-type').value = 'CVS';
+    document.getElementById('form-auditor-name').value = '';
+    document.getElementById('form-visit-date').value = todayStr;
+    document.getElementById('form-qsc-score').value = '';
+    document.getElementById('form-store-head').value = '';
+    document.getElementById('form-area-manager').value = '';
+    document.getElementById('form-regional-manager').value = '';
+    document.getElementById('form-store-email').value = '';
+    document.getElementById('form-ca-link').value = 'https://tinyurl.com/store-caassignment';
+    document.getElementById('form-actual-in').value = '';
+    document.getElementById('form-actual-out').value = '';
+
+    document.getElementById('form-banner-title').textContent = 'FMCU Visit Store Report — Form Kunjungan Baru';
+    document.getElementById('form-banner-store-badge').textContent = 'Kode Toko: -';
+
+    this.formCrew = [
+      { role: 'Store Head', name: '', jobLevel: '' },
+      { role: 'Shift Leader', name: '', jobLevel: '' },
+      { role: 'Crew Store 1', name: '', jobLevel: '' },
+      { role: 'Crew Store 2', name: '', jobLevel: '' }
+    ];
+
+    this.formQscPhotos = [
+      { id: 'qsc-1', caption: 'Foto QSC / Famitrack 1', dataUrl: '' },
+      { id: 'qsc-2', caption: 'Foto QSC / Famitrack 2', dataUrl: '' }
+    ];
+
+    this.formObservations = [
+      {
+        id: 'obs-1',
+        category: 'Food Safety & Expired',
+        temuan: '',
+        kondisiIdeal: '',
+        penyebab: '',
+        dampak: '',
+        tindakanPerbaikan: '',
+        hasil: '',
+        deadline: todayStr,
+        deadlineFormatted: window.FMCUPdf.formatIndonesianDate(todayStr, false),
+        status: 'OPEN'
+      }
+    ];
+
+    this.formEvidencePhotos = [];
+
+    this.renderFormDynamicSections();
     if (!silent) {
-      this.showToast('Data lengkap TAMAN KOTA (0404) sesuai PDF contoh berhasil dimuat ke Form!', 'info');
+      this.showToast('Form berhasil dikosongkan.', 'info');
     }
   },
 
@@ -963,18 +1013,18 @@ window.FMCUApp = {
     document.getElementById('form-store-code').value = rep.storeCode || '';
     document.getElementById('form-store-type').value = rep.storeType || 'CVS';
     document.getElementById('form-auditor-name').value = rep.auditorName || '';
-    document.getElementById('form-visit-date').value = rep.visitDate || '2026-10-16';
-    document.getElementById('form-qsc-score').value = rep.qscScore || 84;
+    document.getElementById('form-visit-date').value = rep.visitDate || new Date().toISOString().slice(0, 10);
+    document.getElementById('form-qsc-score').value = rep.qscScore ?? '';
     document.getElementById('form-store-head').value = rep.storeHead || '';
     document.getElementById('form-area-manager').value = rep.areaManager || '';
     document.getElementById('form-regional-manager').value = rep.regionalManager || '';
     document.getElementById('form-store-email').value = rep.storeEmail || '';
     document.getElementById('form-ca-link').value = rep.caLink || 'https://tinyurl.com/store-caassignment';
-    document.getElementById('form-actual-in').value = rep.actualIn || '09:12 WIB';
-    document.getElementById('form-actual-out').value = rep.actualOut || '14:35 WIB';
+    document.getElementById('form-actual-in').value = rep.actualIn || '';
+    document.getElementById('form-actual-out').value = rep.actualOut || '';
 
-    document.getElementById('form-banner-title').textContent = `FMCU Visit Store Report — ${rep.storeName}`;
-    document.getElementById('form-banner-store-badge').textContent = `Kode Toko: ${rep.storeCode} (${rep.storeType})`;
+    document.getElementById('form-banner-title').textContent = `FMCU Visit Store Report — ${rep.storeName || '-'}`;
+    document.getElementById('form-banner-store-badge').textContent = `Kode Toko: ${rep.storeCode || '-'} (${rep.storeType || 'CVS'})`;
 
     this.formCrew = JSON.parse(JSON.stringify(rep.crewList || []));
     this.formQscPhotos = JSON.parse(JSON.stringify(rep.qscPhotos || []));
@@ -1000,13 +1050,13 @@ window.FMCUApp = {
         (c, idx) => `
         <tr class="bg-white">
           <td class="p-2">
-            <input type="text" value="${c.role || ''}" oninput="FMCUApp.formCrew[${idx}].role = this.value" placeholder="Store Head / Crew" class="fm-input py-1.5 text-xs font-bold" />
+            <input type="text" value="${c.role || ''}" oninput="FMCUApp.formCrew[${idx}].role = this.value" placeholder="Jabatan / Role" class="fm-input py-1.5 text-xs font-bold" />
           </td>
           <td class="p-2">
             <input type="text" value="${c.name || ''}" oninput="FMCUApp.formCrew[${idx}].name = this.value" placeholder="Nama lengkap personil" class="fm-input py-1.5 text-xs" />
           </td>
           <td class="p-2">
-            <input type="text" value="${c.jobLevel || 'MG1'}" oninput="FMCUApp.formCrew[${idx}].jobLevel = this.value" placeholder="NS1 / MG1" class="fm-input py-1.5 text-xs text-center font-bold" />
+            <input type="text" value="${c.jobLevel || ''}" oninput="FMCUApp.formCrew[${idx}].jobLevel = this.value" placeholder="NS1 / MG1" class="fm-input py-1.5 text-xs text-center font-bold" />
           </td>
           <td class="p-2 text-center">
             <button type="button" onclick="FMCUApp.removeCrewRow(${idx})" class="text-slate-400 hover:text-rose-600 p-1 cursor-pointer">
@@ -1023,7 +1073,7 @@ window.FMCUApp = {
     this.formCrew.push({
       role: `Crew Store ${this.formCrew.length}`,
       name: '',
-      jobLevel: 'MG1'
+      jobLevel: ''
     });
     this.renderCrewTable();
   },
@@ -1053,7 +1103,7 @@ window.FMCUApp = {
             ${
               p.dataUrl
                 ? `<img src="${p.dataUrl}" class="w-full h-full object-cover" alt="QSC Form" />`
-                : `<div class="text-center text-slate-400 text-xs"><i class="fa-solid fa-file-image text-2xl mb-1 block"></i>Belum ada foto form QSC</div>`
+                : `<div class="text-center text-slate-400 text-xs"><i class="fa-solid fa-file-image text-2xl mb-1 block"></i>Unggah foto form QSC / FamiTrack</div>`
             }
             <label class="absolute bottom-2 right-2 bg-slate-900/80 hover:bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer shadow">
               <i class="fa-solid fa-camera mr-1"></i>Pilih / Kamera
@@ -1108,7 +1158,7 @@ window.FMCUApp = {
             <div class="flex items-center gap-2">
               <span class="font-extrabold text-sm">Temuan ${idx + 1}/${this.formObservations.length}</span>
               <select onchange="FMCUApp.applyFindingPreset(${idx}, this.value)" class="text-xs bg-white/15 hover:bg-white/25 text-white border border-white/30 rounded-lg px-2.5 py-1 font-semibold focus:outline-none cursor-pointer">
-                <option value="" class="text-slate-900">⚡ Isi Cepat dari Template Temuan...</option>
+                <option value="" class="text-slate-900">⚡ Pilih Template Standar SOP (Opsional)...</option>
                 ${presets.map((pr) => `<option value="${pr.id}" class="text-slate-900">${pr.label}</option>`).join('')}
               </select>
             </div>
@@ -1116,7 +1166,7 @@ window.FMCUApp = {
             <div class="flex items-center gap-2">
               <div class="flex items-center gap-1.5 bg-white text-slate-800 px-2.5 py-1 rounded-full text-xs font-bold">
                 <span class="text-rose-700">Deadline Perbaikan:</span>
-                <input type="date" value="${obs.deadline || '2026-10-28'}" onchange="FMCUApp.formObservations[${idx}].deadline = this.value; FMCUApp.formObservations[${idx}].deadlineFormatted = window.FMCUPdf.formatIndonesianDate(this.value, false);" class="text-xs font-bold text-rose-700 focus:outline-none bg-transparent" />
+                <input type="date" value="${obs.deadline || ''}" onchange="FMCUApp.formObservations[${idx}].deadline = this.value; FMCUApp.formObservations[${idx}].deadlineFormatted = window.FMCUPdf.formatIndonesianDate(this.value, false);" class="text-xs font-bold text-rose-700 focus:outline-none bg-transparent" />
               </div>
               <button type="button" onclick="FMCUApp.removeObservationCard(${idx})" class="text-white/80 hover:text-white p-1 cursor-pointer" title="Hapus Temuan">
                 <i class="fa-solid fa-trash-can"></i>
@@ -1144,32 +1194,32 @@ window.FMCUApp = {
                     .join('')}
                 </select>
               </div>
-              <textarea rows="2" oninput="FMCUApp.formObservations[${idx}].temuan = this.value" placeholder="Contoh: Thawingan roti goreng exp tgl 16.10.26 jam 04:00" class="w-full bg-white/90 border border-amber-200 rounded-lg p-2 font-bold text-slate-900 focus:outline-none">${obs.temuan || ''}</textarea>
+              <textarea rows="2" oninput="FMCUApp.formObservations[${idx}].temuan = this.value" placeholder="Tuliskan detail temuan observasi..." class="w-full bg-white/90 border border-amber-200 rounded-lg p-2 font-bold text-slate-900 focus:outline-none">${obs.temuan || ''}</textarea>
             </div>
 
             <div class="bg-slate-50/70 border border-slate-200 rounded-xl p-3 space-y-1.5">
               <label class="font-extrabold text-[#008291] uppercase block">Dampak (Impact)</label>
-              <textarea rows="2" oninput="FMCUApp.formObservations[${idx}].dampak = this.value" placeholder="Dampak terhadap kualitas produk / operasional toko" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:outline-none">${obs.dampak || ''}</textarea>
+              <textarea rows="2" oninput="FMCUApp.formObservations[${idx}].dampak = this.value" placeholder="Tuliskan dampak terhadap kualitas / operasional toko..." class="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:outline-none">${obs.dampak || ''}</textarea>
             </div>
 
             <div class="bg-slate-50/70 border border-slate-200 rounded-xl p-3 space-y-1.5">
               <label class="font-extrabold text-[#008291] uppercase block">Kondisi Ideal</label>
-              <textarea rows="2" oninput="FMCUApp.formObservations[${idx}].kondisiIdeal = this.value" placeholder="Standar kondisi ideal sesuai SOP FamilyMart" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:outline-none">${obs.kondisiIdeal || ''}</textarea>
+              <textarea rows="2" oninput="FMCUApp.formObservations[${idx}].kondisiIdeal = this.value" placeholder="Tuliskan standar kondisi ideal..." class="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:outline-none">${obs.kondisiIdeal || ''}</textarea>
             </div>
 
             <div class="bg-slate-50/70 border border-slate-200 rounded-xl p-3 space-y-1.5">
               <label class="font-extrabold text-[#008291] uppercase block">Tindakan Perbaikan (Corrective Action)</label>
-              <textarea rows="2" oninput="FMCUApp.formObservations[${idx}].tindakanPerbaikan = this.value" placeholder="Langkah perbaikan yang harus dilakukan tim toko" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:outline-none">${obs.tindakanPerbaikan || ''}</textarea>
+              <textarea rows="2" oninput="FMCUApp.formObservations[${idx}].tindakanPerbaikan = this.value" placeholder="Tuliskan tindakan perbaikan yang harus dilakukan..." class="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:outline-none">${obs.tindakanPerbaikan || ''}</textarea>
             </div>
 
             <div class="bg-slate-50/70 border border-slate-200 rounded-xl p-3 space-y-1.5">
               <label class="font-extrabold text-[#008291] uppercase block">Penyebab (Root Cause)</label>
-              <textarea rows="2" oninput="FMCUApp.formObservations[${idx}].penyebab = this.value" placeholder="Akar penyebab terjadinya temuan" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:outline-none">${obs.penyebab || ''}</textarea>
+              <textarea rows="2" oninput="FMCUApp.formObservations[${idx}].penyebab = this.value" placeholder="Tuliskan akar penyebab temuan..." class="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:outline-none">${obs.penyebab || ''}</textarea>
             </div>
 
             <div class="bg-slate-50/70 border border-slate-200 rounded-xl p-3 space-y-1.5">
               <label class="font-extrabold text-[#008291] uppercase block">Hasil (Result / Follow-Up)</label>
-              <textarea rows="2" oninput="FMCUApp.formObservations[${idx}].hasil = this.value" placeholder="Contoh: Akan di monitoring visit berikutnya / Sudah dimusnahkan" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:outline-none">${obs.hasil || ''}</textarea>
+              <textarea rows="2" oninput="FMCUApp.formObservations[${idx}].hasil = this.value" placeholder="Tuliskan hasil tindak lanjut..." class="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:outline-none">${obs.hasil || ''}</textarea>
             </div>
           </div>
         </div>
@@ -1188,7 +1238,7 @@ window.FMCUApp = {
       penyebab: '',
       dampak: '',
       tindakanPerbaikan: '',
-      hasil: 'Akan di monitoring visit berikutnya',
+      hasil: '',
       deadline: todayStr,
       deadlineFormatted: window.FMCUPdf.formatIndonesianDate(todayStr, false),
       status: 'OPEN'
@@ -1209,7 +1259,6 @@ window.FMCUApp = {
     this.formObservations[obsIdx] = {
       ...this.formObservations[obsIdx],
       category: preset.category,
-      temuan: preset.temuan,
       kondisiIdeal: preset.kondisiIdeal,
       penyebab: preset.penyebab,
       dampak: preset.dampak,
@@ -1249,7 +1298,7 @@ window.FMCUApp = {
                 : `<i class="fa-solid fa-camera text-slate-300 text-xl"></i>`
             }
             <label class="absolute bottom-1.5 inset-x-1.5 bg-slate-900/80 hover:bg-slate-900 text-white text-[10px] font-bold py-1 rounded text-center cursor-pointer">
-              Ganti Foto
+              Pilih Foto
               <input type="file" accept="image/*" onchange="FMCUApp.handleSingleEvidenceUpload(event, ${idx})" class="hidden" />
             </label>
           </div>
@@ -1293,7 +1342,7 @@ window.FMCUApp = {
     });
     this.formEvidencePhotos[idx].dataUrl = dataUrl;
     this.renderEvidenceGrid();
-    this.showToast(`Foto bukti #${idx + 1} berhasil diproses dengan Watermark GPS`, 'success');
+    this.showToast(`Foto bukti #${idx + 1} berhasil diproses`, 'success');
   },
 
   async handleBulkEvidenceUpload(event) {
@@ -1311,43 +1360,43 @@ window.FMCUApp = {
       });
       this.formEvidencePhotos.push({
         id: 'ev-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
-        description: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
+        description: '',
         dataUrl
       });
     }
     this.renderEvidenceGrid();
-    this.showToast(`${files.length} foto bukti berhasil diunggah & diberi watermark GPS!`, 'success');
+    this.showToast(`${files.length} foto bukti berhasil diunggah!`, 'success');
   },
 
-  // --- Collect & Save Form Report ---
-  collectFormReportObject() {
-    const existingId = document.getElementById('form-report-id').value;
-    const scheduleId = document.getElementById('form-schedule-id').value;
-    const visitDate = document.getElementById('form-visit-date').value || new Date().toISOString().slice(0, 10);
+  // Build transient report object from current Form inputs (for Live Preview or Saving)
+  buildCurrentFormReportObject() {
+    const existingId = document.getElementById('form-report-id')?.value || '';
+    const scheduleId = document.getElementById('form-schedule-id')?.value || '';
+    const visitDate = document.getElementById('form-visit-date')?.value || new Date().toISOString().slice(0, 10);
     const settings = window.FMCUData.getSettings();
 
-    const reportObj = {
+    return {
       id: existingId || 'rep-' + Date.now(),
       scheduleId: scheduleId || null,
       reportTitle: settings.reportTitle || 'FMCU Visit Store Report',
-      auditorId: this.currentUser?.id || 'usr-1',
-      auditorName: document.getElementById('form-auditor-name').value.trim() || 'Rani Ismawati',
+      auditorId: this.currentUser?.id || 'usr-auditor',
+      auditorName: document.getElementById('form-auditor-name')?.value.trim() || '-',
       visitDate,
       visitDateFormatted: window.FMCUPdf.formatIndonesianDate(visitDate, false),
       visitDayDateFormatted: window.FMCUPdf.formatIndonesianDate(visitDate, true),
-      storeCode: document.getElementById('form-store-code').value.trim() || '0404',
-      storeName: document.getElementById('form-store-name').value.trim().toUpperCase() || 'TAMAN KOTA',
-      storeType: document.getElementById('form-store-type').value || 'CVS',
-      storeHead: document.getElementById('form-store-head').value.trim() || '-',
-      areaManager: document.getElementById('form-area-manager').value.trim() || '-',
-      regionalManager: document.getElementById('form-regional-manager').value.trim() || '-',
-      storeEmail: document.getElementById('form-store-email').value.trim() || '',
-      actualIn: document.getElementById('form-actual-in').value.trim() || '09:00 WIB',
-      actualOut: document.getElementById('form-actual-out').value.trim() || this.getCurrentTimeWIB(),
-      durationMinutes: 280,
+      storeCode: document.getElementById('form-store-code')?.value.trim() || '-',
+      storeName: (document.getElementById('form-store-name')?.value.trim() || '-').toUpperCase(),
+      storeType: document.getElementById('form-store-type')?.value || 'CVS',
+      storeHead: document.getElementById('form-store-head')?.value.trim() || '-',
+      areaManager: document.getElementById('form-area-manager')?.value.trim() || '-',
+      regionalManager: document.getElementById('form-regional-manager')?.value.trim() || '-',
+      storeEmail: document.getElementById('form-store-email')?.value.trim() || '',
+      actualIn: document.getElementById('form-actual-in')?.value.trim() || '-',
+      actualOut: document.getElementById('form-actual-out')?.value.trim() || '-',
+      durationMinutes: 0,
       gpsLat: this.liveGps.lat,
       gpsLng: this.liveGps.lng,
-      qscScore: Number(document.getElementById('form-qsc-score').value || 85),
+      qscScore: Number(document.getElementById('form-qsc-score')?.value || 0),
       crewList: JSON.parse(JSON.stringify(this.formCrew)),
       qscPhotos: JSON.parse(JSON.stringify(this.formQscPhotos)),
       observations: this.formObservations.map((o) => ({
@@ -1355,11 +1404,17 @@ window.FMCUApp = {
         deadlineFormatted: o.deadlineFormatted || window.FMCUPdf.formatIndonesianDate(o.deadline, false)
       })),
       evidencePhotos: JSON.parse(JSON.stringify(this.formEvidencePhotos)),
-      caLink: document.getElementById('form-ca-link').value.trim() || 'https://tinyurl.com/store-caassignment',
+      caLink: document.getElementById('form-ca-link')?.value.trim() || 'https://tinyurl.com/store-caassignment',
       createdAt: new Date().toISOString()
     };
+  },
 
-    // Save into Reports List
+  collectAndSaveFormReport() {
+    if (!document.getElementById('form-actual-out').value.trim()) {
+      document.getElementById('form-actual-out').value = this.getCurrentTimeWIB();
+    }
+    const reportObj = this.buildCurrentFormReportObject();
+
     const reports = window.FMCUData.getReports();
     const idx = reports.findIndex((r) => r.id === reportObj.id);
     if (idx !== -1) {
@@ -1369,10 +1424,12 @@ window.FMCUApp = {
     }
     window.FMCUData.saveReports(reports);
 
-    // Update linked Schedule status to COMPLETED & record Actual In/Out
+    // Update linked Schedule if any
     const schedules = window.FMCUData.getSchedules();
     const schIdx = schedules.findIndex(
-      (s) => (scheduleId && s.id === scheduleId) || (s.storeCode === reportObj.storeCode && s.status !== 'COMPLETED')
+      (s) =>
+        (reportObj.scheduleId && s.id === reportObj.scheduleId) ||
+        (s.storeCode === reportObj.storeCode && s.status !== 'COMPLETED')
     );
     if (schIdx !== -1) {
       schedules[schIdx].status = 'COMPLETED';
@@ -1384,7 +1441,6 @@ window.FMCUApp = {
       window.FMCUData.saveSchedules(schedules);
     }
 
-    // Clear active check-in
     window.FMCUData.setActiveCheckIn(null);
     this.updateActiveCheckInUI();
 
@@ -1393,16 +1449,15 @@ window.FMCUApp = {
 
   handleSaveAndPreview(event) {
     if (event) event.preventDefault();
-    const saved = this.collectFormReportObject();
+    const saved = this.collectAndSaveFormReport();
     this.activePreviewReportId = saved.id;
     this.renderAllViews();
     this.navigate('preview');
-    this.showToast(`Laporan Visit ${saved.storeName} disimpan! Menampilkan Preview PDF 16:9.`, 'success');
+    this.showToast(`Laporan Visit Toko ${saved.storeName} berhasil disimpan!`, 'success');
   },
 
   handleSaveAndSendIntegration() {
-    document.getElementById('form-actual-out').value = this.getCurrentTimeWIB();
-    const saved = this.collectFormReportObject();
+    const saved = this.collectAndSaveFormReport();
     this.activePreviewReportId = saved.id;
     this.renderAllViews();
     this.openIntegrationSendModal(saved.id);
@@ -1415,17 +1470,25 @@ window.FMCUApp = {
     const sel = document.getElementById('preview-report-selector');
     if (!sel) return;
     const reports = window.FMCUData.getReports();
-    sel.innerHTML = reports
-      .map(
-        (r) =>
-          `<option value="${r.id}" ${r.id === this.activePreviewReportId ? 'selected' : ''}>${r.storeName} (${r.storeCode}) — ${r.visitDateFormatted || r.visitDate} [${r.auditorName}]</option>`
-      )
-      .join('');
+
+    const optionsHtml =
+      `<option value="__LIVE_FORM__" ${this.activePreviewReportId === '__LIVE_FORM__' ? 'selected' : ''}>[Draft Isian Form Visit Saat Ini]</option>` +
+      reports
+        .map(
+          (r) =>
+            `<option value="${r.id}" ${r.id === this.activePreviewReportId ? 'selected' : ''}>${r.storeName} (${r.storeCode}) — ${r.visitDateFormatted || r.visitDate} [${r.auditorName}]</option>`
+        )
+        .join('');
+
+    sel.innerHTML = optionsHtml;
   },
 
   getActivePreviewReport() {
+    if (this.activePreviewReportId === '__LIVE_FORM__') {
+      return this.buildCurrentFormReportObject();
+    }
     const reports = window.FMCUData.getReports();
-    return reports.find((r) => r.id === this.activePreviewReportId) || reports[0];
+    return reports.find((r) => r.id === this.activePreviewReportId) || this.buildCurrentFormReportObject();
   },
 
   openReportPreview(reportId) {
@@ -1555,6 +1618,10 @@ window.FMCUApp = {
   },
 
   editCurrentPreviewReport() {
+    if (this.activePreviewReportId === '__LIVE_FORM__') {
+      this.navigate('form');
+      return;
+    }
     const rep = this.getActivePreviewReport();
     if (!rep) return;
     this.editReportById(rep.id);
@@ -1570,7 +1637,7 @@ window.FMCUApp = {
   },
 
   // ==========================================================================
-  // EMAIL & GOOGLE DRIVE INTEGRATION (HYBRID WEBHOOK + DIRECT FALLBACK)
+  // EMAIL & GOOGLE DRIVE INTEGRATION
   // ==========================================================================
   openIntegrationSendModal(reportId = null) {
     if (reportId) this.activePreviewReportId = reportId;
@@ -1578,11 +1645,11 @@ window.FMCUApp = {
     if (!rep) return;
     const settings = window.FMCUData.getSettings();
 
-    document.getElementById('modal-send-report-name').textContent = `Laporan: FamilyMart ${rep.storeName} (${rep.storeCode}) — ${rep.visitDateFormatted || rep.visitDate}`;
-    document.getElementById('modal-send-report-meta').textContent = `Auditor: ${rep.auditorName} • ${(rep.observations || []).length} Temuan Observasi • ${(rep.evidencePhotos || []).length} Foto Bukti`;
-    document.getElementById('modal-send-to').value = rep.storeEmail || `${rep.storeName.toLowerCase().replace(/\s+/g, '')}.${rep.storeCode}@familymart.co.id`;
-    document.getElementById('modal-send-cc').value = settings.defaultCcEmails || 'fmcu@familymart.co.id, regional.manager@familymart.co.id';
-    document.getElementById('modal-send-folder').value = settings.gdriveFolderId || '1FMCU_Visit_Report_Archive_Folder';
+    document.getElementById('modal-send-report-name').textContent = `Laporan: FamilyMart ${rep.storeName || '-'} (${rep.storeCode || '-'}) — ${rep.visitDateFormatted || rep.visitDate}`;
+    document.getElementById('modal-send-report-meta').textContent = `Auditor: ${rep.auditorName || '-'} • ${(rep.observations || []).length} Temuan Observasi • ${(rep.evidencePhotos || []).length} Foto Bukti`;
+    document.getElementById('modal-send-to').value = rep.storeEmail || '';
+    document.getElementById('modal-send-cc').value = settings.defaultCcEmails || '';
+    document.getElementById('modal-send-folder').value = settings.gdriveFolderId || '';
 
     const statusEl = document.getElementById('modal-send-status');
     statusEl.classList.add('hidden');
@@ -1601,13 +1668,11 @@ window.FMCUApp = {
 
     btn.disabled = true;
     statusEl.className = 'p-3 rounded-xl font-semibold text-xs bg-teal-50 text-teal-900 border border-teal-200 block';
-    statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5"></i>Sedang membuat file PDF 16:9 dan mengunggah ke Google Drive & Email...`;
+    statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5"></i>Sedang membuat file PDF 16:9 dan memproses pengiriman...`;
 
-    // 1. Always download the generated PDF locally so user immediately has the exact PDF file
     const fileName = window.FMCUPdf.getFileName(rep);
     window.FMCUPdf.downloadReportPdf(rep);
 
-    // 2. If Google Apps Script Webhook URL is configured, POST base64 PDF to GDrive + Gmail
     if (settings.gasWebhookUrl && settings.gasWebhookUrl.startsWith('http')) {
       try {
         const pdfBase64 = window.FMCUPdf.getPdfBase64(rep);
@@ -1625,16 +1690,15 @@ window.FMCUApp = {
           })
         });
         statusEl.className = 'p-3 rounded-xl font-semibold text-xs bg-emerald-50 text-emerald-900 border border-emerald-200 block';
-        statusEl.innerHTML = `✅ Berhasil! File <b>${fileName}</b> telah diunggah ke Folder Google Drive (<code>${folderId}</code>) dan dikirim via Email ke <b>${toEmail}</b>.`;
-        this.showToast('Laporan berhasil dikirim ke Email & diarsipkan ke Google Drive!', 'success');
+        statusEl.innerHTML = `✅ Berhasil! File <b>${fileName}</b> telah diunggah ke Google Drive dan dikirim via Email.`;
+        this.showToast('Laporan berhasil dikirim ke Email & Google Drive!', 'success');
       } catch (err) {
         statusEl.className = 'p-3 rounded-xl font-semibold text-xs bg-amber-50 text-amber-900 border border-amber-200 block';
-        statusEl.innerHTML = `⚠️ File PDF telah diunduh (${fileName}). Membuka aplikasi Email untuk pengiriman manual...`;
+        statusEl.innerHTML = `⚠️ File PDF telah diunduh (${fileName}).`;
       }
     } else {
-      // Hybrid Mode: PDF downloaded + Open formatted Mailto link with findings summary
       const obsListText = (rep.observations || [])
-        .map((o, i) => `${i + 1}. ${o.temuan} (Deadline: ${o.deadlineFormatted || o.deadline})`)
+        .map((o, i) => `${i + 1}. ${o.temuan || '-'} (Deadline: ${o.deadlineFormatted || o.deadline || '-'})`)
         .join('%0D%0A');
       const subject = encodeURIComponent(`[FMCU VISIT REPORT] ${rep.storeName} (${rep.storeCode}) - ${rep.visitDateFormatted || rep.visitDate}`);
       const body =
@@ -1643,14 +1707,14 @@ window.FMCUApp = {
         `- Auditor: ${rep.auditorName}%0D%0A` +
         `- Store Head: ${rep.storeHead}%0D%0A` +
         `- Waktu Actual In - Out: ${rep.actualIn} s/d ${rep.actualOut}%0D%0A` +
-        `- Koordinat GPS: ${rep.gpsLat}, ${rep.gpsLng}%0D%0A%0D%0A` +
+        `- Koordinat GPS: ${rep.gpsLat || '-'}, ${rep.gpsLng || '-'}%0D%0A%0D%0A` +
         `Ringkasan Temuan Observasi:%0D%0A${obsListText}%0D%0A%0D%0A` +
         `Link Form Corrective Action: ${rep.caLink || 'https://tinyurl.com/store-caassignment'}`;
 
       statusEl.className = 'p-3 rounded-xl font-semibold text-xs bg-emerald-50 text-emerald-900 border border-emerald-200 block';
       statusEl.innerHTML = `
         <div class="space-y-1.5">
-          <div>✅ File PDF <strong>${fileName}</strong> berhasil diunduh & dicatat ke log arsip Google Drive (<code>${folderId}</code>).</div>
+          <div>✅ File PDF <strong>${fileName}</strong> berhasil diunduh.</div>
           <div class="flex flex-wrap gap-2 pt-1">
             <a href="mailto:${toEmail}?cc=${encodeURIComponent(ccEmail)}&subject=${subject}&body=${body}" class="px-3 py-1.5 rounded-lg bg-[#009944] text-white font-bold inline-flex items-center gap-1">
               <i class="fa-regular fa-envelope"></i> Buka Aplikasi Email Siap Kirim
@@ -1658,7 +1722,7 @@ window.FMCUApp = {
           </div>
         </div>
       `;
-      this.showToast(`File ${fileName} siap & terintegrasi!`, 'success');
+      this.showToast(`File ${fileName} berhasil diunduh!`, 'success');
     }
 
     btn.disabled = false;
@@ -1681,14 +1745,6 @@ window.FMCUApp = {
     const found = users.find((u) => u.username.toLowerCase() === uName && u.password === pass && this.hasAdminAuthority(u));
 
     if (!found) {
-      // Allow quick elevation to Super Admin if using default 'admin' / '123'
-      const adminDefault = users.find((u) => u.role === 'SUPER_ADMIN');
-      if (adminDefault && pass === '123') {
-        this.setLoggedInUser(adminDefault);
-        this.checkAdminGateUI();
-        this.showToast('Otoritas Super Admin FMCU berhasil diaktifkan!', 'success');
-        return;
-      }
       this.showToast('Kredensial Admin tidak valid atau akun tidak memiliki otoritas Admin.', 'error');
       return;
     }
@@ -1725,7 +1781,10 @@ window.FMCUApp = {
     // Populate Schedule Form Dropdowns
     const schStoreSel = document.getElementById('adm-sch-store');
     if (schStoreSel) {
-      schStoreSel.innerHTML = stores.map((s) => `<option value="${s.code}">${s.code} - ${s.name} (${s.type})</option>`).join('');
+      schStoreSel.innerHTML =
+        stores.length > 0
+          ? stores.map((s) => `<option value="${s.code}">${s.code} - ${s.name} (${s.type})</option>`).join('')
+          : `<option value="">-- Tambahkan Master Toko Terlebih Dahulu --</option>`;
     }
     const schAuditorSel = document.getElementById('adm-sch-auditor');
     if (schAuditorSel) {
@@ -1740,57 +1799,65 @@ window.FMCUApp = {
     document.getElementById('admin-schedule-count').textContent = `${schedules.length} Jadwal`;
     const schTbody = document.getElementById('admin-schedules-tbody');
     if (schTbody) {
-      schTbody.innerHTML = schedules
-        .map(
-          (s) => `
-          <tr class="hover:bg-slate-50">
-            <td class="py-2.5 px-3 font-semibold">${window.FMCUPdf.formatIndonesianDate(s.scheduledDate, false)}</td>
-            <td class="py-2.5 px-3">
-              <div class="font-bold text-slate-900">${s.storeName}</div>
-              <div class="text-[10px] font-mono text-slate-400">Kode: ${s.storeCode} (${s.storeType})</div>
-            </td>
-            <td class="py-2.5 px-3 font-medium">${s.auditorName}</td>
-            <td class="py-2.5 px-3 text-[11px] font-mono">
-              ${s.actualIn ? `<span class="text-emerald-700 font-bold">${s.actualIn} - ${s.actualOut || '-'}</span>` : '<span class="text-slate-400">Belum Check-In</span>'}
-            </td>
-            <td class="py-2.5 px-3">
-              <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                s.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-              }">${s.status}</span>
-            </td>
-            <td class="py-2.5 px-3 text-right space-x-1">
-              <button onclick="FMCUApp.checkInAndOpenForm('${s.storeCode}', '${s.id}')" class="text-[#0099A6] hover:underline font-bold cursor-pointer">Visit</button>
-              <button onclick="FMCUApp.deleteSchedule('${s.id}')" class="text-rose-600 hover:underline font-bold ml-2 cursor-pointer">Hapus</button>
-            </td>
-          </tr>
-        `
-        )
-        .join('');
+      if (schedules.length === 0) {
+        schTbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400">Belum ada jadwal visit toko.</td></tr>`;
+      } else {
+        schTbody.innerHTML = schedules
+          .map(
+            (s) => `
+            <tr class="hover:bg-slate-50">
+              <td class="py-2.5 px-3 font-semibold">${window.FMCUPdf.formatIndonesianDate(s.scheduledDate, false)}</td>
+              <td class="py-2.5 px-3">
+                <div class="font-bold text-slate-900">${s.storeName}</div>
+                <div class="text-[10px] font-mono text-slate-400">Kode: ${s.storeCode} (${s.storeType})</div>
+              </td>
+              <td class="py-2.5 px-3 font-medium">${s.auditorName}</td>
+              <td class="py-2.5 px-3 text-[11px] font-mono">
+                ${s.actualIn ? `<span class="text-emerald-700 font-bold">${s.actualIn} - ${s.actualOut || '-'}</span>` : '<span class="text-slate-400">Belum Check-In</span>'}
+              </td>
+              <td class="py-2.5 px-3">
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                  s.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                }">${s.status}</span>
+              </td>
+              <td class="py-2.5 px-3 text-right space-x-1">
+                <button onclick="FMCUApp.checkInAndOpenForm('${s.storeCode}', '${s.id}')" class="text-[#0099A6] hover:underline font-bold cursor-pointer">Visit</button>
+                <button onclick="FMCUApp.deleteSchedule('${s.id}')" class="text-rose-600 hover:underline font-bold ml-2 cursor-pointer">Hapus</button>
+              </td>
+            </tr>
+          `
+          )
+          .join('');
+      }
     }
 
     // 2. Render Admin Master Stores Table
     document.getElementById('admin-store-count').textContent = `${stores.length} Toko`;
     const stTbody = document.getElementById('admin-stores-tbody');
     if (stTbody) {
-      stTbody.innerHTML = stores
-        .map(
-          (st) => `
-          <tr class="hover:bg-slate-50">
-            <td class="py-2.5 px-3 font-mono font-bold text-[#0099A6]">${st.code}</td>
-            <td class="py-2.5 px-3 font-extrabold text-slate-900">${st.name}</td>
-            <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded bg-slate-100 font-bold">${st.type}</span></td>
-            <td class="py-2.5 px-3">${st.storeHead}</td>
-            <td class="py-2.5 px-3 text-[11px]">
-              <div>AM: <strong>${st.areaManager}</strong></div>
-              <div>RM: <strong>${st.regionalManager}</strong></div>
-            </td>
-            <td class="py-2.5 px-3 text-right">
-              <button onclick="FMCUApp.deleteStore('${st.code}')" class="text-rose-600 hover:underline font-bold cursor-pointer">Hapus</button>
-            </td>
-          </tr>
-        `
-        )
-        .join('');
+      if (stores.length === 0) {
+        stTbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400">Belum ada data master toko. Silakan tambahkan toko di form sebelah kiri.</td></tr>`;
+      } else {
+        stTbody.innerHTML = stores
+          .map(
+            (st) => `
+            <tr class="hover:bg-slate-50">
+              <td class="py-2.5 px-3 font-mono font-bold text-[#0099A6]">${st.code}</td>
+              <td class="py-2.5 px-3 font-extrabold text-slate-900">${st.name}</td>
+              <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded bg-slate-100 font-bold">${st.type}</span></td>
+              <td class="py-2.5 px-3">${st.storeHead}</td>
+              <td class="py-2.5 px-3 text-[11px]">
+                <div>AM: <strong>${st.areaManager}</strong></div>
+                <div>RM: <strong>${st.regionalManager}</strong></div>
+              </td>
+              <td class="py-2.5 px-3 text-right">
+                <button onclick="FMCUApp.deleteStore('${st.code}')" class="text-rose-600 hover:underline font-bold cursor-pointer">Hapus</button>
+              </td>
+            </tr>
+          `
+          )
+          .join('');
+      }
     }
 
     // 3. Render Admin Users & Authorities Table
@@ -1802,7 +1869,7 @@ window.FMCUApp = {
           <tr class="hover:bg-slate-50">
             <td class="py-2.5 px-3">
               <div class="font-bold text-slate-900">${u.name}</div>
-              <div class="text-[11px] font-mono text-slate-400">@${u.username} • Pass: ${u.password}</div>
+              <div class="text-[11px] font-mono text-slate-400">@${u.username}</div>
             </td>
             <td class="py-2.5 px-3">
               <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
@@ -1820,7 +1887,7 @@ window.FMCUApp = {
               </div>
             </td>
             <td class="py-2.5 px-3 font-mono text-[11px] text-slate-600">
-              ${u.lastLocation ? `${u.lastLocation.lat}, ${u.lastLocation.lng}` : '-'}
+              ${u.lastLocation && u.lastLocation.lat ? `${u.lastLocation.lat}, ${u.lastLocation.lng}` : '-'}
             </td>
             <td class="py-2.5 px-3 text-right">
               <button onclick="FMCUApp.quickLoginById('${u.id}')" class="text-[#0099A6] hover:underline font-bold mr-2 cursor-pointer">Pakai Akun</button>
@@ -1854,7 +1921,11 @@ window.FMCUApp = {
     const users = window.FMCUData.getUsers();
     const st = stores.find((s) => s.code === storeCode);
     const au = users.find((u) => u.id === auditorId);
-    if (!st || !au) return;
+    if (!st) {
+      this.showToast('Silakan tambahkan Master Toko terlebih dahulu di Tab 2 (Master Toko).', 'warning');
+      return;
+    }
+    if (!au) return;
 
     const schedules = window.FMCUData.getSchedules();
     schedules.unshift({
@@ -1865,9 +1936,9 @@ window.FMCUApp = {
       auditorId: au.id,
       auditorName: au.name,
       scheduledDate: dateStr,
-      shiftWindow: windowStr || '09:00 - 15:00 WIB',
+      shiftWindow: windowStr || '-',
       priority,
-      auditFocus: focus || 'Audit standar operasional QSC & FamiTrack',
+      auditFocus: focus || '-',
       status: 'PENDING',
       actualIn: null,
       actualOut: null,
@@ -1896,8 +1967,10 @@ window.FMCUApp = {
     const am = document.getElementById('adm-st-am').value.trim();
     const rm = document.getElementById('adm-st-rm').value.trim();
     const email = document.getElementById('adm-st-email').value.trim();
-    const lat = parseFloat(document.getElementById('adm-st-lat').value) || -6.2;
-    const lng = parseFloat(document.getElementById('adm-st-lng').value) || 106.816;
+    const latVal = document.getElementById('adm-st-lat').value;
+    const lngVal = document.getElementById('adm-st-lng').value;
+    const lat = latVal !== '' ? parseFloat(latVal) : null;
+    const lng = lngVal !== '' ? parseFloat(lngVal) : null;
 
     const stores = window.FMCUData.getStores();
     const existingIdx = stores.findIndex((s) => s.code === code);
@@ -1908,14 +1981,14 @@ window.FMCUApp = {
       storeHead: head,
       areaManager: am,
       regionalManager: rm,
-      email: email || `${name.toLowerCase().replace(/\s+/g, '')}.${code}@familymart.co.id`,
+      email,
       lat,
       lng,
       defaultCrew: [
-        { role: 'Store Head', name: head, jobLevel: 'NS1' },
-        { role: 'Shift Leader', name: 'Shift Leader Duty', jobLevel: 'NS1' },
-        { role: 'Crew Store 1', name: 'Crew Store 1', jobLevel: 'MG1' },
-        { role: 'Crew Store 2', name: 'Crew Store 2', jobLevel: 'MG1' }
+        { role: 'Store Head', name: head, jobLevel: '' },
+        { role: 'Shift Leader', name: '', jobLevel: '' },
+        { role: 'Crew Store 1', name: '', jobLevel: '' },
+        { role: 'Crew Store 2', name: '', jobLevel: '' }
       ]
     };
 
@@ -1943,15 +2016,15 @@ window.FMCUApp = {
     event.preventDefault();
     const name = document.getElementById('adm-usr-name').value.trim();
     const username = document.getElementById('adm-usr-username').value.trim().toLowerCase();
-    const password = document.getElementById('adm-usr-password').value.trim() || '123';
+    const password = document.getElementById('adm-usr-password').value.trim();
     const role = document.getElementById('adm-usr-role').value;
-    const region = document.getElementById('adm-usr-region').value.trim() || 'Regional Jakarta';
+    const region = document.getElementById('adm-usr-region').value.trim();
     const email = document.getElementById('adm-usr-email').value.trim();
 
     const checkedAuths = Array.from(document.querySelectorAll('input[name="adm-auth"]:checked')).map((el) => el.value);
     const roleBadges = {
-      AUDITOR: 'Regional Bestie / Auditor',
-      ADMIN_SCHEDULE: 'Regional Manager (Admin Jadwal)',
+      AUDITOR: 'Auditor / Regional Bestie',
+      ADMIN_SCHEDULE: 'Admin Jadwal',
       SUPER_ADMIN: 'Super Admin FMCU'
     };
 
@@ -1962,20 +2035,14 @@ window.FMCUApp = {
       username,
       password,
       name,
-      email: email || `${username}@familymart.co.id`,
+      email,
       role,
       roleBadge: roleBadges[role] || role,
       region,
       avatarColor: role === 'SUPER_ADMIN' ? '#009944' : '#0099A6',
       active: true,
       authorities: checkedAuths,
-      lastLocation: {
-        lat: this.liveGps.lat,
-        lng: this.liveGps.lng,
-        address: region,
-        updatedAt: new Date().toISOString(),
-        status: 'ACTIVE'
-      }
+      lastLocation: null
     };
 
     if (existingIdx !== -1) {
@@ -1987,7 +2054,7 @@ window.FMCUApp = {
     this.populateHeaderRoleSwitcher();
     this.renderAllViews();
     event.target.reset();
-    this.showToast(`User ${name} (@${username}) berhasil disimpan dengan otoritas ${roleBadges[role]}!`, 'success');
+    this.showToast(`User ${name} (@${username}) berhasil disimpan!`, 'success');
   },
 
   deleteUser(userId) {
@@ -2049,11 +2116,11 @@ window.FMCUApp = {
     this.showToast('Kode Google Apps Script berhasil disalin ke Clipboard!', 'success');
   },
 
-  resetDemoDataConfirm() {
-    window.FMCUData.resetToSeed();
-    this.loadSampleTamanKotaToForm(true);
+  clearAllDataConfirm() {
+    window.FMCUData.clearAllData();
+    this.resetVisitForm(true);
     this.renderAllViews();
-    this.showToast('Seluruh data berhasil di-reset ke data awal (TAMAN KOTA 0404)!', 'info');
+    this.showToast('Seluruh data toko, jadwal, dan laporan telah dikosongkan!', 'info');
   },
 
   // ==========================================================================
@@ -2064,6 +2131,7 @@ window.FMCUApp = {
     if (!u) return;
     const reports = window.FMCUData.getReports().filter((r) => r.auditorId === u.id || r.auditorName === u.name);
     const body = document.getElementById('profile-modal-body');
+    const gpsText = this.liveGps.lat !== null ? `${this.liveGps.lat}, ${this.liveGps.lng}` : 'Belum terdeteksi';
 
     body.innerHTML = `
       <div class="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200">
@@ -2073,7 +2141,7 @@ window.FMCUApp = {
         <div>
           <div class="text-xs font-extrabold text-[#009944] uppercase">${u.roleBadge || u.role}</div>
           <h4 class="text-lg font-extrabold text-slate-900">${u.name}</h4>
-          <div class="text-xs text-slate-500">${u.email || u.username} • ${u.region || ''}</div>
+          <div class="text-xs text-slate-500">@${u.username} • ${u.region || '-'}</div>
         </div>
       </div>
 
@@ -2084,7 +2152,7 @@ window.FMCUApp = {
         </div>
         <div class="p-3 rounded-xl border border-slate-200">
           <div class="text-slate-400 font-bold uppercase text-[10px]">Live GPS Saat Ini</div>
-          <div class="text-xs font-mono font-bold text-emerald-700 mt-1">${this.liveGps.lat}, ${this.liveGps.lng}</div>
+          <div class="text-xs font-mono font-bold text-emerald-700 mt-1">${gpsText}</div>
         </div>
         <div class="p-3 rounded-xl border border-slate-200">
           <div class="text-slate-400 font-bold uppercase text-[10px]">Status Otoritas</div>
@@ -2095,13 +2163,14 @@ window.FMCUApp = {
       <div class="space-y-2">
         <div class="text-xs font-extrabold text-slate-700 uppercase">Log Aktivitas Actual In & Actual Out Terakhir:</div>
         <div class="space-y-2 max-h-48 overflow-y-auto">
-          ${reports
-            .map(
-              (r) => `
+          ${
+            reports
+              .map(
+                (r) => `
               <div class="p-3 rounded-xl border border-slate-200 text-xs flex items-center justify-between">
                 <div>
                   <div class="font-bold text-slate-900">FamilyMart ${r.storeName} (${r.storeCode})</div>
-                  <div class="text-[11px] text-slate-500">${r.visitDayDateFormatted || r.visitDate} • GPS: ${r.gpsLat}, ${r.gpsLng}</div>
+                  <div class="text-[11px] text-slate-500">${r.visitDayDateFormatted || r.visitDate} • GPS: ${r.gpsLat || '-'}, ${r.gpsLng || '-'}</div>
                 </div>
                 <div class="text-right font-mono font-bold text-emerald-700">
                   <div>In: ${r.actualIn}</div>
@@ -2109,8 +2178,9 @@ window.FMCUApp = {
                 </div>
               </div>
             `
-            )
-            .join('') || '<div class="text-xs text-slate-400">Belum ada riwayat visit pada akun ini.</div>'}
+              )
+              .join('') || '<div class="text-xs text-slate-400">Belum ada riwayat visit pada akun ini.</div>'
+          }
         </div>
       </div>
     `;

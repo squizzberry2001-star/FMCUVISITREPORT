@@ -45,7 +45,7 @@
   <!-- Chart.js (For Trend Temuan, Trend Toko & User Performance Analytics) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
-  <!-- jsPDF (For 16:9 Vector + Image PDF Generation matching reference PDF) -->
+  <!-- jsPDF (For 16:9 Vector + Image PDF Generation) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <!-- Custom Styles -->
@@ -57,7 +57,7 @@
   <div class="fm-top-stripe w-full fixed top-0 left-0 z-50"></div>
 
   <!-- ====================================================================
-       GLOBAL AUTH LOGIN OVERLAY (When Not Logged In)
+       GLOBAL AUTH LOGIN OVERLAY
        ==================================================================== -->
   <div id="auth-screen" class="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 hidden overflow-y-auto">
     <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-4xl w-full overflow-hidden grid grid-cols-1 lg:grid-cols-12 my-auto view-section">
@@ -101,7 +101,7 @@
         </div>
 
         <div class="text-[11px] text-white/70 relative z-10 flex items-center justify-between border-t border-white/15 pt-4">
-          <span>FMCU Digital Audit System v2.5</span>
+          <span>FMCU Digital Audit System</span>
           <span>100% Responsive Web App</span>
         </div>
       </div>
@@ -110,8 +110,8 @@
       <div class="lg:col-span-7 p-6 sm:p-10 flex flex-col justify-center bg-white">
         <div class="mb-6">
           <span class="text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">Portal Akses Otoritas</span>
-          <h2 class="text-2xl font-extrabold text-slate-900 mt-2">Masuk ke Akun Anda</h2>
-          <p class="text-xs sm:text-sm text-slate-500 mt-1">Gunakan kredensial sesuai otoritas Anda (Auditor / Regional Bestie / Admin FMCU).</p>
+          <h2 class="text-2xl font-extrabold text-slate-900 mt-2">Masuk ke Sistem FMCU</h2>
+          <p class="text-xs sm:text-sm text-slate-500 mt-1">Gunakan kredensial sesuai otoritas Anda (Auditor / Admin FMCU).</p>
         </div>
 
         <form id="login-form" class="space-y-4">
@@ -119,14 +119,14 @@
             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Username / Email</label>
             <div class="relative">
               <i class="fa-regular fa-user absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
-              <input type="text" id="login-username" required placeholder="Contoh: rani atau admin" class="fm-input pl-10" value="rani" />
+              <input type="text" id="login-username" required placeholder="Masukkan username (admin / auditor)" class="fm-input pl-10" value="" />
             </div>
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Password / PIN Otoritas</label>
             <div class="relative">
               <i class="fa-solid fa-lock absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
-              <input type="password" id="login-password" required placeholder="Masukkan password (default: 123)" class="fm-input pl-10" value="123" />
+              <input type="password" id="login-password" required placeholder="Masukkan password" class="fm-input pl-10" value="" />
             </div>
           </div>
           <div id="login-error" class="hidden text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg p-2.5"></div>
@@ -136,39 +136,25 @@
           </button>
         </form>
 
-        <!-- Quick Demo Login Selector -->
+        <!-- Role Access Selector -->
         <div class="mt-7 pt-6 border-t border-slate-100">
           <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center justify-between">
-            <span>Akses Cepat Demo (Klik Sesuai Otoritas):</span>
-            <span class="text-[11px] font-normal text-slate-400">Password semua akun: 123</span>
+            <span>Pilih Otoritas Akses Cepat:</span>
+            <span class="text-[11px] font-normal text-slate-400">Default Password: 123</span>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <button type="button" onclick="FMCUApp.quickLogin('rani')" class="text-left p-3 rounded-xl border border-teal-200 bg-teal-50/50 hover:bg-teal-50 transition flex items-center gap-3 cursor-pointer">
-              <div class="w-9 h-9 rounded-full bg-[#0099A6] text-white font-bold flex items-center justify-center shrink-0 text-xs">RI</div>
+            <button type="button" onclick="FMCUApp.quickLogin('auditor')" class="text-left p-3 rounded-xl border border-teal-200 bg-teal-50/50 hover:bg-teal-50 transition flex items-center gap-3 cursor-pointer">
+              <div class="w-9 h-9 rounded-full bg-[#0099A6] text-white font-bold flex items-center justify-center shrink-0 text-xs">AU</div>
               <div class="overflow-hidden">
-                <div class="font-bold text-xs text-slate-900 truncate">Rani Ismawati</div>
-                <div class="text-[11px] text-teal-700 font-medium">Auditor / Regional Bestie</div>
+                <div class="font-bold text-xs text-slate-900 truncate">Auditor FMCU</div>
+                <div class="text-[11px] text-teal-700 font-medium">Otoritas Auditor Lapangan</div>
               </div>
             </button>
             <button type="button" onclick="FMCUApp.quickLogin('admin')" class="text-left p-3 rounded-xl border border-emerald-200 bg-emerald-50/50 hover:bg-emerald-50 transition flex items-center gap-3 cursor-pointer">
               <div class="w-9 h-9 rounded-full bg-[#009944] text-white font-bold flex items-center justify-center shrink-0 text-xs">AD</div>
               <div class="overflow-hidden">
-                <div class="font-bold text-xs text-slate-900 truncate">Admin FMCU Center</div>
+                <div class="font-bold text-xs text-slate-900 truncate">Admin FMCU</div>
                 <div class="text-[11px] text-emerald-700 font-medium">Super Admin (Full Otoritas)</div>
-              </div>
-            </button>
-            <button type="button" onclick="FMCUApp.quickLogin('variz')" class="text-left p-3 rounded-xl border border-amber-200 bg-amber-50/40 hover:bg-amber-50 transition flex items-center gap-3 cursor-pointer">
-              <div class="w-9 h-9 rounded-full bg-amber-600 text-white font-bold flex items-center justify-center shrink-0 text-xs">VN</div>
-              <div class="overflow-hidden">
-                <div class="font-bold text-xs text-slate-900 truncate">Variz Nurhalifah</div>
-                <div class="text-[11px] text-amber-700 font-medium">Regional Manager (Atur Jadwal)</div>
-              </div>
-            </button>
-            <button type="button" onclick="FMCUApp.quickLogin('budi')" class="text-left p-3 rounded-xl border border-sky-200 bg-sky-50/40 hover:bg-sky-50 transition flex items-center gap-3 cursor-pointer">
-              <div class="w-9 h-9 rounded-full bg-sky-600 text-white font-bold flex items-center justify-center shrink-0 text-xs">BS</div>
-              <div class="overflow-hidden">
-                <div class="font-bold text-xs text-slate-900 truncate">Budi Santoso</div>
-                <div class="text-[11px] text-sky-700 font-medium">FMCU Senior Auditor</div>
               </div>
             </button>
           </div>
@@ -202,9 +188,9 @@
             <span class="w-2 h-2 rounded-full bg-emerald-500 gps-pulse"></span>
             Sedang Visit (Actual In)
           </span>
-          <span id="sidebar-checkin-time" class="text-[11px] font-bold text-emerald-800">09:12</span>
+          <span id="sidebar-checkin-time" class="text-[11px] font-bold text-emerald-800">-</span>
         </div>
-        <div id="sidebar-checkin-store" class="font-extrabold text-xs text-slate-900 mt-1 truncate">TAMAN KOTA (0404)</div>
+        <div id="sidebar-checkin-store" class="font-extrabold text-xs text-slate-900 mt-1 truncate">-</div>
         <button onclick="FMCUApp.navigate('form')" class="mt-2 w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-lg transition cursor-pointer">
           Lanjutkan Form Visit →
         </button>
@@ -270,18 +256,18 @@
           </button>
         </div>
         <div id="sidebar-gps-coords" class="text-[11px] font-mono text-slate-600 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 truncate">
-          -6.15682, 106.75824 (Akurat)
+          Mendeteksi titik GPS...
         </div>
 
         <!-- User Mini Profile Card -->
         <div class="flex items-center justify-between pt-1">
           <div class="flex items-center gap-2.5 overflow-hidden cursor-pointer" onclick="FMCUApp.openProfileModal()">
             <div id="sidebar-user-avatar" class="w-9 h-9 rounded-full bg-[#0099A6] text-white font-bold text-xs flex items-center justify-center shrink-0">
-              RI
+              AU
             </div>
             <div class="overflow-hidden">
-              <div id="sidebar-user-name" class="font-bold text-xs text-slate-900 truncate">Rani Ismawati</div>
-              <div id="sidebar-user-role" class="text-[10px] font-semibold text-emerald-700 truncate">Regional Bestie / Auditor</div>
+              <div id="sidebar-user-name" class="font-bold text-xs text-slate-900 truncate">Auditor FMCU</div>
+              <div id="sidebar-user-role" class="text-[10px] font-semibold text-emerald-700 truncate">Auditor / Regional Bestie</div>
             </div>
           </div>
           <button onclick="FMCUApp.logout()" title="Keluar / Ganti Otoritas" class="text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition cursor-pointer">
@@ -315,10 +301,10 @@
           <!-- Live GPS Pill -->
           <button onclick="FMCUApp.refreshGpsLocation(true)" class="hidden md:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold hover:bg-emerald-100 transition cursor-pointer" title="Klik untuk memperbarui titik GPS aktual">
             <span class="w-2 h-2 rounded-full bg-emerald-500 gps-pulse"></span>
-            <span id="header-gps-text">GPS Aktif: -6.1568, 106.7582</span>
+            <span id="header-gps-text">GPS Aktif</span>
           </button>
 
-          <!-- Quick Role / Authority Switcher (For Easy Demo & Testing) -->
+          <!-- Quick Role / Authority Switcher -->
           <div class="relative">
             <select id="header-role-switcher" onchange="FMCUApp.quickLoginById(this.value)" class="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl px-3 py-2 border border-slate-200 focus:outline-none cursor-pointer" title="Ganti Akun / Otoritas Login">
             </select>
@@ -327,9 +313,9 @@
           <!-- Profile Button -->
           <button onclick="FMCUApp.openProfileModal()" class="flex items-center gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition cursor-pointer">
             <div id="header-user-avatar" class="w-7 h-7 rounded-full bg-[#0099A6] text-white font-bold text-xs flex items-center justify-center">
-              RI
+              AU
             </div>
-            <span id="header-user-name" class="hidden sm:inline font-bold text-xs text-slate-800">Rani Ismawati</span>
+            <span id="header-user-name" class="hidden sm:inline font-bold text-xs text-slate-800">Auditor FMCU</span>
           </button>
         </div>
       </header>
@@ -345,10 +331,10 @@
             <div class="lg:col-span-7 space-y-3">
               <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold">
                 <i class="fa-solid fa-shield-check"></i>
-                <span id="home-welcome-role">Otoritas: Regional Bestie / Auditor</span>
+                <span id="home-welcome-role">Otoritas: Auditor / Regional Bestie</span>
               </div>
               <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900">
-                Selamat Bertugas, <span id="home-welcome-name" class="text-[#0099A6]">Rani Ismawati</span>!
+                Selamat Bertugas, <span id="home-welcome-name" class="text-[#0099A6]">Auditor FMCU</span>!
               </h2>
               <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
                 Pastikan Anda menekan tombol <strong>Check-In (Actual In)</strong> saat tiba di lokasi toko untuk merekam waktu kedatangan dan koordinat GPS aktual sebelum mengisi form observasi QSC.
@@ -360,9 +346,9 @@
                   <i class="fa-solid fa-store"></i>
                   <span>Visit Toko Baru / Check-In Sekarang</span>
                 </button>
-                <button onclick="FMCUApp.navigate('preview')" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm transition flex items-center gap-2 cursor-pointer">
-                  <i class="fa-solid fa-file-pdf text-rose-600"></i>
-                  <span>Lihat Preview PDF Terakhir</span>
+                <button onclick="FMCUApp.navigate('admin', 'stores')" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm transition flex items-center gap-2 cursor-pointer">
+                  <i class="fa-solid fa-sliders text-[#009944]"></i>
+                  <span>Kelola Toko & Jadwal (Admin)</span>
                 </button>
                 <button onclick="FMCUApp.openProfileModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3.5 py-2.5 rounded-xl text-xs sm:text-sm transition flex items-center gap-2 cursor-pointer">
                   <i class="fa-regular fa-id-badge text-[#0099A6]"></i>
@@ -379,7 +365,7 @@
                   <span class="font-extrabold text-xs uppercase tracking-wider text-slate-700">Live Location & Actual In/Out</span>
                 </div>
                 <span id="home-gps-status-badge" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                  GPS Terkunci
+                  GPS Aktif
                 </span>
               </div>
 
@@ -390,11 +376,11 @@
               <div class="grid grid-cols-2 gap-2 text-xs">
                 <div class="bg-white p-2.5 rounded-xl border border-slate-200">
                   <div class="text-[10px] font-bold text-slate-400 uppercase">Titik Koordinat User</div>
-                  <div id="home-gps-latlng" class="font-mono font-bold text-slate-800 mt-0.5 truncate">-6.15682, 106.75824</div>
+                  <div id="home-gps-latlng" class="font-mono font-bold text-slate-800 mt-0.5 truncate">Mendeteksi...</div>
                 </div>
                 <div class="bg-white p-2.5 rounded-xl border border-slate-200">
                   <div class="text-[10px] font-bold text-slate-400 uppercase">Status Actual In / Out</div>
-                  <div id="home-checkin-summary" class="font-bold text-emerald-700 mt-0.5 truncate">Siap Check-In Toko</div>
+                  <div id="home-checkin-summary" class="font-bold text-slate-700 mt-0.5 truncate">Belum Check-In</div>
                 </div>
               </div>
             </div>
@@ -405,13 +391,13 @@
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div class="fm-card fm-card-hover p-4 sm:p-5">
             <div class="flex items-center justify-between">
-              <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Jadwal & Realisasi</span>
+              <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Realisasi Visit</span>
               <div class="w-9 h-9 rounded-xl bg-teal-50 text-[#0099A6] flex items-center justify-center">
                 <i class="fa-solid fa-calendar-check"></i>
               </div>
             </div>
-            <div id="kpi-total-visits" class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">3 / 6</div>
-            <div id="kpi-completion-rate" class="text-xs font-semibold text-emerald-600 mt-1">50% Jadwal Selesai</div>
+            <div id="kpi-total-visits" class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">0 Visit</div>
+            <div id="kpi-completion-rate" class="text-xs font-semibold text-emerald-600 mt-1">0/0 Jadwal (0%)</div>
           </div>
 
           <div class="fm-card fm-card-hover p-4 sm:p-5">
@@ -421,8 +407,8 @@
                 <i class="fa-solid fa-magnifying-glass-chart"></i>
               </div>
             </div>
-            <div id="kpi-total-findings" class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">9</div>
-            <div id="kpi-open-findings" class="text-xs font-semibold text-amber-600 mt-1">5 Open • 4 Closed</div>
+            <div id="kpi-total-findings" class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">0</div>
+            <div id="kpi-open-findings" class="text-xs font-semibold text-amber-600 mt-1">0 Open • 0 Closed</div>
           </div>
 
           <div class="fm-card fm-card-hover p-4 sm:p-5">
@@ -432,7 +418,7 @@
                 <i class="fa-regular fa-clock"></i>
               </div>
             </div>
-            <div id="kpi-avg-duration" class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">4j 53m</div>
+            <div id="kpi-avg-duration" class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">0j 0m</div>
             <div class="text-xs font-semibold text-slate-500 mt-1">Berdasarkan Actual In - Out</div>
           </div>
 
@@ -443,7 +429,7 @@
                 <i class="fa-solid fa-award"></i>
               </div>
             </div>
-            <div id="kpi-avg-score" class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">86.3%</div>
+            <div id="kpi-avg-score" class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">0%</div>
             <div class="text-xs font-semibold text-sky-600 mt-1">Standar Kualitas Toko</div>
           </div>
         </div>
@@ -468,7 +454,7 @@
                 <option value="COMPLETED">Status: Selesai Visit</option>
               </select>
               <button onclick="FMCUApp.navigate('admin', 'schedules')" class="text-xs font-bold text-[#0099A6] bg-teal-50 hover:bg-teal-100 px-3 py-2 rounded-xl transition cursor-pointer">
-                <i class="fa-solid fa-calendar-plus mr-1"></i>Atur Jadwal (Admin)
+                <i class="fa-solid fa-calendar-plus mr-1"></i>+ Buat Jadwal Visit (Admin)
               </button>
             </div>
           </div>
@@ -586,16 +572,16 @@
               <div class="flex items-center gap-2">
                 <span class="px-2.5 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5">
                   <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                  Form Audit Kunjungan Toko Aktif
+                  Form Audit Kunjungan Toko
                 </span>
-                <span id="form-banner-store-badge" class="text-xs font-bold text-teal-200">Kode Toko: 0404</span>
+                <span id="form-banner-store-badge" class="text-xs font-bold text-teal-200">Kode Toko: -</span>
               </div>
               <h2 id="form-banner-title" class="text-lg sm:text-xl font-extrabold tracking-tight">
-                FMCU Visit Store Report — TAMAN KOTA
+                FMCU Visit Store Report — Form Kunjungan Baru
               </h2>
               <div id="form-banner-gps" class="text-xs text-slate-300 font-mono flex items-center gap-2">
                 <i class="fa-solid fa-location-dot text-emerald-400"></i>
-                <span>Live GPS: -6.15682, 106.75824 (Terverifikasi)</span>
+                <span>Live GPS: Mendeteksi koordinat...</span>
               </div>
             </div>
 
@@ -604,7 +590,7 @@
               <div class="bg-white/10 backdrop-blur-xs border border-white/15 rounded-xl px-3.5 py-2">
                 <div class="text-[10px] uppercase tracking-wider text-emerald-300 font-bold">Actual In (Check-In)</div>
                 <div class="flex items-center gap-2 mt-0.5">
-                  <input type="text" id="form-actual-in" class="bg-transparent font-extrabold text-sm text-white w-24 focus:outline-none border-b border-transparent focus:border-emerald-300" value="09:12 WIB" />
+                  <input type="text" id="form-actual-in" placeholder="--:-- WIB" class="bg-transparent font-extrabold text-sm text-white w-24 focus:outline-none border-b border-transparent focus:border-emerald-300 placeholder:text-white/40" value="" />
                   <button type="button" onclick="FMCUApp.stampActualTime('in')" title="Catat Jam Sekarang sebagai Actual In" class="text-[10px] bg-emerald-500/30 hover:bg-emerald-500/50 px-2 py-0.5 rounded text-emerald-100 font-bold cursor-pointer">
                     Set Jam Kini
                   </button>
@@ -614,15 +600,15 @@
               <div class="bg-white/10 backdrop-blur-xs border border-white/15 rounded-xl px-3.5 py-2">
                 <div class="text-[10px] uppercase tracking-wider text-amber-300 font-bold">Actual Out (Check-Out)</div>
                 <div class="flex items-center gap-2 mt-0.5">
-                  <input type="text" id="form-actual-out" class="bg-transparent font-extrabold text-sm text-white w-24 focus:outline-none border-b border-transparent focus:border-amber-300" value="14:35 WIB" />
+                  <input type="text" id="form-actual-out" placeholder="--:-- WIB" class="bg-transparent font-extrabold text-sm text-white w-24 focus:outline-none border-b border-transparent focus:border-amber-300 placeholder:text-white/40" value="" />
                   <button type="button" onclick="FMCUApp.stampActualTime('out')" title="Catat Jam Sekarang sebagai Actual Out" class="text-[10px] bg-amber-500/30 hover:bg-amber-500/50 px-2 py-0.5 rounded text-amber-100 font-bold cursor-pointer">
                     Set Jam Kini
                   </button>
                 </div>
               </div>
 
-              <button type="button" onclick="FMCUApp.loadSampleTamanKotaToForm()" class="bg-white/15 hover:bg-white/25 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl border border-white/20 transition cursor-pointer" title="Isi otomatis dengan data contoh Taman Kota sesuai file PDF">
-                <i class="fa-solid fa-wand-magic-sparkles mr-1 text-amber-300"></i>Muat Data Contoh PDF
+              <button type="button" onclick="FMCUApp.resetVisitForm(false)" class="bg-white/15 hover:bg-white/25 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl border border-white/20 transition cursor-pointer" title="Kosongkan seluruh isian form">
+                <i class="fa-solid fa-rotate-left mr-1 text-teal-300"></i>Reset Form Kosong
               </button>
             </div>
           </div>
@@ -655,12 +641,12 @@
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Store *</label>
-                <input type="text" id="form-store-name" required placeholder="Contoh: TAMAN KOTA" class="fm-input font-bold" />
+                <input type="text" id="form-store-name" required placeholder="Masukkan Nama Toko" oninput="document.getElementById('form-banner-title').textContent = 'FMCU Visit Store Report — ' + (this.value || 'Form Kunjungan Baru')" class="fm-input font-bold uppercase" />
               </div>
               <div class="grid grid-cols-2 gap-2">
                 <div>
                   <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Kode Toko *</label>
-                  <input type="text" id="form-store-code" required placeholder="0404" class="fm-input font-mono font-bold" />
+                  <input type="text" id="form-store-code" required placeholder="Kode Toko" oninput="document.getElementById('form-banner-store-badge').textContent = 'Kode Toko: ' + (this.value || '-')" class="fm-input font-mono font-bold" />
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tipe Toko *</label>
@@ -674,7 +660,7 @@
 
               <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Auditor / Regional Bestie *</label>
-                <input type="text" id="form-auditor-name" required placeholder="Rani Ismawati" class="fm-input" />
+                <input type="text" id="form-auditor-name" required placeholder="Masukkan Nama Auditor" class="fm-input" />
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tanggal Visit *</label>
@@ -682,20 +668,20 @@
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Skor QSC / FamiTrack (0-100)</label>
-                <input type="number" id="form-qsc-score" min="0" max="100" value="84" class="fm-input font-bold text-emerald-700" />
+                <input type="number" id="form-qsc-score" min="0" max="100" placeholder="0 - 100" value="" class="fm-input font-bold text-emerald-700" />
               </div>
 
               <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Store Head *</label>
-                <input type="text" id="form-store-head" required placeholder="Fauzan Muhammad Alvizan" class="fm-input" />
+                <input type="text" id="form-store-head" required placeholder="Masukkan Nama Store Head" class="fm-input" />
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Area Manager *</label>
-                <input type="text" id="form-area-manager" required placeholder="Muhamad Ismail" class="fm-input" />
+                <input type="text" id="form-area-manager" required placeholder="Masukkan Nama Area Manager" class="fm-input" />
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Regional Manager *</label>
-                <input type="text" id="form-regional-manager" required placeholder="Variz Nurhalifah" class="fm-input" />
+                <input type="text" id="form-regional-manager" required placeholder="Masukkan Nama Regional Manager" class="fm-input" />
               </div>
             </div>
 
@@ -820,7 +806,7 @@
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Email Tujuan Toko & Terusan (AM, RM, FMCU)</label>
-                <input type="text" id="form-store-email" placeholder="tamankota.0404@familymart.co.id, fmcu@familymart.co.id" class="fm-input" />
+                <input type="text" id="form-store-email" placeholder="Masukkan alamat email tujuan pengiriman" class="fm-input" />
               </div>
             </div>
 
@@ -883,7 +869,7 @@
             </div>
 
             <button type="button" onclick="FMCUApp.editCurrentPreviewReport()" class="px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs transition cursor-pointer">
-              <i class="fa-solid fa-pen-to-square mr-1"></i>Edit Form
+              <i class="fa-solid fa-pen-to-square mr-1"></i>Ke Form Visit
             </button>
 
             <button type="button" onclick="FMCUApp.openIntegrationSendModal()" class="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer">
@@ -902,7 +888,7 @@
         <div id="preview-slide-mode-container" class="space-y-4">
           <div class="flex items-center justify-between bg-slate-900 text-white px-4 py-2.5 rounded-xl">
             <div class="flex items-center gap-2">
-              <span id="preview-slide-counter" class="text-xs font-extrabold bg-[#0099A6] px-2.5 py-1 rounded-md">Halaman 1 / 11</span>
+              <span id="preview-slide-counter" class="text-xs font-extrabold bg-[#0099A6] px-2.5 py-1 rounded-md">Halaman 1 / 10</span>
               <span id="preview-slide-title" class="text-xs sm:text-sm font-semibold text-slate-200">Cover - FMCU Visit Store Report</span>
             </div>
             <div class="flex items-center gap-2">
@@ -945,18 +931,18 @@
             <span class="text-[11px] font-extrabold uppercase tracking-wider px-3 py-1 rounded-full bg-amber-100 text-amber-800">Area Terbatas • Otoritas Khusus Admin</span>
             <h2 class="text-xl font-extrabold text-slate-900 mt-3">Verifikasi Otoritas Admin FMCU</h2>
             <p class="text-xs sm:text-sm text-slate-500 mt-1">
-              Halaman ini dikhususkan bagi <strong>Super Admin FMCU</strong> atau <strong>Admin Jadwal (Regional Manager)</strong> untuk mengatur jadwal visit, master toko, manajemen user, dan integrasi Google Drive.
+              Halaman ini dikhususkan bagi <strong>Super Admin FMCU</strong> atau <strong>Admin Jadwal</strong> untuk mengatur jadwal visit, master toko, manajemen user, dan integrasi Google Drive.
             </p>
           </div>
 
           <form onsubmit="FMCUApp.handleAdminGateLogin(event)" class="space-y-3 text-left">
             <div>
               <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Username Admin</label>
-              <input type="text" id="gate-admin-username" value="admin" required class="fm-input" />
+              <input type="text" id="gate-admin-username" placeholder="Masukkan username admin" value="admin" required class="fm-input" />
             </div>
             <div>
               <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Password / Kode Otoritas Admin</label>
-              <input type="password" id="gate-admin-password" value="123" required class="fm-input" />
+              <input type="password" id="gate-admin-password" placeholder="Masukkan password admin" value="123" required class="fm-input" />
             </div>
             <button type="submit" class="w-full fm-gradient text-white font-bold py-3 rounded-xl shadow-md hover:opacity-95 transition cursor-pointer">
               <i class="fa-solid fa-unlock-keyhole mr-1.5"></i>Buka Panel Otoritas Admin
@@ -1029,11 +1015,11 @@
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Jam Operasional Visit</label>
-                  <input type="text" id="adm-sch-window" value="09:00 - 15:00 WIB" class="fm-input" />
+                  <input type="text" id="adm-sch-window" placeholder="09:00 - 15:00 WIB" value="" class="fm-input" />
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Fokus Audit / Catatan Admin</label>
-                  <textarea id="adm-sch-focus" rows="2" placeholder="Contoh: Audit QSC, cek rotasi FEFO thawing & kebersihan toilet" class="fm-input"></textarea>
+                  <textarea id="adm-sch-focus" rows="2" placeholder="Masukkan fokus pemeriksaan atau catatan tugas" class="fm-input"></textarea>
                 </div>
                 <button type="submit" class="w-full fm-gradient text-white font-bold py-2.5 rounded-xl shadow-xs hover:opacity-95 transition text-xs sm:text-sm cursor-pointer">
                   <i class="fa-solid fa-check mr-1"></i>Simpan & Tugaskan Jadwal Visit
@@ -1074,7 +1060,7 @@
                 <div class="grid grid-cols-2 gap-2">
                   <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Kode Toko *</label>
-                    <input type="text" id="adm-st-code" required placeholder="0812" class="fm-input font-mono" />
+                    <input type="text" id="adm-st-code" required placeholder="Kode Toko" class="fm-input font-mono" />
                   </div>
                   <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tipe Toko *</label>
@@ -1087,7 +1073,7 @@
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Toko *</label>
-                  <input type="text" id="adm-st-name" required placeholder="KEMANG RAYA" class="fm-input uppercase" />
+                  <input type="text" id="adm-st-name" required placeholder="Nama Toko" class="fm-input uppercase" />
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Store Head *</label>
@@ -1096,25 +1082,25 @@
                 <div class="grid grid-cols-2 gap-2">
                   <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Area Manager *</label>
-                    <input type="text" id="adm-st-am" required placeholder="Muhamad Ismail" class="fm-input" />
+                    <input type="text" id="adm-st-am" required placeholder="Nama Area Manager" class="fm-input" />
                   </div>
                   <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Regional Manager *</label>
-                    <input type="text" id="adm-st-rm" required placeholder="Variz Nurhalifah" class="fm-input" />
+                    <input type="text" id="adm-st-rm" required placeholder="Nama Regional Manager" class="fm-input" />
                   </div>
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Email Resmi Toko</label>
-                  <input type="email" id="adm-st-email" placeholder="store@familymart.co.id" class="fm-input" />
+                  <input type="email" id="adm-st-email" placeholder="Email Toko" class="fm-input" />
                 </div>
                 <div class="grid grid-cols-2 gap-2">
                   <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Latitude GPS</label>
-                    <input type="number" step="any" id="adm-st-lat" value="-6.2000" class="fm-input font-mono" />
+                    <input type="number" step="any" id="adm-st-lat" placeholder="Latitude" value="" class="fm-input font-mono" />
                   </div>
                   <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Longitude GPS</label>
-                    <input type="number" step="any" id="adm-st-lng" value="106.8166" class="fm-input font-mono" />
+                    <input type="number" step="any" id="adm-st-lng" placeholder="Longitude" value="" class="fm-input font-mono" />
                   </div>
                 </div>
                 <button type="submit" class="w-full fm-gradient text-white font-bold py-2.5 rounded-xl shadow-xs hover:opacity-95 transition text-xs sm:text-sm cursor-pointer">
@@ -1155,7 +1141,7 @@
               <form id="admin-user-form" onsubmit="FMCUApp.handleSaveUser(event)" class="space-y-3">
                 <div>
                   <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Lengkap *</label>
-                  <input type="text" id="adm-usr-name" required placeholder="Nama Auditor / Admin" class="fm-input" />
+                  <input type="text" id="adm-usr-name" required placeholder="Nama Lengkap User" class="fm-input" />
                 </div>
                 <div class="grid grid-cols-2 gap-2">
                   <div>
@@ -1164,7 +1150,7 @@
                   </div>
                   <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Password *</label>
-                    <input type="text" id="adm-usr-password" required value="123" class="fm-input font-mono" />
+                    <input type="text" id="adm-usr-password" required placeholder="Password" class="fm-input font-mono" />
                   </div>
                 </div>
                 <div>
@@ -1177,11 +1163,11 @@
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Region / Area Tugas</label>
-                  <input type="text" id="adm-usr-region" placeholder="Regional 1 - Jakarta Barat" class="fm-input" />
+                  <input type="text" id="adm-usr-region" placeholder="Masukkan Area / Region" class="fm-input" />
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Email Resmi</label>
-                  <input type="email" id="adm-usr-email" placeholder="nama@familymart.co.id" class="fm-input" />
+                  <input type="email" id="adm-usr-email" placeholder="Masukkan Email" class="fm-input" />
                 </div>
 
                 <!-- Granular Authority Checkboxes -->
@@ -1203,8 +1189,8 @@
             <div class="lg:col-span-8 fm-card p-5 space-y-4">
               <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h3 class="font-extrabold text-base text-slate-900">Daftar Akun User, Otoritas & Live Location</h3>
-                <button type="button" onclick="FMCUApp.resetDemoDataConfirm()" class="text-xs font-bold text-rose-600 hover:underline cursor-pointer">
-                  <i class="fa-solid fa-rotate-left mr-1"></i>Reset Data Default
+                <button type="button" onclick="FMCUApp.clearAllDataConfirm()" class="text-xs font-bold text-rose-600 hover:underline cursor-pointer">
+                  <i class="fa-solid fa-trash-can mr-1"></i>Bersihkan Seluruh Data
                 </button>
               </div>
               <div class="overflow-x-auto">
@@ -1252,11 +1238,11 @@
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Daftar Email CC Otomatis (RM, AM, FMCU)</label>
-                  <input type="text" id="set-cc-emails" value="fmcu@familymart.co.id, regional.manager@familymart.co.id, area.manager@familymart.co.id" class="fm-input text-xs" />
+                  <input type="text" id="set-cc-emails" placeholder="Masukkan daftar email CC dipisahkan koma" class="fm-input text-xs" />
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Google Apps Script Web App URL (Webhook Auto-Upload & Email)</label>
-                  <input type="url" id="set-gas-url" placeholder="https://script.google.com/macros/s/AKfycb.../exec" class="fm-input font-mono text-xs" />
+                  <input type="url" id="set-gas-url" placeholder="https://script.google.com/macros/s/.../exec" class="fm-input font-mono text-xs" />
                   <p class="text-[11px] text-slate-400 mt-1">Jika dikosongkan, sistem akan menjalankan mode Hybrid (Unduh PDF otomatis + Buka Email Client siap kirim).</p>
                 </div>
 
@@ -1277,11 +1263,7 @@
                 </button>
               </div>
 
-              <div class="bg-slate-900 text-emerald-300 rounded-xl p-4 font-mono text-[11px] overflow-x-auto max-h-96 leading-relaxed select-all" id="gas-code-preview">
-// Paste kode dari file google-apps-script/Code.gs ke https://script.google.com
-// Otomatis menerima file PDF Base64 dari FMCU Visit Store Report,
-// menyimpan ke Folder Google Drive Rekap, dan mengirim Email ke Store, AM, RM & FMCU.
-              </div>
+              <div class="bg-slate-900 text-emerald-300 rounded-xl p-4 font-mono text-[11px] overflow-x-auto max-h-96 leading-relaxed select-all" id="gas-code-preview"></div>
 
               <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-xs text-emerald-900 space-y-1.5">
                 <div class="font-extrabold flex items-center gap-1.5">
@@ -1305,7 +1287,7 @@
   </div>
 
   <!-- ====================================================================
-       MOBILE BOTTOM NAVIGATION BAR (100% Responsive Mobile/Tablet UX)
+       MOBILE BOTTOM NAVIGATION BAR
        ==================================================================== -->
   <nav class="lg:hidden fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 z-40 grid grid-cols-4 py-1.5 px-2 shadow-lg">
     <button onclick="FMCUApp.navigate('home')" id="mnav-home" class="mobile-nav-item active flex flex-col items-center justify-center py-1 text-slate-500 cursor-pointer">
@@ -1348,17 +1330,17 @@
 
       <div class="space-y-3">
         <div>
-          <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Pilih Toko yang Dikunjungi</label>
+          <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Pilih dari Master Toko (Opsional)</label>
           <select id="modal-visit-store-select" class="fm-input font-bold"></select>
         </div>
 
         <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs space-y-1.5">
           <div class="flex items-center justify-between font-bold text-emerald-900">
             <span><i class="fa-solid fa-satellite-dish mr-1 text-emerald-600"></i>Verifikasi Live Location & Jam</span>
-            <span id="modal-checkin-clock" class="font-mono">14:30 WIB</span>
+            <span id="modal-checkin-clock" class="font-mono">--:-- WIB</span>
           </div>
           <div id="modal-checkin-gps" class="text-[11px] font-mono text-emerald-800">
-            Koordinat GPS: -6.15682, 106.75824
+            Koordinat GPS: Mendeteksi...
           </div>
         </div>
       </div>
@@ -1396,21 +1378,21 @@
 
       <div class="space-y-3 text-xs">
         <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
-          <div class="font-bold text-slate-800" id="modal-send-report-name">Laporan: TAMAN KOTA (0404)</div>
-          <div class="text-slate-500 mt-0.5" id="modal-send-report-meta">Auditor: Rani Ismawati • 4 Temuan Observasi</div>
+          <div class="font-bold text-slate-800" id="modal-send-report-name">Laporan Visit</div>
+          <div class="text-slate-500 mt-0.5" id="modal-send-report-meta">-</div>
         </div>
 
         <div>
           <label class="block font-bold text-slate-700 uppercase mb-1">Email Tujuan Utama (Store)</label>
-          <input type="text" id="modal-send-to" class="fm-input text-xs" />
+          <input type="text" id="modal-send-to" placeholder="Masukkan email tujuan" class="fm-input text-xs" />
         </div>
         <div>
           <label class="block font-bold text-slate-700 uppercase mb-1">CC Email (Regional Manager, Area Manager, FMCU)</label>
-          <input type="text" id="modal-send-cc" class="fm-input text-xs" />
+          <input type="text" id="modal-send-cc" placeholder="Masukkan email CC" class="fm-input text-xs" />
         </div>
         <div>
           <label class="block font-bold text-slate-700 uppercase mb-1">Folder Google Drive Tujuan Rekap PDF</label>
-          <input type="text" id="modal-send-folder" class="fm-input text-xs font-mono" />
+          <input type="text" id="modal-send-folder" placeholder="Masukkan ID Folder Google Drive" class="fm-input text-xs font-mono" />
         </div>
 
         <div id="modal-send-status" class="hidden p-3 rounded-xl font-semibold text-xs"></div>

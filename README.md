@@ -9,7 +9,7 @@ Platform Web App Audit Kunjungan Toko (**FamilyMart Indonesia - FMCU**), dilengk
 1. **Halaman 1: Home, Live Location & Analitik Dashboard**
    - **Live GPS Location & Peta Interaktif**: Validasi posisi aktual auditor beserta pin lokasi toko FamilyMart.
    - **Actual In & Actual Out Recorder**: Mencatat jam kedatangan (*Actual In*) dan jam selesai (*Actual Out*) beserta titik koordinat GPS aktual.
-   - **Jadwal Toko yang Diminta Visit (Schedule Visit)**: Daftar tugas kunjungan toko dengan tombol *1-Click Check-In & Mulai Visit*.
+   - **Jadwal Toko yang Diminta Visit (Schedule Visit)**: Daftar tugas kunjungan toko dengan tombol *Check-In & Mulai Visit*.
    - **Analitik Dashboard**:
      - Grafik **Trend Temuan Observasi** (Food Safety & Expired, Standar SOP & Alat Takar, Kebersihan & Sanitasi, Administrasi & Logbook, Merchandising & Price Card).
      - Grafik **Trend Toko** (Perbandingan jumlah temuan & skor QSC antar toko).
@@ -17,9 +17,9 @@ Platform Web App Audit Kunjungan Toko (**FamilyMart Indonesia - FMCU**), dilengk
    - **History Visit**: Arsip seluruh laporan kunjungan dengan akses langsung ke *Preview Slide 16:9*, *Download PDF*, dan *Kirim Ulang Email/Google Drive*.
 
 2. **Halaman 2: Form Visit Store (Multi-Section)**
-   - **Section 1 — General Information**: Identitas toko (otomatis terisi dari Master Toko), nama auditor, tanggal visit, skor QSC, serta tabel dinamis **Tim Store Bertugas** (`Store Head`, `Shift Leader`, `Crew Store`, beserta `Job Level` `NS1`, `MG1`, `MG3`).
+   - **Section 1 — General Information**: Identitas toko (otomatis terisi dari Master Toko atau input manual), nama auditor, tanggal visit, skor QSC, serta tabel dinamis **Tim Store Bertugas** (`Store Head`, `Shift Leader`, `Crew Store`, beserta `Job Level`).
    - **Section 2 — Evidence Form QSC / FamiTrack Result**: Upload foto lembar form penilaian fisik QSC / FamiTrack.
-   - **Section 3 — QSC Observation (Findings & Root Cause Analysis)**: Kartu temuan dinamis berisi *Temuan*, *Kondisi Ideal*, *Penyebab*, *Dampak*, *Tindakan Perbaikan*, *Hasil*, dan *Deadline Perbaikan*, dilengkapi fitur **Isi Cepat dari Template Temuan Standar**.
+   - **Section 3 — QSC Observation (Findings & Root Cause Analysis)**: Kartu temuan dinamis berisi *Temuan*, *Kondisi Ideal*, *Penyebab*, *Dampak*, *Tindakan Perbaikan*, *Hasil*, dan *Deadline Perbaikan*.
    - **Section 4 — Finding Evidence Photos**: Upload banyak foto bukti temuan sekaligus dengan fitur **Auto-Watermark Stamp** (`NAMA TOKO (FMI) | Tanggal & Jam WIB | GPS: Lat, Lng`).
    - **Section 5 — Store Assignment & Integrasi**: Pengaturan link form Corrective Action (`https://tinyurl.com/store-caassignment`) dan pengiriman ke Email & Google Drive.
 
@@ -36,11 +36,9 @@ Platform Web App Audit Kunjungan Toko (**FamilyMart Indonesia - FMCU**), dilengk
 
 ---
 
-## Akun Demo (Otoritas Login)
+## Akun Akses Awal Sistem
 
-| Nama User | Username | Password | Role / Otoritas |
-| :--- | :--- | :--- | :--- |
-| **Rani Ismawati** | `rani` | `123` | Auditor / Regional Bestie |
-| **Admin FMCU Center** | `admin` | `123` | Super Admin FMCU (Full Otoritas) |
-| **Variz Nurhalifah** | `variz` | `123` | Regional Manager (Admin Jadwal & Toko) |
-| **Budi Santoso** | `budi` | `123` | FMCU Senior Auditor |
+| Role / Otoritas | Username | Password |
+| :--- | :--- | :--- |
+| **Super Admin FMCU** | `admin` | `123` |
+| **Auditor FMCU** | `auditor` | `123` |
