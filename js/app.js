@@ -1052,6 +1052,12 @@ window.FMCUApp = {
     const targetSec = Number(secNum) || 1;
     this.currentFormSection = targetSec;
 
+    // Tampilkan top banner Geofence Radar HANYA di Section 1 dan Section 4
+    const topBanner = document.getElementById('form-top-geofence-banner');
+    if (topBanner) {
+      topBanner.classList.toggle('hidden', !(targetSec === 1 || targetSec === 4));
+    }
+
     [1, 2, 3, 4].forEach((n) => {
       const secEl = document.getElementById(`form-sec-${n}`);
       if (secEl) secEl.classList.toggle('hidden', n !== targetSec);
@@ -1864,9 +1870,7 @@ window.FMCUApp = {
                 <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-800 border border-sky-200">
                   ${evCount} Foto Bukti Evidence
                 </span>
-                <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                  Skor QSC: ${r.qscScore || 0}%
-                </span>
+
               </div>
             </div>
 
@@ -2319,9 +2323,7 @@ window.FMCUApp = {
                 <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-800 border border-sky-200">
                   ${evCount} Foto Bukti Evidence
                 </span>
-                <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                  Skor QSC: ${r.qscScore || 0}%
-                </span>
+
               </div>
             </div>
 
@@ -2384,8 +2386,29 @@ window.FMCUApp = {
 
     if (st.defaultCrew && st.defaultCrew.length > 0) {
       this.formCrew = JSON.parse(JSON.stringify(st.defaultCrew));
+    }
+    // Auto isi nama Store Head di tabel tim bertugas
+    if (st.storeHead) {
+      this.syncStoreHeadToCrew(st.storeHead);
+    } else {
       this.renderCrewTable();
     }
+  },
+
+  syncStoreHeadToCrew(storeHeadName) {
+    if (!this.formCrew || !Array.isArray(this.formCrew)) {
+      this.formCrew = [{ role: 'Store Head', name: storeHeadName || '', jobLevel: '' }];
+    } else {
+      const shRow = this.formCrew.find(
+        (c) => c.role && c.role.toLowerCase().includes('store head')
+      );
+      if (shRow) {
+        shRow.name = storeHeadName || '';
+      } else {
+        this.formCrew.unshift({ role: 'Store Head', name: storeHeadName || '', jobLevel: '' });
+      }
+    }
+    this.renderCrewTable();
   },
 
   resetVisitForm(silent = false) {
@@ -2497,6 +2520,9 @@ window.FMCUApp = {
   renderCrewTable() {
     const tbody = document.getElementById('form-crew-tbody');
     if (!tbody) return;
+
+    const JOB_LEVELS = ['1A', 'NS3', 'NS2', 'NS1', 'MG3', 'MG2', 'MG1', 'OJT'];
+
     tbody.innerHTML = this.formCrew
       .map(
         (c, idx) => `
@@ -2505,10 +2531,16 @@ window.FMCUApp = {
             <input type="text" value="${c.role || ''}" oninput="FMCUApp.formCrew[${idx}].role = this.value" placeholder="Jabatan / Role" class="fm-input py-1.5 text-xs font-bold" />
           </td>
           <td class="p-2">
-            <input type="text" value="${c.name || ''}" oninput="FMCUApp.formCrew[${idx}].name = this.value" placeholder="Nama lengkap personil" class="fm-input py-1.5 text-xs" />
+            <input type="text" value="${c.name || ''}" oninput="FMCUApp.formCrew[${idx}].name = this.value" placeholder="Nama lengkap personil" class="fm-input py-1.5 text-xs font-medium" />
           </td>
           <td class="p-2">
-            <input type="text" value="${c.jobLevel || ''}" oninput="FMCUApp.formCrew[${idx}].jobLevel = this.value" placeholder="NS1 / MG1" class="fm-input py-1.5 text-xs text-center font-bold" />
+            <select onchange="FMCUApp.formCrew[${idx}].jobLevel = this.value" class="fm-input py-1.5 text-xs font-bold bg-white cursor-pointer text-center">
+              <option value="">-- Level --</option>
+              ${JOB_LEVELS.map(
+                (lvl) => `<option value="${lvl}" ${c.jobLevel === lvl ? 'selected' : ''}>${lvl}</option>`
+              ).join('')}
+              ${c.jobLevel && !JOB_LEVELS.includes(c.jobLevel) ? `<option value="${c.jobLevel}" selected>${c.jobLevel}</option>` : ''}
+            </select>
           </td>
           <td class="p-2 text-center">
             <button type="button" onclick="FMCUApp.removeCrewRow(${idx})" class="text-slate-400 hover:text-rose-600 p-1 cursor-pointer">

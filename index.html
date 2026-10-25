@@ -816,8 +816,8 @@
 
         <!-- Active Store Form Wrapper -->
         <div id="form-active-store-wrapper" class="space-y-6">
-          <!-- Sticky Top Live Check-In (Actual In / Out & GPS) Bar -->
-          <div class="fm-card p-4 sm:p-5 bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white shadow-lg">
+          <!-- Sticky Top Live Check-In (Actual In / Out & GPS) Bar - Hanya Tampil di Section 1 & 4 -->
+          <div id="form-top-geofence-banner" class="fm-card p-4 sm:p-5 bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white shadow-lg">
             <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div class="space-y-1">
                 <div class="flex items-center gap-2">
@@ -939,15 +939,12 @@
                 <div>
                   <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tanggal Visit *</label>
                   <input type="date" id="form-visit-date" required class="fm-input" />
-                </div>
-                <div>
-                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Skor QSC / FamiTrack (0-100)</label>
-                  <input type="number" id="form-qsc-score" min="0" max="100" placeholder="0 - 100" value="" class="fm-input font-bold text-emerald-700" />
+                  <input type="hidden" id="form-qsc-score" value="0" />
                 </div>
 
                 <div>
                   <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Store Head *</label>
-                  <input type="text" id="form-store-head" required placeholder="Masukkan Nama Store Head" class="fm-input" />
+                  <input type="text" id="form-store-head" required oninput="FMCUApp.syncStoreHeadToCrew(this.value)" placeholder="Masukkan Nama Store Head" class="fm-input" />
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Area Manager *</label>
@@ -964,7 +961,7 @@
                 <div class="flex items-center justify-between">
                   <div>
                     <h4 class="font-extrabold text-sm text-slate-800">Tabel Tim Store Bertugas (General Information - Slide 3 PDF)</h4>
-                    <p class="text-xs text-slate-500">Daftar Store Head, Shift Leader, dan Crew Store beserta Job Level (NS1, MG1, MG3, dll.)</p>
+                    <p class="text-xs text-slate-500">Daftar Store Head, Shift Leader, dan Crew Store beserta Job Level (1A, NS3, NS2, NS1, MG3, MG2, MG1, OJT)</p>
                   </div>
                   <button type="button" onclick="FMCUApp.addCrewRow()" class="text-xs font-bold bg-teal-50 hover:bg-teal-100 text-[#0099A6] px-3 py-1.5 rounded-xl transition cursor-pointer">
                     <i class="fa-solid fa-plus mr-1"></i>Tambah Crew
