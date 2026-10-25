@@ -104,24 +104,26 @@
   <!-- ====================================================================
        GLOBAL AUTH LOGIN OVERLAY (WAJIB LOGIN SETIAP BUKA TAB / WEB APP BARU)
        ==================================================================== -->
-  <div id="auth-screen" class="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-    <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-4xl w-full overflow-hidden grid grid-cols-1 lg:grid-cols-12 my-auto view-section">
-      <!-- Left Visual Corporate Branding Panel -->
-      <div class="lg:col-span-5 fm-gradient p-8 text-white flex flex-col justify-between relative overflow-hidden">
-        <div class="relative z-10">
-          <div class="inline-flex items-center gap-2.5 bg-white/15 backdrop-blur-sm px-3.5 py-1.5 rounded-full text-xs font-bold tracking-wider uppercase mb-6">
-            <span class="w-2 h-2 rounded-full bg-emerald-300 animate-ping"></span>
-            FamilyMart Indonesia • FMCU
+  <div id="auth-screen" class="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200 max-w-4xl w-full overflow-hidden grid grid-cols-1 lg:grid-cols-12 my-auto view-section">
+      <!-- Left Visual Corporate Branding Panel (Compact on Mobile so Login fits in 1 screen) -->
+      <div class="lg:col-span-5 fm-gradient px-5 py-4 sm:p-6 lg:p-8 text-white flex flex-col justify-between relative overflow-hidden">
+        <div class="relative z-10 flex lg:block items-center justify-between gap-3">
+          <div>
+            <div class="inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold tracking-wider uppercase mb-1.5 lg:mb-6">
+              <span class="w-2 h-2 rounded-full bg-emerald-300 animate-ping"></span>
+              FamilyMart Indonesia • FMCU
+            </div>
+            <h1 class="text-lg sm:text-2xl lg:text-3xl font-extrabold leading-tight tracking-tight">
+              FMCU VISIT STORE REPORT
+            </h1>
           </div>
-          <h1 class="text-2xl sm:text-3xl font-extrabold leading-tight tracking-tight">
-            FMCU VISIT STORE REPORT
-          </h1>
-          <p class="text-white/85 text-sm mt-3 leading-relaxed">
+          <p class="hidden lg:block text-white/85 text-sm mt-3 leading-relaxed">
             Platform terpadu laporan audit kunjungan toko, pemantauan Live GPS Location, Actual In-Out, Analitik Trend Temuan & Toko, serta generator laporan PDF otomatis.
           </p>
         </div>
 
-        <div class="space-y-3 my-8 relative z-10 text-xs text-white/90">
+        <div class="hidden lg:block space-y-3 my-8 relative z-10 text-xs text-white/90">
           <div class="flex items-center gap-3 bg-white/10 rounded-xl p-3">
             <i class="fa-solid fa-location-crosshairs text-lg text-emerald-200"></i>
             <div>
@@ -145,49 +147,50 @@
           </div>
         </div>
 
-        <div class="text-[11px] text-white/70 relative z-10 flex items-center justify-between border-t border-white/15 pt-4">
+        <div class="hidden lg:flex text-[11px] text-white/70 relative z-10 items-center justify-between border-t border-white/15 pt-4">
           <span>FMCU Digital Audit System</span>
           <span>100% Responsive Web App</span>
         </div>
       </div>
 
-      <!-- Right Login Form Panel -->
-      <div class="lg:col-span-7 p-6 sm:p-10 flex flex-col justify-center bg-white">
-        <div class="mb-6">
-          <span class="text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">Portal Akses Otoritas</span>
-          <h2 class="text-2xl font-extrabold text-slate-900 mt-2">Masuk ke Sistem FMCU</h2>
-          <p class="text-xs sm:text-sm text-slate-500 mt-1">Gunakan kredensial sesuai otoritas Anda yang terdaftar di Cloud Firestore.</p>
+      <!-- Right Login Form Panel (Fits 1 Mobile Screen without scrolling) -->
+      <div class="lg:col-span-7 p-5 sm:p-8 lg:p-10 flex flex-col justify-center bg-white">
+        <div class="mb-3.5 sm:mb-6">
+          <span class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full">Portal Akses Otoritas</span>
+          <h2 class="text-lg sm:text-2xl font-extrabold text-slate-900 mt-1.5">Masuk ke Sistem FMCU</h2>
+          <p class="text-[11px] sm:text-sm text-slate-500 mt-0.5">Pilih akun user terdaftar dan masukkan password otoritas Anda.</p>
         </div>
 
-        <form id="login-form" class="space-y-4">
+        <form id="login-form" class="space-y-3 sm:space-y-4">
           <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Username / Email</label>
+            <label class="block text-[11px] sm:text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Pilih User Terdaftar</label>
             <div class="relative">
-              <i class="fa-regular fa-user absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
-              <input type="text" id="login-username" required autocomplete="username" placeholder="Masukkan username Anda" class="fm-input pl-10" value="" />
+              <i class="fa-regular fa-user absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+              <select id="login-username" required class="fm-input pl-10 font-bold text-slate-800 cursor-pointer">
+                <option value="">-- Pilih User / Akun Terdaftar --</option>
+              </select>
             </div>
           </div>
           <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Password / PIN Otoritas</label>
+            <label class="block text-[11px] sm:text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Password / PIN Otoritas</label>
             <div class="relative">
-              <i class="fa-solid fa-lock absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+              <i class="fa-solid fa-lock absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
               <input type="password" id="login-password" required autocomplete="current-password" placeholder="Masukkan password" class="fm-input pl-10" value="" />
             </div>
           </div>
-          <div id="login-error" class="hidden text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg p-2.5"></div>
-          <button type="submit" class="w-full fm-gradient hover:opacity-95 text-white font-bold py-3 px-5 rounded-xl shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 cursor-pointer">
+          <div id="login-error" class="hidden text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg p-2"></div>
+          <button type="submit" class="w-full fm-gradient hover:opacity-95 text-white font-bold py-2.5 sm:py-3 px-5 rounded-xl shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 cursor-pointer text-xs sm:text-sm">
             <i class="fa-solid fa-right-to-bracket"></i>
             <span>Masuk ke Sistem FMCU</span>
           </button>
         </form>
 
-        <!-- Session Security Info Banner -->
-        <div class="mt-7 pt-5 border-t border-slate-100">
-          <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-3 text-xs text-slate-600">
-            <i class="fa-solid fa-shield-halved text-[#009944] text-base mt-0.5"></i>
-            <div class="leading-relaxed">
-              <div class="font-extrabold text-slate-800">Keamanan Time Session Aktif</div>
-              <div>Sesi login bersifat sementara per tab. Jika Anda <strong>menutup tab / menutup aplikasi web</strong> atau tidak ada aktivitas selama <strong>15 menit</strong>, sistem otomatis mengakhiri sesi dan meminta login kembali.</div>
+        <!-- Session Security Info Banner (Compact on Mobile) -->
+        <div class="mt-4 sm:mt-6 pt-3 sm:pt-5 border-t border-slate-100">
+          <div class="p-2.5 sm:p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-2.5 text-[11px] sm:text-xs text-slate-600">
+            <i class="fa-solid fa-shield-halved text-[#009944] text-sm sm:text-base mt-0.5"></i>
+            <div class="leading-snug sm:leading-relaxed">
+              <span class="font-extrabold text-slate-800">Time Session Aktif:</span> Sesi otomatis berakhir & wajib login ulang saat tutup tab/aplikasi atau idle 15 menit.
             </div>
           </div>
         </div>
@@ -1525,6 +1528,11 @@ service cloud.firestore {
                   <input type="url" id="set-ca-link" value="https://tinyurl.com/store-caassignment" class="fm-input" />
                 </div>
                 <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">ID / URL Folder Google Drive Database Foto (QSC & Evidence)</label>
+                  <input type="text" id="set-gdrive-photo-folder" placeholder="Opsional: Masukkan Folder ID/URL Google Drive khusus penyimpanan foto" class="fm-input font-mono text-xs" />
+                  <p class="text-[11px] text-slate-400 mt-1">Khusus file foto disimpan di Google Drive (otomatis dibuatkan subfolder per Toko). Jika dikosongkan, otomatis dibuat folder <code>FMCU_Visit_Photos_Database</code>.</p>
+                </div>
+                <div>
                   <label class="block text-xs font-bold text-slate-700 uppercase mb-1">ID / URL Folder Google Drive Rekap PDF</label>
                   <input type="text" id="set-gdrive-folder" placeholder="Masukkan Folder ID Google Drive tujuan upload PDF" class="fm-input font-mono text-xs" />
                   <p class="text-[11px] text-slate-400 mt-1">Seluruh PDF hasil visit yang dikirim akan otomatis tersimpan di folder Google Drive ini.</p>
@@ -1534,13 +1542,13 @@ service cloud.firestore {
                   <input type="text" id="set-cc-emails" placeholder="Masukkan daftar email CC dipisahkan koma" class="fm-input text-xs" />
                 </div>
                 <div>
-                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Google Apps Script Web App URL (Webhook Auto-Upload & Email)</label>
+                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Google Apps Script Web App URL (Database Foto GDrive + Auto-PDF & Email) *</label>
                   <input type="url" id="set-gas-url" placeholder="https://script.google.com/macros/s/.../exec" class="fm-input font-mono text-xs" />
-                  <p class="text-[11px] text-slate-400 mt-1">Jika dikosongkan, sistem akan menjalankan mode Hybrid (Unduh PDF otomatis + Buka Email Client siap kirim).</p>
+                  <p class="text-[11px] text-emerald-700 font-semibold mt-1">URL ini digunakan untuk menyimpan foto langsung ke Google Drive (sehingga Cloud Firestore hanya menyimpan teks & link foto).</p>
                 </div>
 
                 <button type="submit" class="w-full fm-gradient text-white font-bold py-3 rounded-xl shadow-md hover:opacity-95 transition text-xs sm:text-sm cursor-pointer">
-                  <i class="fa-solid fa-floppy-disk mr-1.5"></i>Simpan Pengaturan Integrasi & PDF
+                  <i class="fa-solid fa-floppy-disk mr-1.5"></i>Simpan Pengaturan Integrasi & Database Foto GDrive
                 </button>
               </form>
             </div>
@@ -1549,7 +1557,7 @@ service cloud.firestore {
               <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div>
                   <h3 class="font-extrabold text-base text-slate-900">Kode Google Apps Script Siap Pakai (`Code.gs`)</h3>
-                  <p class="text-xs text-slate-500">Salin skrip ini ke Google Apps Script Anda untuk mengaktifkan auto-upload PDF ke Google Drive & auto-email</p>
+                  <p class="text-xs text-slate-500">Menangani penyimpanan Database Foto ke Google Drive, Arsip PDF & Auto-Email (Data lainnya tetap di Cloud Firestore)</p>
                 </div>
                 <button type="button" onclick="FMCUApp.copyGasScript()" class="px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition cursor-pointer">
                   <i class="fa-regular fa-copy mr-1"></i>Salin Kode

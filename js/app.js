@@ -579,9 +579,30 @@ window.FMCUApp = {
   },
 
   populateHeaderRoleSwitcher() {
+    const users = window.FMCUData.getUsers();
+
+    // 1. Populate Login Form Registered Users Dropdown (#login-username)
+    const loginSel = document.getElementById('login-username');
+    if (loginSel && loginSel.tagName === 'SELECT') {
+      const currentVal = loginSel.value;
+      loginSel.innerHTML =
+        `<option value="">-- Pilih User / Akun Terdaftar --</option>` +
+        users
+          .map(
+            (u) =>
+              `<option value="${u.username}">${u.name} (@${u.username} — ${u.roleBadge || u.role})</option>`
+          )
+          .join('');
+      if (currentVal && users.some((u) => u.username === currentVal)) {
+        loginSel.value = currentVal;
+      } else if (users.length > 0 && !loginSel.value) {
+        loginSel.value = users[0].username;
+      }
+    }
+
+    // 2. Populate Header Role Switcher (if present)
     const sel = document.getElementById('header-role-switcher');
     if (!sel) return;
-    const users = window.FMCUData.getUsers();
     sel.innerHTML =
       users
         .map(
@@ -1690,13 +1711,22 @@ window.FMCUApp = {
     this.renderCrewTable();
   },
 
-  // --- Section 2: QSC / FamiTrack Photos ---
+  // --- Section 1C: QSC / FamiTrack Photos (Disimpan di Google Drive via Apps Script) ---
   renderQscPhotosGrid() {
     const grid = document.getElementById('form-qsc-photos-grid');
     if (!grid) return;
     grid.innerHTML = this.formQscPhotos
-      .map(
-        (p, idx) => `
+      .map((p, idx) => {
+        const displaySrc = window.FMCUPdf.getPhotoDisplaySrc(p);
+        const statusBadge = p._uploading
+          ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800"><i class="fa-solid fa-spinner fa-spin mr-1"></i>Upload ke Google Drive...</span>`
+          : p.driveFileId
+          ? `<a href="${p.driveViewUrl || p.driveUrl || '#'}" target="_blank" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 hover:underline"><i class="fa-brands fa-google-drive mr-1"></i>Tersimpan di Google Drive</a>`
+          : displaySrc
+          ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-[#0099A6]"><i class="fa-solid fa-cloud-arrow-up mr-1"></i>Siap Sync ke Google Drive</span>`
+          : '';
+
+        return `
         <div class="border border-slate-200 rounded-2xl p-4 bg-slate-50/60 space-y-3">
           <div class="flex items-center justify-between gap-2">
             <input type="text" value="${p.caption || `Foto QSC / Famitrack ${idx + 1}`}" oninput="FMCUApp.formQscPhotos[${idx}].caption = this.value" class="fm-input py-1.5 text-xs font-bold bg-white" />
@@ -1707,18 +1737,19 @@ window.FMCUApp = {
 
           <div class="w-full h-48 rounded-xl bg-white border border-dashed border-slate-300 overflow-hidden flex items-center justify-center relative group">
             ${
-              p.dataUrl
-                ? `<img src="${p.dataUrl}" class="w-full h-full object-cover" alt="QSC Form" />`
+              displaySrc
+                ? `<img src="${displaySrc}" class="w-full h-full object-cover" alt="QSC Form" />`
                 : `<div class="text-center text-slate-400 text-xs"><i class="fa-solid fa-file-image text-2xl mb-1 block"></i>Unggah foto form QSC / FamiTrack</div>`
             }
+            ${statusBadge ? `<div class="absolute top-2 left-2 shadow-sm">${statusBadge}</div>` : ''}
             <label class="absolute bottom-2 right-2 bg-slate-900/80 hover:bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer shadow">
               <i class="fa-solid fa-camera mr-1"></i>Pilih / Kamera
               <input type="file" accept="image/*" onchange="FMCUApp.handleQscPhotoUpload(event, ${idx})" class="hidden" />
             </label>
           </div>
         </div>
-      `
-      )
+      `;
+      })
       .join('');
   },
 
@@ -1726,7 +1757,9 @@ window.FMCUApp = {
     this.formQscPhotos.push({
       id: 'qsc-' + Date.now(),
       caption: `Foto QSC / Famitrack ${this.formQscPhotos.length + 1}`,
-      dataUrl: ''
+      dataUrl: '',
+      driveFileId: '',
+      driveUrl: ''
     });
     this.renderQscPhotosGrid();
   },
@@ -1744,9 +1777,30 @@ window.FMCUApp = {
       applyWatermark: false,
       maxDimension: 1200
     });
-    this.formQscPhotos[idx].dataUrl = dataUrl;
+    const photoObj = this.formQscPhotos[idx];
+    photoObj.id = photoObj.id || 'qsc-' + Date.now();
+    photoObj.dataUrl = dataUrl;
+    photoObj.driveFileId = '';
+    photoObj.driveUrl = '';
+    photoObj._uploading = true;
+    window.FMCUData.cachePhotoInMemory(photoObj.id, null, dataUrl);
     this.renderQscPhotosGrid();
-    this.showToast(`Foto QSC / Famitrack ${idx + 1} berhasil diunggah`, 'success');
+
+    const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
+    const storeName = document.getElementById('form-store-name')?.value.trim() || 'VISIT';
+    await window.FMCUData.uploadPhotoToGDrive(photoObj, {
+      storeCode,
+      storeName,
+      photoType: 'QSC'
+    });
+    photoObj._uploading = false;
+    this.renderQscPhotosGrid();
+    this.showToast(
+      photoObj.driveFileId
+        ? `Foto QSC #${idx + 1} berhasil disimpan ke Google Drive!`
+        : `Foto QSC #${idx + 1} berhasil diproses`,
+      'success'
+    );
   },
 
   // --- Section 3: QSC Observation Findings ---
@@ -1890,8 +1944,17 @@ window.FMCUApp = {
     }
 
     grid.innerHTML = this.formEvidencePhotos
-      .map(
-        (ev, idx) => `
+      .map((ev, idx) => {
+        const displaySrc = window.FMCUPdf.getPhotoDisplaySrc(ev);
+        const driveBadge = ev._uploading
+          ? `<div class="mt-1 text-[10px] font-bold text-amber-700 flex items-center gap-1"><i class="fa-solid fa-spinner fa-spin"></i><span>Mengunggah ke Google Drive...</span></div>`
+          : ev.driveFileId
+          ? `<a href="${ev.driveViewUrl || ev.driveUrl || '#'}" target="_blank" class="mt-1 text-[10px] font-bold text-emerald-700 hover:underline inline-flex items-center gap-1"><i class="fa-brands fa-google-drive"></i><span>Tersimpan di Google Drive</span></a>`
+          : displaySrc
+          ? `<div class="mt-1 text-[10px] font-semibold text-[#0099A6] flex items-center gap-1"><i class="fa-solid fa-cloud-arrow-up"></i><span>Siap Sync ke Google Drive</span></div>`
+          : '';
+
+        return `
         <div class="border border-slate-300 rounded-2xl p-3 bg-white grid grid-cols-12 gap-3 relative shadow-sm">
           <button type="button" onclick="FMCUApp.removeEvidencePhotoCard(${idx})" class="absolute top-2 right-2 w-6 h-6 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center text-xs cursor-pointer" title="Hapus Foto">
             <i class="fa-solid fa-xmark"></i>
@@ -1899,8 +1962,8 @@ window.FMCUApp = {
 
           <div class="col-span-5 h-36 bg-slate-100 rounded-xl overflow-hidden relative flex items-center justify-center border border-slate-200">
             ${
-              ev.dataUrl
-                ? `<img src="${ev.dataUrl}" class="w-full h-full object-cover" alt="Evidence" />`
+              displaySrc
+                ? `<img src="${displaySrc}" class="w-full h-full object-cover" alt="Evidence" />`
                 : `<i class="fa-solid fa-camera text-slate-300 text-xl"></i>`
             }
             <label class="absolute bottom-1.5 inset-x-1.5 bg-slate-900/80 hover:bg-slate-900 text-white text-[10px] font-bold py-1 rounded text-center cursor-pointer">
@@ -1912,12 +1975,13 @@ window.FMCUApp = {
           <div class="col-span-7 flex flex-col justify-between pr-4">
             <div>
               <label class="block text-[10px] font-extrabold text-slate-400 uppercase mb-1">Bukti #${idx + 1} — Keterangan</label>
-              <textarea rows="4" oninput="FMCUApp.formEvidencePhotos[${idx}].description = this.value" placeholder="Tuliskan deskripsi temuan foto ini..." class="w-full border border-slate-200 rounded-lg p-2 text-xs text-slate-800 focus:outline-none focus:border-teal-500">${ev.description || ''}</textarea>
+              <textarea rows="3" oninput="FMCUApp.formEvidencePhotos[${idx}].description = this.value" placeholder="Tuliskan deskripsi temuan foto ini..." class="w-full border border-slate-200 rounded-lg p-2 text-xs text-slate-800 focus:outline-none focus:border-teal-500">${ev.description || ''}</textarea>
+              ${driveBadge}
             </div>
           </div>
         </div>
-      `
-      )
+      `;
+      })
       .join('');
   },
 
@@ -1925,7 +1989,9 @@ window.FMCUApp = {
     this.formEvidencePhotos.push({
       id: 'ev-' + Date.now(),
       description: '',
-      dataUrl: ''
+      dataUrl: '',
+      driveFileId: '',
+      driveUrl: ''
     });
     this.renderEvidenceGrid();
   },
@@ -1938,7 +2004,8 @@ window.FMCUApp = {
   async handleSingleEvidenceUpload(event, idx) {
     const file = event.target.files?.[0];
     if (!file) return;
-    const storeName = document.getElementById('form-store-name').value || 'STORE';
+    const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
+    const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
     const applyWm = document.getElementById('form-watermark-toggle')?.checked ?? true;
     const dataUrl = await window.FMCUPdf.processAndStampImage(file, {
       storeName,
@@ -1946,17 +2013,38 @@ window.FMCUApp = {
       gpsLng: this.liveGps.lng,
       applyWatermark: applyWm
     });
-    this.formEvidencePhotos[idx].dataUrl = dataUrl;
+    const evObj = this.formEvidencePhotos[idx];
+    evObj.id = evObj.id || 'ev-' + Date.now();
+    evObj.dataUrl = dataUrl;
+    evObj.driveFileId = '';
+    evObj.driveUrl = '';
+    evObj._uploading = true;
+    window.FMCUData.cachePhotoInMemory(evObj.id, null, dataUrl);
     this.renderEvidenceGrid();
-    this.showToast(`Foto bukti #${idx + 1} berhasil diproses`, 'success');
+
+    await window.FMCUData.uploadPhotoToGDrive(evObj, {
+      storeCode,
+      storeName,
+      photoType: 'EVIDENCE'
+    });
+    evObj._uploading = false;
+    this.renderEvidenceGrid();
+    this.showToast(
+      evObj.driveFileId
+        ? `Foto bukti #${idx + 1} berhasil disimpan ke Google Drive!`
+        : `Foto bukti #${idx + 1} berhasil diproses`,
+      'success'
+    );
   },
 
   async handleBulkEvidenceUpload(event) {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
-    const storeName = document.getElementById('form-store-name').value || 'STORE';
+    const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
+    const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
     const applyWm = document.getElementById('form-watermark-toggle')?.checked ?? true;
 
+    const newCards = [];
     for (const file of files) {
       const dataUrl = await window.FMCUPdf.processAndStampImage(file, {
         storeName,
@@ -1964,14 +2052,39 @@ window.FMCUApp = {
         gpsLng: this.liveGps.lng,
         applyWatermark: applyWm
       });
-      this.formEvidencePhotos.push({
+      const evObj = {
         id: 'ev-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
         description: '',
-        dataUrl
-      });
+        dataUrl,
+        driveFileId: '',
+        driveUrl: '',
+        _uploading: true
+      };
+      window.FMCUData.cachePhotoInMemory(evObj.id, null, dataUrl);
+      this.formEvidencePhotos.push(evObj);
+      newCards.push(evObj);
     }
     this.renderEvidenceGrid();
-    this.showToast(`${files.length} foto bukti berhasil diunggah!`, 'success');
+
+    await Promise.all(
+      newCards.map((evObj) =>
+        window.FMCUData.uploadPhotoToGDrive(evObj, {
+          storeCode,
+          storeName,
+          photoType: 'EVIDENCE'
+        }).finally(() => {
+          evObj._uploading = false;
+        })
+      )
+    );
+    this.renderEvidenceGrid();
+    const uploadedCount = newCards.filter((c) => Boolean(c.driveFileId)).length;
+    this.showToast(
+      uploadedCount > 0
+        ? `${files.length} foto bukti berhasil diunggah & disimpan ke Google Drive!`
+        : `${files.length} foto bukti berhasil diunggah!`,
+      'success'
+    );
   },
 
   buildCurrentFormReportObject() {
@@ -2014,11 +2127,15 @@ window.FMCUApp = {
     };
   },
 
-  collectAndSaveFormReport() {
+  async collectAndSaveFormReport() {
     if (!document.getElementById('form-actual-out').value.trim()) {
       document.getElementById('form-actual-out').value = this.getCurrentTimeWIB();
     }
     const reportObj = this.buildCurrentFormReportObject();
+
+    // Pastikan seluruh foto QSC & Evidence telah ter-upload ke Google Drive (jika URL Apps Script aktif)
+    // sebelum menyimpan data laporan ke Cloud Firestore
+    await window.FMCUData.ensureReportPhotosUploadedToGDrive(reportObj);
 
     const reports = window.FMCUData.getReports();
     const idx = reports.findIndex((r) => r.id === reportObj.id);
@@ -2076,19 +2193,21 @@ window.FMCUApp = {
     return true;
   },
 
-  handleSaveAndPreview(event) {
+  async handleSaveAndPreview(event) {
     if (event) event.preventDefault();
     if (!this.validateVisitForm()) return;
-    const saved = this.collectAndSaveFormReport();
+    this.showToast('Menyimpan laporan ke Firestore & menyinkronkan foto ke Google Drive...', 'info');
+    const saved = await this.collectAndSaveFormReport();
     this.activePreviewReportId = saved.id;
     this.renderAllViews();
     this.navigate('preview');
     this.showToast(`Laporan Visit Toko ${saved.storeName} berhasil disimpan!`, 'success');
   },
 
-  handleSaveAndSendIntegration() {
+  async handleSaveAndSendIntegration() {
     if (!this.validateVisitForm()) return;
-    const saved = this.collectAndSaveFormReport();
+    this.showToast('Menyimpan laporan ke Firestore & menyinkronkan foto ke Google Drive...', 'info');
+    const saved = await this.collectAndSaveFormReport();
     this.activePreviewReportId = saved.id;
     this.renderAllViews();
     this.openIntegrationSendModal(saved.id);
@@ -2236,21 +2355,20 @@ window.FMCUApp = {
     }
   },
 
-  downloadCurrentPreviewPdf() {
+  async downloadCurrentPreviewPdf() {
     const report = this.getActivePreviewReport();
     if (!report) return;
     this.showToast(`Membuat & mengunduh file PDF ${window.FMCUPdf.getFileName(report)}...`, 'info');
-    setTimeout(() => {
-      window.FMCUPdf.downloadReportPdf(report);
-      this.showToast(`PDF ${window.FMCUPdf.getFileName(report)} berhasil diunduh!`, 'success');
-    }, 150);
+    await window.FMCUPdf.downloadReportPdf(report);
+    this.showToast(`PDF ${window.FMCUPdf.getFileName(report)} berhasil diunduh!`, 'success');
   },
 
-  downloadReportById(reportId) {
+  async downloadReportById(reportId) {
     const reports = window.FMCUData.getReports();
     const rep = reports.find((r) => r.id === reportId);
     if (!rep) return;
-    window.FMCUPdf.downloadReportPdf(rep);
+    this.showToast(`Membuat & mengunduh file PDF ${window.FMCUPdf.getFileName(rep)}...`, 'info');
+    await window.FMCUPdf.downloadReportPdf(rep);
     this.showToast(`PDF ${window.FMCUPdf.getFileName(rep)} berhasil diunduh!`, 'success');
   },
 
@@ -2308,19 +2426,19 @@ window.FMCUApp = {
 
     btn.disabled = true;
     statusEl.className = 'p-3 rounded-xl font-semibold text-xs bg-teal-50 text-teal-900 border border-teal-200 block';
-    statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5"></i>Sedang membuat file PDF 16:9 dan memproses pengiriman...`;
+    statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5"></i>Sedang menyiapkan foto dari Google Drive, membuat PDF 16:9 & memproses pengiriman...`;
 
     const fileName = window.FMCUPdf.getFileName(rep);
-    window.FMCUPdf.downloadReportPdf(rep);
+    await window.FMCUPdf.downloadReportPdf(rep);
 
     if (settings.gasWebhookUrl && settings.gasWebhookUrl.startsWith('http')) {
       try {
-        const pdfBase64 = window.FMCUPdf.getPdfBase64(rep);
+        const pdfBase64 = await window.FMCUPdf.getPdfBase64(rep);
         await fetch(settings.gasWebhookUrl, {
           method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({
+            action: 'sendReport',
             report: rep,
             pdfBase64,
             fileName,
@@ -2732,6 +2850,8 @@ window.FMCUApp = {
     document.getElementById('set-report-title').value = settings.reportTitle || 'FMCU Visit Store Report';
     document.getElementById('set-footer-text').value = settings.footerText || 'GENERATED BY FMCU VISIT WEB REPORT';
     document.getElementById('set-ca-link').value = settings.caLink || 'https://tinyurl.com/store-caassignment';
+    const photoFolderInput = document.getElementById('set-gdrive-photo-folder');
+    if (photoFolderInput) photoFolderInput.value = settings.gdrivePhotoFolderId || '';
     document.getElementById('set-gdrive-folder').value = settings.gdriveFolderId || '';
     document.getElementById('set-cc-emails').value = settings.defaultCcEmails || '';
     document.getElementById('set-gas-url').value = settings.gasWebhookUrl || '';
@@ -2965,41 +3085,100 @@ window.FMCUApp = {
       reportTitle: document.getElementById('set-report-title').value.trim() || 'FMCU Visit Store Report',
       footerText: document.getElementById('set-footer-text').value.trim() || 'GENERATED BY FMCU VISIT WEB REPORT',
       caLink: document.getElementById('set-ca-link').value.trim() || 'https://tinyurl.com/store-caassignment',
+      gdrivePhotoFolderId: document.getElementById('set-gdrive-photo-folder')?.value.trim() || '',
       gdriveFolderId: document.getElementById('set-gdrive-folder').value.trim(),
       defaultCcEmails: document.getElementById('set-cc-emails').value.trim(),
       gasWebhookUrl: document.getElementById('set-gas-url').value.trim()
     };
     window.FMCUData.saveSettings(settings);
     this.renderPreviewView();
-    this.showToast('Pengaturan Integrasi Email, Folder Google Drive & PDF berhasil disimpan!', 'success');
+    this.showToast('Pengaturan Integrasi Email, Database Foto Google Drive & PDF berhasil disimpan ke Firestore!', 'success');
   },
 
   populateGasScriptPreview() {
     const codeBox = document.getElementById('gas-code-preview');
     if (!codeBox) return;
     codeBox.textContent = `function doPost(e) {
-  var payload = JSON.parse(e.postData.contents);
-  var report = payload.report || {};
-  var decoded = Utilities.base64Decode(payload.pdfBase64);
-  var pdfBlob = Utilities.newBlob(decoded, 'application/pdf', payload.fileName);
+  try {
+    var payload = JSON.parse(e.postData.contents);
+    var action = payload.action || 'sendReport';
 
-  // 1. Simpan PDF ke Folder Google Drive Rekap
-  var folder = payload.gdriveFolderId
-    ? DriveApp.getFolderById(payload.gdriveFolderId)
-    : DriveApp.createFolder('FMCU_Visit_Reports_Archive');
-  var file = folder.createFile(pdfBlob);
+    // 1. KHUSUS UPLOAD FOTO KE DATABASE GOOGLE DRIVE (QSC & EVIDENCE)
+    if (action === 'uploadPhoto') {
+      var rawBase64 = payload.photoBase64 || '';
+      if (rawBase64.indexOf(',') !== -1) rawBase64 = rawBase64.split(',')[1];
+      var photoBlob = Utilities.newBlob(Utilities.base64Decode(rawBase64), 'image/jpeg', payload.fileName || 'FMCU_PHOTO.jpg');
+      var rootPhotoFolder = getOrCreateTargetFolder_(payload.gdrivePhotoFolderId, 'FMCU_Visit_Photos_Database');
+      var storeFolderName = ((payload.storeCode || 'STORE') + ' - ' + (payload.storeName || 'VISIT')).replace(/[\\\\/:*?"<>|]/g, '_');
+      var storeFolder = getOrCreateSubFolder_(rootPhotoFolder, storeFolderName);
+      var photoFile = storeFolder.createFile(photoBlob);
+      photoFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      var fid = photoFile.getId();
+      return jsonResponse_({
+        status: 'SUCCESS',
+        fileId: fid,
+        directUrl: 'https://drive.google.com/thumbnail?id=' + fid + '&sz=w1200',
+        viewUrl: photoFile.getUrl()
+      });
+    }
 
-  // 2. Kirim Email Otomatis beserta Lampiran PDF ke Store, AM, RM & FMCU
-  if (payload.recipientEmails) {
-    MailApp.sendEmail({
-      to: payload.recipientEmails,
-      cc: payload.ccEmails || '',
-      subject: '[FMCU VISIT REPORT] ' + report.storeName + ' (' + report.storeCode + ')',
-      htmlBody: 'Terlampir hasil FMCU Visit Store Report untuk toko <b>' + report.storeName + '</b>.<br/>Arsip GDrive: ' + file.getUrl(),
-      attachments: [pdfBlob]
-    });
+    // 2. AMBIL FOTO DARI GOOGLE DRIVE UNTUK CETAK PDF LINTAS PERANGKAT
+    if (action === 'getPhotoBase64') {
+      var fileIds = payload.fileIds || [];
+      var photosMap = {};
+      for (var i = 0; i < fileIds.length; i++) {
+        try {
+          var f = DriveApp.getFileById(fileIds[i]);
+          var b = f.getBlob();
+          photosMap[fileIds[i]] = 'data:' + (b.getContentType() || 'image/jpeg') + ';base64,' + Utilities.base64Encode(b.getBytes());
+        } catch (err) { photosMap[fileIds[i]] = ''; }
+      }
+      return jsonResponse_({ status: 'SUCCESS', photos: photosMap });
+    }
+
+    // 3. SIMPAN PDF LAPORAN KE GOOGLE DRIVE & KIRIM EMAIL OTOMATIS
+    var report = payload.report || {};
+    var pdfBlob = null;
+    var fileUrl = '';
+    if (payload.pdfBase64) {
+      var b64Pdf = payload.pdfBase64.indexOf(',') !== -1 ? payload.pdfBase64.split(',')[1] : payload.pdfBase64;
+      pdfBlob = Utilities.newBlob(Utilities.base64Decode(b64Pdf), 'application/pdf', payload.fileName || 'FMCU_Visit_Report.pdf');
+      var pdfFolder = getOrCreateTargetFolder_(payload.gdriveFolderId, 'FMCU_Visit_Reports_PDF_Archive');
+      var pdfFile = pdfFolder.createFile(pdfBlob);
+      pdfFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      fileUrl = pdfFile.getUrl();
+    }
+
+    if (payload.recipientEmails) {
+      MailApp.sendEmail({
+        to: payload.recipientEmails,
+        cc: payload.ccEmails || '',
+        subject: '[FMCU VISIT REPORT] ' + (report.storeName || '') + ' (' + (report.storeCode || '') + ')',
+        htmlBody: 'Terlampir hasil FMCU Visit Store Report untuk toko <b>' + (report.storeName || '') + '</b>.<br/>Arsip GDrive: ' + fileUrl,
+        attachments: pdfBlob ? [pdfBlob] : []
+      });
+    }
+    return jsonResponse_({ status: 'SUCCESS', fileUrl: fileUrl });
+  } catch (err) {
+    return jsonResponse_({ status: 'ERROR', message: err.toString() });
   }
-  return ContentService.createTextOutput(JSON.stringify({ status: 'SUCCESS', url: file.getUrl() }));
+}
+
+function jsonResponse_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+function getOrCreateTargetFolder_(folderIdOrUrl, defaultName) {
+  if (folderIdOrUrl) {
+    var m = String(folderIdOrUrl).trim().match(/[-\\w]{25,}/);
+    var id = m ? m[0] : String(folderIdOrUrl).trim();
+    if (id.length >= 15) { try { return DriveApp.getFolderById(id); } catch (e) {} }
+  }
+  var it = DriveApp.getFoldersByName(defaultName);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(defaultName);
+}
+function getOrCreateSubFolder_(parent, name) {
+  var it = parent.getFoldersByName(name);
+  return it.hasNext() ? it.next() : parent.createFolder(name);
 }`;
   },
 

@@ -100,6 +100,51 @@ window.FMCUPdf = {
     });
   },
 
+  // Ambil sumber URL gambar untuk tampilan HTML & Slide Preview (mendukung cache RAM + URL Google Drive)
+  getPhotoDisplaySrc(photo) {
+    if (!photo) return '';
+    if (photo.dataUrl && photo.dataUrl.startsWith('data:image')) {
+      return photo.dataUrl;
+    }
+    if (window.FMCUData && typeof window.FMCUData.getPhotoFromMemory === 'function') {
+      const mem = window.FMCUData.getPhotoFromMemory(photo.id, photo.driveFileId);
+      if (mem) return mem;
+    }
+    if (photo.driveUrl) return photo.driveUrl;
+    if (photo.driveFileId) return `https://drive.google.com/thumbnail?id=${photo.driveFileId}&sz=w1200`;
+    return photo.dataUrl || '';
+  },
+
+  // Ambil sumber Base64 gambar khusus untuk cetak PDF (jsPDF)
+  getPhotoBase64ForPdf(photo) {
+    if (!photo) return '';
+    if (photo.dataUrl && photo.dataUrl.startsWith('data:image')) {
+      return photo.dataUrl;
+    }
+    if (window.FMCUData && typeof window.FMCUData.getPhotoFromMemory === 'function') {
+      return window.FMCUData.getPhotoFromMemory(photo.id, photo.driveFileId) || '';
+    }
+    return '';
+  },
+
+  // Tarik Base64 foto dari Google Drive (via Google Apps Script) apabila dibuka dari perangkat lain
+  async hydrateReportPhotosFromGDrive(report) {
+    if (!report || !window.FMCUData || typeof window.FMCUData.fetchDrivePhotosBase64 !== 'function') {
+      return report;
+    }
+    const driveIdsToFetch = [];
+    const allPhotos = [...(report.qscPhotos || []), ...(report.evidencePhotos || [])];
+    allPhotos.forEach((p) => {
+      if (p && p.driveFileId && !this.getPhotoBase64ForPdf(p)) {
+        driveIdsToFetch.push(p.driveFileId);
+      }
+    });
+    if (driveIdsToFetch.length > 0) {
+      await window.FMCUData.fetchDrivePhotosBase64(driveIdsToFetch);
+    }
+    return report;
+  },
+
   // Generate jsPDF Document instance for a report
   generatePdfDoc(report) {
     const { jsPDF } = window.jspdf;
@@ -222,9 +267,10 @@ window.FMCUPdf = {
         doc.setLineWidth(0.35);
         doc.roundedRect(cardX, 42, 145, 119, 4, 4, 'FD');
 
-        if (photo.dataUrl) {
+        const qscImgBase64 = this.getPhotoBase64ForPdf(photo);
+        if (qscImgBase64) {
           try {
-            doc.addImage(photo.dataUrl, 'JPEG', cardX + 3, 45, 139, 104);
+            doc.addImage(qscImgBase64, 'JPEG', cardX + 3, 45, 139, 104);
           } catch (e) {
             console.warn('QSC photo draw error:', e);
           }
@@ -586,9 +632,10 @@ window.FMCUPdf = {
           doc.setFillColor(247, 250, 252);
           doc.roundedRect(imgX, imgY, imgW, imgH, 2, 2, 'F');
 
-          if (ev.dataUrl) {
+          const evImgBase64 = this.getPhotoBase64ForPdf(ev);
+          if (evImgBase64) {
             try {
-              doc.addImage(ev.dataUrl, 'JPEG', imgX, imgY, imgW, imgH);
+              doc.addImage(evImgBase64, 'JPEG', imgX, imgY, imgW, imgH);
             } catch (e) {
               console.warn('Evidence image error:', e);
             }
@@ -665,14 +712,16 @@ window.FMCUPdf = {
     return `FMCU_Visit_Report_${cleanStore}.pdf`;
   },
 
-  // Download PDF Directly
-  downloadReportPdf(report) {
+  // Download PDF Directly (Menarik foto dari Google Drive terlebih dahulu jika dibuka dari perangkat lain)
+  async downloadReportPdf(report) {
+    await this.hydrateReportPhotosFromGDrive(report);
     const doc = this.generatePdfDoc(report);
     doc.save(this.getFileName(report));
   },
 
   // Get Base64 String of PDF (for Google Apps Script GDrive Upload & Email Attachment)
-  getPdfBase64(report) {
+  async getPdfBase64(report) {
+    await this.hydrateReportPhotosFromGDrive(report);
     const doc = this.generatePdfDoc(report);
     const dataUri = doc.output('datauristring');
     return dataUri.split(',')[1] || '';
@@ -767,16 +816,19 @@ window.FMCUPdf = {
               <div class="w-full h-[2px] bg-[#0099A6] mt-[1cqw]"></div>
             </div>
             <div class="grid grid-cols-2 gap-[3cqw] my-auto h-[68%]">
-              ${pair.map((p, idx) => `
+              ${pair.map((p, idx) => {
+                const src = this.getPhotoDisplaySrc(p);
+                return `
                 <div class="border border-slate-300 rounded-xl p-[1cqw] flex flex-col justify-between bg-white h-full overflow-hidden">
                   <div class="w-full h-[88%] bg-slate-50 rounded-lg overflow-hidden flex items-center justify-center">
-                    ${p.dataUrl
-                      ? `<img src="${p.dataUrl}" class="w-full h-full object-cover" alt="QSC" />`
+                    ${src
+                      ? `<img src="${src}" class="w-full h-full object-cover" alt="QSC" />`
                       : `<span class="text-slate-400 text-xs">Tidak ada foto</span>`}
                   </div>
                   <div class="text-[clamp(8px,0.85cqw,11px)] text-slate-800 pt-1">${p.caption || `Foto QSC / Famitrack ${i + idx + 1}`}</div>
                 </div>
-              `).join('')}
+              `;
+              }).join('')}
             </div>
             <div class="text-center text-[clamp(7px,0.75cqw,10px)] font-bold tracking-widest text-slate-400 uppercase">${footerText}</div>
           </div>
@@ -916,16 +968,19 @@ window.FMCUPdf = {
               Finding Evidence - Evidence Photos
             </div>
             <div class="px-[3%] py-[1.2cqw] flex-1 grid grid-cols-3 grid-rows-2 gap-[1.2cqw]">
-              ${chunk.map((ev) => `
+              ${chunk.map((ev) => {
+                const src = this.getPhotoDisplaySrc(ev);
+                return `
                 <div class="border border-slate-400 rounded-xl p-[0.7cqw] grid grid-cols-12 gap-[0.8cqw] bg-white overflow-hidden">
                   <div class="col-span-6 bg-slate-100 rounded-lg overflow-hidden h-full">
-                    ${ev.dataUrl ? `<img src="${ev.dataUrl}" class="w-full h-full object-cover" alt="Evidence" />` : ''}
+                    ${src ? `<img src="${src}" class="w-full h-full object-cover" alt="Evidence" />` : ''}
                   </div>
                   <div class="col-span-6 text-[clamp(7px,0.82cqw,11px)] text-slate-900 pt-1 leading-snug overflow-hidden">
                     ${ev.description || '-'}
                   </div>
                 </div>
-              `).join('')}
+              `;
+              }).join('')}
             </div>
             <div class="pb-[1%] text-center text-[clamp(7px,0.75cqw,10px)] font-bold tracking-widest text-slate-400 uppercase">${footerText}</div>
           </div>

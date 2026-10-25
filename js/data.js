@@ -91,10 +91,11 @@ const DEFAULT_SETTINGS = {
   caLink: 'https://tinyurl.com/store-caassignment',
   gasWebhookUrl: '',
   gdriveFolderId: '',
+  gdrivePhotoFolderId: '',
   gdriveFolderUrl: '',
   defaultCcEmails: '',
   autoWatermarkPhoto: true,
-  autoSyncGDrive: false
+  autoSyncGDrive: true
 };
 
 // Hanya menyisakan akun akses sistem dasar (Tanpa nama/data dummy)
@@ -147,28 +148,44 @@ function sanitizeForFirestore(obj) {
   );
 }
 
+// ============================================================================
+// PEMISAHAN PENYIMPANAN KHUSUS FOTO:
+// - Seluruh data laporan (identitas toko, crew, observasi, skor QSC, jadwal,
+//   user, master toko) disimpan utuh di Cloud Firestore (`fmcu-visit-database`).
+// - KHUSUS FILE FOTO (QSC & Bukti Temuan) disimpan di Google Drive melalui
+//   Google Apps Script. Firestore hanya menyimpan metadata foto + Link/ID GDrive
+//   sehingga kapasitas Firestore tetap sangat hemat (< 5 KB/laporan).
+// ============================================================================
+function stripPhotoBinaryForDatabase(photo) {
+  if (!photo) return {};
+  const isHttpUrl = photo.dataUrl && /^https?:\/\//i.test(photo.dataUrl);
+  const directUrl =
+    photo.driveUrl ||
+    (photo.driveFileId ? `https://drive.google.com/thumbnail?id=${photo.driveFileId}&sz=w1200` : '') ||
+    (isHttpUrl ? photo.dataUrl : '');
+
+  return {
+    id: photo.id || 'photo-' + Date.now(),
+    caption: photo.caption || '',
+    description: photo.description || '',
+    category: photo.category || '',
+    timestamp: photo.timestamp || '',
+    driveFileId: photo.driveFileId || '',
+    driveUrl: directUrl,
+    driveViewUrl: photo.driveViewUrl || '',
+    storageProvider: photo.driveFileId ? 'GOOGLE_DRIVE' : 'GOOGLE_DRIVE_PENDING',
+    // Tidak menyimpan binary Base64 (`data:image/...`) ke Firestore
+    dataUrl: directUrl
+  };
+}
+
 function prepareReportForFirestore(report) {
   const clean = sanitizeForFirestore(report);
-  const rawSize = JSON.stringify(clean).length;
-  if (rawSize <= 850000) {
-    return clean;
-  }
   return {
     ...clean,
-    qscPhotos: (clean.qscPhotos || []).map((p) => ({
-      id: p.id,
-      caption: p.caption || '',
-      timestamp: p.timestamp || '',
-      dataUrl: p.dataUrl && p.dataUrl.length < 120000 ? p.dataUrl : ''
-    })),
-    evidencePhotos: (clean.evidencePhotos || []).map((p) => ({
-      id: p.id,
-      caption: p.caption || '',
-      category: p.category || '',
-      timestamp: p.timestamp || '',
-      dataUrl: p.dataUrl && p.dataUrl.length < 120000 ? p.dataUrl : ''
-    })),
-    _photosTrimmedForCloudLimit: true
+    qscPhotos: (clean.qscPhotos || []).map(stripPhotoBinaryForDatabase),
+    evidencePhotos: (clean.evidencePhotos || []).map(stripPhotoBinaryForDatabase),
+    _photoStorageMode: 'GOOGLE_DRIVE_APPS_SCRIPT'
   };
 }
 
@@ -184,6 +201,8 @@ window.FMCUData = {
   cloudStatus: 'CONNECTING',
   cloudErrorMsg: '',
   unsubscribers: [],
+  // Cache sementara di RAM sesi aktif untuk merender PDF dengan cepat tanpa membebani Firestore/localStorage
+  photoMemoryCache: {},
 
   init() {
     // Hapus seluruh cache data dummy versi lama (v1) dan hapus sesi persisten lama di localStorage
@@ -748,12 +767,171 @@ window.FMCUData = {
     }
   },
 
+  // ==========================================================================
+  // GOOGLE DRIVE PHOTO DATABASE (VIA GOOGLE APPS SCRIPT)
+  // Khusus foto disimpan di Google Drive, sementara Firestore hanya menyimpan
+  // teks laporan + ID/Link Google Drive foto.
+  // ==========================================================================
+  cachePhotoInMemory(photoId, driveFileId, dataUrl) {
+    if (!dataUrl || !dataUrl.startsWith('data:image')) return;
+    if (photoId) this.photoMemoryCache[photoId] = dataUrl;
+    if (driveFileId) this.photoMemoryCache[driveFileId] = dataUrl;
+  },
+
+  getPhotoFromMemory(photoId, driveFileId) {
+    if (driveFileId && this.photoMemoryCache[driveFileId]) {
+      return this.photoMemoryCache[driveFileId];
+    }
+    if (photoId && this.photoMemoryCache[photoId]) {
+      return this.photoMemoryCache[photoId];
+    }
+    return '';
+  },
+
+  cacheReportPhotosInMemory(report) {
+    if (!report) return;
+    (report.qscPhotos || []).forEach((p) => {
+      if (p && p.dataUrl && p.dataUrl.startsWith('data:image')) {
+        this.cachePhotoInMemory(p.id, p.driveFileId, p.dataUrl);
+      }
+    });
+    (report.evidencePhotos || []).forEach((p) => {
+      if (p && p.dataUrl && p.dataUrl.startsWith('data:image')) {
+        this.cachePhotoInMemory(p.id, p.driveFileId, p.dataUrl);
+      }
+    });
+  },
+
+  async uploadPhotoToGDrive(photoObj, meta = {}) {
+    if (!photoObj) return photoObj;
+    const rawDataUrl =
+      (photoObj.dataUrl && photoObj.dataUrl.startsWith('data:image') ? photoObj.dataUrl : '') ||
+      this.getPhotoFromMemory(photoObj.id, photoObj.driveFileId);
+
+    if (rawDataUrl) {
+      this.cachePhotoInMemory(photoObj.id, photoObj.driveFileId, rawDataUrl);
+    }
+
+    // Jika sudah memiliki driveFileId, tidak perlu upload ulang
+    if (photoObj.driveFileId) {
+      return photoObj;
+    }
+
+    const settings = this.getSettings();
+    const gasUrl = (settings.gasWebhookUrl || '').trim();
+    if (!gasUrl || !gasUrl.startsWith('http') || !rawDataUrl) {
+      return photoObj;
+    }
+
+    const storeCode = meta.storeCode || 'STORE';
+    const storeName = meta.storeName || 'VISIT';
+    const photoType = meta.photoType || 'EVIDENCE';
+    const cleanCaption = String(photoObj.caption || photoObj.description || photoType)
+      .replace(/[^a-zA-Z0-9_-]/g, '_')
+      .slice(0, 35);
+    const fileName = `FMCU_${storeCode}_${photoType}_${cleanCaption}_${Date.now()}.jpg`;
+
+    try {
+      const response = await fetch(gasUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'uploadPhoto',
+          photoId: photoObj.id || '',
+          fileName,
+          photoBase64: rawDataUrl.split(',')[1] || rawDataUrl,
+          storeCode,
+          storeName,
+          photoType,
+          gdrivePhotoFolderId: settings.gdrivePhotoFolderId || settings.gdriveFolderId || ''
+        })
+      });
+
+      const resJson = await response.json();
+      if (resJson && resJson.status === 'SUCCESS' && resJson.fileId) {
+        photoObj.driveFileId = resJson.fileId;
+        photoObj.driveUrl = resJson.directUrl || `https://drive.google.com/thumbnail?id=${resJson.fileId}&sz=w1200`;
+        photoObj.driveViewUrl = resJson.viewUrl || '';
+        photoObj.storageProvider = 'GOOGLE_DRIVE';
+        this.cachePhotoInMemory(photoObj.id, photoObj.driveFileId, rawDataUrl);
+      }
+    } catch (err) {
+      console.warn('Upload foto ke Google Drive gagal / tertunda:', err);
+    }
+
+    return photoObj;
+  },
+
+  async ensureReportPhotosUploadedToGDrive(report) {
+    if (!report) return report;
+    this.cacheReportPhotosInMemory(report);
+    const settings = this.getSettings();
+    const gasUrl = (settings.gasWebhookUrl || '').trim();
+    if (!gasUrl || !gasUrl.startsWith('http')) {
+      return report;
+    }
+
+    const storeCode = report.storeCode || 'STORE';
+    const storeName = report.storeName || 'VISIT';
+    const tasks = [];
+
+    (report.qscPhotos || []).forEach((p) => {
+      if (p && !p.driveFileId && (p.dataUrl?.startsWith('data:image') || this.getPhotoFromMemory(p.id, null))) {
+        tasks.push(this.uploadPhotoToGDrive(p, { storeCode, storeName, photoType: 'QSC' }));
+      }
+    });
+
+    (report.evidencePhotos || []).forEach((p) => {
+      if (p && !p.driveFileId && (p.dataUrl?.startsWith('data:image') || this.getPhotoFromMemory(p.id, null))) {
+        tasks.push(this.uploadPhotoToGDrive(p, { storeCode, storeName, photoType: 'EVIDENCE' }));
+      }
+    });
+
+    if (tasks.length > 0) {
+      await Promise.all(tasks);
+    }
+    return report;
+  },
+
+  async fetchDrivePhotosBase64(fileIds = []) {
+    const missingIds = fileIds.filter((fid) => fid && !this.photoMemoryCache[fid]);
+    if (missingIds.length === 0) return this.photoMemoryCache;
+
+    const settings = this.getSettings();
+    const gasUrl = (settings.gasWebhookUrl || '').trim();
+    if (!gasUrl || !gasUrl.startsWith('http')) return this.photoMemoryCache;
+
+    try {
+      const response = await fetch(gasUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'getPhotoBase64',
+          fileIds: missingIds
+        })
+      });
+      const resJson = await response.json();
+      if (resJson && resJson.status === 'SUCCESS' && resJson.photos) {
+        Object.entries(resJson.photos).forEach(([fid, b64]) => {
+          if (b64 && b64.startsWith('data:image')) {
+            this.photoMemoryCache[fid] = b64;
+          }
+        });
+      }
+    } catch (err) {
+      console.warn('Gagal mengambil foto Base64 dari Google Drive:', err);
+    }
+    return this.photoMemoryCache;
+  },
+
   getReports() {
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.REPORTS) || '[]');
   },
   saveReportsLocalOnly(reports) {
     try {
-      localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
+      (reports || []).forEach((r) => this.cacheReportPhotosInMemory(r));
+      const lightweightReports = (reports || []).map((r) => prepareReportForFirestore(r));
+      localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(lightweightReports));
       return true;
     } catch (err) {
       console.warn('LocalStorage quota warning:', err);
