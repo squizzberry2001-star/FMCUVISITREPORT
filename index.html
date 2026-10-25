@@ -349,8 +349,14 @@
           </div>
         </div>
 
-        <!-- Right Header Controls: Live GPS Pill, Profile -->
+        <!-- Right Header Controls: Cloud Firestore Pill, Live GPS Pill, Profile -->
         <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+          <!-- Cloud Firestore Sync Status Pill -->
+          <div id="header-firestore-pill" class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-[11px] font-bold" title="Status Koneksi Cloud Firestore (fmcu-visit-database)">
+            <i id="header-firestore-icon" class="fa-solid fa-cloud text-[#0099A6]"></i>
+            <span id="header-firestore-text">Firestore: Menghubungkan...</span>
+          </div>
+
           <!-- Live GPS Pill -->
           <button onclick="FMCUApp.refreshGpsLocation(true)" class="hidden md:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold hover:bg-emerald-100 transition cursor-pointer" title="Klik untuk memperbarui titik GPS aktual">
             <span class="w-2 h-2 rounded-full bg-emerald-500 gps-pulse"></span>
@@ -1039,6 +1045,48 @@
             </div>
           </div>
 
+          <!-- Cloud Firestore Real-Time Database Status Banner -->
+          <div class="fm-card p-4 bg-gradient-to-r from-teal-50/70 to-emerald-50/70 border border-teal-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-start sm:items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-white border border-teal-200 text-[#0099A6] flex items-center justify-center text-lg shrink-0 shadow-xs">
+                <i class="fa-solid fa-database"></i>
+              </div>
+              <div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="font-extrabold text-xs sm:text-sm text-slate-900">Cloud Firestore Database:</span>
+                  <code class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-white border border-slate-200 text-[#0099A6]">fmcu-visit-database</code>
+                  <span id="admin-firestore-status-badge" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800">Menghubungkan...</span>
+                </div>
+                <p id="admin-firestore-summary" class="text-[11px] text-slate-600 mt-0.5">
+                  Sinkronisasi otomatis 2 arah untuk Master User & Password (<code>users</code>), Master Toko (<code>stores</code>), Master Jadwal (<code>schedules</code>), dan Laporan (<code>reports</code>).
+                </p>
+              </div>
+            </div>
+            <button type="button" id="btn-force-sync-firestore" onclick="FMCUApp.forceSyncFirestoreNow()" class="px-3.5 py-2 rounded-xl bg-[#0099A6] hover:bg-teal-700 text-white font-bold text-xs shadow-xs transition flex items-center gap-1.5 shrink-0 cursor-pointer">
+              <i class="fa-solid fa-cloud-arrow-up"></i>
+              <span>Push & Sinkronkan ke Firestore</span>
+            </button>
+          </div>
+
+          <!-- Warning Box if Firestore Rules are still locked -->
+          <div id="admin-firestore-rules-warning" class="hidden rounded-2xl bg-amber-50 border border-amber-300 p-4 text-xs text-amber-900 space-y-2">
+            <div class="font-extrabold flex items-center gap-2 text-amber-800">
+              <i class="fa-solid fa-triangle-exclamation text-amber-600 text-sm"></i>
+              <span>Perhatian: Firestore Security Rules Masih Terkunci (Permission Denied)</span>
+            </div>
+            <p class="leading-relaxed">
+              Agar aplikasi web dapat menyimpan & membaca Master User, Password, Master Toko, dan Jadwal Visit secara otomatis di project <strong>fmcu-visit-database</strong>, silakan buka <strong>Firebase Console &rarr; Firestore Database &rarr; Tab Rules</strong>, tempel aturan berikut, lalu klik <strong>Publish</strong>:
+            </p>
+            <pre class="bg-slate-900 text-emerald-300 p-3 rounded-xl font-mono text-[11px] overflow-x-auto select-all">rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}</pre>
+          </div>
+
           <!-- ADMIN TAB 1: ATUR JADWAL VISIT -->
           <div id="admin-tab-schedules" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div class="lg:col-span-4 fm-card p-5 space-y-4 self-start">
@@ -1448,6 +1496,11 @@
 
   <!-- Toast Notification Container -->
   <div id="toast-container" class="fixed bottom-16 lg:bottom-6 right-4 z-50 space-y-2 pointer-events-none"></div>
+
+  <!-- Firebase JS SDK (Cloud Firestore & Analytics for fmcu-visit-database) -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js"></script>
 
   <!-- Application Scripts -->
   <script src="js/pdf-assets.js"></script>

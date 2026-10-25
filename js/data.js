@@ -1,7 +1,23 @@
 // ============================================================================
-// FMCU VISIT STORE REPORT - Clean Data Store, RBAC & Integration Config
-// (Seluruh data dummy telah dikosongkan)
+// FMCU VISIT STORE REPORT - Cloud Firestore + Local Cache Data Store & RBAC
+// Terhubung ke Firebase Project: fmcu-visit-database
+// Koleksi Firestore:
+//   - users      (User, Password, Role & Otoritas)
+//   - stores     (Master Toko)
+//   - schedules  (Master Jadwal Visit & Actual In/Out)
+//   - reports    (Arsip Laporan Visit & Temuan Observasi)
+//   - settings   (Konfigurasi Global Integrasi Email/GDrive)
 // ============================================================================
+
+const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyAae1OB9Bc82HoLCP8TWVAMpbne-J_0MGA',
+  authDomain: 'fmcu-visit-database.firebaseapp.com',
+  projectId: 'fmcu-visit-database',
+  storageBucket: 'fmcu-visit-database.firebasestorage.app',
+  messagingSenderId: '185683503357',
+  appId: '1:185683503357:web:188864254d6fc0d0ba7694',
+  measurementId: 'G-CD6ZQFLVED'
+};
 
 const STORAGE_KEYS = {
   USERS: 'fmcu_users_v2',
@@ -129,8 +145,49 @@ const INITIAL_USERS = [
   }
 ];
 
+// Helper untuk membersihkan nilai undefined sebelum dikirim ke Firestore
+function sanitizeForFirestore(obj) {
+  return JSON.parse(
+    JSON.stringify(obj, (key, value) => (value === undefined ? null : value))
+  );
+}
+
+// Helper untuk membuat salinan ringan laporan jika ukuran dokumen melebihi batas 1MB Firestore
+function prepareReportForFirestore(report) {
+  const clean = sanitizeForFirestore(report);
+  const rawSize = JSON.stringify(clean).length;
+  if (rawSize <= 850000) {
+    return clean;
+  }
+  // Jika foto beresolusi besar membuat ukuran > 850KB, simpan metadata & observasi ke Firestore
+  return {
+    ...clean,
+    qscPhotos: (clean.qscPhotos || []).map((p) => ({
+      id: p.id,
+      caption: p.caption || '',
+      timestamp: p.timestamp || '',
+      dataUrl: p.dataUrl && p.dataUrl.length < 120000 ? p.dataUrl : ''
+    })),
+    evidencePhotos: (clean.evidencePhotos || []).map((p) => ({
+      id: p.id,
+      caption: p.caption || '',
+      category: p.category || '',
+      timestamp: p.timestamp || '',
+      dataUrl: p.dataUrl && p.dataUrl.length < 120000 ? p.dataUrl : ''
+    })),
+    _photosTrimmedForCloudLimit: true
+  };
+}
+
 window.FMCUData = {
   FINDING_PRESETS,
+  FIREBASE_CONFIG,
+  firebaseApp: null,
+  db: null,
+  analytics: null,
+  cloudStatus: 'CONNECTING', // CONNECTING | ONLINE | PERMISSION_DENIED | OFFLINE
+  cloudErrorMsg: '',
+  unsubscribers: [],
 
   init() {
     // Hapus seluruh cache data dummy versi lama (v1) jika pernah tersimpan di browser
@@ -164,9 +221,277 @@ window.FMCUData = {
     if (!localStorage.getItem(STORAGE_KEYS.ATTENDANCE_LOGS)) {
       localStorage.setItem(STORAGE_KEYS.ATTENDANCE_LOGS, JSON.stringify([]));
     }
+
+    // Inisialisasi Cloud Firestore Real-time Sync
+    this.initFirestore();
+  },
+
+  initFirestore() {
+    if (typeof window.firebase === 'undefined') {
+      this.setCloudStatus('OFFLINE', 'Firebase SDK belum dimuat');
+      return;
+    }
+
+    try {
+      if (!window.firebase.apps.length) {
+        this.firebaseApp = window.firebase.initializeApp(FIREBASE_CONFIG);
+      } else {
+        this.firebaseApp = window.firebase.app();
+      }
+
+      if (typeof window.firebase.analytics === 'function') {
+        try {
+          this.analytics = window.firebase.analytics();
+        } catch (e) {
+          // Analytics bisa diblokir oleh adblocker browser, abaikan dengan aman
+        }
+      }
+
+      this.db = window.firebase.firestore();
+      this.startRealtimeListeners();
+    } catch (err) {
+      console.error('Firestore initialization error:', err);
+      this.setCloudStatus('OFFLINE', err.message || 'Gagal menginisialisasi Firestore');
+    }
+  },
+
+  setCloudStatus(status, errorMsg = '') {
+    this.cloudStatus = status;
+    this.cloudErrorMsg = errorMsg;
+    if (window.FMCUApp && typeof window.FMCUApp.onCloudStatusChanged === 'function') {
+      window.FMCUApp.onCloudStatusChanged(status, errorMsg);
+    }
+  },
+
+  startRealtimeListeners() {
+    if (!this.db) return;
+
+    // Bersihkan listener lama jika ada
+    this.unsubscribers.forEach((unsub) => {
+      try {
+        unsub();
+      } catch (e) {}
+    });
+    this.unsubscribers = [];
+
+    const handleSnapshotError = (collectionName, err) => {
+      console.warn(`Firestore [${collectionName}] error:`, err);
+      if (err && err.code === 'permission-denied') {
+        this.setCloudStatus(
+          'PERMISSION_DENIED',
+          'Database Firestore masih terkunci oleh Security Rules. Buka Firebase Console -> Firestore Database -> Rules dan izinkan read/write.'
+        );
+      } else {
+        this.setCloudStatus('OFFLINE', err.message || 'Koneksi ke Firestore terputus');
+      }
+    };
+
+    // 1. REAL-TIME LISTENER: USERS (Password, User, Role & Otoritas)
+    const unsubUsers = this.db.collection('users').onSnapshot(
+      (snapshot) => {
+        this.setCloudStatus('ONLINE');
+        if (snapshot.empty) {
+          // Jika koleksi users di Firestore masih kosong saat pertama kali dibuat, seed akun sistem dasar
+          const seedUsers = this.getUsers().length > 0 ? this.getUsers() : INITIAL_USERS;
+          seedUsers.forEach((u) => {
+            const docId = String(u.id || u.username);
+            this.db
+              .collection('users')
+              .doc(docId)
+              .set(sanitizeForFirestore({ ...u, id: docId, updatedAt: new Date().toISOString() }), { merge: true })
+              .catch(() => {});
+          });
+          return;
+        }
+
+        const cloudUsers = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data && data.username) {
+            cloudUsers.push({ ...data, id: data.id || doc.id });
+          }
+        });
+
+        if (cloudUsers.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(cloudUsers));
+          // Perbarui sesi aktif apabila user yang sedang login mengalami perubahan otoritas/nama/password
+          const activeSession = this.getSession();
+          if (activeSession) {
+            const updatedSelf = cloudUsers.find((u) => u.id === activeSession.id || u.username === activeSession.username);
+            if (updatedSelf) {
+              localStorage.setItem(STORAGE_KEYS.ACTIVE_SESSION, JSON.stringify(updatedSelf));
+            }
+          }
+          if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
+            window.FMCUApp.onCloudDataUpdated('users');
+          }
+        }
+      },
+      (err) => handleSnapshotError('users', err)
+    );
+    this.unsubscribers.push(unsubUsers);
+
+    // 2. REAL-TIME LISTENER: STORES (Master Toko)
+    const unsubStores = this.db.collection('stores').onSnapshot(
+      (snapshot) => {
+        this.setCloudStatus('ONLINE');
+        const cloudStores = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data && data.code) {
+            cloudStores.push(data);
+          }
+        });
+        cloudStores.sort((a, b) => String(a.code).localeCompare(String(b.code)));
+        localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(cloudStores));
+        if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
+          window.FMCUApp.onCloudDataUpdated('stores');
+        }
+      },
+      (err) => handleSnapshotError('stores', err)
+    );
+    this.unsubscribers.push(unsubStores);
+
+    // 3. REAL-TIME LISTENER: SCHEDULES (Master Jadwal Visit & Actual In/Out)
+    const unsubSchedules = this.db.collection('schedules').onSnapshot(
+      (snapshot) => {
+        this.setCloudStatus('ONLINE');
+        const cloudSchedules = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data && data.id) {
+            cloudSchedules.push(data);
+          }
+        });
+        // Urutkan jadwal terbaru di atas
+        cloudSchedules.sort((a, b) => String(b.scheduledDate || '').localeCompare(String(a.scheduledDate || '')));
+        localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(cloudSchedules));
+        if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
+          window.FMCUApp.onCloudDataUpdated('schedules');
+        }
+      },
+      (err) => handleSnapshotError('schedules', err)
+    );
+    this.unsubscribers.push(unsubSchedules);
+
+    // 4. REAL-TIME LISTENER: REPORTS (Arsip Laporan Visit)
+    const unsubReports = this.db.collection('reports').onSnapshot(
+      (snapshot) => {
+        this.setCloudStatus('ONLINE');
+        const localReports = this.getReports();
+        const cloudReports = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data && data.id) {
+            // Pertahankan foto lokal beresolusi penuh jika dokumen cloud dipangkas karena batas 1MB
+            const localMatch = localReports.find((r) => r.id === data.id);
+            if (data._photosTrimmedForCloudLimit && localMatch) {
+              cloudReports.push({
+                ...data,
+                qscPhotos: localMatch.qscPhotos || data.qscPhotos || [],
+                evidencePhotos: localMatch.evidencePhotos || data.evidencePhotos || []
+              });
+            } else {
+              cloudReports.push(data);
+            }
+          }
+        });
+        cloudReports.sort((a, b) => String(b.createdAt || b.visitDate || '').localeCompare(String(a.createdAt || a.visitDate || '')));
+        this.saveReportsLocalOnly(cloudReports);
+        if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
+          window.FMCUApp.onCloudDataUpdated('reports');
+        }
+      },
+      (err) => handleSnapshotError('reports', err)
+    );
+    this.unsubscribers.push(unsubReports);
+
+    // 5. REAL-TIME LISTENER: SETTINGS (Konfigurasi Global)
+    const unsubSettings = this.db
+      .collection('settings')
+      .doc('global_config')
+      .onSnapshot(
+        (doc) => {
+          this.setCloudStatus('ONLINE');
+          if (!doc.exists) {
+            this.db
+              .collection('settings')
+              .doc('global_config')
+              .set(sanitizeForFirestore(this.getSettings()), { merge: true })
+              .catch(() => {});
+            return;
+          }
+          const cloudSettings = { ...DEFAULT_SETTINGS, ...(doc.data() || {}) };
+          localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(cloudSettings));
+          if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
+            window.FMCUApp.onCloudDataUpdated('settings');
+          }
+        },
+        (err) => handleSnapshotError('settings', err)
+      );
+    this.unsubscribers.push(unsubSettings);
+  },
+
+  // Sinkronisasi paksa seluruh data lokal ke Firestore (untuk tombol Manual Sync di Admin)
+  async forcePushAllToCloud() {
+    if (!this.db) {
+      throw new Error('Firestore belum terinisialisasi.');
+    }
+    const users = this.getUsers();
+    const stores = this.getStores();
+    const schedules = this.getSchedules();
+    const reports = this.getReports();
+    const settings = this.getSettings();
+
+    const batchPromises = [];
+
+    users.forEach((u) => {
+      const docId = String(u.id || u.username);
+      batchPromises.push(
+        this.db.collection('users').doc(docId).set(sanitizeForFirestore({ ...u, id: docId, updatedAt: new Date().toISOString() }), { merge: true })
+      );
+    });
+
+    stores.forEach((s) => {
+      const docId = String(s.code);
+      batchPromises.push(
+        this.db.collection('stores').doc(docId).set(sanitizeForFirestore({ ...s, updatedAt: new Date().toISOString() }), { merge: true })
+      );
+    });
+
+    schedules.forEach((sch) => {
+      const docId = String(sch.id);
+      batchPromises.push(
+        this.db.collection('schedules').doc(docId).set(sanitizeForFirestore({ ...sch, updatedAt: new Date().toISOString() }), { merge: true })
+      );
+    });
+
+    reports.forEach((rep) => {
+      const docId = String(rep.id);
+      batchPromises.push(
+        this.db.collection('reports').doc(docId).set(prepareReportForFirestore(rep), { merge: true })
+      );
+    });
+
+    batchPromises.push(
+      this.db.collection('settings').doc('global_config').set(sanitizeForFirestore(settings), { merge: true })
+    );
+
+    await Promise.all(batchPromises);
+    this.setCloudStatus('ONLINE');
+    return {
+      users: users.length,
+      stores: stores.length,
+      schedules: schedules.length,
+      reports: reports.length
+    };
   },
 
   clearAllData() {
+    const prevStores = this.getStores();
+    const prevSchedules = this.getSchedules();
+    const prevReports = this.getReports();
+
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(INITIAL_USERS));
     localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify([]));
@@ -175,33 +500,107 @@ window.FMCUData = {
     localStorage.setItem(STORAGE_KEYS.ATTENDANCE_LOGS, JSON.stringify([]));
     localStorage.removeItem(STORAGE_KEYS.ACTIVE_CHECKIN);
     localStorage.removeItem(STORAGE_KEYS.DRAFT_REPORT);
+
+    if (this.db) {
+      prevStores.forEach((s) => {
+        if (s.code) this.db.collection('stores').doc(String(s.code)).delete().catch(() => {});
+      });
+      prevSchedules.forEach((sch) => {
+        if (sch.id) this.db.collection('schedules').doc(String(sch.id)).delete().catch(() => {});
+      });
+      prevReports.forEach((rep) => {
+        if (rep.id) this.db.collection('reports').doc(String(rep.id)).delete().catch(() => {});
+      });
+    }
   },
 
+  // ==========================================================================
+  // CRUD METHODS (WRITE-THROUGH KE LOCALSTORAGE + CLOUD FIRESTORE)
+  // ==========================================================================
   getUsers() {
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
   },
   saveUsers(users) {
+    const prevUsers = this.getUsers();
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+
+    if (this.db) {
+      const newIds = new Set(users.map((u) => String(u.id || u.username)));
+      prevUsers.forEach((oldU) => {
+        const oldId = String(oldU.id || oldU.username);
+        if (!newIds.has(oldId)) {
+          this.db.collection('users').doc(oldId).delete().catch((e) => console.warn('Delete user error:', e));
+        }
+      });
+      users.forEach((u) => {
+        const docId = String(u.id || u.username);
+        this.db
+          .collection('users')
+          .doc(docId)
+          .set(sanitizeForFirestore({ ...u, id: docId, updatedAt: new Date().toISOString() }), { merge: true })
+          .catch((e) => console.warn('Save user error:', e));
+      });
+    }
   },
 
   getStores() {
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.STORES) || '[]');
   },
   saveStores(stores) {
+    const prevStores = this.getStores();
     localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(stores));
+
+    if (this.db) {
+      const newCodes = new Set(stores.map((s) => String(s.code)));
+      prevStores.forEach((oldS) => {
+        const oldCode = String(oldS.code);
+        if (oldCode && !newCodes.has(oldCode)) {
+          this.db.collection('stores').doc(oldCode).delete().catch((e) => console.warn('Delete store error:', e));
+        }
+      });
+      stores.forEach((s) => {
+        if (!s.code) return;
+        const docId = String(s.code);
+        this.db
+          .collection('stores')
+          .doc(docId)
+          .set(sanitizeForFirestore({ ...s, updatedAt: new Date().toISOString() }), { merge: true })
+          .catch((e) => console.warn('Save store error:', e));
+      });
+    }
   },
 
   getSchedules() {
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.SCHEDULES) || '[]');
   },
   saveSchedules(schedules) {
+    const prevSchedules = this.getSchedules();
     localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
+
+    if (this.db) {
+      const newIds = new Set(schedules.map((s) => String(s.id)));
+      prevSchedules.forEach((oldSch) => {
+        const oldId = String(oldSch.id);
+        if (oldId && !newIds.has(oldId)) {
+          this.db.collection('schedules').doc(oldId).delete().catch((e) => console.warn('Delete schedule error:', e));
+        }
+      });
+      schedules.forEach((sch) => {
+        if (!sch.id) return;
+        const docId = String(sch.id);
+        this.db
+          .collection('schedules')
+          .doc(docId)
+          .set(sanitizeForFirestore({ ...sch, updatedAt: new Date().toISOString() }), { merge: true })
+          .catch((e) => console.warn('Save schedule error:', e));
+      });
+    }
   },
 
   getReports() {
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.REPORTS) || '[]');
   },
-  saveReports(reports) {
+  saveReportsLocalOnly(reports) {
     try {
       localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
       return true;
@@ -210,12 +609,43 @@ window.FMCUData = {
       return false;
     }
   },
+  saveReports(reports) {
+    const prevReports = this.getReports();
+    const ok = this.saveReportsLocalOnly(reports);
+
+    if (this.db) {
+      const newIds = new Set(reports.map((r) => String(r.id)));
+      prevReports.forEach((oldR) => {
+        const oldId = String(oldR.id);
+        if (oldId && !newIds.has(oldId)) {
+          this.db.collection('reports').doc(oldId).delete().catch((e) => console.warn('Delete report error:', e));
+        }
+      });
+      reports.forEach((rep) => {
+        if (!rep.id) return;
+        const docId = String(rep.id);
+        this.db
+          .collection('reports')
+          .doc(docId)
+          .set(prepareReportForFirestore(rep), { merge: true })
+          .catch((e) => console.warn('Save report error:', e));
+      });
+    }
+    return ok;
+  },
 
   getSettings() {
     return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(STORAGE_KEYS.SETTINGS) || '{}') };
   },
   saveSettings(settings) {
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+    if (this.db) {
+      this.db
+        .collection('settings')
+        .doc('global_config')
+        .set(sanitizeForFirestore(settings), { merge: true })
+        .catch((e) => console.warn('Save settings error:', e));
+    }
   },
 
   getAttendanceLogs() {
@@ -230,7 +660,7 @@ window.FMCUData = {
     if (!raw) return null;
     try {
       const parsed = JSON.parse(raw);
-      const freshUser = this.getUsers().find((u) => u.id === parsed.id);
+      const freshUser = this.getUsers().find((u) => u.id === parsed.id || u.username === parsed.username);
       return freshUser || parsed;
     } catch {
       return null;

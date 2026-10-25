@@ -76,9 +76,111 @@ window.FMCUApp = {
     }
     this.renderAllViews();
     this.populateGasScriptPreview();
+    this.onCloudStatusChanged(window.FMCUData.cloudStatus, window.FMCUData.cloudErrorMsg);
 
     // Auto-request Mandatory GPS Permission on load
     this.initMandatoryGpsSystem();
+  },
+
+  // ==========================================================================
+  // CLOUD FIRESTORE REAL-TIME SYNC HANDLERS (fmcu-visit-database)
+  // ==========================================================================
+  onCloudStatusChanged(status, errorMsg = '') {
+    const pill = document.getElementById('header-firestore-pill');
+    const icon = document.getElementById('header-firestore-icon');
+    const text = document.getElementById('header-firestore-text');
+    const admBadge = document.getElementById('admin-firestore-status-badge');
+    const admWarn = document.getElementById('admin-firestore-rules-warning');
+
+    if (status === 'ONLINE') {
+      if (pill) {
+        pill.className = 'hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-[11px] font-bold';
+      }
+      if (icon) icon.className = 'fa-solid fa-cloud-check text-[#009944]';
+      if (text) text.textContent = 'Firestore: Terhubung';
+      if (admBadge) {
+        admBadge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800';
+        admBadge.textContent = 'ONLINE • Real-Time Sync Aktif';
+      }
+      if (admWarn) admWarn.classList.add('hidden');
+    } else if (status === 'PERMISSION_DENIED') {
+      if (pill) {
+        pill.className = 'hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-50 border border-amber-300 text-amber-800 text-[11px] font-bold';
+      }
+      if (icon) icon.className = 'fa-solid fa-lock text-amber-600';
+      if (text) text.textContent = 'Firestore: Rules Terkunci';
+      if (admBadge) {
+        admBadge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800';
+        admBadge.textContent = 'PERMISSION DENIED (Atur Rules di Firebase Console)';
+      }
+      if (admWarn) admWarn.classList.remove('hidden');
+    } else if (status === 'OFFLINE') {
+      if (pill) {
+        pill.className = 'hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-rose-50 border border-rose-200 text-rose-800 text-[11px] font-bold';
+      }
+      if (icon) icon.className = 'fa-solid fa-cloud-bolt text-rose-600';
+      if (text) text.textContent = 'Firestore: Mode Lokal';
+      if (admBadge) {
+        admBadge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800';
+        admBadge.textContent = 'OFFLINE • Cache Lokal';
+      }
+    }
+    this.updateAdminFirestoreSummary();
+  },
+
+  onCloudDataUpdated(collectionName) {
+    if (collectionName === 'users') {
+      const freshSession = window.FMCUData.getSession();
+      if (freshSession) {
+        this.currentUser = freshSession;
+      }
+      this.populateHeaderRoleSwitcher();
+      this.updateUserHeaderUI();
+    }
+    if (collectionName === 'stores') {
+      this.populateMasterStoreSelect();
+    }
+    this.updateAdminFirestoreSummary();
+    this.renderAllViews();
+  },
+
+  updateAdminFirestoreSummary() {
+    const summaryEl = document.getElementById('admin-firestore-summary');
+    if (!summaryEl) return;
+    const uCount = window.FMCUData.getUsers().length;
+    const stCount = window.FMCUData.getStores().length;
+    const schCount = window.FMCUData.getSchedules().length;
+    const repCount = window.FMCUData.getReports().length;
+    summaryEl.innerHTML = `Data tersinkronisasi di Cloud Firestore: <strong>${uCount} User</strong> (<code>users</code>) • <strong>${stCount} Master Toko</strong> (<code>stores</code>) • <strong>${schCount} Jadwal Visit</strong> (<code>schedules</code>) • <strong>${repCount} Laporan</strong> (<code>reports</code>).`;
+  },
+
+  async forceSyncFirestoreNow() {
+    const btn = document.getElementById('btn-force-sync-firestore');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>Menyinkronkan ke Firestore...</span>`;
+    }
+    try {
+      const counts = await window.FMCUData.forcePushAllToCloud();
+      this.updateAdminFirestoreSummary();
+      this.showToast(
+        `Berhasil push ke Firestore: ${counts.users} User, ${counts.stores} Toko, ${counts.schedules} Jadwal, ${counts.reports} Laporan!`,
+        'success'
+      );
+    } catch (err) {
+      console.error('Force sync Firestore error:', err);
+      if (err && err.code === 'permission-denied') {
+        this.onCloudStatusChanged('PERMISSION_DENIED', err.message);
+        this.showToast('Firestore menolak akses tulis (Permission Denied). Silakan publish Rules di Firebase Console.', 'warning');
+      } else {
+        this.showToast('Gagal sinkronisasi ke Firestore: ' + (err.message || 'Periksa koneksi internet'), 'error');
+      }
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i><span>Push & Sinkronkan ke Firestore</span>`;
+      }
+    }
   },
 
   // ==========================================================================
@@ -495,16 +597,20 @@ window.FMCUApp = {
     }
 
     if (this.currentUser) {
-      const users = window.FMCUData.getUsers();
-      const idx = users.findIndex((u) => u.id === this.currentUser.id);
-      if (idx !== -1) {
-        users[idx].lastLocation = {
-          lat: this.liveGps.lat,
-          lng: this.liveGps.lng,
-          updatedAt: new Date().toISOString(),
-          status: 'ON_DUTY'
-        };
-        window.FMCUData.saveUsers(users);
+      const nowMs = Date.now();
+      if (!this._lastLocationSyncedAt || nowMs - this._lastLocationSyncedAt > 45000) {
+        this._lastLocationSyncedAt = nowMs;
+        const users = window.FMCUData.getUsers();
+        const idx = users.findIndex((u) => u.id === this.currentUser.id);
+        if (idx !== -1) {
+          users[idx].lastLocation = {
+            lat: this.liveGps.lat,
+            lng: this.liveGps.lng,
+            updatedAt: new Date().toISOString(),
+            status: 'ON_DUTY'
+          };
+          window.FMCUData.saveUsers(users);
+        }
       }
     }
 
@@ -2064,7 +2170,8 @@ window.FMCUApp = {
                 <div>AM: <strong>${st.areaManager}</strong></div>
                 <div>RM: <strong>${st.regionalManager}</strong></div>
               </td>
-              <td class="py-2.5 px-3 text-right">
+              <td class="py-2.5 px-3 text-right space-x-2">
+                <button onclick="FMCUApp.editStore('${st.code}')" class="text-[#0099A6] hover:underline font-bold cursor-pointer">Edit</button>
                 <button onclick="FMCUApp.deleteStore('${st.code}')" class="text-rose-600 hover:underline font-bold cursor-pointer">Hapus</button>
               </td>
             </tr>
@@ -2103,8 +2210,9 @@ window.FMCUApp = {
             <td class="py-2.5 px-3 font-mono text-[11px] text-slate-600">
               ${u.lastLocation && u.lastLocation.lat ? `${u.lastLocation.lat}, ${u.lastLocation.lng}` : '-'}
             </td>
-            <td class="py-2.5 px-3 text-right">
-              <button onclick="FMCUApp.quickLoginById('${u.id}')" class="text-[#0099A6] hover:underline font-bold mr-2 cursor-pointer">Pakai Akun</button>
+            <td class="py-2.5 px-3 text-right space-x-2">
+              <button onclick="FMCUApp.editUser('${u.id}')" class="text-emerald-700 hover:underline font-bold cursor-pointer">Edit / Password</button>
+              <button onclick="FMCUApp.quickLoginById('${u.id}')" class="text-[#0099A6] hover:underline font-bold cursor-pointer">Pakai Akun</button>
               <button onclick="FMCUApp.deleteUser('${u.id}')" class="text-rose-600 hover:underline font-bold cursor-pointer">Hapus</button>
             </td>
           </tr>
@@ -2218,12 +2326,46 @@ window.FMCUApp = {
     this.showToast(`Master Toko ${name} (${code}) berhasil disimpan!`, 'success');
   },
 
+  editStore(code) {
+    const stores = window.FMCUData.getStores();
+    const st = stores.find((s) => s.code === code);
+    if (!st) return;
+    document.getElementById('adm-st-code').value = st.code || '';
+    document.getElementById('adm-st-type').value = st.type || 'CVS';
+    document.getElementById('adm-st-name').value = st.name || '';
+    document.getElementById('adm-st-head').value = st.storeHead || '';
+    document.getElementById('adm-st-am').value = st.areaManager || '';
+    document.getElementById('adm-st-rm').value = st.regionalManager || '';
+    document.getElementById('adm-st-email').value = st.email || '';
+    document.getElementById('adm-st-lat').value = st.lat !== null && st.lat !== undefined ? st.lat : '';
+    document.getElementById('adm-st-lng').value = st.lng !== null && st.lng !== undefined ? st.lng : '';
+    this.showToast(`Memuat data toko ${st.name} (${st.code}) untuk diedit`, 'info');
+  },
+
   deleteStore(code) {
     const stores = window.FMCUData.getStores().filter((s) => s.code !== code);
     window.FMCUData.saveStores(stores);
     this.populateMasterStoreSelect();
     this.renderAllViews();
-    this.showToast(`Toko kode ${code} dihapus`, 'info');
+    this.showToast(`Toko kode ${code} dihapus dari Firestore`, 'info');
+  },
+
+  editUser(userId) {
+    const users = window.FMCUData.getUsers();
+    const u = users.find((x) => x.id === userId);
+    if (!u) return;
+    document.getElementById('adm-usr-name').value = u.name || '';
+    document.getElementById('adm-usr-username').value = u.username || '';
+    document.getElementById('adm-usr-password').value = u.password || '';
+    document.getElementById('adm-usr-role').value = u.role || 'AUDITOR';
+    document.getElementById('adm-usr-region').value = u.region || '';
+    document.getElementById('adm-usr-email').value = u.email || '';
+
+    const authSet = new Set(u.authorities || []);
+    document.querySelectorAll('input[name="adm-auth"]').forEach((cb) => {
+      cb.checked = authSet.has(cb.value);
+    });
+    this.showToast(`Memuat akun @${u.username} untuk ubah data / password`, 'info');
   },
 
   handleSaveUser(event) {
