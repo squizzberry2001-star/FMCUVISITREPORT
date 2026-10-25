@@ -1,0 +1,184 @@
+/* ==========================================================================
+   FMCU VISIT STORE REPORT - Corporate Clean White & Green/Teal UI System
+   ========================================================================== */
+
+:root {
+  --fm-green: #009944;
+  --fm-green-dark: #007a37;
+  --fm-green-light: #e6f7ee;
+  --fm-teal: #0099a6;
+  --fm-teal-dark: #007c87;
+  --fm-teal-light: #e6f6f8;
+  --fm-blue: #0080c6;
+  --bg-surface: #ffffff;
+  --bg-muted: #f8fafc;
+  --text-main: #0f172a;
+  --text-secondary: #475569;
+  --border-color: #e2e8f0;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body {
+  background-color: #f4f7f9;
+  color: var(--text-main);
+  overflow-x: hidden;
+}
+
+/* Smooth Page & Section Transitions */
+.view-section {
+  animation: fadeSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeSlideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseRing {
+  0% {
+    transform: scale(0.9);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(0.9);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+.gps-pulse {
+  animation: pulseRing 2s infinite;
+}
+
+/* Interactive Card Hover Effects */
+.fm-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.03), 0 1px 2px -1px rgba(15, 23, 42, 0.03);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fm-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -6px rgba(0, 153, 166, 0.12), 0 4px 8px -4px rgba(15, 23, 42, 0.04);
+  border-color: rgba(0, 153, 166, 0.35);
+}
+
+/* Brand Gradient Accent */
+.fm-gradient {
+  background: linear-gradient(135deg, #009944 0%, #0099a6 100%);
+}
+
+.fm-gradient-subtle {
+  background: linear-gradient(135deg, rgba(0, 153, 68, 0.07) 0%, rgba(0, 153, 166, 0.09) 100%);
+}
+
+.fm-top-stripe {
+  background: linear-gradient(90deg, #009944 0%, #009944 45%, #ffffff 45%, #ffffff 50%, #0080c6 50%, #0080c6 100%);
+  height: 5px;
+}
+
+/* Navigation Active States */
+.nav-item {
+  transition: all 0.2s ease;
+}
+
+.nav-item.active {
+  background: linear-gradient(135deg, rgba(0, 153, 68, 0.1) 0%, rgba(0, 153, 166, 0.12) 100%);
+  color: #007a37;
+  font-weight: 700;
+  border-right: 3px solid #009944;
+}
+
+.mobile-nav-item.active {
+  color: #009944;
+  font-weight: 700;
+}
+
+/* 16:9 Widescreen Slide Preview Container for PDF Preview Page */
+.pdf-slide-wrapper {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  position: relative;
+  background: #ffffff;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.15), 0 0 0 1px rgba(15, 23, 42, 0.08);
+  container-type: inline-size;
+}
+
+.pdf-slide-canvas {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  user-select: none;
+  background: #ffffff;
+  font-family: Helvetica, Arial, sans-serif;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Form Input Focus */
+.fm-input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.625rem;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  color: #0f172a;
+  background-color: #ffffff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.fm-input:focus {
+  outline: none;
+  border-color: #0099a6;
+  box-shadow: 0 0 0 3px rgba(0, 153, 166, 0.15);
+}
+
+.fm-input:disabled, .fm-input[readonly] {
+  background-color: #f8fafc;
+  color: #64748b;
+}
+
+/* Map Container */
+.leaflet-container {
+  font-family: inherit;
+  z-index: 10 !important;
+}

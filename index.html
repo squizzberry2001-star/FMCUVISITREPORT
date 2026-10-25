@@ -1,0 +1,1465 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+  <title>FMCU VISIT STORE REPORT — Sistem Audit & Analitik Kunjungan Toko</title>
+
+  <!-- Google Fonts: Plus Jakarta Sans & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif']
+          },
+          colors: {
+            fm: {
+              green: '#009944',
+              greenDark: '#007a37',
+              greenLight: '#e6f7ee',
+              teal: '#0099a6',
+              tealDark: '#007c87',
+              tealLight: '#e6f6f8',
+              blue: '#0080c6'
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <!-- Leaflet Maps CSS & JS (For Live Location & Store Geofence) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Chart.js (For Trend Temuan, Trend Toko & User Performance Analytics) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- jsPDF (For 16:9 Vector + Image PDF Generation matching reference PDF) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body class="min-h-screen flex flex-col bg-[#F4F7F9] text-slate-900 antialiased selection:bg-emerald-600 selection:text-white">
+
+  <!-- Top Corporate Brand Stripe -->
+  <div class="fm-top-stripe w-full fixed top-0 left-0 z-50"></div>
+
+  <!-- ====================================================================
+       GLOBAL AUTH LOGIN OVERLAY (When Not Logged In)
+       ==================================================================== -->
+  <div id="auth-screen" class="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 hidden overflow-y-auto">
+    <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-4xl w-full overflow-hidden grid grid-cols-1 lg:grid-cols-12 my-auto view-section">
+      <!-- Left Visual Corporate Branding Panel -->
+      <div class="lg:col-span-5 fm-gradient p-8 text-white flex flex-col justify-between relative overflow-hidden">
+        <div class="relative z-10">
+          <div class="inline-flex items-center gap-2.5 bg-white/15 backdrop-blur-xs px-3.5 py-1.5 rounded-full text-xs font-bold tracking-wider uppercase mb-6">
+            <span class="w-2 h-2 rounded-full bg-emerald-300 animate-ping"></span>
+            FamilyMart Indonesia • FMCU
+          </div>
+          <h1 class="text-2xl sm:text-3xl font-extrabold leading-tight tracking-tight">
+            FMCU VISIT STORE REPORT
+          </h1>
+          <p class="text-white/85 text-sm mt-3 leading-relaxed">
+            Platform terpadu laporan audit kunjungan toko, pemantauan Live GPS Location, Actual In-Out, Analitik Trend Temuan & Toko, serta generator laporan PDF otomatis.
+          </p>
+        </div>
+
+        <div class="space-y-3 my-8 relative z-10 text-xs text-white/90">
+          <div class="flex items-center gap-3 bg-white/10 rounded-xl p-3">
+            <i class="fa-solid fa-location-crosshairs text-lg text-emerald-200"></i>
+            <div>
+              <div class="font-bold">Live Location & Actual In-Out</div>
+              <div class="text-white/75">Validasi titik koordinat GPS aktual & durasi kunjungan auditor</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 bg-white/10 rounded-xl p-3">
+            <i class="fa-solid fa-file-pdf text-lg text-emerald-200"></i>
+            <div>
+              <div class="font-bold">Auto PDF Presentation 16:9</div>
+              <div class="text-white/75">Cetak laporan PDF standar korporat & sinkronisasi ke Google Drive + Email</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 bg-white/10 rounded-xl p-3">
+            <i class="fa-solid fa-chart-line text-lg text-emerald-200"></i>
+            <div>
+              <div class="font-bold">Analitik Performa & Trend Temuan</div>
+              <div class="text-white/75">Pantau efektivitas tim auditor, trend temuan QSC, & ranking toko</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="text-[11px] text-white/70 relative z-10 flex items-center justify-between border-t border-white/15 pt-4">
+          <span>FMCU Digital Audit System v2.5</span>
+          <span>100% Responsive Web App</span>
+        </div>
+      </div>
+
+      <!-- Right Login Form Panel -->
+      <div class="lg:col-span-7 p-6 sm:p-10 flex flex-col justify-center bg-white">
+        <div class="mb-6">
+          <span class="text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">Portal Akses Otoritas</span>
+          <h2 class="text-2xl font-extrabold text-slate-900 mt-2">Masuk ke Akun Anda</h2>
+          <p class="text-xs sm:text-sm text-slate-500 mt-1">Gunakan kredensial sesuai otoritas Anda (Auditor / Regional Bestie / Admin FMCU).</p>
+        </div>
+
+        <form id="login-form" class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Username / Email</label>
+            <div class="relative">
+              <i class="fa-regular fa-user absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+              <input type="text" id="login-username" required placeholder="Contoh: rani atau admin" class="fm-input pl-10" value="rani" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Password / PIN Otoritas</label>
+            <div class="relative">
+              <i class="fa-solid fa-lock absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+              <input type="password" id="login-password" required placeholder="Masukkan password (default: 123)" class="fm-input pl-10" value="123" />
+            </div>
+          </div>
+          <div id="login-error" class="hidden text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg p-2.5"></div>
+          <button type="submit" class="w-full fm-gradient hover:opacity-95 text-white font-bold py-3 px-5 rounded-xl shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 cursor-pointer">
+            <i class="fa-solid fa-right-to-bracket"></i>
+            <span>Masuk ke Sistem FMCU</span>
+          </button>
+        </form>
+
+        <!-- Quick Demo Login Selector -->
+        <div class="mt-7 pt-6 border-t border-slate-100">
+          <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center justify-between">
+            <span>Akses Cepat Demo (Klik Sesuai Otoritas):</span>
+            <span class="text-[11px] font-normal text-slate-400">Password semua akun: 123</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <button type="button" onclick="FMCUApp.quickLogin('rani')" class="text-left p-3 rounded-xl border border-teal-200 bg-teal-50/50 hover:bg-teal-50 transition flex items-center gap-3 cursor-pointer">
+              <div class="w-9 h-9 rounded-full bg-[#0099A6] text-white font-bold flex items-center justify-center shrink-0 text-xs">RI</div>
+              <div class="overflow-hidden">
+                <div class="font-bold text-xs text-slate-900 truncate">Rani Ismawati</div>
+                <div class="text-[11px] text-teal-700 font-medium">Auditor / Regional Bestie</div>
+              </div>
+            </button>
+            <button type="button" onclick="FMCUApp.quickLogin('admin')" class="text-left p-3 rounded-xl border border-emerald-200 bg-emerald-50/50 hover:bg-emerald-50 transition flex items-center gap-3 cursor-pointer">
+              <div class="w-9 h-9 rounded-full bg-[#009944] text-white font-bold flex items-center justify-center shrink-0 text-xs">AD</div>
+              <div class="overflow-hidden">
+                <div class="font-bold text-xs text-slate-900 truncate">Admin FMCU Center</div>
+                <div class="text-[11px] text-emerald-700 font-medium">Super Admin (Full Otoritas)</div>
+              </div>
+            </button>
+            <button type="button" onclick="FMCUApp.quickLogin('variz')" class="text-left p-3 rounded-xl border border-amber-200 bg-amber-50/40 hover:bg-amber-50 transition flex items-center gap-3 cursor-pointer">
+              <div class="w-9 h-9 rounded-full bg-amber-600 text-white font-bold flex items-center justify-center shrink-0 text-xs">VN</div>
+              <div class="overflow-hidden">
+                <div class="font-bold text-xs text-slate-900 truncate">Variz Nurhalifah</div>
+                <div class="text-[11px] text-amber-700 font-medium">Regional Manager (Atur Jadwal)</div>
+              </div>
+            </button>
+            <button type="button" onclick="FMCUApp.quickLogin('budi')" class="text-left p-3 rounded-xl border border-sky-200 bg-sky-50/40 hover:bg-sky-50 transition flex items-center gap-3 cursor-pointer">
+              <div class="w-9 h-9 rounded-full bg-sky-600 text-white font-bold flex items-center justify-center shrink-0 text-xs">BS</div>
+              <div class="overflow-hidden">
+                <div class="font-bold text-xs text-slate-900 truncate">Budi Santoso</div>
+                <div class="text-[11px] text-sky-700 font-medium">FMCU Senior Auditor</div>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       MAIN APPLICATION LAYOUT (Desktop Sidebar + Top Header + Mobile Nav)
+       ==================================================================== -->
+  <div class="flex flex-1 pt-[5px]">
+
+    <!-- DESKTOP SIDEBAR -->
+    <aside class="hidden lg:flex lg:flex-col lg:w-68 lg:fixed lg:inset-y-0 lg:pt-[5px] bg-white border-r border-slate-200 z-30 select-none">
+      <!-- Brand Logo Header -->
+      <div class="px-5 py-5 border-b border-slate-100 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl fm-gradient flex items-center justify-center text-white font-extrabold text-lg shadow-xs">
+          FM
+        </div>
+        <div>
+          <div class="font-extrabold text-sm tracking-tight text-slate-900 leading-none">FMCU VISIT REPORT</div>
+          <div class="text-[11px] font-semibold text-emerald-600 mt-1">Store Audit & Analytics</div>
+        </div>
+      </div>
+
+      <!-- Active Check-In Status Widget in Sidebar -->
+      <div id="sidebar-checkin-widget" class="mx-4 mt-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 hidden">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 gps-pulse"></span>
+            Sedang Visit (Actual In)
+          </span>
+          <span id="sidebar-checkin-time" class="text-[11px] font-bold text-emerald-800">09:12</span>
+        </div>
+        <div id="sidebar-checkin-store" class="font-extrabold text-xs text-slate-900 mt-1 truncate">TAMAN KOTA (0404)</div>
+        <button onclick="FMCUApp.navigate('form')" class="mt-2 w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-lg transition cursor-pointer">
+          Lanjutkan Form Visit →
+        </button>
+      </div>
+
+      <!-- Main Navigation Links (4 Core Pages) -->
+      <nav class="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
+        <div class="px-3 pb-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Menu Navigasi Utama</div>
+
+        <button onclick="FMCUApp.navigate('home')" id="nav-home" class="nav-item active w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
+          <i class="fa-solid fa-chart-pie w-5 text-center text-base text-[#0099A6]"></i>
+          <div>
+            <div class="leading-tight">Home & Analitik</div>
+            <div class="text-[10px] font-normal text-slate-400">Jadwal, History, Trend & Profil</div>
+          </div>
+        </button>
+
+        <button onclick="FMCUApp.navigate('form')" id="nav-form" class="nav-item w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
+          <i class="fa-solid fa-clipboard-check w-5 text-center text-base text-[#009944]"></i>
+          <div>
+            <div class="leading-tight">Form Visit Store</div>
+            <div class="text-[10px] font-normal text-slate-400">Input QSC, Observasi & Bukti Foto</div>
+          </div>
+        </button>
+
+        <button onclick="FMCUApp.navigate('preview')" id="nav-preview" class="nav-item w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
+          <i class="fa-solid fa-file-pdf w-5 text-center text-base text-rose-600"></i>
+          <div>
+            <div class="leading-tight">Preview & Unduh PDF</div>
+            <div class="text-[10px] font-normal text-slate-400">Slide 16:9, Email & Google Drive</div>
+          </div>
+        </button>
+
+        <button onclick="FMCUApp.navigate('admin')" id="nav-admin" class="nav-item w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
+          <i class="fa-solid fa-user-shield w-5 text-center text-base text-amber-600"></i>
+          <div class="flex-1">
+            <div class="leading-tight flex items-center justify-between">
+              <span>Portal Admin</span>
+              <span id="sidebar-admin-lock" class="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">Otoritas</span>
+            </div>
+            <div class="text-[10px] font-normal text-slate-400">Atur Jadwal, Toko, User & GDrive</div>
+          </div>
+        </button>
+
+        <!-- Quick Action Button -->
+        <div class="pt-4 px-2">
+          <button onclick="FMCUApp.startNewVisitModal()" class="w-full fm-gradient hover:opacity-95 text-white font-bold py-2.5 px-4 rounded-xl shadow-xs hover:shadow transition text-xs flex items-center justify-center gap-2 cursor-pointer">
+            <i class="fa-solid fa-plus-circle"></i>
+            <span>Mulai Visit Toko Baru</span>
+          </button>
+        </div>
+      </nav>
+
+      <!-- Live GPS Status Footer in Sidebar -->
+      <div class="p-4 border-t border-slate-100 bg-slate-50/60 space-y-3">
+        <div class="flex items-center justify-between text-xs">
+          <span class="font-bold text-slate-600 flex items-center gap-1.5">
+            <span id="sidebar-gps-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 gps-pulse"></span>
+            Live Location GPS
+          </span>
+          <button onclick="FMCUApp.refreshGpsLocation(true)" class="text-[11px] font-bold text-[#0099A6] hover:underline cursor-pointer">
+            <i class="fa-solid fa-arrows-rotate mr-0.5"></i>Update
+          </button>
+        </div>
+        <div id="sidebar-gps-coords" class="text-[11px] font-mono text-slate-600 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 truncate">
+          -6.15682, 106.75824 (Akurat)
+        </div>
+
+        <!-- User Mini Profile Card -->
+        <div class="flex items-center justify-between pt-1">
+          <div class="flex items-center gap-2.5 overflow-hidden cursor-pointer" onclick="FMCUApp.openProfileModal()">
+            <div id="sidebar-user-avatar" class="w-9 h-9 rounded-full bg-[#0099A6] text-white font-bold text-xs flex items-center justify-center shrink-0">
+              RI
+            </div>
+            <div class="overflow-hidden">
+              <div id="sidebar-user-name" class="font-bold text-xs text-slate-900 truncate">Rani Ismawati</div>
+              <div id="sidebar-user-role" class="text-[10px] font-semibold text-emerald-700 truncate">Regional Bestie / Auditor</div>
+            </div>
+          </div>
+          <button onclick="FMCUApp.logout()" title="Keluar / Ganti Otoritas" class="text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition cursor-pointer">
+            <i class="fa-solid fa-power-off text-sm"></i>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <div class="flex-1 lg:pl-68 flex flex-col min-w-0 pb-20 lg:pb-8">
+
+      <!-- TOP HEADER BAR -->
+      <header class="sticky top-[5px] z-20 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="lg:hidden w-9 h-9 rounded-xl fm-gradient flex items-center justify-center text-white font-extrabold text-sm shrink-0">
+            FM
+          </div>
+          <div class="min-w-0">
+            <h1 id="header-page-title" class="font-extrabold text-sm sm:text-lg text-slate-900 truncate">
+              Dashboard Jadwal, Analitik & History Visit
+            </h1>
+            <p id="header-page-subtitle" class="text-[11px] sm:text-xs text-slate-500 truncate">
+              Pantau jadwal toko, lokasi aktual (Actual In/Out), trend temuan QSC, dan performa auditor
+            </p>
+          </div>
+        </div>
+
+        <!-- Right Header Controls: Live GPS Pill, Role Switcher, Profile -->
+        <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+          <!-- Live GPS Pill -->
+          <button onclick="FMCUApp.refreshGpsLocation(true)" class="hidden md:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold hover:bg-emerald-100 transition cursor-pointer" title="Klik untuk memperbarui titik GPS aktual">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 gps-pulse"></span>
+            <span id="header-gps-text">GPS Aktif: -6.1568, 106.7582</span>
+          </button>
+
+          <!-- Quick Role / Authority Switcher (For Easy Demo & Testing) -->
+          <div class="relative">
+            <select id="header-role-switcher" onchange="FMCUApp.quickLoginById(this.value)" class="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl px-3 py-2 border border-slate-200 focus:outline-none cursor-pointer" title="Ganti Akun / Otoritas Login">
+            </select>
+          </div>
+
+          <!-- Profile Button -->
+          <button onclick="FMCUApp.openProfileModal()" class="flex items-center gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition cursor-pointer">
+            <div id="header-user-avatar" class="w-7 h-7 rounded-full bg-[#0099A6] text-white font-bold text-xs flex items-center justify-center">
+              RI
+            </div>
+            <span id="header-user-name" class="hidden sm:inline font-bold text-xs text-slate-800">Rani Ismawati</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- ==================================================================
+           HALAMAN 1: HOME - JADWAL TOKO, LIVE LOC, ANALITIK & HISTORY VISIT
+           ================================================================== -->
+      <main id="view-home" class="view-section p-4 sm:p-6 max-w-7xl w-full mx-auto space-y-6">
+
+        <!-- Welcome Hero + Active Check-In / Live Location Banner -->
+        <div class="fm-card overflow-hidden">
+          <div class="p-5 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+            <div class="lg:col-span-7 space-y-3">
+              <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold">
+                <i class="fa-solid fa-shield-check"></i>
+                <span id="home-welcome-role">Otoritas: Regional Bestie / Auditor</span>
+              </div>
+              <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900">
+                Selamat Bertugas, <span id="home-welcome-name" class="text-[#0099A6]">Rani Ismawati</span>!
+              </h2>
+              <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                Pastikan Anda menekan tombol <strong>Check-In (Actual In)</strong> saat tiba di lokasi toko untuk merekam waktu kedatangan dan koordinat GPS aktual sebelum mengisi form observasi QSC.
+              </p>
+
+              <!-- Quick Action Buttons -->
+              <div class="pt-2 flex flex-wrap items-center gap-3">
+                <button onclick="FMCUApp.startNewVisitModal()" class="fm-gradient hover:opacity-95 text-white font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm shadow-xs transition flex items-center gap-2 cursor-pointer">
+                  <i class="fa-solid fa-store"></i>
+                  <span>Visit Toko Baru / Check-In Sekarang</span>
+                </button>
+                <button onclick="FMCUApp.navigate('preview')" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm transition flex items-center gap-2 cursor-pointer">
+                  <i class="fa-solid fa-file-pdf text-rose-600"></i>
+                  <span>Lihat Preview PDF Terakhir</span>
+                </button>
+                <button onclick="FMCUApp.openProfileModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3.5 py-2.5 rounded-xl text-xs sm:text-sm transition flex items-center gap-2 cursor-pointer">
+                  <i class="fa-regular fa-id-badge text-[#0099A6]"></i>
+                  <span>Profil & Log Kehadiran</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Live Location & Actual In/Out Status Card -->
+            <div class="lg:col-span-5 bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 gps-pulse"></span>
+                  <span class="font-extrabold text-xs uppercase tracking-wider text-slate-700">Live Location & Actual In/Out</span>
+                </div>
+                <span id="home-gps-status-badge" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                  GPS Terkunci
+                </span>
+              </div>
+
+              <!-- Mini Map Container -->
+              <div id="home-live-map" class="w-full h-36 rounded-xl border border-slate-200 overflow-hidden bg-slate-200"></div>
+
+              <!-- Current Coordinates & Active Check-In Box -->
+              <div class="grid grid-cols-2 gap-2 text-xs">
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="text-[10px] font-bold text-slate-400 uppercase">Titik Koordinat User</div>
+                  <div id="home-gps-latlng" class="font-mono font-bold text-slate-800 mt-0.5 truncate">-6.15682, 106.75824</div>
+                </div>
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="text-[10px] font-bold text-slate-400 uppercase">Status Actual In / Out</div>
+                  <div id="home-checkin-summary" class="font-bold text-emerald-700 mt-0.5 truncate">Siap Check-In Toko</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4 Executive KPI Cards -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="fm-card fm-card-hover p-4 sm:p-5">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Jadwal & Realisasi</span>
+              <div class="w-9 h-9 rounded-xl bg-teal-50 text-[#0099A6] flex items-center justify-center">
+                <i class="fa-solid fa-calendar-check"></i>
+              </div>
+            </div>
+            <div id="kpi-total-visits" class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">3 / 6</div>
+            <div id="kpi-completion-rate" class="text-xs font-semibold text-emerald-600 mt-1">50% Jadwal Selesai</div>
+          </div>
+
+          <div class="fm-card fm-card-hover p-4 sm:p-5">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Temuan QSC</span>
+              <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                <i class="fa-solid fa-magnifying-glass-chart"></i>
+              </div>
+            </div>
+            <div id="kpi-total-findings" class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">9</div>
+            <div id="kpi-open-findings" class="text-xs font-semibold text-amber-600 mt-1">5 Open • 4 Closed</div>
+          </div>
+
+          <div class="fm-card fm-card-hover p-4 sm:p-5">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Avg Durasi Visit</span>
+              <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <i class="fa-regular fa-clock"></i>
+              </div>
+            </div>
+            <div id="kpi-avg-duration" class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">4j 53m</div>
+            <div class="text-xs font-semibold text-slate-500 mt-1">Berdasarkan Actual In - Out</div>
+          </div>
+
+          <div class="fm-card fm-card-hover p-4 sm:p-5">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Rata-rata Skor QSC</span>
+              <div class="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
+                <i class="fa-solid fa-award"></i>
+              </div>
+            </div>
+            <div id="kpi-avg-score" class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">86.3%</div>
+            <div class="text-xs font-semibold text-sky-600 mt-1">Standar Kualitas Toko</div>
+          </div>
+        </div>
+
+        <!-- ==============================================================
+             SECTION: JADWAL TOKO YANG DIMINTA VISIT (SCHEDULE VISIT)
+             ============================================================== -->
+        <div class="fm-card p-5 sm:p-6 space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-5 rounded-full bg-[#009944]"></span>
+                <h3 class="text-base sm:text-lg font-extrabold text-slate-900">Jadwal Toko yang Diminta Visit (Schedule Visit)</h3>
+              </div>
+              <p class="text-xs text-slate-500 mt-0.5">Daftar penugasan kunjungan toko beserta status Check-In (Actual In) & Check-Out (Actual Out)</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <select id="schedule-filter-scope" onchange="FMCUApp.renderHomeSchedules()" class="text-xs font-semibold border border-slate-200 rounded-xl px-3 py-2 bg-slate-50">
+                <option value="ALL">Semua Jadwal Auditor</option>
+                <option value="MINE">Jadwal Saya Saja</option>
+                <option value="PENDING">Status: Belum Visit (Pending)</option>
+                <option value="COMPLETED">Status: Selesai Visit</option>
+              </select>
+              <button onclick="FMCUApp.navigate('admin', 'schedules')" class="text-xs font-bold text-[#0099A6] bg-teal-50 hover:bg-teal-100 px-3 py-2 rounded-xl transition cursor-pointer">
+                <i class="fa-solid fa-calendar-plus mr-1"></i>Atur Jadwal (Admin)
+              </button>
+            </div>
+          </div>
+
+          <!-- Schedule Cards Grid -->
+          <div id="home-schedule-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          </div>
+        </div>
+
+        <!-- ==============================================================
+             SECTION: ANALITIK DASHBOARD (TREND TEMUAN, TREND TOKO, PERFORMA USER)
+             ============================================================== -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <!-- Chart 1: Trend Temuan Observasi -->
+          <div class="lg:col-span-6 fm-card p-5 sm:p-6 flex flex-col justify-between">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+              <div>
+                <h3 class="font-extrabold text-sm sm:text-base text-slate-900 flex items-center gap-2">
+                  <i class="fa-solid fa-chart-pie text-[#0099A6]"></i>
+                  <span>Trend Temuan Observasi QSC</span>
+                </h3>
+                <p class="text-xs text-slate-500">Distribusi kategori temuan terbanyak di seluruh toko</p>
+              </div>
+              <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-teal-50 text-[#0099A6]">Real-time Data</span>
+            </div>
+            <div class="h-64 flex items-center justify-center relative">
+              <canvas id="chart-trend-findings"></canvas>
+            </div>
+            <div id="trend-findings-legend" class="mt-4 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs"></div>
+          </div>
+
+          <!-- Chart 2: Trend Toko (Temuan & Skor QSC per Toko) -->
+          <div class="lg:col-span-6 fm-card p-5 sm:p-6 flex flex-col justify-between">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+              <div>
+                <h3 class="font-extrabold text-sm sm:text-base text-slate-900 flex items-center gap-2">
+                  <i class="fa-solid fa-store text-[#009944]"></i>
+                  <span>Trend Toko (Jumlah Temuan vs Skor QSC)</span>
+                </h3>
+                <p class="text-xs text-slate-500">Perbandingan hasil observasi dan kepatuhan standar tiap toko</p>
+              </div>
+              <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700">Performa Toko</span>
+            </div>
+            <div class="h-64 flex items-center justify-center relative">
+              <canvas id="chart-trend-stores"></canvas>
+            </div>
+            <div id="trend-stores-summary" class="mt-4 pt-3 border-t border-slate-100 grid grid-cols-3 gap-2 text-xs"></div>
+          </div>
+        </div>
+
+        <!-- Analitik Performa & Aktivitas User (Auditor KPI + Live Location + Actual In/Out) -->
+        <div class="fm-card p-5 sm:p-6 space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+            <div>
+              <h3 class="font-extrabold text-base text-slate-900 flex items-center gap-2">
+                <i class="fa-solid fa-users-gear text-[#0099A6]"></i>
+                <span>Analitik Performa & Aktivitas User (Live Location & Actual In/Out)</span>
+              </h3>
+              <p class="text-xs text-slate-500">Rekap produktivitas auditor, ketepatan jadwal visit, rata-rata waktu kunjungan, dan posisi GPS terkini</p>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs sm:text-sm">
+              <thead>
+                <tr class="bg-slate-50 text-slate-600 border-y border-slate-200 text-[11px] uppercase tracking-wider">
+                  <th class="py-3 px-4 font-bold">Nama User / Auditor</th>
+                  <th class="py-3 px-4 font-bold">Role & Region</th>
+                  <th class="py-3 px-4 font-bold text-center">Target Jadwal</th>
+                  <th class="py-3 px-4 font-bold text-center">Visit Selesai</th>
+                  <th class="py-3 px-4 font-bold text-center">Total Temuan</th>
+                  <th class="py-3 px-4 font-bold">Live Location Terakhir</th>
+                  <th class="py-3 px-4 font-bold text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody id="home-user-analytics-tbody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ==============================================================
+             SECTION: HISTORY VISIT (RIWAYAT LAPORAN KUNJUNGAN TOKO)
+             ============================================================== -->
+        <div class="fm-card p-5 sm:p-6 space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-5 rounded-full bg-[#0099A6]"></span>
+                <h3 class="text-base sm:text-lg font-extrabold text-slate-900">History Visit & Arsip Laporan PDF</h3>
+              </div>
+              <p class="text-xs text-slate-500 mt-0.5">Riwayat kunjungan yang telah selesai beserta akses cepat Preview Slide 16:9, Unduh PDF, dan Kirim Email/GDrive</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" id="history-search-input" oninput="FMCUApp.renderHomeHistory()" placeholder="Cari toko / auditor..." class="fm-input pl-8 py-1.5 text-xs w-48 sm:w-60" />
+              </div>
+            </div>
+          </div>
+
+          <div id="home-history-list" class="space-y-3"></div>
+        </div>
+
+      </main>
+
+      <!-- ==================================================================
+           HALAMAN 2: FORM VISIT STORE (MULTI-SECTION AUDIT FORM)
+           ================================================================== -->
+      <main id="view-form" class="view-section p-4 sm:p-6 max-w-6xl w-full mx-auto space-y-6 hidden">
+
+        <!-- Sticky Top Live Check-In (Actual In / Out & GPS) Bar -->
+        <div class="fm-card p-4 sm:p-5 bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white shadow-lg">
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="px-2.5 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                  Form Audit Kunjungan Toko Aktif
+                </span>
+                <span id="form-banner-store-badge" class="text-xs font-bold text-teal-200">Kode Toko: 0404</span>
+              </div>
+              <h2 id="form-banner-title" class="text-lg sm:text-xl font-extrabold tracking-tight">
+                FMCU Visit Store Report — TAMAN KOTA
+              </h2>
+              <div id="form-banner-gps" class="text-xs text-slate-300 font-mono flex items-center gap-2">
+                <i class="fa-solid fa-location-dot text-emerald-400"></i>
+                <span>Live GPS: -6.15682, 106.75824 (Terverifikasi)</span>
+              </div>
+            </div>
+
+            <!-- Actual In & Actual Out Time Recorder -->
+            <div class="flex flex-wrap items-center gap-3">
+              <div class="bg-white/10 backdrop-blur-xs border border-white/15 rounded-xl px-3.5 py-2">
+                <div class="text-[10px] uppercase tracking-wider text-emerald-300 font-bold">Actual In (Check-In)</div>
+                <div class="flex items-center gap-2 mt-0.5">
+                  <input type="text" id="form-actual-in" class="bg-transparent font-extrabold text-sm text-white w-24 focus:outline-none border-b border-transparent focus:border-emerald-300" value="09:12 WIB" />
+                  <button type="button" onclick="FMCUApp.stampActualTime('in')" title="Catat Jam Sekarang sebagai Actual In" class="text-[10px] bg-emerald-500/30 hover:bg-emerald-500/50 px-2 py-0.5 rounded text-emerald-100 font-bold cursor-pointer">
+                    Set Jam Kini
+                  </button>
+                </div>
+              </div>
+
+              <div class="bg-white/10 backdrop-blur-xs border border-white/15 rounded-xl px-3.5 py-2">
+                <div class="text-[10px] uppercase tracking-wider text-amber-300 font-bold">Actual Out (Check-Out)</div>
+                <div class="flex items-center gap-2 mt-0.5">
+                  <input type="text" id="form-actual-out" class="bg-transparent font-extrabold text-sm text-white w-24 focus:outline-none border-b border-transparent focus:border-amber-300" value="14:35 WIB" />
+                  <button type="button" onclick="FMCUApp.stampActualTime('out')" title="Catat Jam Sekarang sebagai Actual Out" class="text-[10px] bg-amber-500/30 hover:bg-amber-500/50 px-2 py-0.5 rounded text-amber-100 font-bold cursor-pointer">
+                    Set Jam Kini
+                  </button>
+                </div>
+              </div>
+
+              <button type="button" onclick="FMCUApp.loadSampleTamanKotaToForm()" class="bg-white/15 hover:bg-white/25 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl border border-white/20 transition cursor-pointer" title="Isi otomatis dengan data contoh Taman Kota sesuai file PDF">
+                <i class="fa-solid fa-wand-magic-sparkles mr-1 text-amber-300"></i>Muat Data Contoh PDF
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <form id="visit-report-form" onsubmit="FMCUApp.handleSaveAndPreview(event)" class="space-y-6">
+          <input type="hidden" id="form-report-id" value="" />
+          <input type="hidden" id="form-schedule-id" value="" />
+
+          <!-- ============================================================
+               SECTION 1: GENERAL INFORMATION & TIM STORE ON DUTY
+               ============================================================ -->
+          <div class="fm-card p-5 sm:p-6 space-y-5">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-xl fm-gradient text-white font-extrabold text-sm flex items-center justify-center">1</div>
+                <div>
+                  <h3 class="font-extrabold text-base sm:text-lg text-slate-900">Section 1: General Information & Data Toko</h3>
+                  <p class="text-xs text-slate-500">Informasi identitas toko, auditor, tanggal kunjungan, dan daftar tim store yang bertugas (Halaman 1 & 3 PDF)</p>
+                </div>
+              </div>
+              <span class="text-xs font-bold text-[#0099A6] bg-teal-50 px-3 py-1 rounded-full">Slide 1 & 3</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Pilih Toko dari Master Data</label>
+                <select id="form-store-select" onchange="FMCUApp.onSelectMasterStore(this.value)" class="fm-input font-semibold">
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Store *</label>
+                <input type="text" id="form-store-name" required placeholder="Contoh: TAMAN KOTA" class="fm-input font-bold" />
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Kode Toko *</label>
+                  <input type="text" id="form-store-code" required placeholder="0404" class="fm-input font-mono font-bold" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tipe Toko *</label>
+                  <select id="form-store-type" class="fm-input font-semibold">
+                    <option value="CVS">CVS</option>
+                    <option value="FC">FC (FamiCafe)</option>
+                    <option value="KIOSK">KIOSK</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Auditor / Regional Bestie *</label>
+                <input type="text" id="form-auditor-name" required placeholder="Rani Ismawati" class="fm-input" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tanggal Visit *</label>
+                <input type="date" id="form-visit-date" required class="fm-input" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Skor QSC / FamiTrack (0-100)</label>
+                <input type="number" id="form-qsc-score" min="0" max="100" value="84" class="fm-input font-bold text-emerald-700" />
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Store Head *</label>
+                <input type="text" id="form-store-head" required placeholder="Fauzan Muhammad Alvizan" class="fm-input" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Area Manager *</label>
+                <input type="text" id="form-area-manager" required placeholder="Muhamad Ismail" class="fm-input" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Regional Manager *</label>
+                <input type="text" id="form-regional-manager" required placeholder="Variz Nurhalifah" class="fm-input" />
+              </div>
+            </div>
+
+            <!-- Tabel Crew Store on Duty (General Information Slide 3) -->
+            <div class="pt-3 border-t border-slate-100 space-y-3">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h4 class="font-extrabold text-sm text-slate-800">Tabel Tim Store Bertugas (General Information - Slide 3 PDF)</h4>
+                  <p class="text-xs text-slate-500">Daftar Store Head, Shift Leader, dan Crew Store beserta Job Level (NS1, MG1, MG3, dll.)</p>
+                </div>
+                <button type="button" onclick="FMCUApp.addCrewRow()" class="text-xs font-bold bg-teal-50 hover:bg-teal-100 text-[#0099A6] px-3 py-1.5 rounded-xl transition cursor-pointer">
+                  <i class="fa-solid fa-plus mr-1"></i>Tambah Crew
+                </button>
+              </div>
+
+              <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                <table class="w-full text-left border-collapse text-xs sm:text-sm">
+                  <thead>
+                    <tr class="bg-[#0099A6] text-white">
+                      <th class="py-2.5 px-3 font-bold w-1/4">Role Jabatan</th>
+                      <th class="py-2.5 px-3 font-bold w-1/2">Nama Lengkap</th>
+                      <th class="py-2.5 px-3 font-bold w-1/6">Job Level</th>
+                      <th class="py-2.5 px-3 font-bold text-center w-12">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="form-crew-tbody" class="divide-y divide-slate-200"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ============================================================
+               SECTION 2: EVIDENCE FORM QSC / FAMITRACK RESULT (SLIDE 2 PDF)
+               ============================================================ -->
+          <div class="fm-card p-5 sm:p-6 space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-xl fm-gradient text-white font-extrabold text-sm flex items-center justify-center">2</div>
+                <div>
+                  <h3 class="font-extrabold text-base sm:text-lg text-slate-900">Section 2: Evidence Form QSC / FamiTrack Result</h3>
+                  <p class="text-xs text-slate-500">Unggah foto lembar fisik form checklist QSC / FamiTrack yang telah dinilai (Tampil di Halaman 2 PDF)</p>
+                </div>
+              </div>
+              <button type="button" onclick="FMCUApp.addQscPhotoSlot()" class="text-xs font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-3 py-2 rounded-xl transition cursor-pointer self-start sm:self-auto">
+                <i class="fa-solid fa-camera mr-1"></i>+ Tambah Slot Foto QSC
+              </button>
+            </div>
+
+            <div id="form-qsc-photos-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+          </div>
+
+          <!-- ============================================================
+               SECTION 3: QSC OBSERVATION (TEMUAN, KONDISI IDEAL, PENYEBAB, DAMPAK, TINDAKAN, HASIL, DEADLINE)
+               ============================================================ -->
+          <div class="fm-card p-5 sm:p-6 space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-xl fm-gradient text-white font-extrabold text-sm flex items-center justify-center">3</div>
+                <div>
+                  <h3 class="font-extrabold text-base sm:text-lg text-slate-900">Section 3: QSC Observation (Findings & Root Cause Analysis)</h3>
+                  <p class="text-xs text-slate-500">Detail Temuan, Kondisi Ideal, Penyebab, Dampak, Tindakan Perbaikan, Hasil, dan Deadline Perbaikan (Halaman 5-6 PDF)</p>
+                </div>
+              </div>
+              <button type="button" onclick="FMCUApp.addObservationCard()" class="fm-gradient hover:opacity-95 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-xs transition cursor-pointer self-start sm:self-auto">
+                <i class="fa-solid fa-plus-circle mr-1"></i>Tambah Temuan Observasi
+              </button>
+            </div>
+
+            <div id="form-observations-list" class="space-y-4"></div>
+          </div>
+
+          <!-- ============================================================
+               SECTION 4: FINDING EVIDENCE PHOTOS (SLIDE 8-9 PDF)
+               ============================================================ -->
+          <div class="fm-card p-5 sm:p-6 space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-xl fm-gradient text-white font-extrabold text-sm flex items-center justify-center">4</div>
+                <div>
+                  <h3 class="font-extrabold text-base sm:text-lg text-slate-900">Section 4: Finding Evidence - Evidence Photos</h3>
+                  <p class="text-xs text-slate-500">Foto bukti temuan di lapangan dengan Watermark GPS & Timestamp Toko otomatis + deskripsi temuan (Halaman 8-9 PDF, 6 foto/halaman)</p>
+                </div>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <label class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-slate-100 px-3 py-2 rounded-xl cursor-pointer">
+                  <input type="checkbox" id="form-watermark-toggle" checked class="rounded text-emerald-600" />
+                  <span>Auto-Watermark Toko & GPS</span>
+                </label>
+                <label class="bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs px-3.5 py-2 rounded-xl transition cursor-pointer inline-flex items-center gap-1.5">
+                  <i class="fa-solid fa-images"></i>
+                  <span>Upload Banyak Foto Sekaligus</span>
+                  <input type="file" accept="image/*" multiple onchange="FMCUApp.handleBulkEvidenceUpload(event)" class="hidden" />
+                </label>
+                <button type="button" onclick="FMCUApp.addEvidencePhotoCard()" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs px-3.5 py-2 rounded-xl transition cursor-pointer">
+                  <i class="fa-solid fa-plus mr-1"></i>+ 1 Kartu Bukti
+                </button>
+              </div>
+            </div>
+
+            <div id="form-evidence-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+          </div>
+
+          <!-- ============================================================
+               SECTION 5: STORE ASSIGNMENT, EMAIL & GOOGLE DRIVE INTEGRATION
+               ============================================================ -->
+          <div class="fm-card p-5 sm:p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-xl fm-gradient text-white font-extrabold text-sm flex items-center justify-center">5</div>
+                <div>
+                  <h3 class="font-extrabold text-base sm:text-lg text-slate-900">Section 5: Store Assignment & Integrasi Pengiriman</h3>
+                  <p class="text-xs text-slate-500">Tautan form Corrective Action toko serta pengiriman otomatis ke Email & Folder Rekap PDF Google Drive</p>
+                </div>
+              </div>
+              <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full">Slide 10 & 11</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Link Form Corrective Action (Mekanisme Pelaporan)</label>
+                <input type="url" id="form-ca-link" value="https://tinyurl.com/store-caassignment" class="fm-input font-semibold text-[#0099A6]" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Email Tujuan Toko & Terusan (AM, RM, FMCU)</label>
+                <input type="text" id="form-store-email" placeholder="tamankota.0404@familymart.co.id, fmcu@familymart.co.id" class="fm-input" />
+              </div>
+            </div>
+
+            <!-- Action Buttons Bar -->
+            <div class="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+              <button type="button" onclick="FMCUApp.navigate('home')" class="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs sm:text-sm hover:bg-slate-50 transition cursor-pointer">
+                <i class="fa-solid fa-arrow-left mr-1.5"></i>Kembali ke Dashboard
+              </button>
+
+              <div class="flex flex-wrap items-center gap-3">
+                <button type="submit" class="bg-slate-900 hover:bg-slate-800 text-white font-bold px-5 py-3 rounded-xl text-xs sm:text-sm shadow-md transition flex items-center gap-2 cursor-pointer">
+                  <i class="fa-solid fa-eye text-teal-400"></i>
+                  <span>Simpan & Preview Hasil PDF (16:9)</span>
+                </button>
+
+                <button type="button" onclick="FMCUApp.handleSaveAndSendIntegration()" class="fm-gradient hover:opacity-95 text-white font-bold px-5 py-3 rounded-xl text-xs sm:text-sm shadow-md transition flex items-center gap-2 cursor-pointer">
+                  <i class="fa-solid fa-paper-plane"></i>
+                  <span>Check-Out & Kirim ke Email + Google Drive</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </form>
+      </main>
+
+      <!-- ==================================================================
+           HALAMAN 3: PREVIEW HASIL PDF & DOWNLOAD PDF
+           ================================================================== -->
+      <main id="view-preview" class="view-section p-4 sm:p-6 max-w-7xl w-full mx-auto space-y-6 hidden">
+
+        <!-- Top PDF Control Bar -->
+        <div class="fm-card p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div class="w-11 h-11 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-xl shrink-0">
+              <i class="fa-solid fa-file-pdf"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="font-extrabold text-base sm:text-lg text-slate-900">Preview Hasil PDF & Download Laporan</h2>
+                <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-teal-50 text-[#0099A6]">Format 16:9 Landscape</span>
+              </div>
+              <div class="flex items-center gap-2 mt-1">
+                <label class="text-xs font-bold text-slate-500">Pilih Laporan:</label>
+                <select id="preview-report-selector" onchange="FMCUApp.onChangePreviewReport(this.value)" class="text-xs font-bold border border-slate-300 rounded-lg px-2.5 py-1 bg-white text-slate-800">
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2.5">
+            <!-- View Mode Toggle -->
+            <div class="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200">
+              <button type="button" id="btn-mode-slide" onclick="FMCUApp.setPreviewMode('slide')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-900 shadow-2xs transition cursor-pointer">
+                <i class="fa-solid fa-display mr-1 text-[#0099A6]"></i>Slide Interaktif
+              </button>
+              <button type="button" id="btn-mode-grid" onclick="FMCUApp.setPreviewMode('grid')" class="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition cursor-pointer">
+                <i class="fa-solid fa-grip mr-1"></i>Semua Halaman
+              </button>
+            </div>
+
+            <button type="button" onclick="FMCUApp.editCurrentPreviewReport()" class="px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs transition cursor-pointer">
+              <i class="fa-solid fa-pen-to-square mr-1"></i>Edit Form
+            </button>
+
+            <button type="button" onclick="FMCUApp.openIntegrationSendModal()" class="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer">
+              <i class="fa-brands fa-google-drive"></i>
+              <span>Kirim Email & Rekap GDrive</span>
+            </button>
+
+            <button type="button" onclick="FMCUApp.downloadCurrentPreviewPdf()" class="fm-gradient hover:opacity-95 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm shadow-md transition flex items-center gap-2 cursor-pointer">
+              <i class="fa-solid fa-download"></i>
+              <span>Download PDF</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Mode 1: Interactive Single Slide Deck Viewer -->
+        <div id="preview-slide-mode-container" class="space-y-4">
+          <div class="flex items-center justify-between bg-slate-900 text-white px-4 py-2.5 rounded-xl">
+            <div class="flex items-center gap-2">
+              <span id="preview-slide-counter" class="text-xs font-extrabold bg-[#0099A6] px-2.5 py-1 rounded-md">Halaman 1 / 11</span>
+              <span id="preview-slide-title" class="text-xs sm:text-sm font-semibold text-slate-200">Cover - FMCU Visit Store Report</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="FMCUApp.prevSlide()" class="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold transition cursor-pointer">
+                <i class="fa-solid fa-chevron-left mr-1"></i>Sebelumnya
+              </button>
+              <button type="button" onclick="FMCUApp.nextSlide()" class="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold transition cursor-pointer">
+                Selanjutnya<i class="fa-solid fa-chevron-right ml-1"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Active 16:9 Slide Stage -->
+          <div class="max-w-5xl mx-auto">
+            <div class="pdf-slide-wrapper">
+              <div id="preview-active-slide-stage" class="pdf-slide-canvas"></div>
+            </div>
+          </div>
+
+          <!-- Thumbnail Strip -->
+          <div id="preview-thumbnails-strip" class="flex items-center gap-3 overflow-x-auto py-2 px-1"></div>
+        </div>
+
+        <!-- Mode 2: All Slides Grid View -->
+        <div id="preview-grid-mode-container" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+
+      </main>
+
+      <!-- ==================================================================
+           HALAMAN 4: HALAMAN KHUSUS ADMIN & OTORITAS KHUSUS
+           ================================================================== -->
+      <main id="view-admin" class="view-section p-4 sm:p-6 max-w-7xl w-full mx-auto space-y-6 hidden">
+
+        <!-- ADMIN GATE (Shown when current user does not have Admin authority) -->
+        <div id="admin-authority-gate" class="max-w-lg mx-auto my-8 fm-card p-6 sm:p-8 text-center space-y-5 hidden">
+          <div class="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center text-2xl mx-auto">
+            <i class="fa-solid fa-user-lock"></i>
+          </div>
+          <div>
+            <span class="text-[11px] font-extrabold uppercase tracking-wider px-3 py-1 rounded-full bg-amber-100 text-amber-800">Area Terbatas • Otoritas Khusus Admin</span>
+            <h2 class="text-xl font-extrabold text-slate-900 mt-3">Verifikasi Otoritas Admin FMCU</h2>
+            <p class="text-xs sm:text-sm text-slate-500 mt-1">
+              Halaman ini dikhususkan bagi <strong>Super Admin FMCU</strong> atau <strong>Admin Jadwal (Regional Manager)</strong> untuk mengatur jadwal visit, master toko, manajemen user, dan integrasi Google Drive.
+            </p>
+          </div>
+
+          <form onsubmit="FMCUApp.handleAdminGateLogin(event)" class="space-y-3 text-left">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Username Admin</label>
+              <input type="text" id="gate-admin-username" value="admin" required class="fm-input" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Password / Kode Otoritas Admin</label>
+              <input type="password" id="gate-admin-password" value="123" required class="fm-input" />
+            </div>
+            <button type="submit" class="w-full fm-gradient text-white font-bold py-3 rounded-xl shadow-md hover:opacity-95 transition cursor-pointer">
+              <i class="fa-solid fa-unlock-keyhole mr-1.5"></i>Buka Panel Otoritas Admin
+            </button>
+          </form>
+        </div>
+
+        <!-- ADMIN DASHBOARD CONTENT (Shown when user has Admin authority) -->
+        <div id="admin-panel-content" class="space-y-6">
+
+          <!-- Admin Header & Sub-Navigation Tabs -->
+          <div class="fm-card p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div class="flex items-center gap-3.5">
+              <div class="w-12 h-12 rounded-2xl fm-gradient text-white flex items-center justify-center text-xl shadow-xs shrink-0">
+                <i class="fa-solid fa-sliders"></i>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h2 class="font-extrabold text-lg text-slate-900">Control Center Admin FMCU</h2>
+                  <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">Full Authority</span>
+                </div>
+                <p class="text-xs text-slate-500">Kelola jadwal kunjungan auditor, database master toko, otoritas login user, dan integrasi otomatis Email & Google Drive</p>
+              </div>
+            </div>
+
+            <!-- Admin Tabs -->
+            <div class="flex flex-wrap items-center gap-2">
+              <button type="button" onclick="FMCUApp.switchAdminTab('schedules')" id="admin-tab-btn-schedules" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#009944] text-white transition cursor-pointer">
+                <i class="fa-solid fa-calendar-days mr-1.5"></i>1. Atur Jadwal Visit
+              </button>
+              <button type="button" onclick="FMCUApp.switchAdminTab('stores')" id="admin-tab-btn-stores" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer">
+                <i class="fa-solid fa-store mr-1.5"></i>2. Master Toko
+              </button>
+              <button type="button" onclick="FMCUApp.switchAdminTab('users')" id="admin-tab-btn-users" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer">
+                <i class="fa-solid fa-users-gear mr-1.5"></i>3. User & Otoritas Login
+              </button>
+              <button type="button" onclick="FMCUApp.switchAdminTab('integrations')" id="admin-tab-btn-integrations" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer">
+                <i class="fa-brands fa-google-drive mr-1.5"></i>4. Integrasi Email & GDrive
+              </button>
+            </div>
+          </div>
+
+          <!-- ADMIN TAB 1: ATUR JADWAL VISIT -->
+          <div id="admin-tab-schedules" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="lg:col-span-4 fm-card p-5 space-y-4 self-start">
+              <h3 class="font-extrabold text-base text-slate-900 border-b border-slate-100 pb-3">
+                <i class="fa-solid fa-calendar-plus text-[#009944] mr-1.5"></i>Buat / Assign Jadwal Visit Baru
+              </h3>
+              <form id="admin-schedule-form" onsubmit="FMCUApp.handleSaveSchedule(event)" class="space-y-3">
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Pilih Toko *</label>
+                  <select id="adm-sch-store" required class="fm-input"></select>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Assign ke Auditor *</label>
+                  <select id="adm-sch-auditor" required class="fm-input"></select>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tanggal Target *</label>
+                    <input type="date" id="adm-sch-date" required class="fm-input" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Prioritas</label>
+                    <select id="adm-sch-priority" class="fm-input">
+                      <option value="HIGH">HIGH (Prioritas Utama)</option>
+                      <option value="NORMAL" selected>NORMAL (Rutin)</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Jam Operasional Visit</label>
+                  <input type="text" id="adm-sch-window" value="09:00 - 15:00 WIB" class="fm-input" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Fokus Audit / Catatan Admin</label>
+                  <textarea id="adm-sch-focus" rows="2" placeholder="Contoh: Audit QSC, cek rotasi FEFO thawing & kebersihan toilet" class="fm-input"></textarea>
+                </div>
+                <button type="submit" class="w-full fm-gradient text-white font-bold py-2.5 rounded-xl shadow-xs hover:opacity-95 transition text-xs sm:text-sm cursor-pointer">
+                  <i class="fa-solid fa-check mr-1"></i>Simpan & Tugaskan Jadwal Visit
+                </button>
+              </form>
+            </div>
+
+            <div class="lg:col-span-8 fm-card p-5 space-y-4">
+              <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="font-extrabold text-base text-slate-900">Daftar Seluruh Jadwal Visit Toko</h3>
+                <span id="admin-schedule-count" class="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">0 Jadwal</span>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr class="bg-slate-50 text-slate-600 border-y border-slate-200 uppercase">
+                      <th class="py-2.5 px-3">Tanggal</th>
+                      <th class="py-2.5 px-3">Toko</th>
+                      <th class="py-2.5 px-3">Auditor</th>
+                      <th class="py-2.5 px-3">Actual In / Out</th>
+                      <th class="py-2.5 px-3">Status</th>
+                      <th class="py-2.5 px-3 text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-schedules-tbody" class="divide-y divide-slate-100"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ADMIN TAB 2: MASTER DATA TOKO -->
+          <div id="admin-tab-stores" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="lg:col-span-4 fm-card p-5 space-y-4 self-start">
+              <h3 class="font-extrabold text-base text-slate-900 border-b border-slate-100 pb-3">
+                <i class="fa-solid fa-store text-[#0099A6] mr-1.5"></i>Tambah / Edit Master Toko
+              </h3>
+              <form id="admin-store-form" onsubmit="FMCUApp.handleSaveStore(event)" class="space-y-3">
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Kode Toko *</label>
+                    <input type="text" id="adm-st-code" required placeholder="0812" class="fm-input font-mono" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tipe Toko *</label>
+                    <select id="adm-st-type" class="fm-input">
+                      <option value="CVS">CVS</option>
+                      <option value="FC">FC</option>
+                      <option value="KIOSK">KIOSK</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Toko *</label>
+                  <input type="text" id="adm-st-name" required placeholder="KEMANG RAYA" class="fm-input uppercase" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Store Head *</label>
+                  <input type="text" id="adm-st-head" required placeholder="Nama Store Head" class="fm-input" />
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Area Manager *</label>
+                    <input type="text" id="adm-st-am" required placeholder="Muhamad Ismail" class="fm-input" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Regional Manager *</label>
+                    <input type="text" id="adm-st-rm" required placeholder="Variz Nurhalifah" class="fm-input" />
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Email Resmi Toko</label>
+                  <input type="email" id="adm-st-email" placeholder="store@familymart.co.id" class="fm-input" />
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Latitude GPS</label>
+                    <input type="number" step="any" id="adm-st-lat" value="-6.2000" class="fm-input font-mono" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Longitude GPS</label>
+                    <input type="number" step="any" id="adm-st-lng" value="106.8166" class="fm-input font-mono" />
+                  </div>
+                </div>
+                <button type="submit" class="w-full fm-gradient text-white font-bold py-2.5 rounded-xl shadow-xs hover:opacity-95 transition text-xs sm:text-sm cursor-pointer">
+                  <i class="fa-solid fa-floppy-disk mr-1"></i>Simpan Master Toko
+                </button>
+              </form>
+            </div>
+
+            <div class="lg:col-span-8 fm-card p-5 space-y-4">
+              <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="font-extrabold text-base text-slate-900">Database Master Toko FamilyMart</h3>
+                <span id="admin-store-count" class="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">0 Toko</span>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr class="bg-slate-50 text-slate-600 border-y border-slate-200 uppercase">
+                      <th class="py-2.5 px-3">Kode</th>
+                      <th class="py-2.5 px-3">Nama Toko</th>
+                      <th class="py-2.5 px-3">Tipe</th>
+                      <th class="py-2.5 px-3">Store Head</th>
+                      <th class="py-2.5 px-3">AM / RM</th>
+                      <th class="py-2.5 px-3 text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-stores-tbody" class="divide-y divide-slate-100"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ADMIN TAB 3: USER MANAGEMENT & OTORITAS LOGIN -->
+          <div id="admin-tab-users" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="lg:col-span-4 fm-card p-5 space-y-4 self-start">
+              <h3 class="font-extrabold text-base text-slate-900 border-b border-slate-100 pb-3">
+                <i class="fa-solid fa-user-plus text-[#009944] mr-1.5"></i>Tambah User & Otoritas Login
+              </h3>
+              <form id="admin-user-form" onsubmit="FMCUApp.handleSaveUser(event)" class="space-y-3">
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Lengkap *</label>
+                  <input type="text" id="adm-usr-name" required placeholder="Nama Auditor / Admin" class="fm-input" />
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Username Login *</label>
+                    <input type="text" id="adm-usr-username" required placeholder="username" class="fm-input font-mono" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Password *</label>
+                    <input type="text" id="adm-usr-password" required value="123" class="fm-input font-mono" />
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Level Otoritas Utama *</label>
+                  <select id="adm-usr-role" class="fm-input font-semibold">
+                    <option value="AUDITOR">AUDITOR (Regional Bestie / Trainer)</option>
+                    <option value="ADMIN_SCHEDULE">ADMIN JADWAL (Regional / Area Manager)</option>
+                    <option value="SUPER_ADMIN">SUPER ADMIN FMCU (Full Akses)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Region / Area Tugas</label>
+                  <input type="text" id="adm-usr-region" placeholder="Regional 1 - Jakarta Barat" class="fm-input" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Email Resmi</label>
+                  <input type="email" id="adm-usr-email" placeholder="nama@familymart.co.id" class="fm-input" />
+                </div>
+
+                <!-- Granular Authority Checkboxes -->
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5">
+                  <div class="text-[11px] font-extrabold text-slate-600 uppercase">Hak Akses Otoritas Spesifik:</div>
+                  <label class="flex items-center gap-2 text-xs"><input type="checkbox" name="adm-auth" value="create_visit" checked /> Buat & Edit Form Visit</label>
+                  <label class="flex items-center gap-2 text-xs"><input type="checkbox" name="adm-auth" value="view_analytics" checked /> Akses Dashboard Analitik</label>
+                  <label class="flex items-center gap-2 text-xs"><input type="checkbox" name="adm-auth" value="manage_schedule" /> Atur Jadwal & Assign Toko</label>
+                  <label class="flex items-center gap-2 text-xs"><input type="checkbox" name="adm-auth" value="manage_stores" /> Kelola Master Data Toko</label>
+                  <label class="flex items-center gap-2 text-xs"><input type="checkbox" name="adm-auth" value="manage_users" /> Kelola User & Otoritas</label>
+                </div>
+
+                <button type="submit" class="w-full fm-gradient text-white font-bold py-2.5 rounded-xl shadow-xs hover:opacity-95 transition text-xs sm:text-sm cursor-pointer">
+                  <i class="fa-solid fa-user-check mr-1"></i>Simpan User & Otoritas
+                </button>
+              </form>
+            </div>
+
+            <div class="lg:col-span-8 fm-card p-5 space-y-4">
+              <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="font-extrabold text-base text-slate-900">Daftar Akun User, Otoritas & Live Location</h3>
+                <button type="button" onclick="FMCUApp.resetDemoDataConfirm()" class="text-xs font-bold text-rose-600 hover:underline cursor-pointer">
+                  <i class="fa-solid fa-rotate-left mr-1"></i>Reset Data Default
+                </button>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr class="bg-slate-50 text-slate-600 border-y border-slate-200 uppercase">
+                      <th class="py-2.5 px-3">Nama & Username</th>
+                      <th class="py-2.5 px-3">Role Otoritas</th>
+                      <th class="py-2.5 px-3">Hak Akses</th>
+                      <th class="py-2.5 px-3">Live GPS Terakhir</th>
+                      <th class="py-2.5 px-3 text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-users-tbody" class="divide-y divide-slate-100"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ADMIN TAB 4: INTEGRASI EMAIL & FOLDER GOOGLE DRIVE -->
+          <div id="admin-tab-integrations" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="lg:col-span-6 fm-card p-5 sm:p-6 space-y-4">
+              <h3 class="font-extrabold text-base text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
+                <i class="fa-brands fa-google-drive text-[#009944]"></i>
+                <span>Konfigurasi Integrasi Email, Folder Google Drive & Branding PDF</span>
+              </h3>
+
+              <form onsubmit="FMCUApp.handleSaveIntegrationSettings(event)" class="space-y-4">
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Judul Utama Output PDF</label>
+                  <input type="text" id="set-report-title" value="FMCU Visit Store Report" class="fm-input font-bold" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Teks Footer Watermark PDF</label>
+                  <input type="text" id="set-footer-text" value="GENERATED BY FMCU VISIT WEB REPORT" class="fm-input font-mono text-xs" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Link Default Mekanisme Pelaporan (Corrective Action)</label>
+                  <input type="url" id="set-ca-link" value="https://tinyurl.com/store-caassignment" class="fm-input" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">ID / URL Folder Google Drive Rekap PDF</label>
+                  <input type="text" id="set-gdrive-folder" placeholder="Masukkan Folder ID Google Drive tujuan upload PDF" class="fm-input font-mono text-xs" />
+                  <p class="text-[11px] text-slate-400 mt-1">Seluruh PDF hasil visit yang dikirim akan otomatis tersimpan di folder Google Drive ini.</p>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Daftar Email CC Otomatis (RM, AM, FMCU)</label>
+                  <input type="text" id="set-cc-emails" value="fmcu@familymart.co.id, regional.manager@familymart.co.id, area.manager@familymart.co.id" class="fm-input text-xs" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Google Apps Script Web App URL (Webhook Auto-Upload & Email)</label>
+                  <input type="url" id="set-gas-url" placeholder="https://script.google.com/macros/s/AKfycb.../exec" class="fm-input font-mono text-xs" />
+                  <p class="text-[11px] text-slate-400 mt-1">Jika dikosongkan, sistem akan menjalankan mode Hybrid (Unduh PDF otomatis + Buka Email Client siap kirim).</p>
+                </div>
+
+                <button type="submit" class="w-full fm-gradient text-white font-bold py-3 rounded-xl shadow-md hover:opacity-95 transition text-xs sm:text-sm cursor-pointer">
+                  <i class="fa-solid fa-floppy-disk mr-1.5"></i>Simpan Pengaturan Integrasi & PDF
+                </button>
+              </form>
+            </div>
+
+            <div class="lg:col-span-6 fm-card p-5 sm:p-6 space-y-4">
+              <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                  <h3 class="font-extrabold text-base text-slate-900">Kode Google Apps Script Siap Pakai (`Code.gs`)</h3>
+                  <p class="text-xs text-slate-500">Salin skrip ini ke Google Apps Script Anda untuk mengaktifkan auto-upload PDF ke Google Drive & auto-email</p>
+                </div>
+                <button type="button" onclick="FMCUApp.copyGasScript()" class="px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition cursor-pointer">
+                  <i class="fa-regular fa-copy mr-1"></i>Salin Kode
+                </button>
+              </div>
+
+              <div class="bg-slate-900 text-emerald-300 rounded-xl p-4 font-mono text-[11px] overflow-x-auto max-h-96 leading-relaxed select-all" id="gas-code-preview">
+// Paste kode dari file google-apps-script/Code.gs ke https://script.google.com
+// Otomatis menerima file PDF Base64 dari FMCU Visit Store Report,
+// menyimpan ke Folder Google Drive Rekap, dan mengirim Email ke Store, AM, RM & FMCU.
+              </div>
+
+              <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-xs text-emerald-900 space-y-1.5">
+                <div class="font-extrabold flex items-center gap-1.5">
+                  <i class="fa-solid fa-circle-info text-emerald-600"></i>
+                  <span>Panduan Singkat Aktivasi Auto-Upload Google Drive & Email:</span>
+                </div>
+                <ol class="list-decimal list-inside space-y-1 text-emerald-800">
+                  <li>Buka <strong>script.google.com</strong> dan buat project baru.</li>
+                  <li>Tempel kode dari tombol <strong>Salin Kode</strong> (atau file <code>google-apps-script/Code.gs</code>).</li>
+                  <li>Klik <strong>Deploy &rarr; New Deployment &rarr; Web App</strong> (Execute as: <em>Me</em>, Access: <em>Anyone</em>).</li>
+                  <li>Tempel URL Web App ke kolom di samping dan klik Simpan.</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </main>
+
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       MOBILE BOTTOM NAVIGATION BAR (100% Responsive Mobile/Tablet UX)
+       ==================================================================== -->
+  <nav class="lg:hidden fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 z-40 grid grid-cols-4 py-1.5 px-2 shadow-lg">
+    <button onclick="FMCUApp.navigate('home')" id="mnav-home" class="mobile-nav-item active flex flex-col items-center justify-center py-1 text-slate-500 cursor-pointer">
+      <i class="fa-solid fa-chart-pie text-base"></i>
+      <span class="text-[10px] mt-0.5">Home</span>
+    </button>
+    <button onclick="FMCUApp.navigate('form')" id="mnav-form" class="mobile-nav-item flex flex-col items-center justify-center py-1 text-slate-500 cursor-pointer">
+      <i class="fa-solid fa-clipboard-check text-base"></i>
+      <span class="text-[10px] mt-0.5">Form Visit</span>
+    </button>
+    <button onclick="FMCUApp.navigate('preview')" id="mnav-preview" class="mobile-nav-item flex flex-col items-center justify-center py-1 text-slate-500 cursor-pointer">
+      <i class="fa-solid fa-file-pdf text-base"></i>
+      <span class="text-[10px] mt-0.5">Preview PDF</span>
+    </button>
+    <button onclick="FMCUApp.navigate('admin')" id="mnav-admin" class="mobile-nav-item flex flex-col items-center justify-center py-1 text-slate-500 cursor-pointer">
+      <i class="fa-solid fa-user-shield text-base"></i>
+      <span class="text-[10px] mt-0.5">Admin</span>
+    </button>
+  </nav>
+
+  <!-- ====================================================================
+       MODAL 1: MULAI VISIT TOKO BARU / CHECK-IN ACTUAL IN
+       ==================================================================== -->
+  <div id="modal-new-visit" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 view-section">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl fm-gradient text-white flex items-center justify-center">
+            <i class="fa-solid fa-location-dot"></i>
+          </div>
+          <div>
+            <h3 class="font-extrabold text-base text-slate-900">Check-In & Mulai Visit Toko</h3>
+            <p class="text-[11px] text-slate-500">Catat waktu Actual In & koordinat GPS aktual</p>
+          </div>
+        </div>
+        <button onclick="FMCUApp.closeModal('modal-new-visit')" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Pilih Toko yang Dikunjungi</label>
+          <select id="modal-visit-store-select" class="fm-input font-bold"></select>
+        </div>
+
+        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs space-y-1.5">
+          <div class="flex items-center justify-between font-bold text-emerald-900">
+            <span><i class="fa-solid fa-satellite-dish mr-1 text-emerald-600"></i>Verifikasi Live Location & Jam</span>
+            <span id="modal-checkin-clock" class="font-mono">14:30 WIB</span>
+          </div>
+          <div id="modal-checkin-gps" class="text-[11px] font-mono text-emerald-800">
+            Koordinat GPS: -6.15682, 106.75824
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button type="button" onclick="FMCUApp.closeModal('modal-new-visit')" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs cursor-pointer">
+          Batal
+        </button>
+        <button type="button" onclick="FMCUApp.confirmStartNewVisit()" class="fm-gradient text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow-md hover:opacity-95 transition cursor-pointer">
+          <i class="fa-solid fa-play mr-1"></i>Check-In (Actual In) & Buka Form
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       MODAL 2: INTEGRASI KIRIM EMAIL & UPLOAD FOLDER GOOGLE DRIVE
+       ==================================================================== -->
+  <div id="modal-send-integration" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4 view-section">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-10 h-10 rounded-xl bg-teal-50 text-[#0099A6] flex items-center justify-center text-lg">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+          </div>
+          <div>
+            <h3 class="font-extrabold text-base text-slate-900">Kirim Laporan ke Email & Google Drive</h3>
+            <p class="text-[11px] text-slate-500">Otomatis rekap PDF ke folder GDrive & teruskan ke Email Store, AM, RM & FMCU</p>
+          </div>
+        </div>
+        <button onclick="FMCUApp.closeModal('modal-send-integration')" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+          <div class="font-bold text-slate-800" id="modal-send-report-name">Laporan: TAMAN KOTA (0404)</div>
+          <div class="text-slate-500 mt-0.5" id="modal-send-report-meta">Auditor: Rani Ismawati • 4 Temuan Observasi</div>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 uppercase mb-1">Email Tujuan Utama (Store)</label>
+          <input type="text" id="modal-send-to" class="fm-input text-xs" />
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 uppercase mb-1">CC Email (Regional Manager, Area Manager, FMCU)</label>
+          <input type="text" id="modal-send-cc" class="fm-input text-xs" />
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 uppercase mb-1">Folder Google Drive Tujuan Rekap PDF</label>
+          <input type="text" id="modal-send-folder" class="fm-input text-xs font-mono" />
+        </div>
+
+        <div id="modal-send-status" class="hidden p-3 rounded-xl font-semibold text-xs"></div>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-100">
+        <button type="button" onclick="FMCUApp.closeModal('modal-send-integration')" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs cursor-pointer">
+          Tutup
+        </button>
+        <button type="button" id="btn-execute-send" onclick="FMCUApp.executeSendEmailAndGDrive()" class="fm-gradient text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow-md hover:opacity-95 transition flex items-center gap-1.5 cursor-pointer">
+          <i class="fa-solid fa-paper-plane"></i>
+          <span>Proses Upload GDrive & Kirim Email</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       MODAL 3: USER PROFILE & LOG ACTUAL IN / OUT
+       ==================================================================== -->
+  <div id="modal-user-profile" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 view-section max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="font-extrabold text-base text-slate-900">Profil User & Riwayat Kehadiran (Actual In - Out)</h3>
+        <button onclick="FMCUApp.closeModal('modal-user-profile')" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div id="profile-modal-body" class="space-y-4"></div>
+
+      <div class="flex items-center justify-between pt-3 border-t border-slate-100">
+        <button type="button" onclick="FMCUApp.logout()" class="px-4 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs cursor-pointer">
+          <i class="fa-solid fa-power-off mr-1"></i>Keluar / Ganti Akun Login
+        </button>
+        <button type="button" onclick="FMCUApp.closeModal('modal-user-profile')" class="px-5 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs cursor-pointer">
+          Selesai
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed bottom-16 lg:bottom-6 right-4 z-50 space-y-2 pointer-events-none"></div>
+
+  <!-- Application Scripts -->
+  <script src="js/pdf-assets.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/pdf-generator.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
