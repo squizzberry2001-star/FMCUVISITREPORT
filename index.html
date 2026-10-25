@@ -968,14 +968,14 @@
                   </button>
                 </div>
 
-                <div class="overflow-x-auto border border-slate-200 rounded-xl">
-                  <table class="w-full text-left border-collapse text-xs sm:text-sm">
+                <div class="overflow-x-auto border border-slate-200 rounded-xl shadow-2xs">
+                  <table class="w-full min-w-[500px] text-left border-collapse text-xs sm:text-sm">
                     <thead>
                       <tr class="bg-[#0099A6] text-white">
-                        <th class="py-2.5 px-3 font-bold w-1/4">Role Jabatan</th>
-                        <th class="py-2.5 px-3 font-bold w-1/2">Nama Lengkap</th>
-                        <th class="py-2.5 px-3 font-bold w-1/6">Job Level</th>
-                        <th class="py-2.5 px-3 font-bold text-center w-12">Aksi</th>
+                        <th class="py-2.5 px-3 font-bold w-36 whitespace-nowrap">Role Jabatan (Fix)</th>
+                        <th class="py-2.5 px-3 font-bold min-w-[160px]">Nama Lengkap</th>
+                        <th class="py-2.5 px-3 font-bold w-32 min-w-[105px] text-center whitespace-nowrap">Job Level</th>
+                        <th class="py-2.5 px-2 font-bold text-center w-12">Aksi</th>
                       </tr>
                     </thead>
                     <tbody id="form-crew-tbody" class="divide-y divide-slate-200"></tbody>
@@ -988,11 +988,12 @@
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
                     <h4 class="font-extrabold text-sm text-slate-800">Evidence Form QSC / FamiTrack Result (Slide 2 PDF)</h4>
-                    <p class="text-xs text-slate-500">Unggah foto lembar fisik form checklist QSC / FamiTrack yang telah dinilai</p>
+                    <p class="text-xs text-slate-500">Unggah foto lembar fisik form checklist QSC / FamiTrack yang telah dinilai (Fix Wajib 2 Lembar Foto)</p>
                   </div>
-                  <button type="button" onclick="FMCUApp.addQscPhotoSlot()" class="text-xs font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-3 py-2 rounded-xl transition cursor-pointer self-start sm:self-auto">
-                    <i class="fa-solid fa-camera mr-1"></i>+ Tambah Slot Foto QSC
-                  </button>
+                  <div class="text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-xl flex items-center gap-1.5 self-start sm:self-auto">
+                    <i class="fa-solid fa-lock text-emerald-600"></i>
+                    <span>Fix Wajib 2 Lembar Foto</span>
+                  </div>
                 </div>
 
                 <div id="form-qsc-photos-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>

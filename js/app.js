@@ -2443,8 +2443,8 @@ window.FMCUApp = {
     ];
 
     this.formQscPhotos = [
-      { id: 'qsc-1', caption: 'Foto QSC / Famitrack 1', dataUrl: '' },
-      { id: 'qsc-2', caption: 'Foto QSC / Famitrack 2', dataUrl: '' }
+      { id: 'qsc-1', caption: 'Lembar Form QSC / FamiTrack #1 (Wajib)', dataUrl: '' },
+      { id: 'qsc-2', caption: 'Lembar Form QSC / FamiTrack #2 (Wajib)', dataUrl: '' }
     ];
 
     this.formObservations = [
@@ -2526,15 +2526,24 @@ window.FMCUApp = {
     tbody.innerHTML = this.formCrew
       .map(
         (c, idx) => `
-        <tr class="bg-white">
-          <td class="p-2">
-            <input type="text" value="${c.role || ''}" oninput="FMCUApp.formCrew[${idx}].role = this.value" placeholder="Jabatan / Role" class="fm-input py-1.5 text-xs font-bold" />
+        <tr class="bg-white hover:bg-slate-50/50 transition">
+          <td class="p-2 sm:px-3 whitespace-nowrap w-36">
+            <div class="flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg bg-slate-100 text-slate-800 font-extrabold text-xs border border-slate-200 select-none">
+              <i class="fa-solid ${
+                (c.role || '').toLowerCase().includes('store head')
+                  ? 'fa-user-tie text-emerald-700'
+                  : (c.role || '').toLowerCase().includes('leader')
+                  ? 'fa-user-gear text-[#0099A6]'
+                  : 'fa-user text-slate-500'
+              } text-[11px] shrink-0"></i>
+              <span class="truncate">${c.role || 'Crew'}</span>
+            </div>
           </td>
-          <td class="p-2">
-            <input type="text" value="${c.name || ''}" oninput="FMCUApp.formCrew[${idx}].name = this.value" placeholder="Nama lengkap personil" class="fm-input py-1.5 text-xs font-medium" />
+          <td class="p-2 sm:px-3 min-w-[150px]">
+            <input type="text" value="${c.name || ''}" oninput="FMCUApp.formCrew[${idx}].name = this.value" placeholder="Nama lengkap personil" class="fm-input py-1.5 text-xs font-medium w-full" />
           </td>
-          <td class="p-2">
-            <select onchange="FMCUApp.formCrew[${idx}].jobLevel = this.value" class="fm-input py-1.5 text-xs font-bold bg-white cursor-pointer text-center">
+          <td class="p-2 sm:px-3 w-32 min-w-[105px] text-center whitespace-nowrap">
+            <select onchange="FMCUApp.formCrew[${idx}].jobLevel = this.value" class="fm-input py-1.5 px-2 text-xs font-extrabold bg-white cursor-pointer text-center w-full min-w-[95px] border border-slate-300 rounded-lg shadow-2xs">
               <option value="">-- Level --</option>
               ${JOB_LEVELS.map(
                 (lvl) => `<option value="${lvl}" ${c.jobLevel === lvl ? 'selected' : ''}>${lvl}</option>`
@@ -2542,10 +2551,20 @@ window.FMCUApp = {
               ${c.jobLevel && !JOB_LEVELS.includes(c.jobLevel) ? `<option value="${c.jobLevel}" selected>${c.jobLevel}</option>` : ''}
             </select>
           </td>
-          <td class="p-2 text-center">
-            <button type="button" onclick="FMCUApp.removeCrewRow(${idx})" class="text-slate-400 hover:text-rose-600 p-1 cursor-pointer">
-              <i class="fa-solid fa-trash-can"></i>
-            </button>
+          <td class="p-2 text-center whitespace-nowrap">
+            ${
+              idx >= 2
+                ? `
+              <button type="button" onclick="FMCUApp.removeCrewRow(${idx})" title="Hapus Baris Crew" class="text-slate-400 hover:text-rose-600 p-1 cursor-pointer transition">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            `
+                : `
+              <span class="text-slate-300 text-xs cursor-not-allowed" title="Role Wajib (Tidak bisa dihapus)">
+                <i class="fa-solid fa-lock"></i>
+              </span>
+            `
+            }
           </td>
         </tr>
       `
@@ -2572,6 +2591,14 @@ window.FMCUApp = {
   renderQscPhotosGrid() {
     const grid = document.getElementById('form-qsc-photos-grid');
     if (!grid) return;
+
+    // Pastikan selalu fix tepat 2 slot (wajib 2)
+    if (!Array.isArray(this.formQscPhotos) || this.formQscPhotos.length !== 2) {
+      const p0 = this.formQscPhotos?.[0] || { id: 'qsc-1', caption: 'Lembar Form QSC / FamiTrack #1 (Wajib)', dataUrl: '' };
+      const p1 = this.formQscPhotos?.[1] || { id: 'qsc-2', caption: 'Lembar Form QSC / FamiTrack #2 (Wajib)', dataUrl: '' };
+      this.formQscPhotos = [p0, p1];
+    }
+
     grid.innerHTML = this.formQscPhotos
       .map((p, idx) => {
         const displaySrc = window.FMCUPdf.getPhotoDisplaySrc(p);
@@ -2583,24 +2610,34 @@ window.FMCUApp = {
           ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-[#0099A6]"><i class="fa-solid fa-cloud-arrow-up mr-1"></i>Siap Sync ke Google Drive</span>`
           : '';
 
+        const slotTitle = idx === 0 ? 'Lembar Form QSC / FamiTrack #1 (Wajib)' : 'Lembar Form QSC / FamiTrack #2 (Wajib)';
+
         return `
-        <div class="border border-slate-200 rounded-2xl p-4 bg-slate-50/60 space-y-3">
+        <div class="border-2 ${displaySrc ? 'border-emerald-300 bg-white' : 'border-dashed border-slate-300 bg-slate-50/70'} rounded-2xl p-4 space-y-3 transition">
           <div class="flex items-center justify-between gap-2">
-            <input type="text" value="${p.caption || `Foto QSC / Famitrack ${idx + 1}`}" oninput="FMCUApp.formQscPhotos[${idx}].caption = this.value" class="fm-input py-1.5 text-xs font-bold bg-white" />
-            <button type="button" onclick="FMCUApp.removeQscPhotoSlot(${idx})" class="text-slate-400 hover:text-rose-600 p-1.5 cursor-pointer">
-              <i class="fa-solid fa-trash-can text-xs"></i>
-            </button>
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="w-6 h-6 rounded-lg ${displaySrc ? 'bg-[#009944]' : 'bg-slate-400'} text-white text-xs font-extrabold flex items-center justify-center shrink-0 shadow-2xs">${idx + 1}</span>
+              <span class="text-xs font-extrabold text-slate-800 truncate">${slotTitle}</span>
+            </div>
+            <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full shrink-0 ${displaySrc ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-50 text-rose-700 border border-rose-200'}">
+              ${displaySrc ? '✓ Foto Terunggah' : '* Wajib Diisi'}
+            </span>
           </div>
 
-          <div class="w-full h-48 rounded-xl bg-white border border-dashed border-slate-300 overflow-hidden flex items-center justify-center relative group">
+          <div class="w-full h-52 rounded-xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center relative group">
             ${
               displaySrc
-                ? `<img src="${displaySrc}" class="w-full h-full object-cover" alt="QSC Form" />`
-                : `<div class="text-center text-slate-400 text-xs"><i class="fa-solid fa-file-image text-2xl mb-1 block"></i>Unggah foto form QSC / FamiTrack</div>`
+                ? `<img src="${displaySrc}" class="w-full h-full object-cover" alt="QSC Form ${idx + 1}" />`
+                : `<div class="text-center text-slate-400 text-xs p-4">
+                    <i class="fa-solid fa-file-invoice text-3xl mb-1.5 text-slate-300 block"></i>
+                    <span class="font-bold text-slate-600 block">Foto Lembar QSC #${idx + 1}</span>
+                    <span class="text-[11px] text-slate-400">Ketuk tombol di bawah untuk mengambil foto / unggah</span>
+                   </div>`
             }
             ${statusBadge ? `<div class="absolute top-2 left-2 shadow-sm">${statusBadge}</div>` : ''}
-            <label class="absolute bottom-2 right-2 bg-slate-900/80 hover:bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer shadow">
-              <i class="fa-solid fa-camera mr-1"></i>Pilih / Kamera
+            <label class="absolute bottom-2.5 right-2.5 bg-slate-900/85 hover:bg-slate-950 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl cursor-pointer shadow-md transition flex items-center gap-1.5">
+              <i class="fa-solid fa-camera text-emerald-400"></i>
+              <span>${displaySrc ? 'Ganti Foto' : 'Pilih Foto / Kamera'}</span>
               <input type="file" accept="image/*" onchange="FMCUApp.handleQscPhotoUpload(event, ${idx})" class="hidden" />
             </label>
           </div>
@@ -2611,20 +2648,11 @@ window.FMCUApp = {
   },
 
   addQscPhotoSlot() {
-    this.formQscPhotos.push({
-      id: 'qsc-' + Date.now(),
-      caption: `Foto QSC / Famitrack ${this.formQscPhotos.length + 1}`,
-      dataUrl: '',
-      driveFileId: '',
-      driveUrl: ''
-    });
-    this.renderQscPhotosGrid();
+    this.showToast('Slot foto Evidence Form QSC bersifat fix wajib 2 lembar dan tidak bisa ditambah lagi.', 'info');
   },
 
   removeQscPhotoSlot(idx) {
-    if (this.formQscPhotos.length <= 1) return;
-    this.formQscPhotos.splice(idx, 1);
-    this.renderQscPhotosGrid();
+    this.showToast('Slot foto Evidence Form QSC bersifat fix wajib 2 lembar dan tidak bisa dihapus.', 'info');
   },
 
   async handleQscPhotoUpload(event, idx) {
