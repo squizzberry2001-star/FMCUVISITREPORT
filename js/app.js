@@ -87,6 +87,22 @@ window.FMCUApp = {
     this.populateGasScriptPreview();
     this.onCloudStatusChanged(window.FMCUData.cloudStatus, window.FMCUData.cloudErrorMsg);
 
+    // Pulihkan active view & subtab saat refresh (atau arahkan ke default view otoritas user)
+    if (this.currentUser) {
+      const savedSchSub = sessionStorage.getItem('fmcu_active_sch_subtab');
+      if (savedSchSub && (savedSchSub === 'create' || savedSchSub === 'list')) {
+        this.currentScheduleSubSection = savedSchSub;
+      }
+      const savedAdminTab = sessionStorage.getItem('fmcu_active_admin_tab');
+      const savedView = sessionStorage.getItem('fmcu_active_view');
+      const targetView = (savedView && this.isViewAllowedForUser(savedView, this.currentUser))
+        ? savedView
+        : this.getFirstAllowedView(this.currentUser);
+      this.navigate(targetView, savedAdminTab || null);
+    } else {
+      this.navigate('home');
+    }
+
     // Aktifkan pemantau Time Session & Tab Close
     this.initSessionMonitor();
 
@@ -452,11 +468,13 @@ window.FMCUApp = {
     this.updateUserHeaderUI();
     this.renderAllViews();
 
-    // Pastikan halaman yang sedang dibuka sesuai dengan hak akses otoritas user ini
-    const allowedView = this.isViewAllowedForUser(this.currentView, user)
-      ? this.currentView
+    // Prioritaskan savedView jika masih valid untuk role baru, atau ambil default role
+    const savedView = sessionStorage.getItem('fmcu_active_view');
+    const allowedView = (savedView && this.isViewAllowedForUser(savedView, user))
+      ? savedView
       : this.getFirstAllowedView(user);
-    this.navigate(allowedView);
+    const savedAdminTab = sessionStorage.getItem('fmcu_active_admin_tab');
+    this.navigate(allowedView, savedAdminTab || null);
   },
 
   logout(reasonMsg = '') {
@@ -464,6 +482,14 @@ window.FMCUApp = {
     this.currentUser = null;
     this.closeModal('modal-user-profile');
     this.updateSidebarAuthoritiesUI();
+
+    try {
+      sessionStorage.removeItem('fmcu_active_view');
+      sessionStorage.removeItem('fmcu_active_subtab');
+      sessionStorage.removeItem('fmcu_active_sch_subtab');
+      sessionStorage.removeItem('fmcu_active_admin_tab');
+    } catch (e) {}
+    this.currentView = 'home';
 
     const passInput = document.getElementById('login-password');
     if (passInput) passInput.value = '';
@@ -675,6 +701,12 @@ window.FMCUApp = {
 
   getFirstAllowedView(user = this.currentUser) {
     if (!user) return 'home';
+    // Admin Jadwal & Super Admin default mendarat di Atur Jadwal Visit
+    if (user.role === 'ADMIN_SCHEDULE' || user.role === 'SUPER_ADMIN') {
+      if (this.hasAuthority('manage_schedule', user)) return 'schedules';
+      if (this.hasAuthority('manage_stores', user)) return 'stores';
+      if (this.hasPortalAdminAuthority(user)) return 'admin';
+    }
     if (this.hasAuthority('view_home', user)) return 'home';
     if (this.hasAuthority('view_analytics', user)) return 'analytics';
     if (this.hasAuthority('export_pdf', user)) return 'preview';
@@ -848,6 +880,14 @@ window.FMCUApp = {
     }
 
     this.currentView = viewName;
+    try {
+      sessionStorage.setItem('fmcu_active_view', viewName);
+      if (subTab) {
+        sessionStorage.setItem('fmcu_active_subtab', subTab);
+      } else {
+        sessionStorage.removeItem('fmcu_active_subtab');
+      }
+    } catch (e) {}
     const isAdminContainerView = viewName === 'admin' || viewName === 'schedules' || viewName === 'stores';
     const mainSections = ['home', 'analytics', 'form', 'preview', 'admin'];
     mainSections.forEach((sec) => {
@@ -999,37 +1039,28 @@ window.FMCUApp = {
   },
 
   switchScheduleSubSection(subSec, scrollTop = true) {
-    const mode = subSec === 'list' ? 'list' : subSec === 'single' ? 'single' : 'create';
+    const mode = subSec === 'list' ? 'list' : 'create';
     this.currentScheduleSubSection = mode;
+    try {
+      sessionStorage.setItem('fmcu_active_sch_subtab', mode);
+    } catch (e) {}
 
     const createSec = document.getElementById('schedule-section-create');
     const listSec = document.getElementById('schedule-section-list');
     const btnCreate = document.getElementById('sch-subtab-btn-create');
-    const btnSingle = document.getElementById('sch-subtab-btn-single');
     const btnList = document.getElementById('sch-subtab-btn-list');
     const countPill = document.getElementById('admin-schedule-count-pill');
 
     if (createSec) createSec.classList.toggle('hidden', mode === 'list');
     if (listSec) listSec.classList.toggle('hidden', mode !== 'list');
 
-    if (mode === 'create') {
-      this.switchScheduleCreateMode('weekly');
-    } else if (mode === 'single') {
-      this.switchScheduleCreateMode('single');
-    }
+    this.switchScheduleCreateMode('weekly');
 
     if (btnCreate) {
       btnCreate.className =
         mode === 'create'
           ? 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-[#009944] text-white shadow-xs'
           : 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white';
-    }
-
-    if (btnSingle) {
-      btnSingle.className =
-        mode === 'single'
-          ? 'flex-1 sm:flex-initial px-3 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-[#009944] text-white shadow-xs'
-          : 'flex-1 sm:flex-initial px-3 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white';
     }
 
     if (btnList) {
@@ -2774,6 +2805,9 @@ window.FMCUApp = {
     }
 
     this.currentAdminTab = tabName;
+    try {
+      sessionStorage.setItem('fmcu_active_admin_tab', tabName);
+    } catch (e) {}
     const tabs = ['schedules', 'stores', 'users', 'integrations'];
     tabs.forEach((t) => {
       const panel = document.getElementById(`admin-tab-${t}`);
@@ -3200,30 +3234,12 @@ window.FMCUApp = {
   // ==========================================================================
   // INTERACTIVE 5-DAY WEEKLY SCHEDULE PLANNER (SENIN - JUMAT) & EXCEL EXPORT
   // ==========================================================================
-  switchScheduleCreateMode(mode) {
-    const targetMode = mode === 'single' ? 'single' : 'weekly';
-    this.scheduleCreateMode = targetMode;
-
+  switchScheduleCreateMode(mode = 'weekly') {
+    this.scheduleCreateMode = 'weekly';
     const weeklyBox = document.getElementById('sch-create-mode-weekly');
+    if (weeklyBox) weeklyBox.classList.remove('hidden');
     const singleBox = document.getElementById('sch-create-mode-single');
-    const btnWeekly = document.getElementById('btn-sch-mode-weekly');
-    const btnSingle = document.getElementById('btn-sch-mode-single');
-
-    if (weeklyBox) weeklyBox.classList.toggle('hidden', targetMode !== 'weekly');
-    if (singleBox) singleBox.classList.toggle('hidden', targetMode !== 'single');
-
-    if (btnWeekly) {
-      btnWeekly.className =
-        targetMode === 'weekly'
-          ? 'px-3 py-1.5 rounded-lg text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer bg-[#009944] text-white shadow-xs'
-          : 'px-3 py-1.5 rounded-lg text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer text-slate-600 hover:bg-white';
-    }
-    if (btnSingle) {
-      btnSingle.className =
-        targetMode === 'single'
-          ? 'px-3 py-1.5 rounded-lg text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer bg-[#0099A6] text-white shadow-xs'
-          : 'px-3 py-1.5 rounded-lg text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer text-slate-600 hover:bg-white';
-    }
+    if (singleBox) singleBox.classList.add('hidden');
   },
 
   getMondayOfWeek(dateInput) {

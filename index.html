@@ -1266,10 +1266,6 @@ service cloud.firestore {
                   <i class="fa-solid fa-table-columns"></i>
                   <span>Planner 5 Hari (Sen–Jum) Multi-Visitor</span>
                 </button>
-                <button type="button" id="sch-subtab-btn-single" onclick="FMCUApp.switchScheduleSubSection('single')" class="flex-1 sm:flex-initial px-3 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white">
-                  <i class="fa-solid fa-bolt"></i>
-                  <span>Input Satuan (1 Toko)</span>
-                </button>
                 <button type="button" id="sch-subtab-btn-list" onclick="FMCUApp.switchScheduleSubSection('list')" class="flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white">
                   <i class="fa-solid fa-list-check"></i>
                   <span>Daftar Seluruh Jadwal</span>
@@ -1278,7 +1274,7 @@ service cloud.firestore {
               </div>
             </div>
 
-            <!-- SUB-SECTION HALAMAN 1: PLANNER 5 HARI & INPUT SATUAN (TANPA KONTAINER HEADER TAMBAHAN) -->
+            <!-- SUB-SECTION HALAMAN 1: PLANNER 5 HARI (SENIN-JUMAT) MULTI-VISITOR -->
             <div id="schedule-section-create" class="space-y-4">
               <!-- MODE A: INTERACTIVE 5-DAY WEEKLY PLANNER (SENIN - JUMAT) FOR MULTIPLE AUDITORS -->
               <div id="sch-create-mode-weekly" class="space-y-4">
@@ -1437,63 +1433,6 @@ service cloud.firestore {
                     </button>
                   </div>
                 </div>
-              </div>
-
-              <!-- MODE B: SINGLE SCHEDULE FORM (ASSIGN CEPAT 1 TOKO) -->
-              <div id="sch-create-mode-single" class="hidden fm-card p-5 sm:p-6 space-y-5 max-w-3xl mx-auto">
-                <div class="border-b border-slate-100 pb-3">
-                  <h4 class="font-extrabold text-sm sm:text-base text-slate-900">
-                    <i class="fa-solid fa-bolt text-amber-500 mr-1.5"></i>Input Cepat Jadwal Satuan (1 Toko)
-                  </h4>
-                  <p class="text-xs text-slate-500 mt-0.5">Gunakan form ini jika Anda hanya ingin menambahkan 1 jadwal kunjungan toko pada tanggal tertentu</p>
-                </div>
-
-                <form id="admin-schedule-form" onsubmit="FMCUApp.handleSaveSchedule(event)" class="space-y-4">
-                  <div class="space-y-1.5">
-                    <label class="block text-xs font-bold text-slate-700 uppercase">Pilih Toko (Dari Master Toko) *</label>
-                    <input type="text" id="adm-sch-store-search" oninput="FMCUApp.filterAdminScheduleStoreDropdown(this.value)" placeholder="🔍 Ketik Site / Nama Toko / City untuk filter cepat..." class="fm-input text-xs bg-slate-50" />
-                    <select id="adm-sch-store" required class="fm-input"></select>
-                  </div>
-
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Assign ke Visitor *</label>
-                      <select id="adm-sch-auditor" required class="fm-input"></select>
-                    </div>
-                    <div>
-                      <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tanggal Target Visit *</label>
-                      <input type="date" id="adm-sch-date" required class="fm-input" />
-                    </div>
-                  </div>
-
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Prioritas Kunjungan</label>
-                      <select id="adm-sch-priority" class="fm-input">
-                        <option value="HIGH">HIGH (Prioritas Utama)</option>
-                        <option value="NORMAL" selected>NORMAL (Rutin)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Jam Operasional Visit</label>
-                      <input type="text" id="adm-sch-window" placeholder="08:30 - 17:30" value="08:30 - 17:30" class="fm-input" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Fokus Audit / Catatan Admin</label>
-                    <textarea id="adm-sch-focus" rows="3" placeholder="Masukkan fokus pemeriksaan atau catatan tugas untuk visitor..." class="fm-input"></textarea>
-                  </div>
-
-                  <div class="pt-1 flex flex-col sm:flex-row items-center justify-end gap-2.5">
-                    <button type="button" onclick="FMCUApp.switchScheduleSubSection('list')" class="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-xs sm:text-sm transition cursor-pointer">
-                      Buka Daftar Jadwal
-                    </button>
-                    <button type="submit" class="w-full sm:w-auto px-6 fm-gradient text-white font-bold py-2.5 rounded-xl shadow-sm hover:opacity-95 transition text-xs sm:text-sm cursor-pointer">
-                      <i class="fa-solid fa-check mr-1.5"></i>Simpan & Tugaskan Jadwal Visit
-                    </button>
-                  </div>
-                </form>
               </div>
             </div>
 
