@@ -227,6 +227,9 @@ window.FMCUApp = {
       if (this.modalMap && this.modalBestieLayer && !document.getElementById('modal-interactive-map')?.classList.contains('hidden')) {
         this.renderBestieMarkers(this.modalMap, this.modalBestieLayer, true);
       }
+      if (this.currentView === 'live-maps') {
+        this.renderLiveLocView();
+      }
     }
     if (collectionName === 'stores') {
       this.populateMasterStoreSelect();
@@ -253,6 +256,8 @@ window.FMCUApp = {
       this.renderPreviewView();
     } else if (v === 'schedules' || v === 'stores' || v === 'admin') {
       this.renderAdminView();
+    } else if (v === 'live-maps') {
+      this.renderLiveLocView();
     }
   },
 
@@ -772,6 +777,7 @@ window.FMCUApp = {
     const canSchedules = this.hasAuthority('manage_schedule', u);
     const canStores = this.hasAuthority('manage_stores', u);
     const canPortalAdmin = this.hasPortalAdminAuthority(u);
+    const canLiveMaps = this.canAccessLiveMaps(u);
 
     const togglePair = (desktopId, mobileId, allowed) => {
       const dEl = document.getElementById(desktopId);
@@ -788,6 +794,7 @@ window.FMCUApp = {
     togglePair('nav-schedules', 'mnav-schedules', canSchedules);
     togglePair('nav-stores', 'mnav-stores', canStores);
     togglePair('nav-admin', 'mnav-admin', canPortalAdmin);
+    togglePair('nav-live-maps', 'mnav-live-maps', canLiveMaps);
 
     // 2. Portal Admin Sub-Tab Buttons (User & Integrasi)
     const adminTabMap = [
@@ -896,6 +903,10 @@ window.FMCUApp = {
       this.showToast('Akun Anda tidak memiliki otoritas untuk mengakses Master Toko.', 'warning');
       return;
     }
+    if (viewName === 'live-maps' && !this.canAccessLiveMaps()) {
+      this.showToast('Halaman Live Loc Maps khusus untuk Admin Jadwal dan Super Admin.', 'warning');
+      return;
+    }
     if (viewName === 'admin' && !this.hasPortalAdminAuthority()) {
       this.showToast('Akun Anda tidak memiliki otoritas untuk mengakses Portal Admin.', 'warning');
       return;
@@ -934,7 +945,7 @@ window.FMCUApp = {
       }
     } catch (e) {}
     const isAdminContainerView = viewName === 'admin' || viewName === 'schedules' || viewName === 'stores';
-    const mainSections = ['home', 'analytics', 'form', 'preview', 'admin'];
+    const mainSections = ['home', 'analytics', 'form', 'preview', 'admin', 'live-maps'];
     mainSections.forEach((sec) => {
       const mainEl = document.getElementById(`view-${sec}`);
       if (!mainEl) return;
@@ -945,7 +956,7 @@ window.FMCUApp = {
       }
     });
 
-    const navKeys = ['home', 'analytics', 'form', 'preview', 'schedules', 'stores', 'admin'];
+    const navKeys = ['home', 'analytics', 'form', 'preview', 'schedules', 'stores', 'admin', 'live-maps'];
     navKeys.forEach((k) => {
       const dNav = document.getElementById(`nav-${k}`);
       if (dNav) dNav.classList.toggle('active', k === viewName);
@@ -982,6 +993,10 @@ window.FMCUApp = {
       admin: [
         'Portal Otoritas Admin FMCU',
         'Manajemen User & Otoritas Login serta Konfigurasi Integrasi Email & Google Drive'
+      ],
+      'live-maps': [
+        'Live Location Maps — Monitoring GPS Real-Time',
+        'Pemantauan sebaran live GPS 18 Regional Bestie & 610 Toko FamilyMart untuk Admin Jadwal & Super Admin'
       ]
     };
 
@@ -1047,6 +1062,11 @@ window.FMCUApp = {
       const targetTab = subTab && (subTab === 'users' || subTab === 'integrations') ? subTab : defaultPortalTab;
       this.switchAdminTab(targetTab);
       this.renderAdminView();
+    } else if (viewName === 'live-maps') {
+      this.renderLiveLocView();
+      setTimeout(() => {
+        if (this.liveLocMap) this.liveLocMap.invalidateSize();
+      }, 200);
     }
 
     this.updateNavbarModeUI();
@@ -2345,6 +2365,9 @@ window.FMCUApp = {
     this.renderAnalyticsView();
     this.renderPreviewSelector();
     this.renderAdminView();
+    if (this.currentView === 'live-maps') {
+      this.renderLiveLocView();
+    }
   },
 
   renderHomeView() {
@@ -6474,6 +6497,686 @@ function getOrCreateSubFolder_(parent, name) {
     `;
 
     document.getElementById('modal-user-profile').classList.remove('hidden');
+  },
+
+  // ==========================================================================
+  // HALAMAN KHUSUS: LIVE LOCATION MAPS (KHUSUS ADMIN JADWAL & SUPER ADMIN)
+  // ==========================================================================
+  liveLocMap: null,
+  liveLocStoreLayer: null,
+  liveLocGeofenceLayer: null,
+  liveLocRouteLayer: null,
+  liveLocBestieLayer: null,
+  liveLocSelectedBestieId: null,
+  liveLocSearchQuery: '',
+  liveLocBestieScope: 'ALL',
+  _liveLocBestieMarkerMap: null,
+  _liveLocStoreMarkerMap: null,
+  _liveLocLayerVisibility: {
+    besties: true,
+    stores: true,
+    geofence: true,
+    routes: true
+  },
+
+  canAccessLiveMaps(user = this.currentUser) {
+    if (!user) return false;
+    if (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN_SCHEDULE') return true;
+    if (this.hasAuthority('manage_schedule', user) || this.hasAuthority('manage_users', user) || this.hasAuthority('view_live_maps', user)) return true;
+    return false;
+  },
+
+  renderLiveLocView() {
+    if (!this.canAccessLiveMaps()) return;
+
+    const users = window.FMCUData.getUsers();
+    const besties = users.filter((u) => this.isAuditorUser(u));
+    const stores = window.FMCUData.getStores();
+    const schedules = window.FMCUData.getSchedules();
+    const todayStr = this.getLocalDateISO();
+    const todaySchedules = schedules.filter((s) => s.scheduledDate === todayStr);
+
+    // 1. KPI Stats
+    const totalBestiesEl = document.getElementById('live-loc-stat-total-besties');
+    if (totalBestiesEl) totalBestiesEl.textContent = besties.length || 18;
+
+    const onlineBestiesEl = document.getElementById('live-loc-stat-online-besties');
+    if (onlineBestiesEl) {
+      const activeCount = besties.filter((b) => b.lastLocation?.lat || b.active).length;
+      onlineBestiesEl.textContent = activeCount || besties.length;
+    }
+
+    const totalStoresEl = document.getElementById('live-loc-stat-total-stores');
+    if (totalStoresEl) totalStoresEl.textContent = stores.length || 610;
+
+    const todayVisitsEl = document.getElementById('live-loc-stat-today-visits');
+    if (todayVisitsEl) todayVisitsEl.textContent = todaySchedules.length;
+
+    const schedSubEl = document.getElementById('live-loc-stat-schedule-sub');
+    if (schedSubEl) {
+      const completedCount = todaySchedules.filter((s) => s.status === 'COMPLETED').length;
+      schedSubEl.textContent = `${completedCount} Selesai • ${todaySchedules.length - completedCount} Berjalan`;
+    }
+
+    // 2. Populate Bestie Select Dropdown
+    const selectEl = document.getElementById('live-loc-bestie-select');
+    if (selectEl) {
+      const currentVal = selectEl.value;
+      const sortedBesties = [...besties].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'id'));
+      let optHtml = `<option value="ALL">-- Pilih Fokus Bestie (Semua ${besties.length}) --</option>`;
+      sortedBesties.forEach((b) => {
+        const idVal = b.id || b.username;
+        optHtml += `<option value="${idVal}">${b.name} (${b.nik || '-'})</option>`;
+      });
+      selectEl.innerHTML = optHtml;
+      if (currentVal && Array.from(selectEl.options).some((o) => o.value === currentVal)) {
+        selectEl.value = currentVal;
+      }
+    }
+
+    // 3. Render Leaflet Map & Markers
+    this.initOrUpdateLiveLocMap();
+
+    // 4. Render Responsive Bestie Cards Side List
+    this.renderLiveLocBestieList();
+  },
+
+  initOrUpdateLiveLocMap() {
+    const container = document.getElementById('live-loc-dedicated-map');
+    if (!container || typeof L === 'undefined') return;
+
+    const centerLat = this.liveGps.lat !== null ? this.liveGps.lat : -6.2088;
+    const centerLng = this.liveGps.lng !== null ? this.liveGps.lng : 106.8456;
+
+    if (!this.liveLocMap) {
+      this.liveLocMap = L.map('live-loc-dedicated-map', {
+        zoomControl: true,
+        attributionControl: false
+      }).setView([centerLat, centerLng], 11);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19
+      }).addTo(this.liveLocMap);
+    }
+
+    // Buat layer groups jika belum ada
+    if (!this.liveLocStoreLayer) this.liveLocStoreLayer = L.layerGroup();
+    if (!this.liveLocGeofenceLayer) this.liveLocGeofenceLayer = L.layerGroup();
+    if (!this.liveLocRouteLayer) this.liveLocRouteLayer = L.layerGroup();
+    if (!this.liveLocBestieLayer) this.liveLocBestieLayer = L.layerGroup();
+
+    // Pastikan layer terdaftar atau disembunyikan sesuai toggle
+    const syncLayer = (layer, key) => {
+      if (this._liveLocLayerVisibility[key]) {
+        if (!this.liveLocMap.hasLayer(layer)) this.liveLocMap.addLayer(layer);
+      } else {
+        if (this.liveLocMap.hasLayer(layer)) this.liveLocMap.removeLayer(layer);
+      }
+    };
+
+    syncLayer(this.liveLocStoreLayer, 'stores');
+    syncLayer(this.liveLocGeofenceLayer, 'geofence');
+    syncLayer(this.liveLocRouteLayer, 'routes');
+    syncLayer(this.liveLocBestieLayer, 'besties');
+
+    this.liveLocStoreLayer.clearLayers();
+    this.liveLocGeofenceLayer.clearLayers();
+    this.liveLocRouteLayer.clearLayers();
+    this.liveLocBestieLayer.clearLayers();
+
+    this._liveLocBestieMarkerMap = new Map();
+    this._liveLocStoreMarkerMap = new Map();
+
+    const stores = window.FMCUData.getStores();
+    const schedules = window.FMCUData.getSchedules();
+    const todayStr = this.getLocalDateISO();
+    const todaySchedules = schedules.filter((s) => s.scheduledDate === todayStr);
+    const scheduledStoreCodes = new Set(todaySchedules.map((s) => String(s.storeCode)));
+
+    // 1. Render seluruh Toko FamilyMart
+    stores.forEach((st) => {
+      const lat = Number(st.lat ?? st.latitude);
+      const lng = Number(st.lng ?? st.longitude);
+      if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) return;
+
+      const codeStr = String(st.code);
+      const isScheduledToday = scheduledStoreCodes.has(codeStr);
+      const schInfo = todaySchedules.find((s) => String(s.storeCode) === codeStr);
+
+      const circle = L.circleMarker([lat, lng], {
+        radius: isScheduledToday ? 8 : 5,
+        fillColor: isScheduledToday ? '#f59e0b' : '#009944',
+        color: '#ffffff',
+        weight: isScheduledToday ? 2.5 : 1.5,
+        fillOpacity: isScheduledToday ? 0.95 : 0.85
+      }).addTo(this.liveLocStoreLayer);
+
+      this._liveLocStoreMarkerMap.set(codeStr, circle);
+
+      // Gambar Geofence 50m jika ada jadwal hari ini
+      if (isScheduledToday) {
+        L.circle([lat, lng], {
+          radius: 50,
+          color: '#009944',
+          fillColor: '#009944',
+          fillOpacity: 0.15,
+          weight: 2,
+          dashArray: '4, 4'
+        }).addTo(this.liveLocGeofenceLayer);
+      }
+
+      const gmapUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+      circle.bindPopup(`
+        <div class="text-xs p-1 space-y-2" style="min-width: 220px;">
+          <div class="font-extrabold text-emerald-800 text-sm flex items-center gap-1.5">
+            <i class="fa-solid fa-store text-[#009944]"></i>
+            <span>FamilyMart ${st.name}</span>
+          </div>
+          <div class="text-[11px] font-mono text-slate-500 font-bold">
+            Kode: <span class="text-slate-800 font-bold">${st.code}</span> • ${st.city || 'Jabodetabek'}
+          </div>
+          <div class="text-[11px] text-slate-600">
+            ${st.address || '-'}
+          </div>
+          ${
+            isScheduledToday
+              ? `<div class="p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-[11px]">
+                  <div class="font-extrabold flex items-center gap-1">
+                    <i class="fa-solid fa-calendar-day"></i> Jadwal Hari Ini:
+                  </div>
+                  <div>Visitor: <strong>${schInfo?.auditorName || '-'}</strong></div>
+                  <div>Status: <span class="font-bold">${schInfo?.status || 'PENDING'}</span></div>
+                </div>`
+              : ''
+          }
+          <div class="pt-1 flex items-center justify-between border-t border-slate-100">
+            <span class="text-[10px] font-mono text-slate-400">${lat.toFixed(5)}, ${lng.toFixed(5)}</span>
+            <a href="${gmapUrl}" target="_blank" rel="noopener noreferrer" class="px-2 py-1 rounded bg-[#009944] hover:bg-emerald-700 text-white font-bold text-[10px] inline-flex items-center gap-1">
+              <i class="fa-solid fa-diamond-turn-right"></i> Rute Maps
+            </a>
+          </div>
+        </div>
+      `);
+    });
+
+    // 2. Render 18 Regional Besties & Route lines
+    const users = window.FMCUData.getUsers();
+    const besties = users.filter((u) => this.isAuditorUser(u));
+    const currentUserId = this.currentUser?.id || this.currentUser?.username;
+    const now = Date.now();
+
+    besties.forEach((bestie) => {
+      let lat = bestie.lastLocation?.lat;
+      let lng = bestie.lastLocation?.lng;
+      let storeVisit = bestie.lastLocation?.storeVisit || null;
+
+      if (!lat || !lng) {
+        const fallback = this.getBestieFallbackLocation(bestie);
+        if (fallback) {
+          lat = fallback.lat;
+          lng = fallback.lng;
+          storeVisit = fallback.storeVisit;
+        }
+      }
+
+      lat = Number(lat);
+      lng = Number(lng);
+      if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) return;
+
+      const isMe = String(bestie.id || bestie.username) === String(currentUserId);
+      const initials = (bestie.name || 'RB')
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((p) => p[0].toUpperCase())
+        .join('');
+
+      // Cek jadwal hari ini
+      const myScheduleToday = todaySchedules.find((s) => this.isScheduleOwnedByUser(s, bestie));
+      let targetStore = null;
+      if (myScheduleToday) {
+        targetStore = stores.find((st) => String(st.code) === String(myScheduleToday.storeCode));
+      }
+
+      // Jika ada target store, gambar rute garis putus-putus
+      if (targetStore && targetStore.lat && targetStore.lng) {
+        const tLat = Number(targetStore.lat);
+        const tLng = Number(targetStore.lng);
+        if (!isNaN(tLat) && !isNaN(tLng)) {
+          L.polyline([[lat, lng], [tLat, tLng]], {
+            color: '#0099A6',
+            weight: 2,
+            dashArray: '5, 8',
+            opacity: 0.75
+          }).addTo(this.liveLocRouteLayer);
+        }
+      }
+
+      let distText = '';
+      if (this.liveGps.lat !== null && this.liveGps.lng !== null && !isMe) {
+        const d = this.calculateHaversineDistance(this.liveGps.lat, this.liveGps.lng, lat, lng);
+        if (d !== null) {
+          distText = d < 1000 ? `${d}m dari Anda` : `${(d / 1000).toFixed(1)}km dari Anda`;
+        }
+      }
+
+      let timeAgoText = 'Aktif Hari Ini';
+      if (bestie.lastLocation?.updatedAt) {
+        const diffMs = now - new Date(bestie.lastLocation.updatedAt).getTime();
+        const diffMin = Math.floor(diffMs / 60000);
+        if (diffMin < 2) timeAgoText = 'Baru saja';
+        else if (diffMin < 60) timeAgoText = `${diffMin} menit yang lalu`;
+        else timeAgoText = `${Math.floor(diffMin / 60)} jam yang lalu`;
+      }
+
+      const markerHtml = `
+        <div class="relative flex items-center justify-center cursor-pointer group" style="transform: translate(-50%, -50%);">
+          <div class="w-8 h-8 rounded-full ${
+            isMe
+              ? 'bg-gradient-to-tr from-[#0099A6] to-teal-400 ring-4 ring-teal-300/60 shadow-lg animate-pulse'
+              : 'bg-gradient-to-tr from-indigo-600 to-purple-600 ring-2 ring-white shadow-md'
+          } flex items-center justify-center text-white text-[11px] font-black transition transform group-hover:scale-125">
+            ${isMe ? '<i class="fa-solid fa-crosshairs text-xs"></i>' : initials}
+          </div>
+          <div class="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full ${
+            isMe ? 'bg-teal-400' : 'bg-emerald-500'
+          } border-2 border-white shadow-xs flex items-center justify-center text-[7px] text-white">
+            <i class="fa-solid fa-check"></i>
+          </div>
+          <div class="absolute top-8 left-1/2 -translate-x-1/2 whitespace-nowrap bg-slate-900/90 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md shadow pointer-events-none">
+            ${isMe ? 'Anda (' + (bestie.name?.split(' ')[0] || 'User') + ')' : bestie.name?.split(' ')[0] || 'Bestie'}
+          </div>
+        </div>
+      `;
+
+      const bestieIcon = L.divIcon({
+        className: 'bestie-gps-pin',
+        html: markerHtml,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+        popupAnchor: [0, -18]
+      });
+
+      const m = L.marker([lat, lng], { icon: bestieIcon, zIndexOffset: 1000 }).addTo(this.liveLocBestieLayer);
+      const bKey = String(bestie.id || bestie.username);
+      this._liveLocBestieMarkerMap.set(bKey, m);
+
+      const gmapUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+      m.bindPopup(`
+        <div class="text-xs p-1 space-y-2" style="min-width: 230px;">
+          <div class="flex items-center gap-2 pb-1.5 border-b border-slate-100">
+            <div class="w-8 h-8 rounded-full ${isMe ? 'bg-[#0099A6]' : 'bg-indigo-600'} text-white font-extrabold text-xs flex items-center justify-center">
+              ${initials}
+            </div>
+            <div class="min-w-0">
+              <div class="font-extrabold text-slate-900 text-sm truncate">${bestie.name} ${isMe ? '<span class="text-xs text-teal-600 font-bold">(Anda)</span>' : ''}</div>
+              <div class="text-[10px] text-slate-400 font-mono">NIK: ${bestie.nik || '-'} • ${bestie.roleBadge || bestie.role}</div>
+            </div>
+          </div>
+
+          <div class="space-y-1 text-[11px] text-slate-600">
+            <div class="flex items-center justify-between">
+              <span class="text-slate-400 font-semibold">Status:</span>
+              <span class="font-bold text-emerald-600 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>${timeAgoText}
+              </span>
+            </div>
+            ${
+              distText
+                ? `<div class="flex items-center justify-between">
+                    <span class="text-slate-400 font-semibold">Jarak:</span>
+                    <span class="font-bold text-slate-800">${distText}</span>
+                  </div>`
+                : ''
+            }
+            <div class="flex items-center justify-between">
+              <span class="text-slate-400 font-semibold">Toko Hari Ini:</span>
+              <span class="font-bold text-slate-800 truncate max-w-[140px]">${myScheduleToday ? `FM ${myScheduleToday.storeName}` : storeVisit || 'Jadwal Standar'}</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-slate-400 font-semibold">Koordinat GPS:</span>
+              <span class="font-mono text-[10px] font-bold text-slate-700">${lat.toFixed(5)}, ${lng.toFixed(5)}</span>
+            </div>
+          </div>
+
+          <div class="pt-2 flex items-center justify-between border-t border-slate-100">
+            <span class="text-[10px] text-emerald-700 font-bold">Terhubung Real-time</span>
+            <a href="${gmapUrl}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded bg-[#0099A6] hover:bg-teal-700 text-white font-bold text-[10px] inline-flex items-center gap-1">
+              <i class="fa-solid fa-diamond-turn-right"></i> Buka Rute
+            </a>
+          </div>
+        </div>
+      `);
+    });
+
+    const coordsInd = document.getElementById('live-loc-map-coords-indicator');
+    if (coordsInd && this.liveGps.lat !== null) {
+      coordsInd.textContent = `GPS Anda: ${this.liveGps.lat.toFixed(4)}, ${this.liveGps.lng.toFixed(4)}`;
+    }
+  },
+
+  renderLiveLocBestieList() {
+    const container = document.getElementById('live-loc-bestie-list-container');
+    if (!container) return;
+
+    const users = window.FMCUData.getUsers();
+    const besties = users.filter((u) => this.isAuditorUser(u));
+    const schedules = window.FMCUData.getSchedules();
+    const todayStr = this.getLocalDateISO();
+    const todaySchedules = schedules.filter((s) => s.scheduledDate === todayStr);
+    const query = (this.liveLocSearchQuery || '').toLowerCase().trim();
+    const scope = this.liveLocBestieScope || 'ALL';
+
+    let filtered = besties.filter((b) => {
+      if (scope === 'SCHEDULED') {
+        const hasToday = todaySchedules.some((s) => this.isScheduleOwnedByUser(s, b));
+        if (!hasToday) return false;
+      }
+      if (query) {
+        const matchName = (b.name || '').toLowerCase().includes(query);
+        const matchNik = String(b.nik || '').toLowerCase().includes(query);
+        const matchRegion = (b.region || '').toLowerCase().includes(query);
+        const myTodaySch = todaySchedules.find((s) => this.isScheduleOwnedByUser(s, b));
+        const matchStore = myTodaySch && ((myTodaySch.storeName || '').toLowerCase().includes(query) || String(myTodaySch.storeCode || '').includes(query));
+        return matchName || matchNik || matchRegion || matchStore;
+      }
+      return true;
+    });
+
+    const badgeEl = document.getElementById('live-loc-bestie-count-badge');
+    if (badgeEl) badgeEl.textContent = `${filtered.length} Personil`;
+
+    if (filtered.length === 0) {
+      container.innerHTML = `
+        <div class="p-6 text-center text-slate-400 text-xs">
+          <i class="fa-solid fa-user-slash text-2xl mb-2 text-slate-300"></i>
+          <div>Tidak ada personil Bestie yang sesuai dengan filter pencarian.</div>
+        </div>
+      `;
+      return;
+    }
+
+    const currentUserId = this.currentUser?.id || this.currentUser?.username;
+    const now = Date.now();
+
+    container.innerHTML = filtered
+      .map((b) => {
+        const isMe = String(b.id || b.username) === String(currentUserId);
+        const initials = (b.name || 'RB')
+          .split(' ')
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((p) => p[0].toUpperCase())
+          .join('');
+
+        const bKey = String(b.id || b.username);
+        let lat = b.lastLocation?.lat;
+        let lng = b.lastLocation?.lng;
+        let storeVisit = b.lastLocation?.storeVisit || null;
+
+        if (!lat || !lng) {
+          const fallback = this.getBestieFallbackLocation(b);
+          if (fallback) {
+            lat = fallback.lat;
+            lng = fallback.lng;
+            storeVisit = fallback.storeVisit;
+          }
+        }
+
+        const myTodaySch = todaySchedules.find((s) => this.isScheduleOwnedByUser(s, b));
+        const storeLabel = myTodaySch ? `FM ${myTodaySch.storeName} (${myTodaySch.storeCode})` : (storeVisit || 'Jadwal Standar');
+        const schStatus = myTodaySch?.status || 'STANDBY';
+
+        let statusBadge = '';
+        if (schStatus === 'COMPLETED') {
+          statusBadge = '<span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">Selesai (OUT)</span>';
+        } else if (schStatus === 'IN_PROGRESS') {
+          statusBadge = '<span class="text-[9px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 font-bold">Visiting (IN)</span>';
+        } else if (myTodaySch) {
+          statusBadge = '<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">Terjadwal</span>';
+        } else {
+          statusBadge = '<span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-bold">Siap Tugas</span>';
+        }
+
+        let timeAgoText = 'Aktif Hari Ini';
+        if (b.lastLocation?.updatedAt) {
+          const diffMs = now - new Date(b.lastLocation.updatedAt).getTime();
+          const diffMin = Math.floor(diffMs / 60000);
+          if (diffMin < 2) timeAgoText = 'Baru saja';
+          else if (diffMin < 60) timeAgoText = `${diffMin}m lalu`;
+          else timeAgoText = `${Math.floor(diffMin / 60)}j lalu`;
+        }
+
+        const gmapUrl = lat && lng ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}` : '#';
+
+        return `
+          <div class="p-3 rounded-xl border border-slate-200 bg-white hover:border-[#0099A6] hover:shadow-xs transition space-y-2">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <div class="relative w-8 h-8 rounded-full ${
+                  isMe ? 'bg-[#0099A6]' : 'bg-indigo-600'
+                } text-white font-extrabold text-xs flex items-center justify-center shrink-0">
+                  ${initials}
+                  <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white"></span>
+                </div>
+                <div class="min-w-0">
+                  <div class="font-extrabold text-xs text-slate-900 truncate">
+                    ${b.name} ${isMe ? '<span class="text-[10px] text-teal-600 font-bold">(Anda)</span>' : ''}
+                  </div>
+                  <div class="text-[10px] text-slate-400 font-mono">
+                    NIK: ${b.nik || '-'} • ${timeAgoText}
+                  </div>
+                </div>
+              </div>
+              <div class="shrink-0">
+                ${statusBadge}
+              </div>
+            </div>
+
+            <!-- Store visit target info -->
+            <div class="p-2 rounded-lg bg-slate-50 border border-slate-100 text-[11px] text-slate-700 flex items-center justify-between gap-2">
+              <div class="truncate flex items-center gap-1.5">
+                <i class="fa-solid fa-store text-emerald-600 text-xs shrink-0"></i>
+                <span class="font-bold truncate">${storeLabel}</span>
+              </div>
+              <span class="text-[10px] text-slate-400 font-mono shrink-0">${b.region || 'JKT'}</span>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
+              <div class="text-[10px] font-mono text-slate-400 truncate">
+                ${lat ? `${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)}` : 'GPS Siap'}
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button type="button" onclick="FMCUApp.focusLiveLocOnBestie('${bKey}')" class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-teal-50 text-teal-800 hover:bg-teal-100 transition cursor-pointer flex items-center gap-1">
+                  <i class="fa-solid fa-crosshairs text-teal-600"></i> Fokus Peta
+                </button>
+                ${
+                  lat && lng
+                    ? `<a href="${gmapUrl}" target="_blank" rel="noopener noreferrer" class="px-2 py-1 rounded-lg text-[10px] font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition" title="Buka Rute Google Maps">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                      </a>`
+                    : ''
+                }
+              </div>
+            </div>
+          </div>
+        `;
+      })
+      .join('');
+  },
+
+  focusLiveLocOnBestie(bestieId) {
+    if (!this.liveLocMap) return;
+    const marker = this._liveLocBestieMarkerMap?.get(String(bestieId));
+    if (marker) {
+      const ll = marker.getLatLng();
+      this.liveLocMap.flyTo(ll, 16, { animate: true, duration: 1 });
+      setTimeout(() => marker.openPopup(), 400);
+      return;
+    }
+
+    const users = window.FMCUData.getUsers();
+    const b = users.find((u) => String(u.id) === String(bestieId) || String(u.username) === String(bestieId) || String(u.nik) === String(bestieId));
+    if (b) {
+      let lat = b.lastLocation?.lat;
+      let lng = b.lastLocation?.lng;
+      if (!lat || !lng) {
+        const fallback = this.getBestieFallbackLocation(b);
+        if (fallback) {
+          lat = fallback.lat;
+          lng = fallback.lng;
+        }
+      }
+      if (lat && lng) {
+        this.liveLocMap.flyTo([Number(lat), Number(lng)], 16, { animate: true, duration: 1 });
+      }
+    }
+  },
+
+  focusLiveLocOnStore(storeCode) {
+    if (!this.liveLocMap) return;
+    const marker = this._liveLocStoreMarkerMap?.get(String(storeCode));
+    if (marker) {
+      const ll = marker.getLatLng();
+      this.liveLocMap.flyTo(ll, 17, { animate: true, duration: 1 });
+      setTimeout(() => marker.openPopup(), 400);
+      return;
+    }
+
+    const stores = window.FMCUData.getStores();
+    const st = stores.find((s) => String(s.code) === String(storeCode));
+    if (st && st.lat && st.lng) {
+      this.liveLocMap.flyTo([Number(st.lat), Number(st.lng)], 17, { animate: true, duration: 1 });
+    }
+  },
+
+  fitLiveLocMapToAllBesties() {
+    if (!this.liveLocMap) return;
+    const latLngs = [];
+    if (this._liveLocBestieMarkerMap) {
+      this._liveLocBestieMarkerMap.forEach((m) => {
+        latLngs.push(m.getLatLng());
+      });
+    }
+
+    if (latLngs.length > 0) {
+      const bounds = L.latLngBounds(latLngs);
+      this.liveLocMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+      this.showToast(`Menampilkan seluruh ${latLngs.length} titik Regional Bestie / Visitor di peta.`, 'info');
+    }
+  },
+
+  fitLiveLocMapToAllStores() {
+    if (!this.liveLocMap) return;
+    const stores = window.FMCUData.getStores();
+    const latLngs = [];
+    stores.forEach((st) => {
+      const lat = Number(st.lat ?? st.latitude);
+      const lng = Number(st.lng ?? st.longitude);
+      if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+        latLngs.push([lat, lng]);
+      }
+    });
+
+    if (latLngs.length > 0) {
+      const bounds = L.latLngBounds(latLngs);
+      this.liveLocMap.fitBounds(bounds, { padding: [30, 30], maxZoom: 13 });
+      this.showToast(`Menampilkan sebaran seluruh 610 Toko FamilyMart se-Indonesia.`, 'info');
+    }
+  },
+
+  focusLiveLocMapOnMe() {
+    if (!this.liveLocMap) return;
+    if (this.liveGps.lat !== null && this.liveGps.lng !== null) {
+      this.liveLocMap.flyTo([this.liveGps.lat, this.liveGps.lng], 16, { animate: true, duration: 1 });
+      this.showToast('Memusatkan peta ke posisi GPS Anda saat ini.', 'info');
+    } else {
+      this.refreshGpsLocation(true);
+      this.showToast('Mendeteksi sinyal GPS Anda...', 'info');
+    }
+  },
+
+  refreshLiveLocMap() {
+    this.refreshGpsLocation(false);
+    this.renderLiveLocView();
+    if (this.liveLocMap) {
+      this.liveLocMap.invalidateSize();
+    }
+    this.showToast('Data Live Loc Maps & posisi Bestie berhasil diperbarui!', 'success');
+  },
+
+  toggleLiveLocLayer(layerKey, isChecked) {
+    this._liveLocLayerVisibility[layerKey] = Boolean(isChecked);
+    if (!this.liveLocMap) return;
+
+    const layerMap = {
+      stores: this.liveLocStoreLayer,
+      geofence: this.liveLocGeofenceLayer,
+      routes: this.liveLocRouteLayer,
+      besties: this.liveLocBestieLayer
+    };
+
+    const targetLayer = layerMap[layerKey];
+    if (targetLayer) {
+      if (isChecked) {
+        if (!this.liveLocMap.hasLayer(targetLayer)) this.liveLocMap.addLayer(targetLayer);
+      } else {
+        if (this.liveLocMap.hasLayer(targetLayer)) this.liveLocMap.removeLayer(targetLayer);
+      }
+    }
+  },
+
+  onLiveLocSearch(query) {
+    this.liveLocSearchQuery = String(query || '').trim();
+    this.renderLiveLocBestieList();
+
+    const q = this.liveLocSearchQuery.toLowerCase();
+    if (!q || q.length < 3) return;
+
+    const users = window.FMCUData.getUsers();
+    const matchedBestie = users.find(
+      (u) =>
+        this.isAuditorUser(u) &&
+        ((u.name || '').toLowerCase().includes(q) || String(u.nik || '').toLowerCase().includes(q))
+    );
+    if (matchedBestie) {
+      this.focusLiveLocOnBestie(matchedBestie.id || matchedBestie.username);
+      return;
+    }
+
+    const stores = window.FMCUData.getStores();
+    const matchedStore = stores.find(
+      (s) =>
+        (s.name || '').toLowerCase().includes(q) || String(s.code || '').toLowerCase().includes(q)
+    );
+    if (matchedStore) {
+      this.focusLiveLocOnStore(matchedStore.code);
+    }
+  },
+
+  onLiveLocBestieFilterChange(val) {
+    if (!val || val === 'ALL') {
+      this.fitLiveLocMapToAllBesties();
+    } else {
+      this.focusLiveLocOnBestie(val);
+    }
+  },
+
+  filterLiveLocBestieScope(scope) {
+    this.liveLocBestieScope = scope;
+    const btnAll = document.getElementById('btn-bestie-scope-all');
+    const btnSch = document.getElementById('btn-bestie-scope-scheduled');
+
+    if (scope === 'ALL') {
+      if (btnAll) btnAll.className = 'px-2.5 py-1 rounded-md text-[11px] font-bold bg-white text-slate-900 shadow-xs cursor-pointer';
+      if (btnSch) btnSch.className = 'px-2.5 py-1 rounded-md text-[11px] font-bold text-slate-600 hover:text-slate-900 cursor-pointer';
+    } else {
+      if (btnAll) btnAll.className = 'px-2.5 py-1 rounded-md text-[11px] font-bold text-slate-600 hover:text-slate-900 cursor-pointer';
+      if (btnSch) btnSch.className = 'px-2.5 py-1 rounded-md text-[11px] font-bold bg-white text-slate-900 shadow-xs cursor-pointer';
+    }
+
+    this.renderLiveLocBestieList();
   },
 
   closeModal(id) {
