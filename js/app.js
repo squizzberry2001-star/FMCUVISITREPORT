@@ -9,6 +9,7 @@
 window.FMCUApp = {
   currentView: 'home',
   currentAdminTab: 'schedules',
+  currentScheduleSubSection: 'create',
   currentUser: null,
   gpsWatchId: null,
   isGpsUnlocked: false,
@@ -818,18 +819,25 @@ window.FMCUApp = {
       this.checkAdminGateUI();
       const ctrlHeader = document.getElementById('admin-control-center-header');
       if (ctrlHeader) ctrlHeader.classList.add('hidden');
+      const syncBanner = document.getElementById('admin-firestore-sync-banner');
+      if (syncBanner) syncBanner.classList.add('hidden');
       this.showAdminSectionPanel('schedules');
+      this.switchScheduleSubSection(this.currentScheduleSubSection || 'create', false);
       this.renderAdminView();
     } else if (viewName === 'stores') {
       this.checkAdminGateUI();
       const ctrlHeader = document.getElementById('admin-control-center-header');
       if (ctrlHeader) ctrlHeader.classList.add('hidden');
+      const syncBanner = document.getElementById('admin-firestore-sync-banner');
+      if (syncBanner) syncBanner.classList.add('hidden');
       this.showAdminSectionPanel('stores');
       this.renderAdminView();
     } else if (viewName === 'admin') {
       this.checkAdminGateUI();
       const ctrlHeader = document.getElementById('admin-control-center-header');
       if (ctrlHeader) ctrlHeader.classList.remove('hidden');
+      const syncBanner = document.getElementById('admin-firestore-sync-banner');
+      if (syncBanner) syncBanner.classList.remove('hidden');
       const defaultPortalTab = this.hasAuthority('manage_users') ? 'users' : 'integrations';
       const targetTab = subTab && (subTab === 'users' || subTab === 'integrations') ? subTab : defaultPortalTab;
       this.switchAdminTab(targetTab);
@@ -885,6 +893,45 @@ window.FMCUApp = {
       const panel = document.getElementById(`admin-tab-${p}`);
       if (panel) panel.classList.toggle('hidden', p !== sectionName);
     });
+  },
+
+  switchScheduleSubSection(subSec, scrollTop = true) {
+    const mode = subSec === 'list' ? 'list' : 'create';
+    this.currentScheduleSubSection = mode;
+
+    const createSec = document.getElementById('schedule-section-create');
+    const listSec = document.getElementById('schedule-section-list');
+    const btnCreate = document.getElementById('sch-subtab-btn-create');
+    const btnList = document.getElementById('sch-subtab-btn-list');
+    const countPill = document.getElementById('admin-schedule-count-pill');
+
+    if (createSec) createSec.classList.toggle('hidden', mode !== 'create');
+    if (listSec) listSec.classList.toggle('hidden', mode !== 'list');
+
+    if (btnCreate) {
+      btnCreate.className =
+        mode === 'create'
+          ? 'px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-[#009944] text-white shadow-xs'
+          : 'px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white';
+    }
+
+    if (btnList) {
+      btnList.className =
+        mode === 'list'
+          ? 'px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-[#0099A6] text-white shadow-xs'
+          : 'px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white';
+    }
+
+    if (countPill) {
+      countPill.className =
+        mode === 'list'
+          ? 'px-1.5 py-0.2 rounded-full text-[10px] bg-white/25 text-white font-extrabold'
+          : 'px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-extrabold';
+    }
+
+    if (scrollTop) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   },
 
   updateFormGuardVisibility() {
@@ -2824,7 +2871,10 @@ window.FMCUApp = {
     }
 
     // 1. Render Admin Schedules Table
-    document.getElementById('admin-schedule-count').textContent = `${schedules.length} Jadwal`;
+    const schCountEl = document.getElementById('admin-schedule-count');
+    if (schCountEl) schCountEl.textContent = `${schedules.length} Jadwal`;
+    const schPillEl = document.getElementById('admin-schedule-count-pill');
+    if (schPillEl) schPillEl.textContent = String(schedules.length);
     const schTbody = document.getElementById('admin-schedules-tbody');
     if (schTbody) {
       if (schedules.length === 0) {
@@ -2953,6 +3003,7 @@ window.FMCUApp = {
     window.FMCUData.saveSchedules(schedules);
     this.renderAllViews();
     document.getElementById('adm-sch-focus').value = '';
+    this.switchScheduleSubSection('list');
     this.showToast(`Jadwal Visit Toko ${st.name} untuk ${au.name} berhasil ditambahkan!`, 'success');
   },
 

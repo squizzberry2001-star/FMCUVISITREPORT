@@ -1166,8 +1166,8 @@
             </div>
           </div>
 
-          <!-- Cloud Firestore Real-Time Database Status Banner -->
-          <div class="fm-card p-4 bg-gradient-to-r from-teal-50/70 to-emerald-50/70 border border-teal-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <!-- Cloud Firestore Real-Time Database Status Banner (Portal Admin Only) -->
+          <div id="admin-firestore-sync-banner" class="fm-card p-4 bg-gradient-to-r from-teal-50/70 to-emerald-50/70 border border-teal-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div class="flex items-start sm:items-center gap-3">
               <div class="w-10 h-10 rounded-xl bg-white border border-teal-200 text-[#0099A6] flex items-center justify-center text-lg shrink-0 shadow-xs">
                 <i class="fa-solid fa-database"></i>
@@ -1208,54 +1208,114 @@ service cloud.firestore {
 }</pre>
           </div>
 
-          <!-- ADMIN TAB 1: ATUR JADWAL VISIT -->
-          <div id="admin-tab-schedules" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div class="lg:col-span-4 fm-card p-5 space-y-4 self-start">
-              <h3 class="font-extrabold text-base text-slate-900 border-b border-slate-100 pb-3">
-                <i class="fa-solid fa-calendar-plus text-[#009944] mr-1.5"></i>Buat / Assign Jadwal Visit Baru
-              </h3>
-              <form id="admin-schedule-form" onsubmit="FMCUApp.handleSaveSchedule(event)" class="space-y-3">
+          <!-- ADMIN TAB 1: ATUR JADWAL VISIT (DIPISAH 2 SUB-SECTION HALAMAN DI DALAM MENU UTAMA JADWAL VISIT) -->
+          <div id="admin-tab-schedules" class="space-y-5">
+            <!-- Sub-Section Navigation Switcher Bar -->
+            <div class="fm-card p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-emerald-50/70 via-white to-teal-50/70 border border-emerald-200">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl fm-gradient text-white flex items-center justify-center text-base shrink-0 shadow-xs">
+                  <i class="fa-solid fa-calendar-check"></i>
+                </div>
+                <div>
+                  <h2 class="font-extrabold text-sm sm:text-base text-slate-900">Manajemen Jadwal Visit Toko</h2>
+                  <p class="text-[11px] text-slate-500">Pilih halaman sub-section di bawah untuk membuat assignment baru atau melihat daftar seluruh jadwal visit</p>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 sm:flex items-center gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+                <button type="button" id="sch-subtab-btn-create" onclick="FMCUApp.switchScheduleSubSection('create')" class="px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-[#009944] text-white shadow-xs">
+                  <i class="fa-solid fa-calendar-plus"></i>
+                  <span>Buat / Assign Jadwal</span>
+                </button>
+                <button type="button" id="sch-subtab-btn-list" onclick="FMCUApp.switchScheduleSubSection('list')" class="px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white">
+                  <i class="fa-solid fa-list-check"></i>
+                  <span>Daftar Seluruh Jadwal</span>
+                  <span id="admin-schedule-count-pill" class="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-extrabold">0</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- SUB-SECTION HALAMAN 1: BUAT / ASSIGN JADWAL VISIT BARU -->
+            <div id="schedule-section-create" class="fm-card p-5 sm:p-6 space-y-5 max-w-3xl mx-auto">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3.5">
+                <div>
+                  <span class="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-50 text-[#009944] border border-emerald-200">Sub-Section 1</span>
+                  <h3 class="font-extrabold text-base sm:text-lg text-slate-900 mt-1">
+                    <i class="fa-solid fa-calendar-plus text-[#009944] mr-1.5"></i>Buat / Assign Jadwal Visit Baru
+                  </h3>
+                  <p class="text-xs text-slate-500 mt-0.5">Tugaskan jadwal kunjungan toko dari Master Toko kepada Auditor / Regional Bestie</p>
+                </div>
+                <button type="button" onclick="FMCUApp.switchScheduleSubSection('list')" class="self-start sm:self-center px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer">
+                  <i class="fa-solid fa-table-list text-[#0099A6]"></i>
+                  <span>Lihat Daftar Seluruh Jadwal</span>
+                </button>
+              </div>
+
+              <form id="admin-schedule-form" onsubmit="FMCUApp.handleSaveSchedule(event)" class="space-y-4">
                 <div class="space-y-1.5">
                   <label class="block text-xs font-bold text-slate-700 uppercase">Pilih Toko (Dari Master Toko) *</label>
                   <input type="text" id="adm-sch-store-search" oninput="FMCUApp.filterAdminScheduleStoreDropdown(this.value)" placeholder="🔍 Ketik Site / Nama Toko / City untuk filter cepat..." class="fm-input text-xs bg-slate-50" />
                   <select id="adm-sch-store" required class="fm-input"></select>
                 </div>
-                <div>
-                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Assign ke Auditor *</label>
-                  <select id="adm-sch-auditor" required class="fm-input"></select>
-                </div>
-                <div class="grid grid-cols-2 gap-2">
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tanggal Target *</label>
-                    <input type="date" id="adm-sch-date" required class="fm-input" />
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Assign ke Auditor *</label>
+                    <select id="adm-sch-auditor" required class="fm-input"></select>
                   </div>
                   <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Prioritas</label>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tanggal Target Visit *</label>
+                    <input type="date" id="adm-sch-date" required class="fm-input" />
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Prioritas Kunjungan</label>
                     <select id="adm-sch-priority" class="fm-input">
                       <option value="HIGH">HIGH (Prioritas Utama)</option>
                       <option value="NORMAL" selected>NORMAL (Rutin)</option>
                     </select>
                   </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Jam Operasional Visit</label>
+                    <input type="text" id="adm-sch-window" placeholder="09:00 - 15:00 WIB" value="" class="fm-input" />
+                  </div>
                 </div>
-                <div>
-                  <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Jam Operasional Visit</label>
-                  <input type="text" id="adm-sch-window" placeholder="09:00 - 15:00 WIB" value="" class="fm-input" />
-                </div>
+
                 <div>
                   <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Fokus Audit / Catatan Admin</label>
-                  <textarea id="adm-sch-focus" rows="2" placeholder="Masukkan fokus pemeriksaan atau catatan tugas" class="fm-input"></textarea>
+                  <textarea id="adm-sch-focus" rows="3" placeholder="Masukkan fokus pemeriksaan atau catatan tugas untuk auditor..." class="fm-input"></textarea>
                 </div>
-                <button type="submit" class="w-full fm-gradient text-white font-bold py-2.5 rounded-xl shadow-sm hover:opacity-95 transition text-xs sm:text-sm cursor-pointer">
-                  <i class="fa-solid fa-check mr-1"></i>Simpan & Tugaskan Jadwal Visit
-                </button>
+
+                <div class="pt-1 flex flex-col sm:flex-row items-center justify-end gap-2.5">
+                  <button type="button" onclick="FMCUApp.switchScheduleSubSection('list')" class="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-xs sm:text-sm transition cursor-pointer">
+                    Buka Daftar Jadwal
+                  </button>
+                  <button type="submit" class="w-full sm:w-auto px-6 fm-gradient text-white font-bold py-2.5 rounded-xl shadow-sm hover:opacity-95 transition text-xs sm:text-sm cursor-pointer">
+                    <i class="fa-solid fa-check mr-1.5"></i>Simpan & Tugaskan Jadwal Visit
+                  </button>
+                </div>
               </form>
             </div>
 
-            <div class="lg:col-span-8 fm-card p-5 space-y-4">
-              <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h3 class="font-extrabold text-base text-slate-900">Daftar Seluruh Jadwal Visit Toko</h3>
-                <span id="admin-schedule-count" class="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">0 Jadwal</span>
+            <!-- SUB-SECTION HALAMAN 2: DAFTAR SELURUH JADWAL VISIT TOKO -->
+            <div id="schedule-section-list" class="hidden fm-card p-5 sm:p-6 space-y-4">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
+                <div>
+                  <span class="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-teal-50 text-[#0099A6] border border-teal-200">Sub-Section 2</span>
+                  <div class="flex flex-wrap items-center gap-2 mt-1">
+                    <h3 class="font-extrabold text-base sm:text-lg text-slate-900">
+                      <i class="fa-solid fa-list-check text-[#0099A6] mr-1.5"></i>Daftar Seluruh Jadwal Visit Toko
+                    </h3>
+                    <span id="admin-schedule-count" class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">0 Jadwal</span>
+                  </div>
+                </div>
+                <button type="button" onclick="FMCUApp.switchScheduleSubSection('create')" class="self-start sm:self-center px-3.5 py-2 rounded-xl fm-gradient text-white font-bold text-xs shadow-xs hover:opacity-95 transition flex items-center gap-1.5 cursor-pointer">
+                  <i class="fa-solid fa-plus"></i>
+                  <span>Buat / Assign Jadwal Baru</span>
+                </button>
               </div>
+
               <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse text-xs">
                   <thead>
