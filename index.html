@@ -349,19 +349,13 @@
           </div>
         </div>
 
-        <!-- Right Header Controls: Live GPS Pill, Role Switcher, Profile -->
+        <!-- Right Header Controls: Live GPS Pill, Profile -->
         <div class="flex items-center gap-2 sm:gap-3 shrink-0">
           <!-- Live GPS Pill -->
           <button onclick="FMCUApp.refreshGpsLocation(true)" class="hidden md:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold hover:bg-emerald-100 transition cursor-pointer" title="Klik untuk memperbarui titik GPS aktual">
             <span class="w-2 h-2 rounded-full bg-emerald-500 gps-pulse"></span>
             <span id="header-gps-text">GPS Aktif</span>
           </button>
-
-          <!-- Quick Role / Authority Switcher -->
-          <div class="relative">
-            <select id="header-role-switcher" onchange="FMCUApp.quickLoginById(this.value)" class="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl px-3 py-2 border border-slate-200 focus:outline-none cursor-pointer" title="Ganti Akun / Otoritas Login">
-            </select>
-          </div>
 
           <!-- Profile Button -->
           <button onclick="FMCUApp.openProfileModal()" class="flex items-center gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition cursor-pointer">
