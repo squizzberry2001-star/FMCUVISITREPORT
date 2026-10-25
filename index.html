@@ -836,25 +836,40 @@
                 </div>
               </div>
 
-              <!-- Actual In & Actual Out Time Recorder -->
-              <div class="flex flex-wrap items-center gap-3">
-                <div class="bg-white/10 backdrop-blur-sm border border-white/15 rounded-xl px-3.5 py-2">
-                  <div class="text-[10px] uppercase tracking-wider text-emerald-300 font-bold">Actual In (Check-In)</div>
-                  <div class="flex items-center gap-2 mt-0.5">
-                    <input type="text" id="form-actual-in" placeholder="--:-- WIB" class="bg-transparent font-extrabold text-sm text-white w-24 focus:outline-none border-b border-transparent focus:border-emerald-300 placeholder:text-white/40" value="" />
-                    <button type="button" onclick="FMCUApp.stampActualTime('in')" title="Catat Jam Sekarang sebagai Actual In" class="text-[10px] bg-emerald-500/30 hover:bg-emerald-500/50 px-2 py-0.5 rounded text-emerald-100 font-bold cursor-pointer">
-                      Set Jam Kini
-                    </button>
+              <!-- AUTOMATIC GPS GEOFENCE RADAR & AUTO IN/OUT STATUS (50m Radius & 15m Away Span) -->
+              <div class="flex flex-wrap items-center gap-2.5">
+                <!-- Auto Actual In Card -->
+                <div class="bg-white/10 backdrop-blur-sm border border-emerald-400/30 rounded-xl px-3 py-2 min-w-[125px]">
+                  <div class="flex items-center justify-between gap-1 text-[10px] uppercase tracking-wider text-emerald-300 font-extrabold">
+                    <span>Actual In (Auto GPS)</span>
+                    <i class="fa-solid fa-satellite-dish text-[10px] text-emerald-300 animate-pulse"></i>
                   </div>
+                  <div class="flex items-center gap-1.5 mt-0.5">
+                    <span id="form-auto-in-status" class="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
+                    <input type="text" id="form-actual-in" readonly placeholder="--:-- WIB" class="bg-transparent font-extrabold text-sm text-white w-24 focus:outline-none cursor-default placeholder:text-white/40" value="" />
+                  </div>
+                  <div class="text-[9px] text-emerald-200/80">Radius &le; 50m Toko</div>
                 </div>
 
-                <div class="bg-white/10 backdrop-blur-sm border border-white/15 rounded-xl px-3.5 py-2">
-                  <div class="text-[10px] uppercase tracking-wider text-amber-300 font-bold">Actual Out (Check-Out)</div>
-                  <div class="flex items-center gap-2 mt-0.5">
-                    <input type="text" id="form-actual-out" placeholder="--:-- WIB" class="bg-transparent font-extrabold text-sm text-white w-24 focus:outline-none border-b border-transparent focus:border-amber-300 placeholder:text-white/40" value="" />
-                    <button type="button" onclick="FMCUApp.stampActualTime('out')" title="Catat Jam Sekarang sebagai Actual Out" class="text-[10px] bg-amber-500/30 hover:bg-amber-500/50 px-2 py-0.5 rounded text-amber-100 font-bold cursor-pointer">
-                      Set Jam Kini
-                    </button>
+                <!-- Auto Actual Out Card -->
+                <div class="bg-white/10 backdrop-blur-sm border border-amber-400/30 rounded-xl px-3 py-2 min-w-[125px]">
+                  <div class="flex items-center justify-between gap-1 text-[10px] uppercase tracking-wider text-amber-300 font-extrabold">
+                    <span>Actual Out (Auto GPS)</span>
+                    <i class="fa-solid fa-clock-rotate-left text-[10px] text-amber-300"></i>
+                  </div>
+                  <div class="flex items-center gap-1.5 mt-0.5">
+                    <span id="form-auto-out-status" class="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
+                    <input type="text" id="form-actual-out" readonly placeholder="--:-- WIB" class="bg-transparent font-extrabold text-sm text-white w-24 focus:outline-none cursor-default placeholder:text-white/40" value="" />
+                  </div>
+                  <div class="text-[9px] text-amber-200/80">Rentan 15m Luar Radius</div>
+                </div>
+
+                <!-- Live Geofence Radar Pill -->
+                <div id="form-geofence-radar-pill" class="bg-emerald-500/20 border border-emerald-400/40 rounded-xl px-3 py-2 text-xs flex items-center gap-2">
+                  <div class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping shrink-0"></div>
+                  <div>
+                    <div id="form-geofence-radar-title" class="font-extrabold text-[11px] text-emerald-200 leading-tight">Radar Geofence 50m Aktif</div>
+                    <div id="form-geofence-radar-desc" class="text-[10px] text-emerald-300/80">Mendeteksi jarak toko...</div>
                   </div>
                 </div>
               </div>

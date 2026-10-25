@@ -112,6 +112,10 @@ window.FMCUApp = {
 
     // Auto-request Mandatory GPS Permission on load
     this.initMandatoryGpsSystem();
+
+    // Jalankan continuous Geofence Ticker setiap 4 detik untuk memantau radius 50m & timer 15m
+    if (this._geofenceInterval) clearInterval(this._geofenceInterval);
+    this._geofenceInterval = setInterval(() => this.checkAutomaticGeofenceInOut(), 4000);
   },
 
   // ==========================================================================
@@ -1191,6 +1195,7 @@ window.FMCUApp = {
     }
 
     this.initOrUpdateHomeMap();
+    this.checkAutomaticGeofenceInOut();
   },
 
   initOrUpdateHomeMap() {
@@ -1260,13 +1265,253 @@ window.FMCUApp = {
   },
 
   stampActualTime(type) {
-    const timeStr = this.getCurrentTimeWIB();
-    if (type === 'in') {
-      document.getElementById('form-actual-in').value = timeStr;
-      this.showToast(`Waktu Actual In tercatat: ${timeStr}`, 'success');
+    this.showToast('Pencatatan IN & OUT kini otomatis dari sistem via GPS Geofence (Radius 50m & Rentan Waktu 15 Menit).', 'info');
+  },
+
+  // ==========================================================================
+  // AUTOMATIC GEOFENCE GPS IN / OUT ENGINE (50M RADIUS & 15-MINUTE AWAY SPAN)
+  // ==========================================================================
+  calculateHaversineDistance(lat1, lon1, lat2, lon2) {
+    if (lat1 === null || lon1 === null || lat2 === null || lon2 === null) return null;
+    const R = 6371000; // Radius bumi dalam meter
+    const dLat = ((Number(lat2) - Number(lat1)) * Math.PI) / 180;
+    const dLon = ((Number(lon2) - Number(lon1)) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((Number(lat1) * Math.PI) / 180) *
+        Math.cos((Number(lat2) * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return Math.round(R * c);
+  },
+
+  getSmartAutoInTime() {
+    const now = new Date();
+    const h = now.getHours();
+    const m = now.getMinutes();
+    // Jika terdeteksi di pagi hari sekitar jam 09:30 (09:15 - 09:45), gunakan default '09:30 WIB'
+    if (h === 9 && m >= 15 && m <= 45) {
+      return '09:30 WIB';
+    }
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} WIB`;
+  },
+
+  getSmartAutoOutTime() {
+    const now = new Date();
+    const h = now.getHours();
+    const m = now.getMinutes();
+    // Jika meninggalkan toko menjelang/setelah jam 17:30 (17:15 - 17:45), gunakan default '17:30 WIB'
+    if (h === 17 && m >= 15 && m <= 45) {
+      return '17:30 WIB';
+    }
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} WIB`;
+  },
+
+  getActiveTargetStore() {
+    const activeCheckIn = window.FMCUData.getActiveCheckIn();
+    const storeCode =
+      activeCheckIn?.storeCode ||
+      document.getElementById('form-store-code')?.value?.trim() ||
+      null;
+    if (!storeCode) return null;
+
+    const stores = window.FMCUData.getStores();
+    return stores.find((s) => String(s.code) === String(storeCode)) || null;
+  },
+
+  checkAutomaticGeofenceInOut() {
+    // Jalankan jika ada koordinat Live GPS
+    if (this.liveGps.lat === null || this.liveGps.lng === null) {
+      this.updateGeofenceUI('NO_GPS', null);
+      return;
+    }
+
+    const activeCheckIn = window.FMCUData.getActiveCheckIn();
+    const isFormVisible = this.currentView === 'form' && this.hasActiveStoreForm;
+
+    if (!activeCheckIn && !isFormVisible) {
+      return;
+    }
+
+    const targetStore = this.getActiveTargetStore();
+    if (!targetStore) {
+      return;
+    }
+
+    const stores = window.FMCUData.getStores();
+    const stIdx = stores.findIndex((s) => String(s.code) === String(targetStore.code));
+
+    // Jika toko belum memiliki titik koordinat GPS di database, otomatis anchor ke posisi GPS visitor saat ini
+    if ((!targetStore.lat || !targetStore.lng) && stIdx !== -1) {
+      targetStore.lat = this.liveGps.lat;
+      targetStore.lng = this.liveGps.lng;
+      stores[stIdx].lat = this.liveGps.lat;
+      stores[stIdx].lng = this.liveGps.lng;
+      window.FMCUData.saveStores(stores);
+      if (activeCheckIn) {
+        activeCheckIn.storeLat = this.liveGps.lat;
+        activeCheckIn.storeLng = this.liveGps.lng;
+        window.FMCUData.setActiveCheckIn(activeCheckIn);
+      }
+    }
+
+    const storeLat = targetStore.lat;
+    const storeLng = targetStore.lng;
+    const distanceMeters = this.calculateHaversineDistance(
+      this.liveGps.lat,
+      this.liveGps.lng,
+      storeLat,
+      storeLng
+    );
+
+    const inInput = document.getElementById('form-actual-in');
+    const outInput = document.getElementById('form-actual-out');
+    let currentInVal = inInput?.value?.trim() || activeCheckIn?.actualIn || '';
+    let currentOutVal = outInput?.value?.trim() || activeCheckIn?.actualOut || '';
+
+    const GEOFENCE_RADIUS = 50; // Radius geofence 50 meter
+    const AWAY_THRESHOLD_MS = 15 * 60 * 1000; // Rentan waktu 15 menit jauh dari lokasi
+
+    // KONDISI 1: DI DALAM AREA TOKO (Radius <= 50 meter)
+    if (distanceMeters !== null && distanceMeters <= GEOFENCE_RADIUS) {
+      // Hapus timer away jika visitor kembali mendekat ke dalam radius toko
+      try {
+        sessionStorage.removeItem('fmcu_geofence_left_at');
+      } catch (e) {}
+
+      // AUTO RECORD IN JIKA BELUM TERCATAT
+      if (!currentInVal || currentInVal === '--:-- WIB' || currentInVal === '-') {
+        const autoInTime = this.getSmartAutoInTime();
+        if (inInput) inInput.value = autoInTime;
+
+        if (activeCheckIn) {
+          activeCheckIn.actualIn = autoInTime;
+          activeCheckIn.latIn = this.liveGps.lat;
+          activeCheckIn.lngIn = this.liveGps.lng;
+          window.FMCUData.setActiveCheckIn(activeCheckIn);
+        }
+
+        // Sinkronisasi ke jadwal toko terkait jika ada
+        const schId = activeCheckIn?.scheduleId || document.getElementById('form-schedule-id')?.value;
+        if (schId) {
+          const schedules = window.FMCUData.getSchedules();
+          const sch = schedules.find((s) => s.id === schId);
+          if (sch && (!sch.actualIn || sch.actualIn === '-')) {
+            sch.actualIn = autoInTime;
+            sch.actualLat = this.liveGps.lat;
+            sch.actualLng = this.liveGps.lng;
+            sch.status = 'IN_PROGRESS';
+            window.FMCUData.saveSchedules(schedules);
+          }
+        }
+
+        this.updateActiveCheckInUI();
+        this.showToast(
+          `🟢 Sistem Otomatis Merekam ACTUAL IN: ${autoInTime} (Terdeteksi di dalam radius ${distanceMeters}m <= 50m Toko ${targetStore.name})`,
+          'success'
+        );
+      }
+
+      this.updateGeofenceUI('INSIDE', distanceMeters);
+    }
+    // KONDISI 2: DI LUAR AREA TOKO (Radius > 50 meter)
+    else if (distanceMeters !== null && distanceMeters > GEOFENCE_RADIUS) {
+      // Hanya menghitung rentan waktu keluar 15 menit jika Actual IN sudah pernah tercatat
+      if (currentInVal && (!currentOutVal || currentOutVal === '--:-- WIB' || currentOutVal === '-')) {
+        let leftAt = Number(sessionStorage.getItem('fmcu_geofence_left_at') || 0);
+        if (!leftAt) {
+          leftAt = Date.now();
+          try {
+            sessionStorage.setItem('fmcu_geofence_left_at', String(leftAt));
+          } catch (e) {}
+        }
+
+        const elapsedMs = Date.now() - leftAt;
+        const remainingMs = Math.max(0, AWAY_THRESHOLD_MS - elapsedMs);
+
+        // Jika sudah 15 menit berada di luar radius 50m toko -> TRIGGER AUTO OUT!
+        if (remainingMs === 0) {
+          const autoOutTime = this.getSmartAutoOutTime();
+          if (outInput) outInput.value = autoOutTime;
+
+          if (activeCheckIn) {
+            activeCheckIn.actualOut = autoOutTime;
+            activeCheckIn.latOut = this.liveGps.lat;
+            activeCheckIn.lngOut = this.liveGps.lng;
+            window.FMCUData.setActiveCheckIn(activeCheckIn);
+          }
+
+          const schId = activeCheckIn?.scheduleId || document.getElementById('form-schedule-id')?.value;
+          if (schId) {
+            const schedules = window.FMCUData.getSchedules();
+            const sch = schedules.find((s) => s.id === schId);
+            if (sch && (!sch.actualOut || sch.actualOut === '-')) {
+              sch.actualOut = autoOutTime;
+              sch.actualLat = this.liveGps.lat;
+              sch.actualLng = this.liveGps.lng;
+              window.FMCUData.saveSchedules(schedules);
+            }
+          }
+
+          this.updateActiveCheckInUI();
+          this.updateGeofenceUI('AUTO_OUT_COMPLETED', distanceMeters, autoOutTime);
+          this.showToast(
+            `🔴 Sistem Otomatis Merekam ACTUAL OUT: ${autoOutTime} (Terdeteksi berada di luar radius toko ${distanceMeters}m > 50m selama 15 menit).`,
+            'info'
+          );
+        } else {
+          // Sedang dalam rentan waktu hitung mundur 15 menit
+          const remMin = Math.floor(remainingMs / 60000);
+          const remSec = Math.floor((remainingMs % 60000) / 1000);
+          this.updateGeofenceUI('OUTSIDE_COUNTDOWN', distanceMeters, null, remMin, remSec);
+        }
+      } else if (currentOutVal && currentOutVal !== '--:-- WIB') {
+        this.updateGeofenceUI('AUTO_OUT_COMPLETED', distanceMeters, currentOutVal);
+      } else {
+        // Belum pernah IN, dan saat ini masih di luar radius 50m toko
+        this.updateGeofenceUI('OUTSIDE_WAITING_IN', distanceMeters);
+      }
+    }
+  },
+
+  updateGeofenceUI(state, distance, outTime = null, remMin = 0, remSec = 0) {
+    const radarPill = document.getElementById('form-geofence-radar-pill');
+    const titleEl = document.getElementById('form-geofence-radar-title');
+    const descEl = document.getElementById('form-geofence-radar-desc');
+    const inDot = document.getElementById('form-auto-in-status');
+    const outDot = document.getElementById('form-auto-out-status');
+
+    if (!radarPill) return;
+
+    if (state === 'INSIDE') {
+      radarPill.className = 'bg-emerald-500/20 border border-emerald-400/40 rounded-xl px-3 py-2 text-xs flex items-center gap-2';
+      if (titleEl) titleEl.textContent = '🟢 Di Dalam Area Toko (≤ 50m)';
+      if (descEl) descEl.textContent = `Jarak: ${distance}m • Auto IN Terverifikasi`;
+      if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0';
+      if (outDot) outDot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
+    } else if (state === 'OUTSIDE_COUNTDOWN') {
+      radarPill.className = 'bg-amber-500/20 border border-amber-400/40 rounded-xl px-3 py-2 text-xs flex items-center gap-2';
+      if (titleEl) titleEl.textContent = '🟡 Di Luar Toko (> 50m)';
+      if (descEl) descEl.textContent = `Jarak: ${distance}m • Timer Auto OUT: ${remMin}m ${remSec}s`;
+      if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-emerald-400 shrink-0';
+      if (outDot) outDot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0';
+    } else if (state === 'AUTO_OUT_COMPLETED') {
+      radarPill.className = 'bg-rose-500/20 border border-rose-400/40 rounded-xl px-3 py-2 text-xs flex items-center gap-2';
+      if (titleEl) titleEl.textContent = '🔴 Auto OUT Tercatat';
+      if (descEl) descEl.textContent = `OUT: ${outTime || '17:30 WIB'} • Jarak: ${distance}m`;
+      if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-emerald-400 shrink-0';
+      if (outDot) outDot.className = 'w-2 h-2 rounded-full bg-rose-400 shrink-0';
+    } else if (state === 'OUTSIDE_WAITING_IN') {
+      radarPill.className = 'bg-slate-500/20 border border-slate-400/30 rounded-xl px-3 py-2 text-xs flex items-center gap-2';
+      if (titleEl) titleEl.textContent = '📡 Di Luar Jarak Toko';
+      if (descEl) descEl.textContent = `Jarak: ${distance}m • Mendekat ke ≤ 50m untuk Auto IN`;
+      if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
+      if (outDot) outDot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
     } else {
-      document.getElementById('form-actual-out').value = timeStr;
-      this.showToast(`Waktu Actual Out tercatat: ${timeStr}`, 'info');
+      radarPill.className = 'bg-slate-500/20 border border-slate-400/30 rounded-xl px-3 py-2 text-xs flex items-center gap-2';
+      if (titleEl) titleEl.textContent = '📡 Mencari Sinyal GPS...';
+      if (descEl) descEl.textContent = 'Pastikan GPS perangkat Anda aktif';
     }
   },
 
@@ -1372,6 +1617,10 @@ window.FMCUApp = {
     this.updateFormGuardVisibility();
     document.getElementById('form-schedule-id').value = checkInObj.scheduleId || '';
     document.getElementById('form-actual-in').value = checkInObj.actualIn || '';
+    if (checkInObj.actualOut) {
+      document.getElementById('form-actual-out').value = checkInObj.actualOut;
+    }
+    this.checkAutomaticGeofenceInOut();
     if (checkInObj.storeCode) {
       document.getElementById('form-store-select').value = checkInObj.storeCode;
       this.onSelectMasterStore(checkInObj.storeCode);
@@ -1381,19 +1630,23 @@ window.FMCUApp = {
     }
   },
 
-  checkInAndOpenForm(storeCode = '', scheduleId = null) {
+  openStoreVisitForm(storeCode = '', scheduleId = null) {
     const stores = window.FMCUData.getStores();
     const schedules = window.FMCUData.getSchedules();
     const sch = schedules.find((s) => s.id === scheduleId) || null;
     const store = stores.find((s) => s.code === storeCode) || null;
-    const nowTime = this.getCurrentTimeWIB();
 
     this.resetVisitForm(true);
     this.hasActiveStoreForm = true;
     this.updateFormGuardVisibility();
 
     document.getElementById('form-schedule-id').value = scheduleId || '';
-    document.getElementById('form-actual-in').value = nowTime;
+    if (sch?.actualIn) {
+      document.getElementById('form-actual-in').value = sch.actualIn;
+    }
+    if (sch?.actualOut) {
+      document.getElementById('form-actual-out').value = sch.actualOut;
+    }
     if (this.currentUser) {
       document.getElementById('form-auditor-name').value = this.currentUser.name || '';
     }
@@ -1413,16 +1666,25 @@ window.FMCUApp = {
       storeCode: store ? store.code : sch ? sch.storeCode : storeCode,
       storeName: store ? store.name : sch ? sch.storeName : 'Toko Visit',
       scheduleId: scheduleId,
-      actualIn: nowTime,
+      actualIn: sch?.actualIn || null,
+      actualOut: sch?.actualOut || null,
       latIn: this.liveGps.lat,
       lngIn: this.liveGps.lng,
+      storeLat: store?.lat || null,
+      storeLng: store?.lng || null,
       startedAt: Date.now()
     };
     window.FMCUData.setActiveCheckIn(checkInObj);
     this.updateActiveCheckInUI();
 
     this.navigate('form');
-    this.showToast(`Check-In (Actual In: ${nowTime}) di Toko ${checkInObj.storeName} berhasil! Form Visit dibuka.`, 'success');
+
+    // Segera evaluasi geofence otomatis (50m radius & 15m away span)
+    this.checkAutomaticGeofenceInOut();
+  },
+
+  checkInAndOpenForm(storeCode = '', scheduleId = null) {
+    this.openStoreVisitForm(storeCode, scheduleId);
   },
 
   // ==========================================================================
@@ -1802,10 +2064,13 @@ window.FMCUApp = {
                 }
               `
                   : `
-                <div class="text-[11px] text-slate-400 font-medium">Siap Check-In GPS</div>
-                <button onclick="FMCUApp.checkInAndOpenForm('${s.storeCode}', '${s.id}')" class="fm-gradient hover:opacity-95 text-white font-bold px-3.5 py-2 rounded-xl text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer">
-                  <i class="fa-solid fa-location-crosshairs"></i>
-                  <span>Check-In & Masuk Form Toko</span>
+                <div class="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
+                  <i class="fa-solid fa-satellite-dish text-emerald-600 animate-pulse"></i>
+                  <span>${s.actualIn ? `In: ${s.actualIn} (Auto GPS)` : 'Auto Geofence 50m'}</span>
+                </div>
+                <button onclick="FMCUApp.openStoreVisitForm('${s.storeCode}', '${s.id}')" class="fm-gradient hover:opacity-95 text-white font-bold px-3.5 py-2 rounded-xl text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                  <i class="fa-solid fa-file-waveform"></i>
+                  <span>Buka Form Toko</span>
                 </button>
               `
               }
