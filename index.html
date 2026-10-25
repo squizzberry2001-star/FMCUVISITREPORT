@@ -1379,9 +1379,53 @@ service cloud.firestore {
                       </div>
                     </div>
 
-                    <div>
-                      <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Fokus Audit / Catatan Mingguan</label>
-                      <input type="text" id="weekly-default-focus" placeholder="Contoh: Audit rutin QSC, FamiTrack & pengecekan area sales" class="fm-input text-xs" />
+                    <!-- FOKUS AUDIT / CATATAN MINGGUAN (MULTIPLE CHECKLIST & TOMBOL +) -->
+                    <div class="space-y-2 pt-1 border-t border-slate-100">
+                      <div class="flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-1.5 min-w-0">
+                          <label class="block text-[11px] font-bold text-slate-700 uppercase tracking-wide truncate">Fokus Audit (Multiple Checklist)</label>
+                          <span id="weekly-focus-count-badge" class="text-[10px] font-extrabold px-1.5 py-0.2 rounded-full bg-teal-50 text-[#0099A6] border border-teal-200 shrink-0">1 Terpilih</span>
+                        </div>
+                        <div class="flex items-center gap-1 shrink-0">
+                          <button type="button" onclick="FMCUApp.toggleAllWeeklyFocusOptions(true)" class="text-[10px] font-bold text-slate-500 hover:text-emerald-700 px-1 py-0.5 rounded cursor-pointer transition" title="Pilih Semua Fokus">
+                            Semua
+                          </button>
+                          <span class="text-slate-300 text-[10px]">|</span>
+                          <button type="button" onclick="FMCUApp.toggleAllWeeklyFocusOptions(false)" class="text-[10px] font-bold text-slate-500 hover:text-rose-600 px-1 py-0.5 rounded cursor-pointer transition" title="Reset Pilihan">
+                            Reset
+                          </button>
+                          <button type="button" onclick="FMCUApp.openAddFocusOptionPrompt()" class="ml-1 px-2 py-0.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#009944] border border-emerald-200 text-[11px] font-extrabold flex items-center gap-1 cursor-pointer transition shadow-2xs" title="Tambah Pilihan Fokus Audit Baru">
+                            <i class="fa-solid fa-plus text-[10px]"></i>
+                            <span>Tambah</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- Quick Add Input Box (Muncul saat klik tombol + Tambah) -->
+                      <div id="weekly-focus-add-box" class="hidden flex items-center gap-1.5 p-1.5 bg-emerald-50/90 border border-emerald-200 rounded-xl transition">
+                        <input type="text" id="weekly-new-focus-input" placeholder="Ketik pilihan fokus audit baru..." class="fm-input text-xs py-1 px-2.5 flex-1 bg-white" onkeydown="if(event.key==='Enter'){event.preventDefault();FMCUApp.submitNewFocusOption();}" />
+                        <button type="button" onclick="FMCUApp.submitNewFocusOption()" class="px-2.5 py-1 rounded-lg bg-[#009944] hover:bg-emerald-700 text-white font-extrabold text-xs transition cursor-pointer shrink-0">
+                          Simpan
+                        </button>
+                        <button type="button" onclick="FMCUApp.closeAddFocusOptionBox()" class="px-2 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-500 font-bold text-xs border border-slate-200 cursor-pointer shrink-0">
+                          Batal
+                        </button>
+                      </div>
+
+                      <!-- Kotak Multiple Checklist Fokus Audit -->
+                      <div id="weekly-focus-checklist-container" class="max-h-40 overflow-y-auto space-y-1 p-2 rounded-xl bg-slate-50/80 border border-slate-200 text-xs">
+                        <!-- Checklist options di-render via JS -->
+                      </div>
+
+                      <!-- Ringkasan Teks Fokus Terpilih -->
+                      <div class="flex items-center gap-1.5 text-[11px] text-slate-500 pt-0.5">
+                        <i class="fa-solid fa-clipboard-check text-emerald-600 shrink-0"></i>
+                        <span class="font-bold text-slate-600 shrink-0">Ringkasan:</span>
+                        <span id="weekly-focus-summary-text" class="text-slate-500 truncate italic">Belum ada fokus audit dipilih</span>
+                      </div>
+
+                      <!-- SINKRONISASI INPUT VALUE UNTUK COMPATIBILITY DENGAN BATCH SCHEDULE -->
+                      <input type="hidden" id="weekly-default-focus" value="" />
                     </div>
                   </div>
 

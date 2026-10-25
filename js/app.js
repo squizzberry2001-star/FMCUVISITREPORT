@@ -3916,8 +3916,173 @@ window.FMCUApp = {
       .join('');
   },
 
+  // ==========================================================================
+  // FOKUS AUDIT (MULTIPLE CHECKLIST & DYNAMIC CUSTOM OPTIONS)
+  // ==========================================================================
+  renderWeeklyFocusChecklist() {
+    const container = document.getElementById('weekly-focus-checklist-container');
+    if (!container) return;
+
+    const allOptions = window.FMCUData.getAuditFocusOptions();
+    const selectedIds = window.FMCUData.getSelectedFocusOptions();
+
+    // Update badge counter
+    const countBadge = document.getElementById('weekly-focus-count-badge');
+    if (countBadge) {
+      countBadge.textContent = `${selectedIds.length} Terpilih`;
+      countBadge.className =
+        selectedIds.length > 0
+          ? 'text-[10px] font-extrabold px-1.5 py-0.2 rounded-full bg-teal-50 text-[#0099A6] border border-teal-200 shrink-0'
+          : 'text-[10px] font-extrabold px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-500 border border-slate-200 shrink-0';
+    }
+
+    if (allOptions.length === 0) {
+      container.innerHTML = '<div class="text-xs text-slate-400 py-2 text-center">Belum ada pilihan fokus audit. Klik <strong>+ Tambah</strong> untuk menambahkan.</div>';
+    } else {
+      container.innerHTML = allOptions
+        .map((opt) => {
+          const isSelected = selectedIds.includes(opt.id);
+          const safeText = String(opt.text || '').replace(/"/g, '&quot;');
+          return `
+            <div class="flex items-center justify-between gap-2 p-1.5 rounded-lg hover:bg-slate-100/80 transition border ${
+              isSelected ? 'border-emerald-200 bg-emerald-50/70 shadow-2xs' : 'border-transparent'
+            }">
+              <label class="flex items-center gap-2 cursor-pointer flex-1 min-w-0 select-none">
+                <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="FMCUApp.onToggleFocusOption('${opt.id}', this.checked)" class="w-4 h-4 rounded text-[#009944] focus:ring-emerald-500 accent-[#009944] cursor-pointer shrink-0" />
+                <span class="text-xs ${isSelected ? 'font-bold text-emerald-950' : 'text-slate-700'} truncate" title="${safeText}">
+                  ${safeText}
+                </span>
+              </label>
+              ${
+                !opt.isDefault
+                  ? `
+                <button type="button" onclick="FMCUApp.deleteFocusOption('${opt.id}')" title="Hapus Pilihan Ini" class="text-slate-400 hover:text-rose-600 p-1 text-[11px] cursor-pointer shrink-0 transition">
+                  <i class="fa-regular fa-trash-can"></i>
+                </button>
+              `
+                  : ''
+              }
+            </div>
+          `;
+        })
+        .join('');
+    }
+
+    // Hitung gabungan string fokus terpilih untuk sinkronisasi batch submit jadwal
+    const selectedTexts = allOptions.filter((o) => selectedIds.includes(o.id)).map((o) => o.text);
+    const combinedStr = selectedTexts.join(', ');
+
+    const hiddenInput = document.getElementById('weekly-default-focus');
+    if (hiddenInput) {
+      hiddenInput.value = combinedStr || 'Audit Rutin Mingguan (QSC & Observasi)';
+    }
+
+    const summaryText = document.getElementById('weekly-focus-summary-text');
+    if (summaryText) {
+      if (selectedTexts.length > 0) {
+        summaryText.textContent = combinedStr;
+        summaryText.className = 'text-slate-700 font-semibold truncate';
+      } else {
+        summaryText.textContent = 'Belum ada fokus audit dipilih (default: Audit Rutin Mingguan)';
+        summaryText.className = 'text-slate-400 italic truncate';
+      }
+    }
+  },
+
+  onToggleFocusOption(optId, isChecked) {
+    let selectedIds = window.FMCUData.getSelectedFocusOptions();
+    if (isChecked) {
+      if (!selectedIds.includes(optId)) selectedIds.push(optId);
+    } else {
+      selectedIds = selectedIds.filter((id) => id !== optId);
+    }
+    window.FMCUData.saveSelectedFocusOptions(selectedIds);
+    this.renderWeeklyFocusChecklist();
+  },
+
+  toggleAllWeeklyFocusOptions(selectAll) {
+    const allOptions = window.FMCUData.getAuditFocusOptions();
+    const selectedIds = selectAll ? allOptions.map((o) => o.id) : [];
+    window.FMCUData.saveSelectedFocusOptions(selectedIds);
+    this.renderWeeklyFocusChecklist();
+  },
+
+  openAddFocusOptionPrompt() {
+    const box = document.getElementById('weekly-focus-add-box');
+    const input = document.getElementById('weekly-new-focus-input');
+    if (box) {
+      box.classList.remove('hidden');
+      if (input) {
+        input.value = '';
+        setTimeout(() => input.focus(), 60);
+      }
+    }
+  },
+
+  closeAddFocusOptionBox() {
+    const box = document.getElementById('weekly-focus-add-box');
+    const input = document.getElementById('weekly-new-focus-input');
+    if (input) input.value = '';
+    if (box) box.classList.add('hidden');
+  },
+
+  submitNewFocusOption() {
+    const input = document.getElementById('weekly-new-focus-input');
+    const val = (input?.value || '').trim();
+    if (!val) {
+      this.showToast('Ketik nama pilihan fokus audit terlebih dahulu.', 'warning');
+      return;
+    }
+
+    const allOptions = window.FMCUData.getAuditFocusOptions();
+    const exists = allOptions.some((o) => o.text.toLowerCase() === val.toLowerCase());
+    if (exists) {
+      this.showToast('Pilihan fokus audit tersebut sudah ada di dalam daftar.', 'info');
+      this.closeAddFocusOptionBox();
+      return;
+    }
+
+    const newOption = {
+      id: `foc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      text: val,
+      isDefault: false
+    };
+    allOptions.push(newOption);
+    window.FMCUData.saveAuditFocusOptions(allOptions);
+
+    // Otomatis centang pilihan baru yang ditambahkan
+    const selectedIds = window.FMCUData.getSelectedFocusOptions();
+    if (!selectedIds.includes(newOption.id)) {
+      selectedIds.push(newOption.id);
+      window.FMCUData.saveSelectedFocusOptions(selectedIds);
+    }
+
+    this.closeAddFocusOptionBox();
+    this.renderWeeklyFocusChecklist();
+    this.showToast(`Pilihan fokus audit "${val}" berhasil ditambahkan!`, 'success');
+  },
+
+  deleteFocusOption(optId) {
+    let allOptions = window.FMCUData.getAuditFocusOptions();
+    const target = allOptions.find((o) => o.id === optId);
+    if (!target) return;
+
+    if (!confirm(`Hapus pilihan fokus audit "${target.text}"?`)) return;
+
+    allOptions = allOptions.filter((o) => o.id !== optId);
+    window.FMCUData.saveAuditFocusOptions(allOptions);
+
+    let selectedIds = window.FMCUData.getSelectedFocusOptions();
+    selectedIds = selectedIds.filter((id) => id !== optId);
+    window.FMCUData.saveSelectedFocusOptions(selectedIds);
+
+    this.renderWeeklyFocusChecklist();
+    this.showToast('Pilihan fokus audit berhasil dihapus.', 'info');
+  },
+
   renderWeeklySchedulePlanner() {
     this.ensureWeeklyPlannerInitialized();
+    this.renderWeeklyFocusChecklist();
     const users = this.getSchedulableAuditors();
     const stores = window.FMCUData.getStores();
     const schedules = window.FMCUData.getSchedules();
