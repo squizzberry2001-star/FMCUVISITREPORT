@@ -343,8 +343,28 @@ window.FMCUData = {
 
     // Otomatis isi Master Toko dari hasil ekstraksi "10. List PIC Oktober 2026_rev01.xlsx" jika masih kosong
     const currentStores = JSON.parse(localStorage.getItem(STORAGE_KEYS.STORES) || '[]');
-    if (currentStores.length === 0 && Array.isArray(window.FMCU_INITIAL_STORES) && window.FMCU_INITIAL_STORES.length > 0) {
-      localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(window.FMCU_INITIAL_STORES));
+    if (Array.isArray(window.FMCU_INITIAL_STORES) && window.FMCU_INITIAL_STORES.length > 0) {
+      if (currentStores.length === 0) {
+        localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(window.FMCU_INITIAL_STORES));
+      } else {
+        // Lengkapi koordinat pinpoint (lat, lng, latitude, longitude) dari seed jika belum ada
+        const seedMap = new Map();
+        window.FMCU_INITIAL_STORES.forEach((s) => seedMap.set(String(s.code), s));
+        let updatedCoord = false;
+        currentStores.forEach((st) => {
+          const seed = seedMap.get(String(st.code));
+          if (seed && (st.lat === undefined || st.lat === null || st.lat === '')) {
+            st.lat = seed.lat;
+            st.lng = seed.lng;
+            st.latitude = seed.latitude;
+            st.longitude = seed.longitude;
+            updatedCoord = true;
+          }
+        });
+        if (updatedCoord) {
+          localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(currentStores));
+        }
+      }
     } else if (!localStorage.getItem(STORAGE_KEYS.STORES)) {
       localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify([]));
     }
@@ -415,6 +435,8 @@ window.FMCUData = {
           else if (colName === 'type' || colName === 'tipe' || colName === 'tipe toko') colMap.type = idx;
           else if (colName === 'city' || colName === 'kota') colMap.city = idx;
           else if (colName === 'address' || colName === 'alamat') colMap.address = idx;
+          else if (colName === 'latitude' || colName === 'lat' || colName === 'altitude') colMap.lat = idx;
+          else if (colName === 'longitude' || colName === 'long' || colName === 'longtitude' || colName === 'lng') colMap.lng = idx;
           else if (colName === 'email' || colName === 'store email' || colName === 'email toko') colMap.email = idx;
           else if (colName === 'store mobile phone' || colName === 'mobile phone' || colName === 'no telp toko' || colName === 'store phone') colMap.storePhone = idx;
           else if (colName === 'store head' || colName === 'kepala toko') colMap.storeHead = idx;
@@ -449,13 +471,22 @@ window.FMCUData = {
 
       const storeHeadVal = colMap.storeHead !== undefined ? String(row[colMap.storeHead] ?? '').trim() : '';
 
-      // Hanya ekstrak kolom yang diminta
+      const rawLat = colMap.lat !== undefined ? String(row[colMap.lat] ?? '').trim() : '';
+      const rawLng = colMap.lng !== undefined ? String(row[colMap.lng] ?? '').trim() : '';
+      const parsedLat = rawLat !== '' && !isNaN(Number(rawLat)) ? Number(rawLat) : null;
+      const parsedLng = rawLng !== '' && !isNaN(Number(rawLng)) ? Number(rawLng) : null;
+
+      // Ekstrak data toko termasuk koordinat maps (Latitude/Altitude & Longitude)
       extractedStores.push({
         code: rawSite,
         name: (rawName || rawSite).toUpperCase(),
         type: colMap.type !== undefined ? String(row[colMap.type] ?? '').trim() : 'CVS',
         city: colMap.city !== undefined ? String(row[colMap.city] ?? '').trim() : '',
         address: colMap.address !== undefined ? String(row[colMap.address] ?? '').trim() : '',
+        lat: parsedLat,
+        lng: parsedLng,
+        latitude: parsedLat,
+        longitude: parsedLng,
         email: colMap.email !== undefined ? String(row[colMap.email] ?? '').trim() : '',
         storePhone: colMap.storePhone !== undefined ? String(row[colMap.storePhone] ?? '').trim() : '',
         storeHead: storeHeadVal,

@@ -848,7 +848,7 @@
                     <span id="form-auto-in-status" class="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
                     <input type="text" id="form-actual-in" readonly placeholder="--:-- WIB" class="bg-transparent font-extrabold text-sm text-white w-24 focus:outline-none cursor-default placeholder:text-white/40" value="" />
                   </div>
-                  <div class="text-[9px] text-emerald-200/80">Radius &le; 50m Toko</div>
+                  <div class="text-[9px] text-emerald-200/80">Buka Web &le; 08:30 (Radius &le; 50m)</div>
                 </div>
 
                 <!-- Auto Actual Out Card -->
@@ -861,7 +861,7 @@
                     <span id="form-auto-out-status" class="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
                     <input type="text" id="form-actual-out" readonly placeholder="--:-- WIB" class="bg-transparent font-extrabold text-sm text-white w-24 focus:outline-none cursor-default placeholder:text-white/40" value="" />
                   </div>
-                  <div class="text-[9px] text-amber-200/80">Rentan 15m Luar Radius</div>
+                  <div class="text-[9px] text-amber-200/80">Buka Web &ge; 17:30 (Radius &le; 50m)</div>
                 </div>
 
                 <!-- Live Geofence Radar Pill -->
@@ -1710,6 +1710,20 @@ service cloud.firestore {
                   </div>
                   <div class="grid grid-cols-2 gap-2">
                     <div>
+                      <label class="block text-xs font-bold text-slate-700 uppercase mb-1">
+                        <i class="fa-solid fa-location-dot text-rose-500 mr-1"></i>Latitude / Altitude
+                      </label>
+                      <input type="text" id="adm-st-lat" placeholder="-6.2088" class="fm-input font-mono text-xs" />
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-slate-700 uppercase mb-1">
+                        <i class="fa-solid fa-map-pin text-[#0099A6] mr-1"></i>Longitude
+                      </label>
+                      <input type="text" id="adm-st-lng" placeholder="106.8456" class="fm-input font-mono text-xs" />
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
                       <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Email Toko</label>
                       <input type="email" id="adm-st-email" placeholder="store.xxx@familymartindonesia.com" class="fm-input text-xs" />
                     </div>
@@ -1785,6 +1799,7 @@ service cloud.firestore {
                         <th class="py-2.5 px-3">Site & Nama Toko</th>
                         <th class="py-2.5 px-3">Type & City</th>
                         <th class="py-2.5 px-3 min-w-[200px]">Address</th>
+                        <th class="py-2.5 px-3 min-w-[140px]">Pinpoint Maps (Lat, Long / Altitude)</th>
                         <th class="py-2.5 px-3">Email & Store Mobile Phone</th>
                         <th class="py-2.5 px-3">Store Head</th>
                         <th class="py-2.5 px-3">Area Manager & Email AM</th>
