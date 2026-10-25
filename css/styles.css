@@ -109,9 +109,20 @@ body {
   border-right: 3px solid #009944;
 }
 
+.mobile-nav-item {
+  transition: color 0.15s ease, transform 0.15s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .mobile-nav-item.active {
-  color: #009944;
-  font-weight: 700;
+  color: #009944 !important;
+  font-weight: 800;
+}
+
+.mobile-nav-item.active i {
+  color: #009944 !important;
+  transform: translateY(-1px);
 }
 
 /* 16:9 Widescreen Slide Preview Container for PDF Preview Page */

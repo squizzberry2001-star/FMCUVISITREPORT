@@ -567,19 +567,15 @@
                   Silakan pilih toko pada sub section <strong>Jadwal Visit</strong> atau tekan tombol <strong>Visit Toko Jadwal Hari Ini</strong> di bawah ini untuk melakukan <em>Check-In (Actual In)</em> dan membuka Form Visit toko tersebut.
                 </p>
 
-                <!-- Quick Action Buttons -->
-                <div class="pt-2 flex flex-wrap items-center gap-3">
-                  <button onclick="FMCUApp.handleVisitTodaySchedule()" class="fm-gradient hover:opacity-95 text-white font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm shadow-sm transition flex items-center gap-2 cursor-pointer">
-                    <i class="fa-solid fa-calendar-day"></i>
-                    <span>Visit Toko Jadwal Hari Ini</span>
+                <!-- Quick Action Buttons: 2 Tombol Berdampingan Horizontal -->
+                <div class="pt-2 grid grid-cols-2 gap-2 sm:gap-3 w-full">
+                  <button type="button" onclick="FMCUApp.handleVisitTodaySchedule()" class="fm-gradient hover:opacity-95 text-white font-extrabold p-2.5 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm shadow-sm transition flex items-center justify-center text-center gap-1.5 sm:gap-2 cursor-pointer">
+                    <i class="fa-solid fa-calendar-day text-xs sm:text-sm shrink-0"></i>
+                    <span class="leading-tight">Visit Jadwal Toko Hari Ini</span>
                   </button>
-                  <button onclick="FMCUApp.switchHomeSubSection('schedule')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold px-3.5 py-2.5 rounded-xl text-xs sm:text-sm transition flex items-center gap-2 cursor-pointer">
-                    <i class="fa-solid fa-calendar-days text-[#009944]"></i>
-                    <span>Lihat Jadwal Visit Toko</span>
-                  </button>
-                  <button onclick="FMCUApp.openProfileModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3.5 py-2.5 rounded-xl text-xs sm:text-sm transition flex items-center gap-2 cursor-pointer">
-                    <i class="fa-regular fa-id-badge text-[#0099A6]"></i>
-                    <span>Profil & Log Kehadiran</span>
+                  <button type="button" onclick="FMCUApp.switchHomeSubSection('schedule')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-extrabold p-2.5 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm shadow-xs transition flex items-center justify-center text-center gap-1.5 sm:gap-2 cursor-pointer">
+                    <i class="fa-solid fa-calendar-days text-[#009944] text-xs sm:text-sm shrink-0"></i>
+                    <span class="leading-tight">Lihat Jadwal Visit Toko</span>
                   </button>
                 </div>
               </div>
@@ -2427,66 +2423,66 @@ service cloud.firestore {
 
   <!-- ====================================================================
        MOBILE BOTTOM NAVIGATION BAR
-       (Dinamis menyesuaikan otoritas user & berubah menjadi tombol Section saat di Form Visit)
+       (Posisi Center Presisi, Tanpa Geser-Geser, & Icon Lengkap di Form Visit)
        ==================================================================== -->
-  <nav id="mobile-bottom-nav" class="lg:hidden fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 z-40 py-1.5 px-2 shadow-lg overflow-x-auto">
-    <!-- A. MENU UTAMA MOBILE -->
-    <div id="mobile-main-nav" class="flex items-center gap-1 min-w-max sm:min-w-0 sm:justify-around w-full px-1">
-      <button onclick="FMCUApp.navigate('home')" id="mnav-home" class="mobile-nav-item active flex flex-col items-center justify-center py-1 px-2.5 text-slate-500 cursor-pointer shrink-0">
+  <nav id="mobile-bottom-nav" class="lg:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40 py-1.5 px-3 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
+    <!-- A. MENU UTAMA MOBILE (Posisi Center Merata, Tanpa Scroll/Geser-Geser) -->
+    <div id="mobile-main-nav" class="flex items-center justify-around w-full max-w-md mx-auto">
+      <button type="button" onclick="FMCUApp.navigate('home')" id="mnav-home" class="mobile-nav-item active flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-500 cursor-pointer text-center">
         <i class="fa-solid fa-house text-base"></i>
         <span class="text-[10px] mt-0.5">Home</span>
       </button>
-      <button onclick="FMCUApp.navigate('analytics')" id="mnav-analytics" class="mobile-nav-item flex flex-col items-center justify-center py-1 px-2.5 text-slate-500 cursor-pointer shrink-0">
+      <button type="button" onclick="FMCUApp.navigate('analytics')" id="mnav-analytics" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-500 cursor-pointer text-center">
         <i class="fa-solid fa-chart-pie text-base"></i>
         <span class="text-[10px] mt-0.5">Analitik</span>
       </button>
-      <button onclick="FMCUApp.navigate('form')" id="mnav-form" class="mobile-nav-item hidden flex flex-col items-center justify-center py-1 px-2.5 text-slate-500 cursor-pointer shrink-0">
+      <button type="button" onclick="FMCUApp.navigate('form')" id="mnav-form" class="mobile-nav-item hidden flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-500 cursor-pointer text-center">
         <i class="fa-solid fa-clipboard-check text-base"></i>
         <span class="text-[10px] mt-0.5">Form Toko</span>
       </button>
-      <button onclick="FMCUApp.navigate('preview')" id="mnav-preview" class="mobile-nav-item flex flex-col items-center justify-center py-1 px-2.5 text-slate-500 cursor-pointer shrink-0">
+      <button type="button" onclick="FMCUApp.navigate('preview')" id="mnav-preview" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-500 cursor-pointer text-center">
         <i class="fa-solid fa-file-pdf text-base"></i>
         <span class="text-[10px] mt-0.5">Preview PDF</span>
       </button>
-      <button onclick="FMCUApp.navigate('schedules')" id="mnav-schedules" class="mobile-nav-item hidden flex flex-col items-center justify-center py-1 px-2.5 text-slate-500 cursor-pointer shrink-0">
+      <button type="button" onclick="FMCUApp.navigate('schedules')" id="mnav-schedules" class="mobile-nav-item hidden flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-500 cursor-pointer text-center">
         <i class="fa-solid fa-calendar-days text-base"></i>
         <span class="text-[10px] mt-0.5">Jadwal</span>
       </button>
-      <button onclick="FMCUApp.navigate('live-maps')" id="mnav-live-maps" class="mobile-nav-item hidden flex flex-col items-center justify-center py-1 px-2.5 text-slate-500 cursor-pointer shrink-0">
+      <button type="button" onclick="FMCUApp.navigate('live-maps')" id="mnav-live-maps" class="mobile-nav-item hidden flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-500 cursor-pointer text-center">
         <i class="fa-solid fa-map-location-dot text-base text-[#0099A6]"></i>
         <span class="text-[10px] mt-0.5 font-bold">Live Maps</span>
       </button>
-      <button onclick="FMCUApp.navigate('stores')" id="mnav-stores" class="mobile-nav-item hidden flex flex-col items-center justify-center py-1 px-2.5 text-slate-500 cursor-pointer shrink-0">
+      <button type="button" onclick="FMCUApp.navigate('stores')" id="mnav-stores" class="mobile-nav-item hidden flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-500 cursor-pointer text-center">
         <i class="fa-solid fa-store text-base"></i>
         <span class="text-[10px] mt-0.5">Master Toko</span>
       </button>
-      <button onclick="FMCUApp.navigate('admin')" id="mnav-admin" class="mobile-nav-item hidden flex flex-col items-center justify-center py-1 px-2.5 text-slate-500 cursor-pointer shrink-0">
+      <button type="button" onclick="FMCUApp.navigate('admin')" id="mnav-admin" class="mobile-nav-item hidden flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-500 cursor-pointer text-center">
         <i class="fa-solid fa-user-shield text-base"></i>
         <span class="text-[10px] mt-0.5">Admin</span>
       </button>
     </div>
 
-    <!-- B. MENU SECTION FORM VISIT MOBILE (Otomatis aktif saat masuk ke Form Visit) -->
-    <div id="mobile-form-nav" class="hidden flex items-center justify-around w-full">
-      <button type="button" onclick="FMCUApp.navigate('home')" class="mobile-nav-item flex flex-col items-center justify-center py-1 px-2 text-slate-600 cursor-pointer shrink-0">
+    <!-- B. MENU SECTION FORM VISIT MOBILE (Dengan Icon FontAwesome Lengkap & Center) -->
+    <div id="mobile-form-nav" class="hidden flex items-center justify-around w-full max-w-md mx-auto">
+      <button type="button" onclick="FMCUApp.navigate('home')" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-0.5 text-slate-600 hover:text-slate-900 cursor-pointer text-center">
         <i class="fa-solid fa-arrow-left text-sm"></i>
-        <span class="text-[9px] font-bold mt-0.5">Menu Utama</span>
+        <span class="text-[9px] font-bold mt-0.5">Home</span>
       </button>
-      <button type="button" onclick="FMCUApp.switchFormSection(1)" id="mfnav-sec-1" class="mobile-nav-item active flex flex-col items-center justify-center py-1 px-2 text-slate-500 cursor-pointer shrink-0">
-        <span class="text-xs font-extrabold">Sec 1</span>
-        <span class="text-[9px] mt-0.5">Info & QSC</span>
+      <button type="button" onclick="FMCUApp.switchFormSection(1)" id="mfnav-sec-1" class="mobile-nav-item active flex-1 flex flex-col items-center justify-center py-1 px-0.5 text-slate-500 cursor-pointer text-center">
+        <i class="fa-solid fa-clipboard-list text-sm"></i>
+        <span class="text-[9px] font-bold mt-0.5">Info & QSC</span>
       </button>
-      <button type="button" onclick="FMCUApp.switchFormSection(2)" id="mfnav-sec-2" class="mobile-nav-item flex flex-col items-center justify-center py-1 px-2 text-slate-500 cursor-pointer shrink-0">
-        <span class="text-xs font-extrabold">Sec 2</span>
-        <span class="text-[9px] mt-0.5">Observasi</span>
+      <button type="button" onclick="FMCUApp.switchFormSection(2)" id="mfnav-sec-2" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-0.5 text-slate-500 cursor-pointer text-center">
+        <i class="fa-solid fa-triangle-exclamation text-sm"></i>
+        <span class="text-[9px] font-bold mt-0.5">Observasi</span>
       </button>
-      <button type="button" onclick="FMCUApp.switchFormSection(3)" id="mfnav-sec-3" class="mobile-nav-item flex flex-col items-center justify-center py-1 px-2 text-slate-500 cursor-pointer shrink-0">
-        <span class="text-xs font-extrabold">Sec 3</span>
-        <span class="text-[9px] mt-0.5">Bukti Foto</span>
+      <button type="button" onclick="FMCUApp.switchFormSection(3)" id="mfnav-sec-3" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-0.5 text-slate-500 cursor-pointer text-center">
+        <i class="fa-solid fa-camera text-sm"></i>
+        <span class="text-[9px] font-bold mt-0.5">Bukti Foto</span>
       </button>
-      <button type="button" onclick="FMCUApp.switchFormSection(4)" id="mfnav-sec-4" class="mobile-nav-item flex flex-col items-center justify-center py-1 px-2 text-slate-500 cursor-pointer shrink-0">
-        <span class="text-xs font-extrabold">Sec 4</span>
-        <span class="text-[9px] mt-0.5">Submit</span>
+      <button type="button" onclick="FMCUApp.switchFormSection(4)" id="mfnav-sec-4" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-0.5 text-slate-500 cursor-pointer text-center">
+        <i class="fa-solid fa-paper-plane text-sm"></i>
+        <span class="text-[9px] font-bold mt-0.5">Submit</span>
       </button>
     </div>
   </nav>
