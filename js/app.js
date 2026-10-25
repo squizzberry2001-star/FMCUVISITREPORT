@@ -1,12 +1,19 @@
 // ============================================================================
-// FMCU VISIT STORE REPORT - Main Application Controller
-// (Seluruh data dummy dan informasi dummy telah dikosongkan)
+// FMCU VISIT STORE REPORT - Main Application Controller (UI/UX Revamp)
+// - Mandatory GPS Gate (Web hanya terbuka jika GPS aktif & diizinkan)
+// - Section Home & Analitik Dipisah
+// - Form Visit hanya terbuka saat user masuk ke form toko masing-masing
+// - Portal Admin disembunyikan dari sisi User Biasa
 // ============================================================================
 
 window.FMCUApp = {
   currentView: 'home',
   currentAdminTab: 'schedules',
   currentUser: null,
+  gpsWatchId: null,
+  isGpsUnlocked: false,
+  hasActiveStoreForm: false,
+
   liveGps: {
     lat: null,
     lng: null,
@@ -48,21 +55,145 @@ window.FMCUApp = {
       }
     });
 
-    // Check active session or default to first system account
+    // Default to Auditor (User Biasa) on first load if no session exists
     let sessionUser = window.FMCUData.getSession();
     if (!sessionUser) {
       const users = window.FMCUData.getUsers();
-      sessionUser = users[0] || null;
+      sessionUser = users.find((u) => u.role === 'AUDITOR') || users[0] || null;
       if (sessionUser) window.FMCUData.setSession(sessionUser);
     }
     this.currentUser = sessionUser;
 
+    // Check if there was an active store check-in session
+    const activeCheckIn = window.FMCUData.getActiveCheckIn();
+    this.hasActiveStoreForm = Boolean(activeCheckIn && activeCheckIn.storeCode);
+
     this.populateHeaderRoleSwitcher();
     this.updateUserHeaderUI();
-    this.refreshGpsLocation(false);
     this.resetVisitForm(true);
+    if (activeCheckIn && activeCheckIn.storeCode) {
+      this.restoreActiveCheckInToForm(activeCheckIn);
+    }
     this.renderAllViews();
     this.populateGasScriptPreview();
+
+    // Auto-request Mandatory GPS Permission on load
+    this.initMandatoryGpsSystem();
+  },
+
+  // ==========================================================================
+  // MANDATORY GPS GATE SYSTEM
+  // (Auto-request izin lokasi; web hanya terbuka apabila lokasi GPS menyala)
+  // ==========================================================================
+  initMandatoryGpsSystem() {
+    // Listen to browser permission changes if Permissions API is supported
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions
+        .query({ name: 'geolocation' })
+        .then((permStatus) => {
+          permStatus.onchange = () => {
+            if (permStatus.state === 'granted') {
+              this.requestMandatoryGps();
+            } else if (permStatus.state === 'denied') {
+              this.lockWebForGps('Izin lokasi GPS diblokir di pengaturan browser Anda.');
+            }
+          };
+        })
+        .catch(() => {});
+    }
+
+    // Automatically trigger GPS request on startup
+    this.requestMandatoryGps();
+  },
+
+  requestMandatoryGps() {
+    const btn = document.getElementById('btn-request-gps');
+    const errBox = document.getElementById('gps-gate-error-box');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>Meminta Izin & Sinyal Lokasi GPS...</span>`;
+    }
+    if (errBox) errBox.classList.add('hidden');
+
+    if (!('geolocation' in navigator)) {
+      this.lockWebForGps('Perangkat atau browser ini tidak mendukung fitur Geolocation GPS.');
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        this.unlockWebWithGps(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+        this.startContinuousGpsWatch();
+      },
+      (err) => {
+        let msg = 'Pastikan GPS perangkat menyala dan klik "Allow / Izinkan" saat browser meminta akses lokasi.';
+        if (err.code === 1) {
+          msg = 'Izin lokasi ditolak (Permission Denied). Klik ikon Gembok/Pengaturan di sebelah URL browser Anda, ubah Location menjadi "Allow / Izinkan", lalu klik tombol di bawah.';
+        } else if (err.code === 2) {
+          msg = 'Sinyal lokasi GPS tidak tersedia (Position Unavailable). Pastikan Location Service / GPS pada perangkat Anda sudah dinyalakan.';
+        } else if (err.code === 3) {
+          msg = 'Waktu permintaan sinyal GPS habis (Timeout). Silakan coba klik kembali tombol di bawah.';
+        }
+        this.lockWebForGps(msg);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  },
+
+  startContinuousGpsWatch() {
+    if (this.gpsWatchId !== null || !('geolocation' in navigator)) return;
+    this.gpsWatchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        this.unlockWebWithGps(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+      },
+      (err) => {
+        if (err.code === 1 || err.code === 2) {
+          this.lockWebForGps('Koneksi lokasi GPS terputus atau izin lokasi dinonaktifkan. Nyalakan kembali GPS untuk melanjutkan.');
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 15000, timeout: 15000 }
+    );
+  },
+
+  unlockWebWithGps(lat, lng, accuracy) {
+    const firstUnlock = !this.isGpsUnlocked;
+    this.isGpsUnlocked = true;
+
+    const gate = document.getElementById('gps-gate-screen');
+    if (gate) gate.classList.add('hidden');
+
+    const btn = document.getElementById('btn-request-gps');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<i class="fa-solid fa-satellite-dish"></i><span>Izinkan & Nyalakan Lokasi GPS Sekarang</span>`;
+    }
+
+    this.applyGpsCoordinates(lat, lng, accuracy);
+    if (firstUnlock) {
+      this.showToast(`Lokasi GPS Aktif (${lat.toFixed(5)}, ${lng.toFixed(5)}). Akses web dibuka.`, 'success');
+      setTimeout(() => {
+        if (this.homeMap) this.homeMap.invalidateSize();
+      }, 250);
+    }
+  },
+
+  lockWebForGps(reasonText) {
+    this.isGpsUnlocked = false;
+    const gate = document.getElementById('gps-gate-screen');
+    if (gate) gate.classList.remove('hidden');
+
+    const errBox = document.getElementById('gps-gate-error-box');
+    const errDetail = document.getElementById('gps-gate-error-detail');
+    if (errBox && errDetail) {
+      errDetail.textContent = reasonText;
+      errBox.classList.remove('hidden');
+    }
+
+    const btn = document.getElementById('btn-request-gps');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<i class="fa-solid fa-rotate-right"></i><span>Coba Lagi & Aktifkan Lokasi GPS</span>`;
+    }
   },
 
   // ==========================================================================
@@ -152,8 +283,10 @@ window.FMCUApp = {
     this.populateHeaderRoleSwitcher();
     this.updateUserHeaderUI();
     this.renderAllViews();
-    if (this.currentView === 'admin') {
-      this.checkAdminGateUI();
+
+    // If switched to a regular user while on Admin page, redirect to Home
+    if (this.currentView === 'admin' && !this.hasAdminAuthority(user)) {
+      this.navigate('home');
     }
   },
 
@@ -177,7 +310,7 @@ window.FMCUApp = {
       users
         .map(
           (u) =>
-            `<option value="${u.id}" ${this.currentUser && this.currentUser.id === u.id ? 'selected' : ''}>👤 ${u.name} (${u.role === 'SUPER_ADMIN' ? 'Admin' : u.role === 'ADMIN_SCHEDULE' ? 'Admin Jadwal' : 'Auditor'})</option>`
+            `<option value="${u.id}" ${this.currentUser && this.currentUser.id === u.id ? 'selected' : ''}>👤 ${u.name} (${u.role === 'SUPER_ADMIN' ? 'Admin' : u.role === 'ADMIN_SCHEDULE' ? 'Admin Jadwal' : 'User Biasa'})</option>`
         )
         .join('') + `<option value="__LOGOUT__">🚪 Ganti Login / Keluar...</option>`;
   },
@@ -211,26 +344,34 @@ window.FMCUApp = {
     const welcomeRole = document.getElementById('home-welcome-role');
     if (welcomeRole) welcomeRole.textContent = `Otoritas: ${u.roleBadge || u.role}`;
 
-    const lockBadge = document.getElementById('sidebar-admin-lock');
-    if (lockBadge) {
-      if (this.hasAdminAuthority(u)) {
-        lockBadge.textContent = 'Terbuka';
-        lockBadge.className = 'text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold';
-      } else {
-        lockBadge.textContent = 'Locked';
-        lockBadge.className = 'text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold';
-      }
-    }
+    // Hide Portal Admin button completely for Regular Users (User Biasa)
+    const isAdmin = this.hasAdminAuthority(u);
+    const navAdmin = document.getElementById('nav-admin');
+    const mnavAdmin = document.getElementById('mnav-admin');
+    if (navAdmin) navAdmin.classList.toggle('hidden', !isAdmin);
+    if (mnavAdmin) mnavAdmin.classList.toggle('hidden', !isAdmin);
 
     this.updateActiveCheckInUI();
   },
 
   // ==========================================================================
-  // NAVIGATION & VIEW ROUTER
+  // NAVIGATION & VIEW ROUTER (HOME, ANALYTICS, FORM, PREVIEW, ADMIN)
   // ==========================================================================
   navigate(viewName, subTab = null) {
+    // Guard: Regular user cannot open Admin page
+    if (viewName === 'admin' && !this.hasAdminAuthority()) {
+      this.showToast('Halaman Admin hanya tersedia untuk otoritas Admin.', 'warning');
+      return;
+    }
+
+    // Guard: Form Visit Store only opens if user has entered a store's form
+    if (viewName === 'form' && !this.hasActiveStoreForm) {
+      this.showToast('Pilih dan lakukan Check-In pada toko di jadwal Anda terlebih dahulu untuk membuka Form Visit.', 'warning');
+      viewName = 'home';
+    }
+
     this.currentView = viewName;
-    const views = ['home', 'form', 'preview', 'admin'];
+    const views = ['home', 'analytics', 'form', 'preview', 'admin'];
     views.forEach((v) => {
       const mainEl = document.getElementById(`view-${v}`);
       if (mainEl) mainEl.classList.toggle('hidden', v !== viewName);
@@ -244,8 +385,12 @@ window.FMCUApp = {
 
     const titles = {
       home: [
-        'Dashboard Jadwal, Analitik & History Visit',
-        'Pantau jadwal toko, lokasi aktual (Actual In/Out), trend temuan QSC, dan performa auditor'
+        'Home — Jadwal Toko & History Visit',
+        'Daftar jadwal toko yang diminta visit serta riwayat & arsip laporan PDF'
+      ],
+      analytics: [
+        'Analitik Dashboard — Performa, Trend Temuan & Toko',
+        'Statistik realisasi visit, distribusi kategori temuan QSC, ranking toko, dan aktivitas live GPS auditor'
       ],
       form: [
         'Form Laporan Visit Toko (QSC, FamiTrack & Observasi)',
@@ -272,6 +417,10 @@ window.FMCUApp = {
       setTimeout(() => {
         if (this.homeMap) this.homeMap.invalidateSize();
       }, 200);
+    } else if (viewName === 'analytics') {
+      this.renderAnalyticsView();
+    } else if (viewName === 'form') {
+      this.updateFormGuardVisibility();
     } else if (viewName === 'preview') {
       this.renderPreviewView();
     } else if (viewName === 'admin') {
@@ -281,80 +430,85 @@ window.FMCUApp = {
     }
   },
 
+  updateFormGuardVisibility() {
+    const guardEl = document.getElementById('form-no-store-guard');
+    const wrapperEl = document.getElementById('form-active-store-wrapper');
+    const navForm = document.getElementById('nav-form');
+    const mnavForm = document.getElementById('mnav-form');
+
+    if (guardEl) guardEl.classList.toggle('hidden', this.hasActiveStoreForm);
+    if (wrapperEl) wrapperEl.classList.toggle('hidden', !this.hasActiveStoreForm);
+    if (navForm) navForm.classList.toggle('hidden', !this.hasActiveStoreForm);
+    if (mnavForm) mnavForm.classList.toggle('hidden', !this.hasActiveStoreForm);
+  },
+
   // ==========================================================================
   // LIVE GPS GEOLOCATION & LEAFLET MAP TRACKING
   // ==========================================================================
   refreshGpsLocation(notify = false) {
-    const applyCoords = (lat, lng, accuracy = null, isActual = true) => {
-      this.liveGps = {
-        lat: lat !== null ? Number(lat.toFixed(5)) : null,
-        lng: lng !== null ? Number(lng.toFixed(5)) : null,
-        accuracy: accuracy ? Math.round(accuracy) : null,
-        status: isActual ? 'GPS AKTUAL' : 'BELUM TERDETEKSI'
-      };
+    if (!('geolocation' in navigator)) {
+      this.lockWebForGps('Browser tidak mendukung Geolocation GPS.');
+      return;
+    }
 
-      const hasCoords = this.liveGps.lat !== null && this.liveGps.lng !== null;
-      const coordStr = hasCoords ? `${this.liveGps.lat}, ${this.liveGps.lng}` : 'Izin GPS belum aktif';
-
-      const sideEl = document.getElementById('sidebar-gps-coords');
-      if (sideEl) sideEl.textContent = hasCoords ? `${coordStr} (±${this.liveGps.accuracy || 10}m)` : coordStr;
-
-      const headEl = document.getElementById('header-gps-text');
-      if (headEl) headEl.textContent = hasCoords ? `GPS: ${coordStr}` : 'Klik untuk Aktifkan GPS';
-
-      const homeEl = document.getElementById('home-gps-latlng');
-      if (homeEl) homeEl.textContent = coordStr;
-
-      const badgeEl = document.getElementById('home-gps-status-badge');
-      if (badgeEl) {
-        badgeEl.textContent = hasCoords ? 'GPS Terkunci' : 'Menunggu GPS';
-        badgeEl.className = hasCoords
-          ? 'text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800'
-          : 'text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-600';
-      }
-
-      const formGpsEl = document.getElementById('form-banner-gps');
-      if (formGpsEl) {
-        formGpsEl.innerHTML = `<i class="fa-solid fa-location-dot text-emerald-400"></i><span>Live GPS User: ${coordStr}</span>`;
-      }
-
-      if (hasCoords && this.currentUser) {
-        const users = window.FMCUData.getUsers();
-        const idx = users.findIndex((u) => u.id === this.currentUser.id);
-        if (idx !== -1) {
-          users[idx].lastLocation = {
-            lat: this.liveGps.lat,
-            lng: this.liveGps.lng,
-            updatedAt: new Date().toISOString(),
-            status: 'ON_DUTY'
-          };
-          window.FMCUData.saveUsers(users);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        this.unlockWebWithGps(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+        if (notify) {
+          this.showToast(`Titik Live Location diperbarui: ${this.liveGps.lat}, ${this.liveGps.lng}`, 'success');
         }
-      }
+      },
+      () => {
+        this.lockWebForGps('Lokasi GPS tidak aktif atau izin ditolak. Aktifkan kembali GPS untuk membuka aplikasi.');
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+    );
+  },
 
-      this.initOrUpdateHomeMap();
-      if (notify) {
-        if (hasCoords) {
-          this.showToast(`Titik Live Location diperbarui: ${coordStr}`, 'success');
-        } else {
-          this.showToast('Tidak dapat mengakses sensor GPS perangkat. Pastikan izin lokasi browser aktif.', 'warning');
-        }
-      }
+  applyGpsCoordinates(lat, lng, accuracy = null) {
+    this.liveGps = {
+      lat: lat !== null ? Number(lat.toFixed(5)) : null,
+      lng: lng !== null ? Number(lng.toFixed(5)) : null,
+      accuracy: accuracy ? Math.round(accuracy) : null,
+      status: 'GPS AKTUAL'
     };
 
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          applyCoords(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy, true);
-        },
-        () => {
-          applyCoords(null, null, null, false);
-        },
-        { enableHighAccuracy: true, timeout: 6000 }
-      );
-    } else {
-      applyCoords(null, null, null, false);
+    const coordStr = `${this.liveGps.lat}, ${this.liveGps.lng}`;
+    const sideEl = document.getElementById('sidebar-gps-coords');
+    if (sideEl) sideEl.textContent = `${coordStr} (±${this.liveGps.accuracy || 10}m)`;
+
+    const headEl = document.getElementById('header-gps-text');
+    if (headEl) headEl.textContent = `GPS: ${coordStr}`;
+
+    const homeEl = document.getElementById('home-gps-latlng');
+    if (homeEl) homeEl.textContent = coordStr;
+
+    const badgeEl = document.getElementById('home-gps-status-badge');
+    if (badgeEl) {
+      badgeEl.textContent = 'GPS Terkunci';
+      badgeEl.className = 'text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800';
     }
+
+    const formGpsEl = document.getElementById('form-banner-gps');
+    if (formGpsEl) {
+      formGpsEl.innerHTML = `<i class="fa-solid fa-location-dot text-emerald-400"></i><span>Live GPS User: ${coordStr} (±${this.liveGps.accuracy || 10}m)</span>`;
+    }
+
+    if (this.currentUser) {
+      const users = window.FMCUData.getUsers();
+      const idx = users.findIndex((u) => u.id === this.currentUser.id);
+      if (idx !== -1) {
+        users[idx].lastLocation = {
+          lat: this.liveGps.lat,
+          lng: this.liveGps.lng,
+          updatedAt: new Date().toISOString(),
+          status: 'ON_DUTY'
+        };
+        window.FMCUData.saveUsers(users);
+      }
+    }
+
+    this.initOrUpdateHomeMap();
   },
 
   initOrUpdateHomeMap() {
@@ -368,7 +522,7 @@ window.FMCUApp = {
       this.homeMap = L.map('home-live-map', {
         zoomControl: false,
         attributionControl: false
-      }).setView([centerLat, centerLng], 11);
+      }).setView([centerLat, centerLng], 13);
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19
@@ -416,7 +570,7 @@ window.FMCUApp = {
   },
 
   // ==========================================================================
-  // ACTUAL IN & ACTUAL OUT (CHECK-IN / CHECK-OUT) SYSTEM
+  // ACTUAL IN & ACTUAL OUT + VISIT TOKO JADWAL HARI INI
   // ==========================================================================
   getCurrentTimeWIB() {
     const now = new Date();
@@ -438,8 +592,10 @@ window.FMCUApp = {
     const active = window.FMCUData.getActiveCheckIn();
     const sideWidget = document.getElementById('sidebar-checkin-widget');
     const homeSummary = document.getElementById('home-checkin-summary');
+    const navSub = document.getElementById('nav-form-store-subtitle');
 
-    if (active) {
+    if (active && active.storeCode) {
+      this.hasActiveStoreForm = true;
       if (sideWidget) {
         sideWidget.classList.remove('hidden');
         document.getElementById('sidebar-checkin-time').textContent = active.actualIn || '-';
@@ -449,6 +605,9 @@ window.FMCUApp = {
         homeSummary.textContent = `Check-In: ${active.storeName || 'Toko'} (${active.actualIn || '-'})`;
         homeSummary.className = 'font-bold text-emerald-700 mt-0.5 truncate';
       }
+      if (navSub) {
+        navSub.textContent = `${active.storeName} (${active.storeCode})`;
+      }
     } else {
       if (sideWidget) sideWidget.classList.add('hidden');
       if (homeSummary) {
@@ -456,45 +615,97 @@ window.FMCUApp = {
         homeSummary.className = 'font-bold text-slate-700 mt-0.5 truncate';
       }
     }
+    this.updateFormGuardVisibility();
   },
 
-  startNewVisitModal() {
-    const stores = window.FMCUData.getStores();
-    const sel = document.getElementById('modal-visit-store-select');
-    if (sel) {
-      sel.innerHTML =
-        `<option value="">-- Input Manual di Form Visit --</option>` +
-        stores.map((s) => `<option value="${s.code}">${s.code} — ${s.name} (${s.type})</option>`).join('');
+  // Handler for "Visit Toko Jadwal Hari Ini" button on Home
+  handleVisitTodaySchedule() {
+    // 1. If already checked in to a store, jump directly to its Form Visit
+    const activeCheckIn = window.FMCUData.getActiveCheckIn();
+    if (activeCheckIn && activeCheckIn.storeCode) {
+      this.hasActiveStoreForm = true;
+      this.updateFormGuardVisibility();
+      this.navigate('form');
+      return;
     }
-    document.getElementById('modal-checkin-clock').textContent = this.getCurrentTimeWIB();
-    const gpsText = this.liveGps.lat !== null ? `${this.liveGps.lat}, ${this.liveGps.lng}` : 'Menunggu GPS aktif';
-    document.getElementById('modal-checkin-gps').textContent = `Koordinat GPS Aktual: ${gpsText}`;
-    document.getElementById('modal-new-visit').classList.remove('hidden');
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const schedules = window.FMCUData.getSchedules();
+    const myPendingToday = schedules.find(
+      (s) =>
+        s.status !== 'COMPLETED' &&
+        s.scheduledDate === todayStr &&
+        (!this.currentUser || s.auditorId === this.currentUser.id || s.auditorName === this.currentUser.name)
+    );
+
+    const anyPendingToday = schedules.find((s) => s.status !== 'COMPLETED' && s.scheduledDate === todayStr);
+    const myNextPending = schedules.find(
+      (s) =>
+        s.status !== 'COMPLETED' &&
+        (!this.currentUser || s.auditorId === this.currentUser.id || s.auditorName === this.currentUser.name)
+    );
+
+    const targetSchedule = myPendingToday || anyPendingToday || myNextPending;
+    if (targetSchedule) {
+      this.checkInAndOpenForm(targetSchedule.storeCode, targetSchedule.id);
+      return;
+    }
+
+    // No pending schedule found for today
+    const filterEl = document.getElementById('schedule-filter-scope');
+    if (filterEl) {
+      filterEl.value = 'TODAY';
+      this.renderHomeSchedules();
+    }
+    document.getElementById('home-schedule-section')?.scrollIntoView({ behavior: 'smooth' });
+    this.showToast('Belum ada jadwal toko yang ditugaskan untuk hari ini.', 'warning');
   },
 
-  confirmStartNewVisit() {
-    const storeCode = document.getElementById('modal-visit-store-select').value;
-    this.closeModal('modal-new-visit');
-    this.checkInAndOpenForm(storeCode, null);
+  restoreActiveCheckInToForm(checkInObj) {
+    this.hasActiveStoreForm = true;
+    this.updateFormGuardVisibility();
+    document.getElementById('form-schedule-id').value = checkInObj.scheduleId || '';
+    document.getElementById('form-actual-in').value = checkInObj.actualIn || '';
+    if (checkInObj.storeCode) {
+      document.getElementById('form-store-select').value = checkInObj.storeCode;
+      this.onSelectMasterStore(checkInObj.storeCode);
+    }
+    if (this.currentUser) {
+      document.getElementById('form-auditor-name').value = this.currentUser.name || '';
+    }
   },
 
   checkInAndOpenForm(storeCode = '', scheduleId = null) {
     const stores = window.FMCUData.getStores();
+    const schedules = window.FMCUData.getSchedules();
+    const sch = schedules.find((s) => s.id === scheduleId) || null;
     const store = stores.find((s) => s.code === storeCode) || null;
     const nowTime = this.getCurrentTimeWIB();
 
     this.resetVisitForm(true);
+    this.hasActiveStoreForm = true;
+    this.updateFormGuardVisibility();
+
     document.getElementById('form-schedule-id').value = scheduleId || '';
     document.getElementById('form-actual-in').value = nowTime;
+    if (this.currentUser) {
+      document.getElementById('form-auditor-name').value = this.currentUser.name || '';
+    }
 
     if (store) {
       document.getElementById('form-store-select').value = store.code;
       this.onSelectMasterStore(store.code);
+    } else if (sch) {
+      document.getElementById('form-store-code').value = sch.storeCode || '';
+      document.getElementById('form-store-name').value = sch.storeName || '';
+      document.getElementById('form-store-type').value = sch.storeType || 'CVS';
+      document.getElementById('form-banner-title').textContent = `FMCU Visit Store Report — ${sch.storeName || ''}`;
+      document.getElementById('form-banner-store-badge').textContent = `Kode Toko: ${sch.storeCode || '-'}`;
     }
 
     const checkInObj = {
-      storeCode: store ? store.code : '-',
-      storeName: store ? store.name : 'Kunjungan Baru',
+      storeCode: store ? store.code : sch ? sch.storeCode : storeCode,
+      storeName: store ? store.name : sch ? sch.storeName : 'Toko Visit',
       scheduleId: scheduleId,
       actualIn: nowTime,
       latIn: this.liveGps.lat,
@@ -505,19 +716,26 @@ window.FMCUApp = {
     this.updateActiveCheckInUI();
 
     this.navigate('form');
-    this.showToast(`Check-In (Actual In: ${nowTime}) berhasil direkam! Silakan isi Form Visit.`, 'success');
+    this.showToast(`Check-In (Actual In: ${nowTime}) di Toko ${checkInObj.storeName} berhasil! Form Visit dibuka.`, 'success');
   },
 
   // ==========================================================================
-  // HALAMAN 1: HOME DASHBOARD, SCHEDULES, ANALYTICS CHARTS & HISTORY
+  // HALAMAN 1A & 1B: HOME VIEW & ANALYTICS VIEW (SEPARATED)
   // ==========================================================================
   renderAllViews() {
     this.renderHomeView();
+    this.renderAnalyticsView();
     this.renderPreviewSelector();
     this.renderAdminView();
   },
 
   renderHomeView() {
+    this.renderHomeSchedules();
+    this.renderHomeHistory();
+    this.initOrUpdateHomeMap();
+  },
+
+  renderAnalyticsView() {
     const schedules = window.FMCUData.getSchedules();
     const reports = window.FMCUData.getReports();
 
@@ -555,20 +773,20 @@ window.FMCUApp = {
     const avgScore = reports.length > 0 ? (totalScore / reports.length).toFixed(1) : '0';
     document.getElementById('kpi-avg-score').textContent = `${avgScore}%`;
 
-    this.renderHomeSchedules();
     this.renderAnalyticsCharts();
     this.renderUserPerformanceTable();
-    this.renderHomeHistory();
-    this.initOrUpdateHomeMap();
   },
 
   renderHomeSchedules() {
     const container = document.getElementById('home-schedule-list');
     if (!container) return;
     const scope = document.getElementById('schedule-filter-scope')?.value || 'ALL';
+    const todayStr = new Date().toISOString().slice(0, 10);
     let schedules = window.FMCUData.getSchedules();
 
-    if (scope === 'MINE' && this.currentUser) {
+    if (scope === 'TODAY') {
+      schedules = schedules.filter((s) => s.scheduledDate === todayStr);
+    } else if (scope === 'MINE' && this.currentUser) {
       schedules = schedules.filter((s) => s.auditorId === this.currentUser.id || s.auditorName === this.currentUser.name);
     } else if (scope === 'PENDING') {
       schedules = schedules.filter((s) => s.status !== 'COMPLETED');
@@ -578,11 +796,8 @@ window.FMCUApp = {
 
     if (schedules.length === 0) {
       container.innerHTML = `
-        <div class="col-span-full border border-dashed border-slate-200 rounded-2xl py-10 px-4 text-center space-y-2 bg-slate-50/50">
-          <div class="text-slate-400 text-xs font-medium">Belum ada jadwal visit toko yang terdaftar.</div>
-          <button onclick="FMCUApp.navigate('admin', 'schedules')" class="text-xs font-bold text-[#009944] hover:underline cursor-pointer">
-            + Buat Jadwal Visit di Portal Admin
-          </button>
+        <div class="col-span-full border border-dashed border-slate-200 rounded-2xl py-10 px-4 text-center space-y-1 bg-slate-50/50">
+          <div class="text-slate-400 text-xs font-medium">Belum ada jadwal visit toko yang tersedia pada filter ini.</div>
         </div>
       `;
       return;
@@ -638,7 +853,7 @@ window.FMCUApp = {
                 <div class="text-[11px] text-slate-400 font-medium">Siap Check-In GPS</div>
                 <button onclick="FMCUApp.checkInAndOpenForm('${s.storeCode}', '${s.id}')" class="fm-gradient hover:opacity-95 text-white font-bold px-3.5 py-2 rounded-xl text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer">
                   <i class="fa-solid fa-location-crosshairs"></i>
-                  <span>Check-In & Mulai Visit</span>
+                  <span>Check-In & Masuk Form Toko</span>
                 </button>
               `
               }
@@ -844,11 +1059,8 @@ window.FMCUApp = {
 
     if (reports.length === 0) {
       container.innerHTML = `
-        <div class="border border-dashed border-slate-200 rounded-2xl py-10 px-4 text-center space-y-2 bg-slate-50/50">
+        <div class="border border-dashed border-slate-200 rounded-2xl py-10 px-4 text-center space-y-1 bg-slate-50/50">
           <div class="text-slate-400 text-xs font-medium">Belum ada riwayat laporan visit yang tersimpan.</div>
-          <button onclick="FMCUApp.navigate('form')" class="text-xs font-bold text-[#0099A6] hover:underline cursor-pointer">
-            + Isi Form Visit Baru Sekarang
-          </button>
         </div>
       `;
       return;
@@ -893,7 +1105,7 @@ window.FMCUApp = {
 
             <div class="flex flex-wrap items-center gap-2 shrink-0">
               <button onclick="FMCUApp.editReportById('${r.id}')" class="px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition cursor-pointer">
-                <i class="fa-solid fa-pen mr-1"></i>Edit
+                <i class="fa-solid fa-pen mr-1"></i>Buka Form Toko
               </button>
               <button onclick="FMCUApp.openReportPreview('${r.id}')" class="px-3.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition flex items-center gap-1.5 cursor-pointer">
                 <i class="fa-solid fa-display"></i>
@@ -918,7 +1130,7 @@ window.FMCUApp = {
     if (!sel) return;
     const stores = window.FMCUData.getStores();
     sel.innerHTML =
-      `<option value="">-- Pilih dari Master Toko / Input Manual --</option>` +
+      `<option value="">-- Pilih dari Master Toko --</option>` +
       stores.map((s) => `<option value="${s.code}">${s.code} - ${s.name} (${s.type})</option>`).join('');
   },
 
@@ -965,7 +1177,7 @@ window.FMCUApp = {
     document.getElementById('form-actual-in').value = '';
     document.getElementById('form-actual-out').value = '';
 
-    document.getElementById('form-banner-title').textContent = 'FMCU Visit Store Report — Form Kunjungan Baru';
+    document.getElementById('form-banner-title').textContent = 'FMCU Visit Store Report';
     document.getElementById('form-banner-store-badge').textContent = 'Kode Toko: -';
 
     this.formCrew = [
@@ -1006,6 +1218,9 @@ window.FMCUApp = {
 
   loadReportObjectToForm(rep) {
     this.populateMasterStoreSelect();
+    this.hasActiveStoreForm = true;
+    this.updateFormGuardVisibility();
+
     document.getElementById('form-report-id').value = rep.id || '';
     document.getElementById('form-schedule-id').value = rep.scheduleId || '';
     document.getElementById('form-store-select').value = rep.storeCode || '';
@@ -1025,6 +1240,9 @@ window.FMCUApp = {
 
     document.getElementById('form-banner-title').textContent = `FMCU Visit Store Report — ${rep.storeName || '-'}`;
     document.getElementById('form-banner-store-badge').textContent = `Kode Toko: ${rep.storeCode || '-'} (${rep.storeType || 'CVS'})`;
+
+    const navSub = document.getElementById('nav-form-store-subtitle');
+    if (navSub) navSub.textContent = `${rep.storeName || 'Toko'} (${rep.storeCode || '-'})`;
 
     this.formCrew = JSON.parse(JSON.stringify(rep.crewList || []));
     this.formQscPhotos = JSON.parse(JSON.stringify(rep.qscPhotos || []));
@@ -1368,7 +1586,6 @@ window.FMCUApp = {
     this.showToast(`${files.length} foto bukti berhasil diunggah!`, 'success');
   },
 
-  // Build transient report object from current Form inputs (for Live Preview or Saving)
   buildCurrentFormReportObject() {
     const existingId = document.getElementById('form-report-id')?.value || '';
     const scheduleId = document.getElementById('form-schedule-id')?.value || '';
@@ -1442,6 +1659,7 @@ window.FMCUApp = {
     }
 
     window.FMCUData.setActiveCheckIn(null);
+    this.hasActiveStoreForm = false;
     this.updateActiveCheckInUI();
 
     return reportObj;
@@ -1471,8 +1689,14 @@ window.FMCUApp = {
     if (!sel) return;
     const reports = window.FMCUData.getReports();
 
+    if (reports.length > 0 && this.activePreviewReportId === '__LIVE_FORM__' && !this.hasActiveStoreForm) {
+      this.activePreviewReportId = reports[0].id;
+    }
+
     const optionsHtml =
-      `<option value="__LIVE_FORM__" ${this.activePreviewReportId === '__LIVE_FORM__' ? 'selected' : ''}>[Draft Isian Form Visit Saat Ini]</option>` +
+      (this.hasActiveStoreForm || reports.length === 0
+        ? `<option value="__LIVE_FORM__" ${this.activePreviewReportId === '__LIVE_FORM__' ? 'selected' : ''}>[Draft Form Toko Saat Ini]</option>`
+        : '') +
       reports
         .map(
           (r) =>
@@ -1488,7 +1712,7 @@ window.FMCUApp = {
       return this.buildCurrentFormReportObject();
     }
     const reports = window.FMCUData.getReports();
-    return reports.find((r) => r.id === this.activePreviewReportId) || this.buildCurrentFormReportObject();
+    return reports.find((r) => r.id === this.activePreviewReportId) || reports[0] || this.buildCurrentFormReportObject();
   },
 
   openReportPreview(reportId) {
@@ -1617,23 +1841,13 @@ window.FMCUApp = {
     this.showToast(`PDF ${window.FMCUPdf.getFileName(rep)} berhasil diunduh!`, 'success');
   },
 
-  editCurrentPreviewReport() {
-    if (this.activePreviewReportId === '__LIVE_FORM__') {
-      this.navigate('form');
-      return;
-    }
-    const rep = this.getActivePreviewReport();
-    if (!rep) return;
-    this.editReportById(rep.id);
-  },
-
   editReportById(reportId) {
     const reports = window.FMCUData.getReports();
     const rep = reports.find((r) => r.id === reportId);
     if (!rep) return;
     this.loadReportObjectToForm(rep);
     this.navigate('form');
-    this.showToast(`Membuka mode edit untuk laporan ${rep.storeName}`, 'info');
+    this.showToast(`Membuka form toko ${rep.storeName}`, 'info');
   },
 
   // ==========================================================================
@@ -2118,7 +2332,9 @@ window.FMCUApp = {
 
   clearAllDataConfirm() {
     window.FMCUData.clearAllData();
+    this.hasActiveStoreForm = false;
     this.resetVisitForm(true);
+    this.updateActiveCheckInUI();
     this.renderAllViews();
     this.showToast('Seluruh data toko, jadwal, dan laporan telah dikosongkan!', 'info');
   },
@@ -2156,7 +2372,7 @@ window.FMCUApp = {
         </div>
         <div class="p-3 rounded-xl border border-slate-200">
           <div class="text-slate-400 font-bold uppercase text-[10px]">Status Otoritas</div>
-          <div class="text-xs font-extrabold text-[#0099A6] mt-1">${this.hasAdminAuthority(u) ? 'Admin + Auditor' : 'Auditor Lapangan'}</div>
+          <div class="text-xs font-extrabold text-[#0099A6] mt-1">${this.hasAdminAuthority(u) ? 'Admin + Auditor' : 'User Biasa (Auditor)'}</div>
         </div>
       </div>
 
