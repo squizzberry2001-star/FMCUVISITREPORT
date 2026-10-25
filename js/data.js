@@ -322,10 +322,14 @@ window.FMCUData = {
     if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(INITIAL_USERS));
     } else {
-      // Pastikan 18 karyawan dari Data_Karyawan_NIK.xlsx otomatis ter-seed jika belum ada
+      // Pastikan 18 karyawan dari Data_Karyawan_NIK.xlsx & akun Admin otomatis ter-seed jika belum ada
       const existingUsers = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
       const existingNiks = new Set(existingUsers.map((u) => String(u.nik || u.username || '').toLowerCase()));
       let addedSeed = false;
+      if (!existingUsers.some((u) => u.username === 'admin' || u.role === 'SUPER_ADMIN')) {
+        existingUsers.unshift(INITIAL_USERS[0]);
+        addedSeed = true;
+      }
       EMPLOYEE_NIK_SEED_ROWS.forEach((row, idx) => {
         if (!existingNiks.has(String(row.nik).toLowerCase())) {
           existingUsers.push(mapEmployeeRowToUserObject(row, idx, { passwordMode: 'nik' }));
@@ -679,14 +683,13 @@ window.FMCUData = {
         this.setCloudStatus('ONLINE');
         if (snapshot.empty) {
           const seedUsers = this.getUsers().length > 0 ? this.getUsers() : INITIAL_USERS;
+          const batch = this.db.batch();
           seedUsers.forEach((u) => {
             const docId = String(u.id || u.username);
-            this.db
-              .collection('users')
-              .doc(docId)
-              .set(sanitizeForFirestore({ ...u, id: docId, updatedAt: new Date().toISOString() }), { merge: true })
-              .catch(() => {});
+            const ref = this.db.collection('users').doc(docId);
+            batch.set(ref, sanitizeForFirestore({ ...u, id: docId, updatedAt: new Date().toISOString() }), { merge: true });
           });
+          batch.commit().catch(() => {});
           return;
         }
 
@@ -699,22 +702,32 @@ window.FMCUData = {
         });
 
         if (cloudUsers.length > 0) {
-          // One-time auto-seed 18 karyawan Data_Karyawan_NIK.xlsx ke Cloud Firestore apabila belum ada di database
+          // Pastikan akun Super Admin selalu ada di list
+          if (!cloudUsers.some((u) => u.username === 'admin' || u.role === 'SUPER_ADMIN')) {
+            cloudUsers.unshift(INITIAL_USERS[0]);
+          }
+
+          // One-time auto-seed 18 karyawan Data_Karyawan_NIK.xlsx ke Cloud Firestore via single atomic WriteBatch
           if (!localStorage.getItem('fmcu_employee_nik_cloud_seeded_v1')) {
             localStorage.setItem('fmcu_employee_nik_cloud_seeded_v1', '1');
             const cloudNikSet = new Set(cloudUsers.map((u) => String(u.nik || u.username || '').toLowerCase()));
+            const toAdd = [];
             EMPLOYEE_NIK_SEED_ROWS.forEach((row, idx) => {
               if (!cloudNikSet.has(String(row.nik).toLowerCase())) {
                 const seededU = mapEmployeeRowToUserObject(row, idx, { passwordMode: 'nik' });
                 cloudUsers.push(seededU);
-                const docId = String(seededU.id || seededU.username);
-                this.db
-                  .collection('users')
-                  .doc(docId)
-                  .set(sanitizeForFirestore({ ...seededU, id: docId, updatedAt: new Date().toISOString() }), { merge: true })
-                  .catch(() => {});
+                toAdd.push(seededU);
               }
             });
+            if (toAdd.length > 0) {
+              const batch = this.db.batch();
+              toAdd.forEach((seededU) => {
+                const docId = String(seededU.id || seededU.username);
+                const ref = this.db.collection('users').doc(docId);
+                batch.set(ref, sanitizeForFirestore({ ...seededU, id: docId, updatedAt: new Date().toISOString() }), { merge: true });
+              });
+              batch.commit().catch(() => {});
+            }
           }
 
           localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(cloudUsers));
@@ -957,21 +970,43 @@ window.FMCUData = {
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
 
     if (this.db) {
-      const newIds = new Set(users.map((u) => String(u.id || u.username)));
-      prevUsers.forEach((oldU) => {
-        const oldId = String(oldU.id || oldU.username);
-        if (!newIds.has(oldId)) {
-          this.db.collection('users').doc(oldId).delete().catch((e) => console.warn('Delete user error:', e));
-        }
-      });
-      users.forEach((u) => {
-        const docId = String(u.id || u.username);
-        this.db
-          .collection('users')
-          .doc(docId)
-          .set(sanitizeForFirestore({ ...u, id: docId, updatedAt: new Date().toISOString() }), { merge: true })
-          .catch((e) => console.warn('Save user error:', e));
-      });
+      try {
+        const batch = this.db.batch();
+        const newIds = new Set(users.map((u) => String(u.id || u.username)));
+        prevUsers.forEach((oldU) => {
+          const oldId = String(oldU.id || oldU.username);
+          if (!newIds.has(oldId)) {
+            batch.delete(this.db.collection('users').doc(oldId));
+          }
+        });
+        users.forEach((u) => {
+          const docId = String(u.id || u.username);
+          const ref = this.db.collection('users').doc(docId);
+          batch.set(ref, sanitizeForFirestore({ ...u, id: docId, updatedAt: new Date().toISOString() }), { merge: true });
+        });
+        batch.commit().catch((e) => console.warn('Save user batch error:', e));
+      } catch (err) {
+        console.warn('Batch write error:', err);
+      }
+    }
+  },
+
+  updateUserLocation(userId, lat, lng, status = 'ON_DUTY') {
+    const users = this.getUsers();
+    const idx = users.findIndex((u) => u.id === userId);
+    if (idx === -1) return;
+    const loc = {
+      lat,
+      lng,
+      updatedAt: new Date().toISOString(),
+      status
+    };
+    users[idx].lastLocation = loc;
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+
+    if (this.db) {
+      const docId = String(users[idx].id || users[idx].username);
+      this.db.collection('users').doc(docId).set({ lastLocation: loc }, { merge: true }).catch(() => {});
     }
   },
 

@@ -83,7 +83,6 @@ window.FMCUApp = {
     if (activeCheckIn && activeCheckIn.storeCode) {
       this.restoreActiveCheckInToForm(activeCheckIn);
     }
-    this.renderAllViews();
     this.populateGasScriptPreview();
     this.onCloudStatusChanged(window.FMCUData.cloudStatus, window.FMCUData.cloudErrorMsg);
 
@@ -203,6 +202,7 @@ window.FMCUApp = {
     this.updateAdminFirestoreSummary();
   },
 
+  _cloudDebounceTimer: null,
   onCloudDataUpdated(collectionName) {
     if (collectionName === 'users') {
       const freshSession = window.FMCUData.getSession();
@@ -216,7 +216,28 @@ window.FMCUApp = {
       this.populateMasterStoreSelect();
     }
     this.updateAdminFirestoreSummary();
-    this.renderAllViews();
+
+    // Debounce rendering agar jika Firestore mengirim multi-snapshot sekaligus saat startup,
+    // browser tidak melakukan renderAllViews berkali-kali berturut-turut.
+    if (this._cloudDebounceTimer) {
+      clearTimeout(this._cloudDebounceTimer);
+    }
+    this._cloudDebounceTimer = setTimeout(() => {
+      this.renderCurrentActiveView();
+    }, 150);
+  },
+
+  renderCurrentActiveView() {
+    const v = this.currentView || 'home';
+    if (v === 'home') {
+      this.renderHomeView();
+    } else if (v === 'analytics') {
+      this.renderAnalyticsView();
+    } else if (v === 'preview') {
+      this.renderPreviewView();
+    } else if (v === 'schedules' || v === 'stores' || v === 'admin') {
+      this.renderAdminView();
+    }
   },
 
   updateAdminFirestoreSummary() {
@@ -774,7 +795,7 @@ window.FMCUApp = {
       const visibleLoginUsers = users
         .filter((u) => u.role !== 'SUPER_ADMIN')
         .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'id', { sensitivity: 'base' }));
-      loginSel.innerHTML =
+      const newHtml =
         `<option value="">-- Pilih Nama User --</option>` +
         visibleLoginUsers
           .map(
@@ -782,10 +803,14 @@ window.FMCUApp = {
               `<option value="${u.username}">${u.name}</option>`
           )
           .join('');
-      if (currentVal && visibleLoginUsers.some((u) => u.username === currentVal)) {
-        loginSel.value = currentVal;
-      } else if (visibleLoginUsers.length > 0 && !loginSel.value) {
-        loginSel.value = visibleLoginUsers[0].username;
+
+      if (loginSel.innerHTML !== newHtml) {
+        loginSel.innerHTML = newHtml;
+        if (currentVal && visibleLoginUsers.some((u) => u.username === currentVal)) {
+          loginSel.value = currentVal;
+        } else if (visibleLoginUsers.length > 0 && !loginSel.value) {
+          loginSel.value = visibleLoginUsers[0].username;
+        }
       }
     }
 
@@ -795,13 +820,16 @@ window.FMCUApp = {
     const sortedUsers = [...users].sort((a, b) =>
       String(a.name || '').localeCompare(String(b.name || ''), 'id', { sensitivity: 'base' })
     );
-    sel.innerHTML =
+    const newHeaderHtml =
       sortedUsers
         .map(
           (u) =>
             `<option value="${u.id}" ${this.currentUser && this.currentUser.id === u.id ? 'selected' : ''}>👤 ${u.name} (${u.role === 'SUPER_ADMIN' ? 'Admin' : u.role === 'ADMIN_SCHEDULE' ? 'Admin Jadwal' : 'Visitor'})</option>`
         )
         .join('') + `<option value="__LOGOUT__">🚪 Ganti Login / Keluar...</option>`;
+    if (sel.innerHTML !== newHeaderHtml) {
+      sel.innerHTML = newHeaderHtml;
+    }
   },
 
   updateUserHeaderUI() {
@@ -1152,17 +1180,7 @@ window.FMCUApp = {
       const nowMs = Date.now();
       if (!this._lastLocationSyncedAt || nowMs - this._lastLocationSyncedAt > 45000) {
         this._lastLocationSyncedAt = nowMs;
-        const users = window.FMCUData.getUsers();
-        const idx = users.findIndex((u) => u.id === this.currentUser.id);
-        if (idx !== -1) {
-          users[idx].lastLocation = {
-            lat: this.liveGps.lat,
-            lng: this.liveGps.lng,
-            updatedAt: new Date().toISOString(),
-            status: 'ON_DUTY'
-          };
-          window.FMCUData.saveUsers(users);
-        }
+        window.FMCUData.updateUserLocation(this.currentUser.id, this.liveGps.lat, this.liveGps.lng);
       }
     }
 
@@ -3746,7 +3764,7 @@ window.FMCUApp = {
       const compactStoreOptions =
         `<option value="">+ Pilih Toko...</option>` +
         stores
-          .slice(0, 250)
+          .slice(0, 20)
           .map((s) => `<option value="${s.code}">${s.code} - ${s.name} (${s.city || s.type || 'CVS'})</option>`)
           .join('');
 
