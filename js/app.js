@@ -643,16 +643,16 @@ window.FMCUApp = {
   populateHeaderRoleSwitcher() {
     const users = window.FMCUData.getUsers();
 
-    // 1. Populate Login Form Registered Users Dropdown (#login-username)
+    // 1. Populate Login Form Registered Users Dropdown (#login-username) - Hanya Nama Lengkap
     const loginSel = document.getElementById('login-username');
     if (loginSel && loginSel.tagName === 'SELECT') {
       const currentVal = loginSel.value;
       loginSel.innerHTML =
-        `<option value="">-- Pilih User / Akun Terdaftar --</option>` +
+        `<option value="">-- Pilih Nama User --</option>` +
         users
           .map(
             (u) =>
-              `<option value="${u.username}">${u.name} (@${u.username} — ${u.roleBadge || u.role})</option>`
+              `<option value="${u.username}">${u.name}</option>`
           )
           .join('');
       if (currentVal && users.some((u) => u.username === currentVal)) {
