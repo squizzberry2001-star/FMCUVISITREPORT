@@ -27,6 +27,7 @@ window.FMCUApp = {
   chartStores: null,
 
   // Form State
+  currentFormSection: 1,
   formCrew: [],
   formQscPhotos: [],
   formObservations: [],
@@ -733,6 +734,7 @@ window.FMCUApp = {
       this.renderAnalyticsView();
     } else if (viewName === 'form') {
       this.updateFormGuardVisibility();
+      this.switchFormSection(this.currentFormSection || 1, false);
     } else if (viewName === 'preview') {
       this.renderPreviewView();
     } else if (viewName === 'schedules') {
@@ -756,6 +758,48 @@ window.FMCUApp = {
       this.switchAdminTab(targetTab);
       this.renderAdminView();
     }
+
+    this.updateNavbarModeUI();
+  },
+
+  updateNavbarModeUI() {
+    const isFormActive = this.currentView === 'form' && this.hasActiveStoreForm;
+    const sideMain = document.getElementById('sidebar-main-nav');
+    const sideForm = document.getElementById('sidebar-form-nav');
+    const mobMain = document.getElementById('mobile-main-nav');
+    const mobForm = document.getElementById('mobile-form-nav');
+    const checkInWidget = document.getElementById('sidebar-checkin-widget');
+
+    if (sideMain) sideMain.classList.toggle('hidden', isFormActive);
+    if (sideForm) sideForm.classList.toggle('hidden', !isFormActive);
+    if (mobMain) mobMain.classList.toggle('hidden', isFormActive);
+    if (mobForm) mobForm.classList.toggle('hidden', !isFormActive);
+
+    // Sembunyikan tombol "Buka Form Toko Ini" di widget atas jika sudah berada di dalam form
+    if (checkInWidget && this.hasActiveStoreForm) {
+      const openBtn = checkInWidget.querySelector('button');
+      if (openBtn) openBtn.classList.toggle('hidden', isFormActive);
+    }
+  },
+
+  switchFormSection(secNum, scrollTop = true) {
+    const targetSec = Number(secNum) || 1;
+    this.currentFormSection = targetSec;
+
+    [1, 2, 3, 4].forEach((n) => {
+      const secEl = document.getElementById(`form-sec-${n}`);
+      if (secEl) secEl.classList.toggle('hidden', n !== targetSec);
+
+      const dBtn = document.getElementById(`fnav-sec-${n}`);
+      if (dBtn) dBtn.classList.toggle('active', n === targetSec);
+
+      const mBtn = document.getElementById(`mfnav-sec-${n}`);
+      if (mBtn) mBtn.classList.toggle('active', n === targetSec);
+    });
+
+    if (scrollTop) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   },
 
   showAdminSectionPanel(sectionName) {
@@ -777,6 +821,7 @@ window.FMCUApp = {
     if (wrapperEl) wrapperEl.classList.toggle('hidden', !this.hasActiveStoreForm);
     if (navForm) navForm.classList.toggle('hidden', !canShowFormNav);
     if (mnavForm) mnavForm.classList.toggle('hidden', !canShowFormNav);
+    this.updateNavbarModeUI();
   },
 
   // ==========================================================================
@@ -1552,6 +1597,7 @@ window.FMCUApp = {
     this.formEvidencePhotos = [];
 
     this.renderFormDynamicSections();
+    this.switchFormSection(1, false);
     if (!silent) {
       this.showToast('Form berhasil dikosongkan.', 'info');
     }
@@ -1591,6 +1637,7 @@ window.FMCUApp = {
     this.formEvidencePhotos = JSON.parse(JSON.stringify(rep.evidencePhotos || []));
 
     this.renderFormDynamicSections();
+    this.switchFormSection(1, false);
   },
 
   renderFormDynamicSections() {
@@ -2006,8 +2053,32 @@ window.FMCUApp = {
     return reportObj;
   },
 
+  validateVisitForm() {
+    const requiredSec1Fields = [
+      { id: 'form-store-name', label: 'Nama Store' },
+      { id: 'form-store-code', label: 'Kode Toko' },
+      { id: 'form-auditor-name', label: 'Nama Auditor' },
+      { id: 'form-visit-date', label: 'Tanggal Visit' },
+      { id: 'form-store-head', label: 'Store Head' },
+      { id: 'form-area-manager', label: 'Area Manager' },
+      { id: 'form-regional-manager', label: 'Regional Manager' }
+    ];
+
+    for (const f of requiredSec1Fields) {
+      const el = document.getElementById(f.id);
+      if (el && !el.value.trim()) {
+        this.switchFormSection(1);
+        setTimeout(() => el.focus(), 100);
+        this.showToast(`Harap lengkapi kolom "${f.label}" pada Section 1 terlebih dahulu.`, 'warning');
+        return false;
+      }
+    }
+    return true;
+  },
+
   handleSaveAndPreview(event) {
     if (event) event.preventDefault();
+    if (!this.validateVisitForm()) return;
     const saved = this.collectAndSaveFormReport();
     this.activePreviewReportId = saved.id;
     this.renderAllViews();
@@ -2016,6 +2087,7 @@ window.FMCUApp = {
   },
 
   handleSaveAndSendIntegration() {
+    if (!this.validateVisitForm()) return;
     const saved = this.collectAndSaveFormReport();
     this.activePreviewReportId = saved.id;
     this.renderAllViews();
