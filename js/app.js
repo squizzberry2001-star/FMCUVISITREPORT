@@ -110,6 +110,11 @@ window.FMCUApp = {
     // Aktifkan pemantau Time Session & Tab Close
     this.initSessionMonitor();
 
+    // Bersihkan dummy location GPS agar status actual akurat
+    if (window.FMCUData && typeof window.FMCUData.clearDummyBestieLocations === 'function') {
+      window.FMCUData.clearDummyBestieLocations();
+    }
+
     // Auto-request Mandatory GPS Permission on load
     this.initMandatoryGpsSystem();
 
@@ -1632,45 +1637,8 @@ window.FMCUApp = {
   // PINPOINT ACTUAL GPS UNTUK SETIAP BESTIE / VISITOR (SEMUA ORANG BISA LIHAT)
   // ==========================================================================
   getBestieFallbackLocation(bestie) {
-    // 1. Cek jika ada jadwal aktif hari ini
-    const todayStr = this.getLocalDateISO();
-    const schedules = window.FMCUData.getSchedules();
-    const todaySch = schedules.find((s) => s.scheduledDate === todayStr && this.isScheduleOwnedByUser(s, bestie));
-    if (todaySch) {
-      const stores = window.FMCUData.getStores();
-      const st = stores.find((s) => String(s.code) === String(todaySch.storeCode));
-      if (st && st.lat && st.lng) {
-        return { lat: Number(st.lat), lng: Number(st.lng), storeVisit: `FamilyMart ${st.name} (${st.code})` };
-      }
-    }
-
-    // 2. Cek jadwal lain
-    const anySch = schedules.find((s) => this.isScheduleOwnedByUser(s, bestie));
-    if (anySch) {
-      const stores = window.FMCUData.getStores();
-      const st = stores.find((s) => String(s.code) === String(anySch.storeCode));
-      if (st && st.lat && st.lng) {
-        return { lat: Number(st.lat), lng: Number(st.lng), storeVisit: `FamilyMart ${st.name} (${st.code})` };
-      }
-    }
-
-    // 3. Fallback sebaran geografis realistis dari toko FamilyMart
-    const stores = window.FMCUData.getStores();
-    if (stores && stores.length > 0) {
-      const users = window.FMCUData.getUsers().filter((u) => this.isAuditorUser(u));
-      const uIdx = users.findIndex((u) => u.id === bestie.id || u.nik === bestie.nik);
-      const targetStoreIdx = Math.abs((uIdx !== -1 ? uIdx : 0) * 15) % stores.length;
-      const fallbackStore = stores[targetStoreIdx];
-      if (fallbackStore && fallbackStore.lat && fallbackStore.lng) {
-        return {
-          lat: Number(fallbackStore.lat),
-          lng: Number(fallbackStore.lng),
-          storeVisit: `Area FamilyMart ${fallbackStore.name} (${fallbackStore.city || 'Jabodetabek'})`
-        };
-      }
-    }
-
-    return { lat: -6.2088, lng: 106.8456, storeVisit: 'Jabodetabek' };
+    // DUMMY GPS CLEARED: Hanya gunakan lokasi actual GPS dari perangkat visitor saat mengakses web
+    return null;
   },
 
   renderBestieMarkers(map, layerGroup, isModal = false) {
@@ -1687,13 +1655,8 @@ window.FMCUApp = {
       let lng = bestie.lastLocation?.lng;
       let storeVisit = bestie.lastLocation?.storeVisit || null;
 
-      if (!lat || !lng) {
-        const fallback = this.getBestieFallbackLocation(bestie);
-        if (!fallback) return;
-        lat = fallback.lat;
-        lng = fallback.lng;
-        storeVisit = fallback.storeVisit;
-      }
+      // HANYA RENDER JIKA MEMILIKI KOORDINAT GPS AKTUAL (TIDAK DUMMY)
+      if (!lat || !lng) return;
 
       lat = Number(lat);
       lng = Number(lng);
@@ -6776,14 +6739,8 @@ function getOrCreateSubFolder_(parent, name) {
       let lng = bestie.lastLocation?.lng;
       let storeVisit = bestie.lastLocation?.storeVisit || null;
 
-      if (!lat || !lng) {
-        const fallback = this.getBestieFallbackLocation(bestie);
-        if (fallback) {
-          lat = fallback.lat;
-          lng = fallback.lng;
-          storeVisit = fallback.storeVisit;
-        }
-      }
+      // HANYA RENDER JIKA MEMILIKI LOKASI GPS AKTUAL
+      if (!lat || !lng) return;
 
       lat = Number(lat);
       lng = Number(lng);
@@ -6883,8 +6840,12 @@ function getOrCreateSubFolder_(parent, name) {
           <div class="space-y-1 text-[11px] text-slate-600">
             <div class="flex items-center justify-between">
               <span class="text-slate-400 font-semibold">Status:</span>
-              <span class="font-bold text-emerald-600 flex items-center gap-1">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>${timeAgoText}
+              <span class="font-bold flex items-center gap-1">
+                ${
+                  myScheduleToday && ((targetStore && this.calculateHaversineDistance(lat, lng, Number(targetStore.lat), Number(targetStore.lng)) <= 15) || myScheduleToday.status === 'IN_PROGRESS')
+                    ? '<span class="text-[9px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-extrabold border border-emerald-300">Sedang Visit (≤15m)</span>'
+                    : '<span class="text-[9px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-extrabold border border-amber-300">Diluar Radius Toko</span>'
+                }
               </span>
             </div>
             ${
@@ -6927,24 +6888,82 @@ function getOrCreateSubFolder_(parent, name) {
 
     const users = window.FMCUData.getUsers();
     const besties = users.filter((u) => this.isAuditorUser(u));
+    const stores = window.FMCUData.getStores();
     const schedules = window.FMCUData.getSchedules();
     const todayStr = this.getLocalDateISO();
     const todaySchedules = schedules.filter((s) => s.scheduledDate === todayStr);
     const query = (this.liveLocSearchQuery || '').toLowerCase().trim();
     const scope = this.liveLocBestieScope || 'ALL';
 
-    let filtered = besties.filter((b) => {
-      if (scope === 'SCHEDULED') {
-        const hasToday = todaySchedules.some((s) => this.isScheduleOwnedByUser(s, b));
-        if (!hasToday) return false;
+    // Helper untuk menentukan status aktual masing-masing Bestie:
+    // 1. "NOT_ACCESSED" -> "Belum Akses Web" (lokasi tidak terdeteksi / tidak membuka web)
+    // 2. "VISITING"     -> "Sedang Visit" (lokasi terdeteksi di toko yang terjadwal <= 15m)
+    // 3. "OUTSIDE_RADIUS" -> "Diluar Radius Toko" (lokasi terdeteksi di luar radius toko yang dijadwalkan > 15m)
+    const computeBestieStatus = (b) => {
+      const lat = b.lastLocation?.lat ? Number(b.lastLocation.lat) : null;
+      const lng = b.lastLocation?.lng ? Number(b.lastLocation.lng) : null;
+      const hasActualLocation = Boolean(lat !== null && lng !== null && !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0);
+
+      const myTodaySch = todaySchedules.find((s) => this.isScheduleOwnedByUser(s, b));
+      let distToStore = null;
+
+      if (myTodaySch && hasActualLocation) {
+        const targetStore = stores.find((st) => String(st.code) === String(myTodaySch.storeCode));
+        if (targetStore && targetStore.lat && targetStore.lng) {
+          distToStore = this.calculateHaversineDistance(lat, lng, Number(targetStore.lat), Number(targetStore.lng));
+        }
       }
+
+      if (!hasActualLocation) {
+        return {
+          key: 'NOT_ACCESSED',
+          label: 'Belum Akses Web',
+          lat,
+          lng,
+          hasActualLocation,
+          myTodaySch,
+          distToStore
+        };
+      }
+
+      if (myTodaySch && ((distToStore !== null && distToStore <= 15) || myTodaySch.status === 'IN_PROGRESS')) {
+        return {
+          key: 'VISITING',
+          label: 'Sedang Visit',
+          lat,
+          lng,
+          hasActualLocation,
+          myTodaySch,
+          distToStore
+        };
+      }
+
+      return {
+        key: 'OUTSIDE_RADIUS',
+        label: 'Diluar Radius Toko',
+        lat,
+        lng,
+        hasActualLocation,
+        myTodaySch,
+        distToStore
+      };
+    };
+
+    let filtered = besties.filter((b) => {
+      const stInfo = computeBestieStatus(b);
+
+      if (scope === 'VISITING' && stInfo.key !== 'VISITING') return false;
+      if (scope === 'OUTSIDE_RADIUS' && stInfo.key !== 'OUTSIDE_RADIUS') return false;
+      if (scope === 'NOT_ACCESSED' && stInfo.key !== 'NOT_ACCESSED') return false;
+      if (scope === 'SCHEDULED' && !stInfo.myTodaySch) return false;
+
       if (query) {
         const matchName = (b.name || '').toLowerCase().includes(query);
         const matchNik = String(b.nik || '').toLowerCase().includes(query);
         const matchRegion = (b.region || '').toLowerCase().includes(query);
-        const myTodaySch = todaySchedules.find((s) => this.isScheduleOwnedByUser(s, b));
-        const matchStore = myTodaySch && ((myTodaySch.storeName || '').toLowerCase().includes(query) || String(myTodaySch.storeCode || '').includes(query));
-        return matchName || matchNik || matchRegion || matchStore;
+        const matchStore = stInfo.myTodaySch && ((stInfo.myTodaySch.storeName || '').toLowerCase().includes(query) || String(stInfo.myTodaySch.storeCode || '').includes(query));
+        const matchStatus = stInfo.label.toLowerCase().includes(query);
+        return matchName || matchNik || matchRegion || matchStore || matchStatus;
       }
       return true;
     });
@@ -6976,35 +6995,10 @@ function getOrCreateSubFolder_(parent, name) {
           .join('');
 
         const bKey = String(b.id || b.username);
-        let lat = b.lastLocation?.lat;
-        let lng = b.lastLocation?.lng;
-        let storeVisit = b.lastLocation?.storeVisit || null;
+        const stInfo = computeBestieStatus(b);
+        const { key: statusKey, hasActualLocation, lat, lng, myTodaySch, distToStore } = stInfo;
 
-        if (!lat || !lng) {
-          const fallback = this.getBestieFallbackLocation(b);
-          if (fallback) {
-            lat = fallback.lat;
-            lng = fallback.lng;
-            storeVisit = fallback.storeVisit;
-          }
-        }
-
-        const myTodaySch = todaySchedules.find((s) => this.isScheduleOwnedByUser(s, b));
-        const storeLabel = myTodaySch ? `FM ${myTodaySch.storeName} (${myTodaySch.storeCode})` : (storeVisit || 'Jadwal Standar');
-        const schStatus = myTodaySch?.status || 'STANDBY';
-
-        let statusBadge = '';
-        if (schStatus === 'COMPLETED') {
-          statusBadge = '<span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">Selesai (OUT)</span>';
-        } else if (schStatus === 'IN_PROGRESS') {
-          statusBadge = '<span class="text-[9px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 font-bold">Visiting (IN)</span>';
-        } else if (myTodaySch) {
-          statusBadge = '<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">Terjadwal</span>';
-        } else {
-          statusBadge = '<span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-bold">Siap Tugas</span>';
-        }
-
-        let timeAgoText = 'Aktif Hari Ini';
+        let timeAgoText = 'Hari Ini';
         if (b.lastLocation?.updatedAt) {
           const diffMs = now - new Date(b.lastLocation.updatedAt).getTime();
           const diffMin = Math.floor(diffMs / 60000);
@@ -7013,24 +7007,119 @@ function getOrCreateSubFolder_(parent, name) {
           else timeAgoText = `${Math.floor(diffMin / 60)}j lalu`;
         }
 
-        const gmapUrl = lat && lng ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}` : '#';
+        let distTextToStore = '';
+        if (distToStore !== null) {
+          distTextToStore = distToStore < 1000 ? `${distToStore}m` : `${(distToStore / 1000).toFixed(1)}km`;
+        }
+
+        // TAMPILAN STATUS SESUAI DENGAN 3 KONDISI USER:
+        let statusBadge = '';
+        let statusSubText = '';
+        let avatarDotClass = '';
+        let avatarBgClass = '';
+
+        if (statusKey === 'NOT_ACCESSED') {
+          // STATUS 1: Belum Akses Web (Lokasi tidak terdeteksi & belum buka web)
+          statusBadge = '<span class="text-[9px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-extrabold border border-slate-200">Belum Akses Web</span>';
+          statusSubText = '<span class="text-[10px] text-slate-400 font-medium">Belum Akses Web</span>';
+          avatarDotClass = 'bg-slate-300 border border-white';
+          avatarBgClass = isMe ? 'bg-[#0099A6] ring-2 ring-teal-200' : 'bg-slate-400';
+        } else if (statusKey === 'VISITING') {
+          // STATUS 2: Sedang Visit (Lokasi terdeteksi di toko yang terjadwal <= 15m)
+          statusBadge = '<span class="text-[9px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-extrabold border border-emerald-300 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 gps-pulse"></span>Sedang Visit</span>';
+          statusSubText = `<span class="text-[10px] text-emerald-700 font-bold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Di Toko (${distToStore !== null ? `${distToStore}m` : '≤15m'}) • ${timeAgoText}</span>`;
+          avatarDotClass = 'bg-emerald-500 border border-white gps-pulse';
+          avatarBgClass = isMe ? 'bg-gradient-to-tr from-[#0099A6] to-teal-400 ring-4 ring-teal-300/60 shadow-lg animate-pulse' : 'bg-gradient-to-tr from-[#009944] to-emerald-600 shadow-md';
+        } else {
+          // STATUS 3: Diluar Radius Toko (Lokasi terdeteksi di luar radius toko yang dijadwalkan > 15m)
+          statusBadge = '<span class="text-[9px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-extrabold border border-amber-300 flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation text-[9px] text-amber-600"></i>Diluar Radius Toko</span>';
+          statusSubText = `<span class="text-[10px] text-amber-700 font-bold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Diluar Radius Toko • ${timeAgoText}</span>`;
+          avatarDotClass = 'bg-amber-400 border border-white';
+          avatarBgClass = isMe ? 'bg-gradient-to-tr from-[#0099A6] to-teal-400 ring-4 ring-teal-300/60 shadow-lg animate-pulse' : 'bg-gradient-to-tr from-indigo-600 to-purple-600 shadow-md';
+        }
+
+        // Baris Info Toko
+        let storeRowHtml = '';
+        if (myTodaySch) {
+          let storeDistBadge = '';
+          if (statusKey === 'VISITING') {
+            storeDistBadge = `<span class="text-[10px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">Radius ≤15m</span>`;
+          } else if (statusKey === 'OUTSIDE_RADIUS') {
+            storeDistBadge = `<span class="text-[10px] px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">${distTextToStore ? `${distTextToStore} dari toko` : '>15m'}</span>`;
+          } else {
+            storeDistBadge = `<span class="text-[10px] text-slate-400 font-mono">Jadwal Hari Ini</span>`;
+          }
+          storeRowHtml = `
+            <div class="p-2 rounded-lg bg-slate-50 border border-slate-100 text-[11px] text-slate-700 flex items-center justify-between gap-2">
+              <div class="truncate flex items-center gap-1.5">
+                <i class="fa-solid fa-store text-emerald-600 text-xs shrink-0"></i>
+                <span class="font-bold truncate">FM ${myTodaySch.storeName} (${myTodaySch.storeCode})</span>
+              </div>
+              ${storeDistBadge}
+            </div>
+          `;
+        } else {
+          storeRowHtml = `
+            <div class="p-2 rounded-lg bg-slate-50 border border-slate-100 text-[11px] text-slate-400 flex items-center justify-between gap-2">
+              <div class="truncate flex items-center gap-1.5">
+                <i class="fa-solid fa-store-slash text-slate-400 text-xs shrink-0"></i>
+                <span class="truncate">Belum ada jadwal toko hari ini</span>
+              </div>
+              <span class="text-[10px] text-slate-400 font-mono shrink-0">${b.region || '-'}</span>
+            </div>
+          `;
+        }
+
+        // Baris Bawah: Titik Koordinat & Tombol Aksi
+        let bottomRowHtml = '';
+        if (hasActualLocation) {
+          const gmapUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+          bottomRowHtml = `
+            <div class="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
+              <div class="text-[10px] font-mono text-slate-600 font-semibold truncate flex items-center gap-1">
+                <i class="fa-solid fa-satellite-dish text-emerald-600 text-[9px]"></i>
+                <span>${lat.toFixed(4)}, ${lng.toFixed(4)}</span>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button type="button" onclick="FMCUApp.focusLiveLocOnBestie('${bKey}')" class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-teal-50 text-teal-800 hover:bg-teal-100 transition cursor-pointer flex items-center gap-1">
+                  <i class="fa-solid fa-crosshairs text-teal-600"></i> Fokus Peta
+                </button>
+                <a href="${gmapUrl}" target="_blank" rel="noopener noreferrer" class="px-2 py-1 rounded-lg text-[10px] font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition" title="Buka Rute Google Maps">
+                  <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                </a>
+              </div>
+            </div>
+          `;
+        } else {
+          bottomRowHtml = `
+            <div class="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
+              <div class="text-[10px] font-mono text-slate-400 italic truncate flex items-center gap-1">
+                <i class="fa-solid fa-location-slash text-slate-300 text-[9px]"></i>
+                <span>GPS Belum Terdeteksi</span>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button type="button" onclick="FMCUApp.showToast('Lokasi ${b.name} belum terdeteksi karena personil belum mengakses web app.', 'info')" class="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-slate-100 text-slate-400 hover:bg-slate-200 transition cursor-pointer flex items-center gap-1">
+                  <i class="fa-solid fa-crosshairs text-slate-400"></i> Fokus Peta
+                </button>
+              </div>
+            </div>
+          `;
+        }
 
         return `
           <div class="p-3 rounded-xl border border-slate-200 bg-white hover:border-[#0099A6] hover:shadow-xs transition space-y-2">
             <div class="flex items-center justify-between gap-2">
               <div class="flex items-center gap-2.5 min-w-0">
-                <div class="relative w-8 h-8 rounded-full ${
-                  isMe ? 'bg-[#0099A6]' : 'bg-indigo-600'
-                } text-white font-extrabold text-xs flex items-center justify-center shrink-0">
+                <div class="relative w-8 h-8 rounded-full ${avatarBgClass} text-white font-extrabold text-xs flex items-center justify-center shrink-0">
                   ${initials}
-                  <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white"></span>
+                  <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ${avatarDotClass}"></span>
                 </div>
                 <div class="min-w-0">
                   <div class="font-extrabold text-xs text-slate-900 truncate">
                     ${b.name} ${isMe ? '<span class="text-[10px] text-teal-600 font-bold">(Anda)</span>' : ''}
                   </div>
-                  <div class="text-[10px] text-slate-400 font-mono">
-                    NIK: ${b.nik || '-'} • ${timeAgoText}
+                  <div class="text-[10px] text-slate-400 font-mono truncate">
+                    NIK: ${b.nik || '-'} • ${statusSubText}
                   </div>
                 </div>
               </div>
@@ -7039,33 +7128,11 @@ function getOrCreateSubFolder_(parent, name) {
               </div>
             </div>
 
-            <!-- Store visit target info -->
-            <div class="p-2 rounded-lg bg-slate-50 border border-slate-100 text-[11px] text-slate-700 flex items-center justify-between gap-2">
-              <div class="truncate flex items-center gap-1.5">
-                <i class="fa-solid fa-store text-emerald-600 text-xs shrink-0"></i>
-                <span class="font-bold truncate">${storeLabel}</span>
-              </div>
-              <span class="text-[10px] text-slate-400 font-mono shrink-0">${b.region || 'JKT'}</span>
-            </div>
+            <!-- Store Info -->
+            ${storeRowHtml}
 
-            <!-- Action buttons -->
-            <div class="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
-              <div class="text-[10px] font-mono text-slate-400 truncate">
-                ${lat ? `${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)}` : 'GPS Siap'}
-              </div>
-              <div class="flex items-center gap-1.5 shrink-0">
-                <button type="button" onclick="FMCUApp.focusLiveLocOnBestie('${bKey}')" class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-teal-50 text-teal-800 hover:bg-teal-100 transition cursor-pointer flex items-center gap-1">
-                  <i class="fa-solid fa-crosshairs text-teal-600"></i> Fokus Peta
-                </button>
-                ${
-                  lat && lng
-                    ? `<a href="${gmapUrl}" target="_blank" rel="noopener noreferrer" class="px-2 py-1 rounded-lg text-[10px] font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition" title="Buka Rute Google Maps">
-                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                      </a>`
-                    : ''
-                }
-              </div>
-            </div>
+            <!-- Bottom Row -->
+            ${bottomRowHtml}
           </div>
         `;
       })
@@ -7232,15 +7299,21 @@ function getOrCreateSubFolder_(parent, name) {
   filterLiveLocBestieScope(scope) {
     this.liveLocBestieScope = scope;
     const btnAll = document.getElementById('btn-bestie-scope-all');
-    const btnSch = document.getElementById('btn-bestie-scope-scheduled');
+    const btnVisiting = document.getElementById('btn-bestie-scope-visiting');
+    const btnOutside = document.getElementById('btn-bestie-scope-outside');
+    const btnNotAccessed = document.getElementById('btn-bestie-scope-not-accessed');
 
-    if (scope === 'ALL') {
-      if (btnAll) btnAll.className = 'px-2.5 py-1 rounded-md text-[11px] font-bold bg-white text-slate-900 shadow-xs cursor-pointer';
-      if (btnSch) btnSch.className = 'px-2.5 py-1 rounded-md text-[11px] font-bold text-slate-600 hover:text-slate-900 cursor-pointer';
-    } else {
-      if (btnAll) btnAll.className = 'px-2.5 py-1 rounded-md text-[11px] font-bold text-slate-600 hover:text-slate-900 cursor-pointer';
-      if (btnSch) btnSch.className = 'px-2.5 py-1 rounded-md text-[11px] font-bold bg-white text-slate-900 shadow-xs cursor-pointer';
-    }
+    const setBtn = (btn, isActive, activeColor, inactiveText) => {
+      if (!btn) return;
+      btn.className = isActive
+        ? `px-2.5 py-1 rounded-lg text-[11px] font-bold ${activeColor} text-white shadow-xs cursor-pointer`
+        : `px-2.5 py-1 rounded-lg text-[11px] font-bold ${inactiveText} hover:bg-white transition cursor-pointer`;
+    };
+
+    setBtn(btnAll, scope === 'ALL', 'bg-slate-900', 'text-slate-600');
+    setBtn(btnVisiting, scope === 'VISITING', 'bg-emerald-600', 'text-emerald-800');
+    setBtn(btnOutside, scope === 'OUTSIDE_RADIUS', 'bg-amber-500', 'text-amber-800');
+    setBtn(btnNotAccessed, scope === 'NOT_ACCESSED', 'bg-slate-600', 'text-slate-600');
 
     this.renderLiveLocBestieList();
   },

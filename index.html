@@ -2336,13 +2336,19 @@ service cloud.firestore {
               </label>
             </div>
 
-            <!-- Bestie List Scope Chips -->
-            <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
-              <button type="button" id="btn-bestie-scope-all" onclick="FMCUApp.filterLiveLocBestieScope('ALL')" class="px-2.5 py-1 rounded-md text-[11px] font-bold bg-white text-slate-900 shadow-xs cursor-pointer">
+            <!-- Bestie List Scope Chips (Semua, Sedang Visit, Diluar Radius, Belum Akses Web) -->
+            <div class="flex flex-wrap items-center gap-1 bg-slate-100 p-1 rounded-xl">
+              <button type="button" id="btn-bestie-scope-all" onclick="FMCUApp.filterLiveLocBestieScope('ALL')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white text-slate-900 shadow-xs cursor-pointer">
                 Semua (18)
               </button>
-              <button type="button" id="btn-bestie-scope-scheduled" onclick="FMCUApp.filterLiveLocBestieScope('SCHEDULED')" class="px-2.5 py-1 rounded-md text-[11px] font-bold text-slate-600 hover:text-slate-900 cursor-pointer">
-                Ada Jadwal Hari Ini
+              <button type="button" id="btn-bestie-scope-visiting" onclick="FMCUApp.filterLiveLocBestieScope('VISITING')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold text-emerald-800 hover:bg-white transition cursor-pointer">
+                Sedang Visit
+              </button>
+              <button type="button" id="btn-bestie-scope-outside" onclick="FMCUApp.filterLiveLocBestieScope('OUTSIDE_RADIUS')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold text-amber-800 hover:bg-white transition cursor-pointer">
+                Diluar Radius Toko
+              </button>
+              <button type="button" id="btn-bestie-scope-not-accessed" onclick="FMCUApp.filterLiveLocBestieScope('NOT_ACCESSED')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-600 hover:bg-white transition cursor-pointer">
+                Belum Akses Web
               </button>
             </div>
           </div>

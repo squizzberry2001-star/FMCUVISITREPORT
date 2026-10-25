@@ -319,6 +319,9 @@ window.FMCUData = {
     }
     sessionStorage.removeItem(this.TAB_UNLOAD_KEY);
 
+    // Bersihkan dummy location GPS Regional Bestie
+    this.clearDummyBestieLocations();
+
     if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(INITIAL_USERS));
     } else {
@@ -733,6 +736,13 @@ window.FMCUData = {
         });
 
         if (cloudUsers.length > 0) {
+          // Bersihkan dummy GPS yang mungkin tersimpan di Firestore
+          cloudUsers.forEach((u) => {
+            if (u.lastLocation && !u.lastLocation.isActualGps) {
+              u.lastLocation = null;
+            }
+          });
+
           // Pastikan akun Super Admin selalu ada di list
           if (!cloudUsers.some((u) => u.username === 'admin' || u.role === 'SUPER_ADMIN')) {
             cloudUsers.unshift(INITIAL_USERS[0]);
@@ -1045,6 +1055,27 @@ window.FMCUData = {
     }
   },
 
+    clearDummyBestieLocations() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.USERS);
+      if (!raw) return;
+      let users = JSON.parse(raw);
+      if (Array.isArray(users) && users.length > 0) {
+        let changed = false;
+        users.forEach((u) => {
+          // Bersihkan dummy GPS (hanya pertahankan jika ada flag isActualGps aktual)
+          if (u.lastLocation && !u.lastLocation.isActualGps) {
+            u.lastLocation = null;
+            changed = true;
+          }
+        });
+        if (changed) {
+          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+        }
+      }
+    } catch (e) {}
+  },
+
   updateUserLocation(userId, lat, lng, storeVisit = null, status = 'LIVE_GPS') {
     const users = this.getUsers();
     const idx = users.findIndex(
@@ -1059,7 +1090,8 @@ window.FMCUData = {
       lng: Number(Number(lng).toFixed(5)),
       updatedAt: new Date().toISOString(),
       storeVisit: storeVisit || users[idx].lastLocation?.storeVisit || null,
-      status: status || users[idx].lastLocation?.status || 'LIVE_GPS'
+      status: status || users[idx].lastLocation?.status || 'LIVE_GPS',
+      isActualGps: true
     };
     users[idx].lastLocation = loc;
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
