@@ -850,7 +850,7 @@ window.FMCUPdf = {
               ${pair.map((obs, idx) => {
                 const dl = obs.deadlineFormatted || this.formatIndonesianDate(obs.deadline, false);
                 return `
-                  <div class="border border-slate-400 rounded-lg overflow-hidden bg-white shadow-xs">
+                  <div class="border border-slate-400 rounded-lg overflow-hidden bg-white shadow-sm">
                     <div class="bg-[#0099A6] text-white px-3 py-[0.35cqw] flex items-center justify-between">
                       <span class="font-bold text-[clamp(8px,0.95cqw,12px)]">Temuan ${i + idx + 1}/${obsList.length}</span>
                       <span class="bg-white text-red-700 font-bold text-[clamp(6.5px,0.72cqw,9.5px)] px-2.5 py-0.5 rounded-full">

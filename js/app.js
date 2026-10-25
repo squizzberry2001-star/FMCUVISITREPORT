@@ -593,7 +593,7 @@ window.FMCUApp = {
         const isDone = s.status === 'COMPLETED';
         const dateFormatted = window.FMCUPdf.formatIndonesianDate(s.scheduledDate, true);
         return `
-          <div class="border ${isDone ? 'border-slate-200 bg-slate-50/60' : 'border-emerald-200 bg-white'} rounded-2xl p-4 flex flex-col justify-between gap-3 shadow-2xs hover:shadow-md transition">
+          <div class="border ${isDone ? 'border-slate-200 bg-slate-50/60' : 'border-emerald-200 bg-white'} rounded-2xl p-4 flex flex-col justify-between gap-3 shadow-sm hover:shadow-md transition">
             <div class="space-y-2">
               <div class="flex items-center justify-between gap-2">
                 <span class="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full ${
@@ -636,7 +636,7 @@ window.FMCUApp = {
               `
                   : `
                 <div class="text-[11px] text-slate-400 font-medium">Siap Check-In GPS</div>
-                <button onclick="FMCUApp.checkInAndOpenForm('${s.storeCode}', '${s.id}')" class="fm-gradient hover:opacity-95 text-white font-bold px-3.5 py-2 rounded-xl text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                <button onclick="FMCUApp.checkInAndOpenForm('${s.storeCode}', '${s.id}')" class="fm-gradient hover:opacity-95 text-white font-bold px-3.5 py-2 rounded-xl text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer">
                   <i class="fa-solid fa-location-crosshairs"></i>
                   <span>Check-In & Mulai Visit</span>
                 </button>
@@ -860,7 +860,7 @@ window.FMCUApp = {
         const evCount = (r.evidencePhotos || []).length;
         const dateText = r.visitDayDateFormatted || window.FMCUPdf.formatIndonesianDate(r.visitDate, true);
         return `
-          <div class="border border-slate-200 hover:border-teal-300 rounded-2xl p-4 sm:p-5 bg-white flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition shadow-2xs">
+          <div class="border border-slate-200 hover:border-teal-300 rounded-2xl p-4 sm:p-5 bg-white flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition shadow-sm">
             <div class="space-y-1.5">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="px-2.5 py-0.5 rounded-md bg-teal-50 text-[#0099A6] font-extrabold text-xs">
@@ -899,7 +899,7 @@ window.FMCUApp = {
                 <i class="fa-solid fa-display"></i>
                 <span>Preview Slide PDF</span>
               </button>
-              <button onclick="FMCUApp.downloadReportById('${r.id}')" class="fm-gradient hover:opacity-95 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+              <button onclick="FMCUApp.downloadReportById('${r.id}')" class="fm-gradient hover:opacity-95 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer">
                 <i class="fa-solid fa-file-arrow-down"></i>
                 <span>Unduh PDF</span>
               </button>
@@ -1152,7 +1152,7 @@ window.FMCUApp = {
     container.innerHTML = this.formObservations
       .map(
         (obs, idx) => `
-        <div class="border border-slate-300 rounded-2xl overflow-hidden bg-white shadow-2xs">
+        <div class="border border-slate-300 rounded-2xl overflow-hidden bg-white shadow-sm">
           <!-- Card Header -->
           <div class="bg-[#0099A6] text-white px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
             <div class="flex items-center gap-2">
@@ -1286,7 +1286,7 @@ window.FMCUApp = {
     grid.innerHTML = this.formEvidencePhotos
       .map(
         (ev, idx) => `
-        <div class="border border-slate-300 rounded-2xl p-3 bg-white grid grid-cols-12 gap-3 relative shadow-2xs">
+        <div class="border border-slate-300 rounded-2xl p-3 bg-white grid grid-cols-12 gap-3 relative shadow-sm">
           <button type="button" onclick="FMCUApp.removeEvidencePhotoCard(${idx})" class="absolute top-2 right-2 w-6 h-6 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center text-xs cursor-pointer" title="Hapus Foto">
             <i class="fa-solid fa-xmark"></i>
           </button>
@@ -1511,10 +1511,10 @@ window.FMCUApp = {
     const btnSlide = document.getElementById('btn-mode-slide');
     const btnGrid = document.getElementById('btn-mode-grid');
     if (mode === 'slide') {
-      btnSlide.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-900 shadow-2xs transition cursor-pointer';
+      btnSlide.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-900 shadow-sm transition cursor-pointer';
       btnGrid.className = 'px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition cursor-pointer';
     } else {
-      btnGrid.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-900 shadow-2xs transition cursor-pointer';
+      btnGrid.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-900 shadow-sm transition cursor-pointer';
       btnSlide.className = 'px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition cursor-pointer';
     }
   },
@@ -1548,7 +1548,7 @@ window.FMCUApp = {
           (s, idx) => `
           <button type="button" onclick="FMCUApp.goToSlide(${idx})" class="shrink-0 px-3 py-2 rounded-xl border text-left transition cursor-pointer ${
             idx === this.currentSlideIndex
-              ? 'border-[#0099A6] bg-teal-50 text-[#0099A6] font-extrabold shadow-2xs'
+              ? 'border-[#0099A6] bg-teal-50 text-[#0099A6] font-extrabold shadow-sm'
               : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
           }">
             <div class="text-[10px] uppercase tracking-wider">Hal ${idx + 1}</div>

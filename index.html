@@ -64,7 +64,7 @@
       <!-- Left Visual Corporate Branding Panel -->
       <div class="lg:col-span-5 fm-gradient p-8 text-white flex flex-col justify-between relative overflow-hidden">
         <div class="relative z-10">
-          <div class="inline-flex items-center gap-2.5 bg-white/15 backdrop-blur-xs px-3.5 py-1.5 rounded-full text-xs font-bold tracking-wider uppercase mb-6">
+          <div class="inline-flex items-center gap-2.5 bg-white/15 backdrop-blur-sm px-3.5 py-1.5 rounded-full text-xs font-bold tracking-wider uppercase mb-6">
             <span class="w-2 h-2 rounded-full bg-emerald-300 animate-ping"></span>
             FamilyMart Indonesia • FMCU
           </div>
@@ -169,10 +169,10 @@
   <div class="flex flex-1 pt-[5px]">
 
     <!-- DESKTOP SIDEBAR -->
-    <aside class="hidden lg:flex lg:flex-col lg:w-68 lg:fixed lg:inset-y-0 lg:pt-[5px] bg-white border-r border-slate-200 z-30 select-none">
+    <aside class="hidden lg:flex lg:flex-col lg:w-72 lg:fixed lg:inset-y-0 lg:left-0 lg:pt-[5px] bg-white border-r border-slate-200 z-30 select-none">
       <!-- Brand Logo Header -->
       <div class="px-5 py-5 border-b border-slate-100 flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl fm-gradient flex items-center justify-center text-white font-extrabold text-lg shadow-xs">
+        <div class="w-10 h-10 rounded-xl fm-gradient flex items-center justify-center text-white font-extrabold text-lg shadow-sm">
           FM
         </div>
         <div>
@@ -237,7 +237,7 @@
 
         <!-- Quick Action Button -->
         <div class="pt-4 px-2">
-          <button onclick="FMCUApp.startNewVisitModal()" class="w-full fm-gradient hover:opacity-95 text-white font-bold py-2.5 px-4 rounded-xl shadow-xs hover:shadow transition text-xs flex items-center justify-center gap-2 cursor-pointer">
+          <button onclick="FMCUApp.startNewVisitModal()" class="w-full fm-gradient hover:opacity-95 text-white font-bold py-2.5 px-4 rounded-xl shadow-sm hover:shadow transition text-xs flex items-center justify-center gap-2 cursor-pointer">
             <i class="fa-solid fa-plus-circle"></i>
             <span>Mulai Visit Toko Baru</span>
           </button>
@@ -278,7 +278,7 @@
     </aside>
 
     <!-- MAIN CONTENT AREA -->
-    <div class="flex-1 lg:pl-68 flex flex-col min-w-0 pb-20 lg:pb-8">
+    <div class="flex-1 lg:pl-72 flex flex-col min-w-0 pb-20 lg:pb-8">
 
       <!-- TOP HEADER BAR -->
       <header class="sticky top-[5px] z-20 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
@@ -342,7 +342,7 @@
 
               <!-- Quick Action Buttons -->
               <div class="pt-2 flex flex-wrap items-center gap-3">
-                <button onclick="FMCUApp.startNewVisitModal()" class="fm-gradient hover:opacity-95 text-white font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm shadow-xs transition flex items-center gap-2 cursor-pointer">
+                <button onclick="FMCUApp.startNewVisitModal()" class="fm-gradient hover:opacity-95 text-white font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm shadow-sm transition flex items-center gap-2 cursor-pointer">
                   <i class="fa-solid fa-store"></i>
                   <span>Visit Toko Baru / Check-In Sekarang</span>
                 </button>
@@ -587,7 +587,7 @@
 
             <!-- Actual In & Actual Out Time Recorder -->
             <div class="flex flex-wrap items-center gap-3">
-              <div class="bg-white/10 backdrop-blur-xs border border-white/15 rounded-xl px-3.5 py-2">
+              <div class="bg-white/10 backdrop-blur-sm border border-white/15 rounded-xl px-3.5 py-2">
                 <div class="text-[10px] uppercase tracking-wider text-emerald-300 font-bold">Actual In (Check-In)</div>
                 <div class="flex items-center gap-2 mt-0.5">
                   <input type="text" id="form-actual-in" placeholder="--:-- WIB" class="bg-transparent font-extrabold text-sm text-white w-24 focus:outline-none border-b border-transparent focus:border-emerald-300 placeholder:text-white/40" value="" />
@@ -597,7 +597,7 @@
                 </div>
               </div>
 
-              <div class="bg-white/10 backdrop-blur-xs border border-white/15 rounded-xl px-3.5 py-2">
+              <div class="bg-white/10 backdrop-blur-sm border border-white/15 rounded-xl px-3.5 py-2">
                 <div class="text-[10px] uppercase tracking-wider text-amber-300 font-bold">Actual Out (Check-Out)</div>
                 <div class="flex items-center gap-2 mt-0.5">
                   <input type="text" id="form-actual-out" placeholder="--:-- WIB" class="bg-transparent font-extrabold text-sm text-white w-24 focus:outline-none border-b border-transparent focus:border-amber-300 placeholder:text-white/40" value="" />
@@ -745,7 +745,7 @@
                   <p class="text-xs text-slate-500">Detail Temuan, Kondisi Ideal, Penyebab, Dampak, Tindakan Perbaikan, Hasil, dan Deadline Perbaikan (Halaman 5-6 PDF)</p>
                 </div>
               </div>
-              <button type="button" onclick="FMCUApp.addObservationCard()" class="fm-gradient hover:opacity-95 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-xs transition cursor-pointer self-start sm:self-auto">
+              <button type="button" onclick="FMCUApp.addObservationCard()" class="fm-gradient hover:opacity-95 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-sm transition cursor-pointer self-start sm:self-auto">
                 <i class="fa-solid fa-plus-circle mr-1"></i>Tambah Temuan Observasi
               </button>
             </div>
@@ -860,7 +860,7 @@
           <div class="flex flex-wrap items-center gap-2.5">
             <!-- View Mode Toggle -->
             <div class="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200">
-              <button type="button" id="btn-mode-slide" onclick="FMCUApp.setPreviewMode('slide')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-900 shadow-2xs transition cursor-pointer">
+              <button type="button" id="btn-mode-slide" onclick="FMCUApp.setPreviewMode('slide')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-900 shadow-sm transition cursor-pointer">
                 <i class="fa-solid fa-display mr-1 text-[#0099A6]"></i>Slide Interaktif
               </button>
               <button type="button" id="btn-mode-grid" onclick="FMCUApp.setPreviewMode('grid')" class="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition cursor-pointer">
@@ -872,7 +872,7 @@
               <i class="fa-solid fa-pen-to-square mr-1"></i>Ke Form Visit
             </button>
 
-            <button type="button" onclick="FMCUApp.openIntegrationSendModal()" class="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer">
+            <button type="button" onclick="FMCUApp.openIntegrationSendModal()" class="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-sm cursor-pointer">
               <i class="fa-brands fa-google-drive"></i>
               <span>Kirim Email & Rekap GDrive</span>
             </button>
@@ -956,7 +956,7 @@
           <!-- Admin Header & Sub-Navigation Tabs -->
           <div class="fm-card p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div class="flex items-center gap-3.5">
-              <div class="w-12 h-12 rounded-2xl fm-gradient text-white flex items-center justify-center text-xl shadow-xs shrink-0">
+              <div class="w-12 h-12 rounded-2xl fm-gradient text-white flex items-center justify-center text-xl shadow-sm shrink-0">
                 <i class="fa-solid fa-sliders"></i>
               </div>
               <div>
@@ -1021,7 +1021,7 @@
                   <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Fokus Audit / Catatan Admin</label>
                   <textarea id="adm-sch-focus" rows="2" placeholder="Masukkan fokus pemeriksaan atau catatan tugas" class="fm-input"></textarea>
                 </div>
-                <button type="submit" class="w-full fm-gradient text-white font-bold py-2.5 rounded-xl shadow-xs hover:opacity-95 transition text-xs sm:text-sm cursor-pointer">
+                <button type="submit" class="w-full fm-gradient text-white font-bold py-2.5 rounded-xl shadow-sm hover:opacity-95 transition text-xs sm:text-sm cursor-pointer">
                   <i class="fa-solid fa-check mr-1"></i>Simpan & Tugaskan Jadwal Visit
                 </button>
               </form>
@@ -1103,7 +1103,7 @@
                     <input type="number" step="any" id="adm-st-lng" placeholder="Longitude" value="" class="fm-input font-mono" />
                   </div>
                 </div>
-                <button type="submit" class="w-full fm-gradient text-white font-bold py-2.5 rounded-xl shadow-xs hover:opacity-95 transition text-xs sm:text-sm cursor-pointer">
+                <button type="submit" class="w-full fm-gradient text-white font-bold py-2.5 rounded-xl shadow-sm hover:opacity-95 transition text-xs sm:text-sm cursor-pointer">
                   <i class="fa-solid fa-floppy-disk mr-1"></i>Simpan Master Toko
                 </button>
               </form>
@@ -1180,7 +1180,7 @@
                   <label class="flex items-center gap-2 text-xs"><input type="checkbox" name="adm-auth" value="manage_users" /> Kelola User & Otoritas</label>
                 </div>
 
-                <button type="submit" class="w-full fm-gradient text-white font-bold py-2.5 rounded-xl shadow-xs hover:opacity-95 transition text-xs sm:text-sm cursor-pointer">
+                <button type="submit" class="w-full fm-gradient text-white font-bold py-2.5 rounded-xl shadow-sm hover:opacity-95 transition text-xs sm:text-sm cursor-pointer">
                   <i class="fa-solid fa-user-check mr-1"></i>Simpan User & Otoritas
                 </button>
               </form>
@@ -1311,7 +1311,7 @@
   <!-- ====================================================================
        MODAL 1: MULAI VISIT TOKO BARU / CHECK-IN ACTUAL IN
        ==================================================================== -->
-  <div id="modal-new-visit" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+  <div id="modal-new-visit" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 view-section">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <div class="flex items-center gap-2.5">
@@ -1359,7 +1359,7 @@
   <!-- ====================================================================
        MODAL 2: INTEGRASI KIRIM EMAIL & UPLOAD FOLDER GOOGLE DRIVE
        ==================================================================== -->
-  <div id="modal-send-integration" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+  <div id="modal-send-integration" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4 view-section">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <div class="flex items-center gap-2.5">
@@ -1413,7 +1413,7 @@
   <!-- ====================================================================
        MODAL 3: USER PROFILE & LOG ACTUAL IN / OUT
        ==================================================================== -->
-  <div id="modal-user-profile" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+  <div id="modal-user-profile" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 view-section max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <h3 class="font-extrabold text-base text-slate-900">Profil User & Riwayat Kehadiran (Actual In - Out)</h3>
