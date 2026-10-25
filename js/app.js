@@ -501,13 +501,20 @@ window.FMCUApp = {
     );
   },
 
+  hasPortalAdminAuthority(user = this.currentUser) {
+    if (!user) return false;
+    return this.hasAuthority('manage_users', user) || this.hasAuthority('manage_integrations', user);
+  },
+
   isViewAllowedForUser(viewName, user = this.currentUser) {
     if (!user) return false;
     if (viewName === 'home') return this.hasAuthority('view_home', user);
     if (viewName === 'analytics') return this.hasAuthority('view_analytics', user);
     if (viewName === 'form') return this.hasAuthority('create_visit', user) && this.hasActiveStoreForm;
     if (viewName === 'preview') return this.hasAuthority('export_pdf', user);
-    if (viewName === 'admin') return this.hasAdminAuthority(user);
+    if (viewName === 'schedules') return this.hasAuthority('manage_schedule', user);
+    if (viewName === 'stores') return this.hasAuthority('manage_stores', user);
+    if (viewName === 'admin') return this.hasPortalAdminAuthority(user);
     return false;
   },
 
@@ -516,16 +523,18 @@ window.FMCUApp = {
     if (this.hasAuthority('view_home', user)) return 'home';
     if (this.hasAuthority('view_analytics', user)) return 'analytics';
     if (this.hasAuthority('export_pdf', user)) return 'preview';
-    if (this.hasAdminAuthority(user)) return 'admin';
+    if (this.hasAuthority('manage_schedule', user)) return 'schedules';
+    if (this.hasAuthority('manage_stores', user)) return 'stores';
+    if (this.hasPortalAdminAuthority(user)) return 'admin';
     return 'home';
   },
 
   getFirstAllowedAdminTab(user = this.currentUser) {
-    if (this.hasAuthority('manage_schedule', user)) return 'schedules';
-    if (this.hasAuthority('manage_stores', user)) return 'stores';
     if (this.hasAuthority('manage_users', user)) return 'users';
     if (this.hasAuthority('manage_integrations', user)) return 'integrations';
-    return 'schedules';
+    if (this.hasAuthority('manage_schedule', user)) return 'schedules';
+    if (this.hasAuthority('manage_stores', user)) return 'stores';
+    return 'users';
   },
 
   updateSidebarAuthoritiesUI() {
@@ -535,7 +544,9 @@ window.FMCUApp = {
     const canCreateVisit = this.hasAuthority('create_visit', u);
     const canForm = canCreateVisit && this.hasActiveStoreForm;
     const canPreview = this.hasAuthority('export_pdf', u);
-    const canAdmin = this.hasAdminAuthority(u);
+    const canSchedules = this.hasAuthority('manage_schedule', u);
+    const canStores = this.hasAuthority('manage_stores', u);
+    const canPortalAdmin = this.hasPortalAdminAuthority(u);
 
     const togglePair = (desktopId, mobileId, allowed) => {
       const dEl = document.getElementById(desktopId);
@@ -544,17 +555,17 @@ window.FMCUApp = {
       if (mEl) mEl.classList.toggle('hidden', !allowed);
     };
 
-    // 1. Sidebar & Mobile Bottom Nav Buttons
+    // 1. Sidebar & Mobile Bottom Nav Buttons (Muncul sesuai otoritas masing-masing)
     togglePair('nav-home', 'mnav-home', canHome);
     togglePair('nav-analytics', 'mnav-analytics', canAnalytics);
     togglePair('nav-form', 'mnav-form', canForm);
     togglePair('nav-preview', 'mnav-preview', canPreview);
-    togglePair('nav-admin', 'mnav-admin', canAdmin);
+    togglePair('nav-schedules', 'mnav-schedules', canSchedules);
+    togglePair('nav-stores', 'mnav-stores', canStores);
+    togglePair('nav-admin', 'mnav-admin', canPortalAdmin);
 
-    // 2. Portal Admin Sub-Tab Buttons (Hanya muncul sesuai hak akses admin spesifik)
+    // 2. Portal Admin Sub-Tab Buttons (User & Integrasi)
     const adminTabMap = [
-      { tab: 'schedules', auth: 'manage_schedule' },
-      { tab: 'stores', auth: 'manage_stores' },
       { tab: 'users', auth: 'manage_users' },
       { tab: 'integrations', auth: 'manage_integrations' }
     ];
@@ -613,12 +624,20 @@ window.FMCUApp = {
   },
 
   // ==========================================================================
-  // NAVIGATION & VIEW ROUTER (HOME, ANALYTICS, FORM, PREVIEW, ADMIN)
+  // NAVIGATION & VIEW ROUTER (HOME, ANALYTICS, FORM, PREVIEW, SCHEDULES, STORES, ADMIN)
   // ==========================================================================
   navigate(viewName, subTab = null) {
     this.updateSidebarAuthoritiesUI();
 
-    if (viewName === 'admin' && !this.hasAdminAuthority()) {
+    if (viewName === 'schedules' && !this.hasAuthority('manage_schedule')) {
+      this.showToast('Akun Anda tidak memiliki otoritas untuk mengakses Atur Jadwal Visit.', 'warning');
+      return;
+    }
+    if (viewName === 'stores' && !this.hasAuthority('manage_stores')) {
+      this.showToast('Akun Anda tidak memiliki otoritas untuk mengakses Master Toko.', 'warning');
+      return;
+    }
+    if (viewName === 'admin' && !this.hasPortalAdminAuthority()) {
       this.showToast('Akun Anda tidak memiliki otoritas untuk mengakses Portal Admin.', 'warning');
       return;
     }
@@ -647,16 +666,25 @@ window.FMCUApp = {
     }
 
     this.currentView = viewName;
-    const views = ['home', 'analytics', 'form', 'preview', 'admin'];
-    views.forEach((v) => {
-      const mainEl = document.getElementById(`view-${v}`);
-      if (mainEl) mainEl.classList.toggle('hidden', v !== viewName);
+    const isAdminContainerView = viewName === 'admin' || viewName === 'schedules' || viewName === 'stores';
+    const mainSections = ['home', 'analytics', 'form', 'preview', 'admin'];
+    mainSections.forEach((sec) => {
+      const mainEl = document.getElementById(`view-${sec}`);
+      if (!mainEl) return;
+      if (sec === 'admin') {
+        mainEl.classList.toggle('hidden', !isAdminContainerView);
+      } else {
+        mainEl.classList.toggle('hidden', sec !== viewName);
+      }
+    });
 
-      const dNav = document.getElementById(`nav-${v}`);
-      if (dNav) dNav.classList.toggle('active', v === viewName);
+    const navKeys = ['home', 'analytics', 'form', 'preview', 'schedules', 'stores', 'admin'];
+    navKeys.forEach((k) => {
+      const dNav = document.getElementById(`nav-${k}`);
+      if (dNav) dNav.classList.toggle('active', k === viewName);
 
-      const mNav = document.getElementById(`mnav-${v}`);
-      if (mNav) mNav.classList.toggle('active', v === viewName);
+      const mNav = document.getElementById(`mnav-${k}`);
+      if (mNav) mNav.classList.toggle('active', k === viewName);
     });
 
     const titles = {
@@ -676,9 +704,17 @@ window.FMCUApp = {
         'Preview Hasil PDF (Slide 16:9) & Download PDF',
         'Tampilan presisi sesuai format standar FMCU Visit Store Report siap unduh & kirim ke Google Drive'
       ],
+      schedules: [
+        'Atur Jadwal Visit Toko — Penugasan Auditor',
+        'Buat dan kelola jadwal kunjungan toko untuk masing-masing Auditor / Regional Bestie'
+      ],
+      stores: [
+        'Master Data Toko FamilyMart — Ekstraksi & Upload Excel',
+        'Kelola database 610+ Master Toko FamilyMart dan upload file Excel (.xlsx / .xls / .csv)'
+      ],
       admin: [
         'Portal Otoritas Admin FMCU',
-        'Manajemen Jadwal Visit, Master Data Toko, Otoritas User, dan Integrasi Email & Google Drive'
+        'Manajemen User & Otoritas Login serta Konfigurasi Integrasi Email & Google Drive'
       ]
     };
 
@@ -699,12 +735,35 @@ window.FMCUApp = {
       this.updateFormGuardVisibility();
     } else if (viewName === 'preview') {
       this.renderPreviewView();
+    } else if (viewName === 'schedules') {
+      this.checkAdminGateUI();
+      const ctrlHeader = document.getElementById('admin-control-center-header');
+      if (ctrlHeader) ctrlHeader.classList.add('hidden');
+      this.showAdminSectionPanel('schedules');
+      this.renderAdminView();
+    } else if (viewName === 'stores') {
+      this.checkAdminGateUI();
+      const ctrlHeader = document.getElementById('admin-control-center-header');
+      if (ctrlHeader) ctrlHeader.classList.add('hidden');
+      this.showAdminSectionPanel('stores');
+      this.renderAdminView();
     } else if (viewName === 'admin') {
       this.checkAdminGateUI();
-      const targetTab = subTab || this.currentAdminTab;
+      const ctrlHeader = document.getElementById('admin-control-center-header');
+      if (ctrlHeader) ctrlHeader.classList.remove('hidden');
+      const defaultPortalTab = this.hasAuthority('manage_users') ? 'users' : 'integrations';
+      const targetTab = subTab && (subTab === 'users' || subTab === 'integrations') ? subTab : defaultPortalTab;
       this.switchAdminTab(targetTab);
       this.renderAdminView();
     }
+  },
+
+  showAdminSectionPanel(sectionName) {
+    const allPanels = ['schedules', 'stores', 'users', 'integrations'];
+    allPanels.forEach((p) => {
+      const panel = document.getElementById(`admin-tab-${p}`);
+      if (panel) panel.classList.toggle('hidden', p !== sectionName);
+    });
   },
 
   updateFormGuardVisibility() {

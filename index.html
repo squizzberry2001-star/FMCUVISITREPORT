@@ -271,7 +271,25 @@
           </div>
         </button>
 
-        <!-- 5. PORTAL ADMIN (Dihilangkan dari sisi User Biasa, hanya tampil untuk Admin) -->
+        <!-- 5. ATUR JADWAL VISIT (Muncul sesuai otoritas manage_schedule) -->
+        <button onclick="FMCUApp.navigate('schedules')" id="nav-schedules" class="nav-item hidden w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
+          <i class="fa-solid fa-calendar-days w-5 text-center text-base text-[#009944]"></i>
+          <div class="flex-1">
+            <div class="leading-tight">Atur Jadwal Visit</div>
+            <div class="text-[10px] font-normal text-slate-400">Buat & Assign Jadwal Auditor</div>
+          </div>
+        </button>
+
+        <!-- 6. MASTER TOKO (Muncul sesuai otoritas manage_stores) -->
+        <button onclick="FMCUApp.navigate('stores')" id="nav-stores" class="nav-item hidden w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
+          <i class="fa-solid fa-store w-5 text-center text-base text-[#0099A6]"></i>
+          <div class="flex-1">
+            <div class="leading-tight">Master Toko</div>
+            <div class="text-[10px] font-normal text-slate-400">Database Toko & Upload Excel</div>
+          </div>
+        </button>
+
+        <!-- 7. PORTAL ADMIN (Muncul sesuai otoritas manage_users / manage_integrations) -->
         <button onclick="FMCUApp.navigate('admin')" id="nav-admin" class="nav-item hidden w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
           <i class="fa-solid fa-user-shield w-5 text-center text-base text-amber-600"></i>
           <div class="flex-1">
@@ -279,7 +297,7 @@
               <span>Portal Admin</span>
               <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">Admin</span>
             </div>
-            <div class="text-[10px] font-normal text-slate-400">Atur Jadwal, Toko, User & GDrive</div>
+            <div class="text-[10px] font-normal text-slate-400">User, Otoritas & Integrasi GDrive</div>
           </div>
         </button>
       </nav>
@@ -1012,8 +1030,8 @@
         <!-- ADMIN DASHBOARD CONTENT -->
         <div id="admin-panel-content" class="space-y-6">
 
-          <!-- Admin Header & Sub-Navigation Tabs -->
-          <div class="fm-card p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <!-- Admin Header & Sub-Navigation Tabs (Khusus Portal Admin: User & Integrasi) -->
+          <div id="admin-control-center-header" class="fm-card p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div class="flex items-center gap-3.5">
               <div class="w-12 h-12 rounded-2xl fm-gradient text-white flex items-center justify-center text-xl shadow-sm shrink-0">
                 <i class="fa-solid fa-sliders"></i>
@@ -1023,23 +1041,17 @@
                   <h2 class="font-extrabold text-lg text-slate-900">Control Center Admin FMCU</h2>
                   <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">Full Authority</span>
                 </div>
-                <p class="text-xs text-slate-500">Kelola jadwal kunjungan auditor, database master toko, otoritas login user, dan integrasi otomatis Email & Google Drive</p>
+                <p class="text-xs text-slate-500">Kelola manajemen user, otoritas login, dan konfigurasi integrasi otomatis Email & Google Drive</p>
               </div>
             </div>
 
-            <!-- Admin Tabs -->
+            <!-- Admin Tabs (User & Integrasi; Atur Jadwal & Master Toko telah dipindah ke Side Navbar) -->
             <div class="flex flex-wrap items-center gap-2">
-              <button type="button" onclick="FMCUApp.switchAdminTab('schedules')" id="admin-tab-btn-schedules" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#009944] text-white transition cursor-pointer">
-                <i class="fa-solid fa-calendar-days mr-1.5"></i>1. Atur Jadwal Visit
-              </button>
-              <button type="button" onclick="FMCUApp.switchAdminTab('stores')" id="admin-tab-btn-stores" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer">
-                <i class="fa-solid fa-store mr-1.5"></i>2. Master Toko
-              </button>
-              <button type="button" onclick="FMCUApp.switchAdminTab('users')" id="admin-tab-btn-users" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer">
-                <i class="fa-solid fa-users-gear mr-1.5"></i>3. User & Otoritas Login
+              <button type="button" onclick="FMCUApp.switchAdminTab('users')" id="admin-tab-btn-users" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#009944] text-white transition cursor-pointer">
+                <i class="fa-solid fa-users-gear mr-1.5"></i>User & Otoritas Login
               </button>
               <button type="button" onclick="FMCUApp.switchAdminTab('integrations')" id="admin-tab-btn-integrations" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer">
-                <i class="fa-brands fa-google-drive mr-1.5"></i>4. Integrasi Email & GDrive
+                <i class="fa-brands fa-google-drive mr-1.5"></i>Integrasi Email & GDrive
               </button>
             </div>
           </div>
@@ -1370,16 +1382,16 @@ service cloud.firestore {
 
                 <!-- Granular Authority Checkboxes (Directly controls Sidebar Buttons & Admin Sub-tabs) -->
                 <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5">
-                  <div class="text-[11px] font-extrabold text-slate-600 uppercase">Hak Akses Menu Sidebar & Otoritas:</div>
+                  <div class="text-[11px] font-extrabold text-slate-600 uppercase">Hak Akses Menu Side Navbar:</div>
                   <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="view_home" checked /> <span><strong>Menu Home</strong> (Jadwal Toko & History)</span></label>
                   <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="view_analytics" checked /> <span><strong>Menu Analitik Dashboard</strong></span></label>
                   <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="create_visit" checked /> <span><strong>Menu Form Visit Store</strong> (Check-In & Input)</span></label>
                   <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="export_pdf" checked /> <span><strong>Menu Preview & Unduh PDF</strong> (+ Email/GDrive)</span></label>
+                  <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="manage_schedule" /> <span><strong>Menu Atur Jadwal Visit</strong> (Side Navbar)</span></label>
+                  <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="manage_stores" /> <span><strong>Menu Master Toko</strong> (Side Navbar)</span></label>
                   <div class="border-t border-slate-200 my-1.5 pt-1.5 text-[10px] font-extrabold text-amber-700 uppercase">Hak Akses Portal Admin:</div>
-                  <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="manage_schedule" /> <span><strong>Admin:</strong> Atur Jadwal & Assign Toko</span></label>
-                  <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="manage_stores" /> <span><strong>Admin:</strong> Kelola Master Data Toko</span></label>
-                  <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="manage_users" /> <span><strong>Admin:</strong> Kelola User & Otoritas</span></label>
-                  <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="manage_integrations" /> <span><strong>Admin:</strong> Integrasi Email & GDrive</span></label>
+                  <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="manage_users" /> <span><strong>Portal Admin:</strong> Kelola User & Otoritas</span></label>
+                  <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="manage_integrations" /> <span><strong>Portal Admin:</strong> Integrasi Email & GDrive</span></label>
                 </div>
 
                 <button type="submit" class="w-full fm-gradient text-white font-bold py-2.5 rounded-xl shadow-sm hover:opacity-95 transition text-xs sm:text-sm cursor-pointer">
@@ -1490,26 +1502,34 @@ service cloud.firestore {
 
   <!-- ====================================================================
        MOBILE BOTTOM NAVIGATION BAR
-       (Dinamis menyesuaikan apakah Form Toko aktif & apakah User adalah Admin)
+       (Dinamis menyesuaikan otoritas user yang sedang login)
        ==================================================================== -->
-  <nav id="mobile-bottom-nav" class="lg:hidden fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 z-40 flex items-center justify-around py-1.5 px-2 shadow-lg">
-    <button onclick="FMCUApp.navigate('home')" id="mnav-home" class="mobile-nav-item active flex flex-col items-center justify-center py-1 px-3 text-slate-500 cursor-pointer">
+  <nav id="mobile-bottom-nav" class="lg:hidden fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 z-40 flex items-center justify-around py-1.5 px-2 shadow-lg overflow-x-auto">
+    <button onclick="FMCUApp.navigate('home')" id="mnav-home" class="mobile-nav-item active flex flex-col items-center justify-center py-1 px-2.5 text-slate-500 cursor-pointer shrink-0">
       <i class="fa-solid fa-house text-base"></i>
       <span class="text-[10px] mt-0.5">Home</span>
     </button>
-    <button onclick="FMCUApp.navigate('analytics')" id="mnav-analytics" class="mobile-nav-item flex flex-col items-center justify-center py-1 px-3 text-slate-500 cursor-pointer">
+    <button onclick="FMCUApp.navigate('analytics')" id="mnav-analytics" class="mobile-nav-item flex flex-col items-center justify-center py-1 px-2.5 text-slate-500 cursor-pointer shrink-0">
       <i class="fa-solid fa-chart-pie text-base"></i>
       <span class="text-[10px] mt-0.5">Analitik</span>
     </button>
-    <button onclick="FMCUApp.navigate('form')" id="mnav-form" class="mobile-nav-item hidden flex flex-col items-center justify-center py-1 px-3 text-slate-500 cursor-pointer">
+    <button onclick="FMCUApp.navigate('form')" id="mnav-form" class="mobile-nav-item hidden flex flex-col items-center justify-center py-1 px-2.5 text-slate-500 cursor-pointer shrink-0">
       <i class="fa-solid fa-clipboard-check text-base"></i>
       <span class="text-[10px] mt-0.5">Form Toko</span>
     </button>
-    <button onclick="FMCUApp.navigate('preview')" id="mnav-preview" class="mobile-nav-item flex flex-col items-center justify-center py-1 px-3 text-slate-500 cursor-pointer">
+    <button onclick="FMCUApp.navigate('preview')" id="mnav-preview" class="mobile-nav-item flex flex-col items-center justify-center py-1 px-2.5 text-slate-500 cursor-pointer shrink-0">
       <i class="fa-solid fa-file-pdf text-base"></i>
       <span class="text-[10px] mt-0.5">Preview PDF</span>
     </button>
-    <button onclick="FMCUApp.navigate('admin')" id="mnav-admin" class="mobile-nav-item hidden flex flex-col items-center justify-center py-1 px-3 text-slate-500 cursor-pointer">
+    <button onclick="FMCUApp.navigate('schedules')" id="mnav-schedules" class="mobile-nav-item hidden flex flex-col items-center justify-center py-1 px-2.5 text-slate-500 cursor-pointer shrink-0">
+      <i class="fa-solid fa-calendar-days text-base"></i>
+      <span class="text-[10px] mt-0.5">Jadwal</span>
+    </button>
+    <button onclick="FMCUApp.navigate('stores')" id="mnav-stores" class="mobile-nav-item hidden flex flex-col items-center justify-center py-1 px-2.5 text-slate-500 cursor-pointer shrink-0">
+      <i class="fa-solid fa-store text-base"></i>
+      <span class="text-[10px] mt-0.5">Master Toko</span>
+    </button>
+    <button onclick="FMCUApp.navigate('admin')" id="mnav-admin" class="mobile-nav-item hidden flex flex-col items-center justify-center py-1 px-2.5 text-slate-500 cursor-pointer shrink-0">
       <i class="fa-solid fa-user-shield text-base"></i>
       <span class="text-[10px] mt-0.5">Admin</span>
     </button>
