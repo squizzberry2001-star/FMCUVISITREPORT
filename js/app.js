@@ -1221,6 +1221,12 @@ window.FMCUApp = {
     this.checkAutomaticGeofenceInOut();
   },
 
+  isHomeMapExpanded: false,
+  modalMap: null,
+  modalStoreLayer: null,
+  modalUserMarker: null,
+  _modalStoreMarkerMap: null,
+
   initOrUpdateHomeMap() {
     const mapContainer = document.getElementById('home-live-map');
     if (!mapContainer || typeof L === 'undefined') return;
@@ -1230,52 +1236,372 @@ window.FMCUApp = {
 
     if (!this.homeMap) {
       this.homeMap = L.map('home-live-map', {
-        zoomControl: false,
+        zoomControl: true,
         attributionControl: false
-      }).setView([centerLat, centerLng], 13);
+      }).setView([centerLat, centerLng], 12);
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19
       }).addTo(this.homeMap);
-    } else if (this.liveGps.lat !== null) {
-      this.homeMap.setView([centerLat, centerLng], 14);
+    } else if (this.liveGps.lat !== null && !this._userPannedMap) {
+      this.homeMap.setView([centerLat, centerLng], this.isHomeMapExpanded ? 13 : 12);
     }
 
+    // Bersihkan marker layer lama jika ada
+    if (this.homeStoreLayer) {
+      this.homeMap.removeLayer(this.homeStoreLayer);
+    }
+    this.homeStoreLayer = L.layerGroup().addTo(this.homeMap);
+
+    // Ambil Master Toko (pastikan selalu memiliki koordinat)
+    let stores = window.FMCUData.getStores();
+    if (!stores || stores.length === 0 || !stores.some((s) => s.lat || s.latitude)) {
+      stores = Array.isArray(window.FMCU_INITIAL_STORES) ? window.FMCU_INITIAL_STORES : [];
+    }
+
+    const activeCheckIn = window.FMCUData.getActiveCheckIn();
+    const activeStoreCode = activeCheckIn?.storeCode || null;
+
+    // Render seluruh titik toko FamilyMart
+    stores.forEach((st) => {
+      const lat = Number(st.lat ?? st.latitude);
+      const lng = Number(st.lng ?? st.longitude);
+      if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) return;
+
+      const isTargetActive = activeStoreCode && String(st.code) === String(activeStoreCode);
+
+      const m = L.circleMarker([lat, lng], {
+        radius: isTargetActive ? 9 : 6,
+        fillColor: isTargetActive ? '#f59e0b' : '#009944',
+        color: '#ffffff',
+        weight: isTargetActive ? 3 : 2,
+        fillOpacity: 0.95
+      }).addTo(this.homeStoreLayer);
+
+      // Jika toko aktif, gambarkan lingkaran radius geofence 50m
+      if (isTargetActive) {
+        L.circle([lat, lng], {
+          radius: 50,
+          color: '#009944',
+          fillColor: '#009944',
+          fillOpacity: 0.15,
+          weight: 2,
+          dashArray: '4, 4'
+        }).addTo(this.homeStoreLayer);
+      }
+
+      // Jarak dari posisi user
+      let distText = '';
+      if (this.liveGps.lat !== null && this.liveGps.lng !== null) {
+        const d = this.calculateHaversineDistance(this.liveGps.lat, this.liveGps.lng, lat, lng);
+        if (d !== null) {
+          distText = d < 1000 ? `${d} meter` : `${(d / 1000).toFixed(1)} km`;
+        }
+      }
+
+      m.bindPopup(`
+        <div class="text-xs p-1 space-y-1.5" style="min-width: 210px;">
+          <div class="font-extrabold text-emerald-800 text-sm flex items-center gap-1.5">
+            <i class="fa-solid fa-store text-[#009944]"></i>
+            <span>FamilyMart ${st.name}</span>
+          </div>
+          <div class="text-[11px] font-mono text-slate-500 font-bold">
+            Site: ${st.code} • ${st.type || 'CVS'}
+          </div>
+          <div class="text-[11px] text-slate-700 leading-snug">
+            ${st.address || st.city || '-'}
+          </div>
+          <div class="text-[10px] font-mono text-slate-600 bg-slate-50 p-1 rounded border border-slate-200">
+            📍 ${lat.toFixed(5)}, ${lng.toFixed(5)} ${distText ? `• <strong>${distText}</strong>` : ''}
+          </div>
+          <div class="pt-1 flex items-center justify-between border-t border-slate-100 text-[10px]">
+            <span class="text-slate-500">PIC: <strong>${st.storeHead || '-'}</strong></span>
+            <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener noreferrer" class="font-bold text-[#0099A6] hover:underline flex items-center gap-1">
+              <span>Buka Rute</span>
+              <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+            </a>
+          </div>
+        </div>
+      `);
+    });
+
+    // Render User Live GPS Marker
     if (this.userMarker) {
       this.homeMap.removeLayer(this.userMarker);
       this.userMarker = null;
     }
-    this.storeMarkers.forEach((m) => this.homeMap.removeLayer(m));
-    this.storeMarkers = [];
+    if (this.userAccuracyCircle) {
+      this.homeMap.removeLayer(this.userAccuracyCircle);
+      this.userAccuracyCircle = null;
+    }
 
-    // Draw Store Markers from Master Data
-    const stores = window.FMCUData.getStores();
-    stores.forEach((st) => {
-      if (st.lat && st.lng) {
-        const m = L.circleMarker([st.lat, st.lng], {
-          radius: 6,
-          fillColor: '#009944',
-          color: '#ffffff',
-          weight: 2,
-          fillOpacity: 0.9
-        })
-          .addTo(this.homeMap)
-          .bindPopup(`<b>FamilyMart ${st.name} (${st.code})</b><br/>Store Head: ${st.storeHead || '-'}`);
-        this.storeMarkers.push(m);
-      }
-    });
-
-    // Draw User Marker if Live GPS is detected
     if (this.liveGps.lat !== null && this.liveGps.lng !== null) {
       this.userMarker = L.circleMarker([this.liveGps.lat, this.liveGps.lng], {
-        radius: 8,
+        radius: 9,
         fillColor: '#0099A6',
         color: '#ffffff',
         weight: 3,
         fillOpacity: 1
-      })
-        .addTo(this.homeMap)
-        .bindPopup(`<b>Lokasi Aktual Anda (${this.currentUser?.name || 'User'})</b><br/>GPS: ${this.liveGps.lat}, ${this.liveGps.lng}`);
+      }).addTo(this.homeMap);
+
+      this.userMarker.bindPopup(`
+        <div class="text-xs p-1 space-y-1">
+          <div class="font-extrabold text-[#0099A6] flex items-center gap-1">
+            <i class="fa-solid fa-crosshairs"></i>
+            <span>Lokasi Aktual Anda</span>
+          </div>
+          <div class="text-[11px] text-slate-600">${this.currentUser?.name || 'User'}</div>
+          <div class="font-mono text-[10px] text-slate-500 bg-slate-50 p-1 rounded border border-slate-200">
+            GPS: ${this.liveGps.lat}, ${this.liveGps.lng}
+          </div>
+        </div>
+      `);
+
+      if (this.liveGps.accuracy && this.liveGps.accuracy < 250) {
+        this.userAccuracyCircle = L.circle([this.liveGps.lat, this.liveGps.lng], {
+          radius: this.liveGps.accuracy,
+          color: '#0099A6',
+          fillColor: '#0099A6',
+          fillOpacity: 0.1,
+          weight: 1
+        }).addTo(this.homeMap);
+      }
+    }
+  },
+
+  toggleHomeMapExpand() {
+    const mapEl = document.getElementById('home-live-map');
+    const iconEl = document.getElementById('icon-toggle-home-map');
+    const textEl = document.getElementById('text-toggle-home-map');
+    if (!mapEl) return;
+
+    this.isHomeMapExpanded = !this.isHomeMapExpanded;
+
+    if (this.isHomeMapExpanded) {
+      mapEl.classList.remove('h-36');
+      mapEl.classList.add('h-[480px]');
+      if (iconEl) iconEl.className = 'fa-solid fa-compress text-rose-500';
+      if (textEl) textEl.textContent = 'Perkecil Maps';
+      this.showToast('Tampilan peta diperbesar (Tekan tombol perkecil untuk kembali)', 'info', 2500);
+    } else {
+      mapEl.classList.remove('h-[480px]');
+      mapEl.classList.add('h-36');
+      if (iconEl) iconEl.className = 'fa-solid fa-maximize text-[#0099A6]';
+      if (textEl) textEl.textContent = 'Perbesar Maps';
+    }
+
+    setTimeout(() => {
+      if (this.homeMap) {
+        this.homeMap.invalidateSize();
+        if (this.liveGps.lat !== null && this.liveGps.lng !== null) {
+          this.homeMap.setView([this.liveGps.lat, this.liveGps.lng], this.isHomeMapExpanded ? 13 : 12);
+        }
+      }
+    }, 250);
+  },
+
+  openHomeMapModal() {
+    const modal = document.getElementById('modal-interactive-map');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+
+    const searchInput = document.getElementById('modal-map-search-input');
+    if (searchInput) searchInput.value = '';
+    const statusEl = document.getElementById('modal-map-search-status');
+    if (statusEl) statusEl.textContent = '';
+
+    setTimeout(() => {
+      this.initOrUpdateModalMap();
+    }, 150);
+  },
+
+  closeHomeMapModal() {
+    const modal = document.getElementById('modal-interactive-map');
+    if (modal) modal.classList.add('hidden');
+  },
+
+  initOrUpdateModalMap() {
+    const container = document.getElementById('modal-live-map');
+    if (!container || typeof L === 'undefined') return;
+
+    const centerLat = this.liveGps.lat !== null ? this.liveGps.lat : -6.2088;
+    const centerLng = this.liveGps.lng !== null ? this.liveGps.lng : 106.8456;
+
+    if (!this.modalMap) {
+      this.modalMap = L.map('modal-live-map', {
+        zoomControl: true,
+        attributionControl: false
+      }).setView([centerLat, centerLng], 12);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19
+      }).addTo(this.modalMap);
+    } else {
+      this.modalMap.invalidateSize();
+      this.modalMap.setView([centerLat, centerLng], 12);
+    }
+
+    if (this.modalStoreLayer) {
+      this.modalMap.removeLayer(this.modalStoreLayer);
+    }
+    this.modalStoreLayer = L.layerGroup().addTo(this.modalMap);
+    this._modalStoreMarkerMap = new Map();
+
+    const stores = window.FMCUData.getStores();
+    const activeCheckIn = window.FMCUData.getActiveCheckIn();
+    const activeCode = activeCheckIn?.storeCode || null;
+
+    stores.forEach((st) => {
+      const lat = Number(st.lat ?? st.latitude);
+      const lng = Number(st.lng ?? st.longitude);
+      if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) return;
+
+      const isTarget = activeCode && String(st.code) === String(activeCode);
+
+      const m = L.circleMarker([lat, lng], {
+        radius: isTarget ? 10 : 7,
+        fillColor: isTarget ? '#f59e0b' : '#009944',
+        color: '#ffffff',
+        weight: isTarget ? 3 : 2,
+        fillOpacity: 0.95
+      }).addTo(this.modalStoreLayer);
+
+      if (isTarget) {
+        L.circle([lat, lng], {
+          radius: 50,
+          color: '#009944',
+          fillColor: '#009944',
+          fillOpacity: 0.2,
+          weight: 2,
+          dashArray: '4, 4'
+        }).addTo(this.modalStoreLayer);
+      }
+
+      let distText = '';
+      if (this.liveGps.lat !== null && this.liveGps.lng !== null) {
+        const d = this.calculateHaversineDistance(this.liveGps.lat, this.liveGps.lng, lat, lng);
+        if (d !== null) {
+          distText = d < 1000 ? `${d} meter` : `${(d / 1000).toFixed(1)} km`;
+        }
+      }
+
+      m.bindPopup(`
+        <div class="text-xs p-1 space-y-1.5" style="min-width: 230px;">
+          <div class="font-extrabold text-emerald-800 text-sm flex items-center gap-1.5">
+            <i class="fa-solid fa-store text-[#009944]"></i>
+            <span>FamilyMart ${st.name}</span>
+          </div>
+          <div class="text-[11px] font-mono text-slate-500 font-bold">
+            Site: ${st.code} • Tipe: ${st.type || 'CVS'}
+          </div>
+          <div class="text-[11px] text-slate-700 leading-snug">
+            ${st.address || st.city || '-'}
+          </div>
+          <div class="text-[10px] font-mono text-slate-600 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
+            📍 Lat: ${lat.toFixed(5)}, Long: ${lng.toFixed(5)} ${distText ? `<br/>🎯 Jarak: <strong>${distText}</strong>` : ''}
+          </div>
+          <div class="pt-1.5 flex items-center justify-between border-t border-slate-100 text-[11px]">
+            <span class="text-slate-600">PIC: <strong>${st.storeHead || '-'}</strong></span>
+            <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener noreferrer" class="font-extrabold text-white bg-[#0099A6] hover:bg-[#007a85] px-2.5 py-1 rounded-lg flex items-center gap-1 transition shadow-xs">
+              <span>Buka Rute Maps</span>
+              <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+            </a>
+          </div>
+        </div>
+      `);
+
+      this._modalStoreMarkerMap.set(String(st.code), { marker: m, store: st, lat, lng });
+    });
+
+    // Render User Live GPS Marker on Modal
+    if (this.modalUserMarker) {
+      this.modalMap.removeLayer(this.modalUserMarker);
+      this.modalUserMarker = null;
+    }
+
+    if (this.liveGps.lat !== null && this.liveGps.lng !== null) {
+      this.modalUserMarker = L.circleMarker([this.liveGps.lat, this.liveGps.lng], {
+        radius: 10,
+        fillColor: '#0099A6',
+        color: '#ffffff',
+        weight: 3,
+        fillOpacity: 1
+      }).addTo(this.modalMap);
+
+      this.modalUserMarker.bindPopup(`
+        <div class="text-xs p-1 space-y-1">
+          <div class="font-extrabold text-[#0099A6] flex items-center gap-1">
+            <i class="fa-solid fa-crosshairs"></i>
+            <span>Posisi GPS Aktual Anda</span>
+          </div>
+          <div class="text-[11px] text-slate-600">${this.currentUser?.name || 'User'}</div>
+          <div class="font-mono text-[10px] text-slate-500 bg-slate-50 p-1 rounded border border-slate-200">
+            GPS: ${this.liveGps.lat}, ${this.liveGps.lng}
+          </div>
+        </div>
+      `);
+    }
+
+    setTimeout(() => {
+      this.modalMap.invalidateSize();
+    }, 200);
+  },
+
+  centerModalMapToUser() {
+    if (!this.modalMap) return;
+    if (this.liveGps.lat !== null && this.liveGps.lng !== null) {
+      this.modalMap.setView([this.liveGps.lat, this.liveGps.lng], 15);
+      if (this.modalUserMarker) this.modalUserMarker.openPopup();
+      this.showToast('Peta dipusatkan ke posisi GPS Anda', 'info', 2000);
+    } else {
+      this.showToast('Sinyal GPS belum aktif pada perangkat', 'warning', 2500);
+    }
+  },
+
+  fitModalMapToAllStores() {
+    if (!this.modalMap || !this._modalStoreMarkerMap) return;
+    const points = [];
+    this._modalStoreMarkerMap.forEach((entry) => {
+      points.push([entry.lat, entry.lng]);
+    });
+    if (this.liveGps.lat !== null && this.liveGps.lng !== null) {
+      points.push([this.liveGps.lat, this.liveGps.lng]);
+    }
+    if (points.length > 0) {
+      this.modalMap.fitBounds(points, { padding: [30, 30] });
+      this.showToast('Menampilkan seluruh titik toko FamilyMart', 'info', 2000);
+    }
+  },
+
+  searchStoreOnModalMap(query = '') {
+    const q = String(query || '').trim().toLowerCase();
+    const statusEl = document.getElementById('modal-map-search-status');
+    if (!q) {
+      if (statusEl) statusEl.textContent = '';
+      return;
+    }
+    if (!this._modalStoreMarkerMap) return;
+
+    let found = null;
+    this._modalStoreMarkerMap.forEach((entry) => {
+      if (found) return;
+      const st = entry.store;
+      if (
+        String(st.code || '').toLowerCase().includes(q) ||
+        String(st.name || '').toLowerCase().includes(q) ||
+        String(st.city || '').toLowerCase().includes(q) ||
+        String(st.address || '').toLowerCase().includes(q)
+      ) {
+        found = entry;
+      }
+    });
+
+    if (found) {
+      this.modalMap.setView([found.lat, found.lng], 16);
+      found.marker.openPopup();
+      if (statusEl) statusEl.innerHTML = `<span class="text-emerald-700 font-bold">✓ Ditemukan: ${found.store.name} (${found.store.code})</span>`;
+    } else {
+      if (statusEl) statusEl.innerHTML = `<span class="text-rose-500 font-bold">Tidak ditemukan</span>`;
     }
   },
 

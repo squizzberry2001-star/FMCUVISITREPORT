@@ -795,7 +795,30 @@ window.FMCUData = {
           }
           const data = doc.data();
           if (data && Array.isArray(data.stores) && data.stores.length > 0) {
-            localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(data.stores));
+            let enriched = data.stores;
+            if (Array.isArray(window.FMCU_INITIAL_STORES) && window.FMCU_INITIAL_STORES.length > 0) {
+              const seedMap = new Map();
+              window.FMCU_INITIAL_STORES.forEach((s) => seedMap.set(String(s.code), s));
+              let needsCloudPush = false;
+              enriched = enriched.map((st) => {
+                const seed = seedMap.get(String(st.code));
+                if (seed && (st.lat === undefined || st.lat === null || st.lat === '')) {
+                  needsCloudPush = true;
+                  return {
+                    ...st,
+                    lat: seed.lat,
+                    lng: seed.lng,
+                    latitude: seed.latitude,
+                    longitude: seed.longitude
+                  };
+                }
+                return st;
+              });
+              if (needsCloudPush) {
+                this.saveStoresCatalogToCloud(enriched, false).catch((e) => console.warn('Sync coords to cloud error:', e));
+              }
+            }
+            localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(enriched));
             if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
               window.FMCUApp.onCloudDataUpdated('stores');
             }
@@ -1042,7 +1065,34 @@ window.FMCUData = {
   },
 
   getStores() {
-    return JSON.parse(localStorage.getItem(STORAGE_KEYS.STORES) || '[]');
+    let stores = JSON.parse(localStorage.getItem(STORAGE_KEYS.STORES) || '[]');
+    if (!Array.isArray(stores) || stores.length === 0) {
+      stores = Array.isArray(window.FMCU_INITIAL_STORES) ? window.FMCU_INITIAL_STORES : [];
+      localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(stores));
+      return stores;
+    }
+    // Pastikan semua toko selalu memiliki koordinat pinpoint (lat/lng) dari seed
+    if (Array.isArray(window.FMCU_INITIAL_STORES) && window.FMCU_INITIAL_STORES.length > 0) {
+      const seedMap = new Map();
+      window.FMCU_INITIAL_STORES.forEach((s) => seedMap.set(String(s.code), s));
+      let missingCoords = false;
+      stores.forEach((st) => {
+        if (st.lat === undefined || st.lat === null || st.lat === '') {
+          const seed = seedMap.get(String(st.code));
+          if (seed) {
+            st.lat = seed.lat;
+            st.lng = seed.lng;
+            st.latitude = seed.latitude;
+            st.longitude = seed.longitude;
+            missingCoords = true;
+          }
+        }
+      });
+      if (missingCoords) {
+        localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(stores));
+      }
+    }
+    return stores;
   },
   saveStores(stores, changedStore = null, deletedCode = null) {
     localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(stores));
