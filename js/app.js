@@ -1147,6 +1147,34 @@ window.FMCUApp = {
     this.updateFormGuardVisibility();
   },
 
+  isAuditorUser(user = this.currentUser) {
+    if (!user) return false;
+    if (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN_SCHEDULE') return false;
+    if (user.role === 'AUDITOR') return true;
+    const badge = String(user.roleBadge || '').toLowerCase();
+    return badge.includes('auditor') || badge.includes('bestie');
+  },
+
+  getSchedulableAuditors() {
+    const users = window.FMCUData.getUsers();
+    return users.filter((u) => this.isAuditorUser(u));
+  },
+
+  isScheduleOwnedByUser(schedule, user = this.currentUser) {
+    if (!schedule || !user) return false;
+    if (schedule.auditorId && user.id && String(schedule.auditorId) === String(user.id)) return true;
+    const sName = String(schedule.auditorName || '').trim().toLowerCase();
+    const uName = String(user.name || '').trim().toLowerCase();
+    return Boolean(sName && uName && sName === uName);
+  },
+
+  getLocalDateISO(dt = new Date()) {
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const dd = String(dt.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  },
+
   // Handler for "Visit Toko Jadwal Hari Ini" button on Home
   handleVisitTodaySchedule() {
     // 1. If already checked in to a store, jump directly to its Form Visit
@@ -1158,23 +1186,17 @@ window.FMCUApp = {
       return;
     }
 
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = this.getLocalDateISO();
     const schedules = window.FMCUData.getSchedules();
     const myPendingToday = schedules.find(
-      (s) =>
-        s.status !== 'COMPLETED' &&
-        s.scheduledDate === todayStr &&
-        (!this.currentUser || s.auditorId === this.currentUser.id || s.auditorName === this.currentUser.name)
+      (s) => s.status !== 'COMPLETED' && s.scheduledDate === todayStr && this.isScheduleOwnedByUser(s, this.currentUser)
     );
 
-    const anyPendingToday = schedules.find((s) => s.status !== 'COMPLETED' && s.scheduledDate === todayStr);
     const myNextPending = schedules.find(
-      (s) =>
-        s.status !== 'COMPLETED' &&
-        (!this.currentUser || s.auditorId === this.currentUser.id || s.auditorName === this.currentUser.name)
+      (s) => s.status !== 'COMPLETED' && this.isScheduleOwnedByUser(s, this.currentUser)
     );
 
-    const targetSchedule = myPendingToday || anyPendingToday || myNextPending;
+    const targetSchedule = myPendingToday || myNextPending;
     if (targetSchedule) {
       this.checkInAndOpenForm(targetSchedule.storeCode, targetSchedule.id);
       return;
@@ -1187,7 +1209,7 @@ window.FMCUApp = {
       this.renderHomeSchedules();
     }
     document.getElementById('home-schedule-section')?.scrollIntoView({ behavior: 'smooth' });
-    this.showToast('Belum ada jadwal toko yang ditugaskan untuk hari ini.', 'warning');
+    this.showToast('Belum ada jadwal toko yang ditugaskan untuk akun Anda hari ini.', 'warning');
   },
 
   restoreActiveCheckInToForm(checkInObj) {
@@ -1310,13 +1332,18 @@ window.FMCUApp = {
     const container = document.getElementById('home-schedule-list');
     if (!container) return;
     const scope = document.getElementById('schedule-filter-scope')?.value || 'ALL';
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = this.getLocalDateISO();
     let schedules = window.FMCUData.getSchedules();
+
+    // User Auditor / Regional Bestie HANYA melihat jadwalnya masing-masing (tidak bisa melihat jadwal auditor lain)
+    if (this.currentUser && (this.isAuditorUser(this.currentUser) || !this.hasAuthority('manage_schedule'))) {
+      schedules = schedules.filter((s) => this.isScheduleOwnedByUser(s, this.currentUser));
+    }
 
     if (scope === 'TODAY') {
       schedules = schedules.filter((s) => s.scheduledDate === todayStr);
     } else if (scope === 'MINE' && this.currentUser) {
-      schedules = schedules.filter((s) => s.auditorId === this.currentUser.id || s.auditorName === this.currentUser.name);
+      schedules = schedules.filter((s) => this.isScheduleOwnedByUser(s, this.currentUser));
     } else if (scope === 'PENDING') {
       schedules = schedules.filter((s) => s.status !== 'COMPLETED');
     } else if (scope === 'COMPLETED') {
@@ -2873,20 +2900,28 @@ window.FMCUApp = {
 
   renderAdminView() {
     const users = window.FMCUData.getUsers();
+    const auditorsOnly = this.getSchedulableAuditors();
     const schedules = window.FMCUData.getSchedules();
     const settings = window.FMCUData.getSettings();
 
-    // Populate Schedule Form Dropdowns with Search Filter
+    // Populate Schedule Form Dropdowns with Search Filter (Hanya Auditor / Regional Bestie)
     const searchVal = document.getElementById('adm-sch-store-search')?.value || '';
     this.filterAdminScheduleStoreDropdown(searchVal);
 
     const schAuditorSel = document.getElementById('adm-sch-auditor');
     if (schAuditorSel) {
-      schAuditorSel.innerHTML = users.map((u) => `<option value="${u.id}">${u.name} (${u.roleBadge || u.role})</option>`).join('');
+      schAuditorSel.innerHTML =
+        auditorsOnly.length > 0
+          ? auditorsOnly.map((u) => `<option value="${u.id}">${u.name} (${u.roleBadge || u.role})</option>`).join('')
+          : `<option value="">-- Belum ada user Auditor / Regional Bestie --</option>`;
     }
     const schDateInput = document.getElementById('adm-sch-date');
     if (schDateInput && !schDateInput.value) {
-      schDateInput.value = new Date().toISOString().slice(0, 10);
+      schDateInput.value = this.getMondayOfWeek();
+    }
+    const schWinInput = document.getElementById('adm-sch-window');
+    if (schWinInput && !schWinInput.value) {
+      schWinInput.value = '08:30 - 17:30';
     }
 
     // 0. Render Interactive 5-Day Multi-Auditor Planner
@@ -2902,8 +2937,8 @@ window.FMCUApp = {
     if (listAuditorSel) {
       const prevAud = listAuditorSel.value || 'ALL';
       listAuditorSel.innerHTML =
-        `<option value="ALL">Semua Auditor (${users.length})</option>` +
-        users.map((u) => `<option value="${u.id}" ${u.id === prevAud ? 'selected' : ''}>${u.name}</option>`).join('');
+        `<option value="ALL">Semua Auditor (${auditorsOnly.length})</option>` +
+        auditorsOnly.map((u) => `<option value="${u.id}" ${u.id === prevAud ? 'selected' : ''}>${u.name}</option>`).join('');
     }
 
     const listSearchQ = (document.getElementById('adm-sch-list-search')?.value || '').trim().toLowerCase();
@@ -2942,7 +2977,7 @@ window.FMCUApp = {
             <tr class="hover:bg-slate-50">
               <td class="py-2.5 px-3">
                 <div class="font-bold text-slate-900">${window.FMCUPdf.formatIndonesianDate(s.scheduledDate, true)}</div>
-                <div class="text-[10px] font-mono text-slate-400">${s.shiftWindow || '09:00 - 15:00 WIB'}</div>
+                <div class="text-[10px] font-mono text-slate-400">${s.shiftWindow || '08:30 - 17:30'}</div>
               </td>
               <td class="py-2.5 px-3">
                 <div class="font-bold text-slate-900">${s.storeName}</div>
@@ -3059,15 +3094,23 @@ window.FMCUApp = {
 
   getMondayOfWeek(dateInput) {
     const d = dateInput ? new Date(dateInput + 'T00:00:00') : new Date();
-    if (isNaN(d.getTime())) return new Date().toISOString().slice(0, 10);
-    const day = d.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    if (isNaN(d.getTime())) return this.getLocalDateISO();
+    const day = d.getDay(); // 0=Minggu, 1=Senin, 2=Selasa, 3=Rabu, 4=Kamis, 5=Jumat, 6=Sabtu
+    // Cari hari Senin terdekat sesuai tanggal & hari aktual:
+    // - Senin(1)..Kamis(4) -> Senin minggu berjalan (1 - day)
+    // - Jumat(5), Sabtu(6) -> Senin terdekat berikutnya (8 - day, yaitu +3 atau +2 hari)
+    // - Minggu(0) -> Senin besok (+1 hari)
+    let offsetToNearestMonday = 0;
+    if (day === 0) {
+      offsetToNearestMonday = 1;
+    } else if (day >= 1 && day <= 4) {
+      offsetToNearestMonday = 1 - day;
+    } else {
+      offsetToNearestMonday = 8 - day;
+    }
     const monday = new Date(d);
-    monday.setDate(diff);
-    const yyyy = monday.getFullYear();
-    const mm = String(monday.getMonth() + 1).padStart(2, '0');
-    const dd = String(monday.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
+    monday.setDate(d.getDate() + offsetToNearestMonday);
+    return this.getLocalDateISO(monday);
   },
 
   getFiveWorkDays(mondayStr) {
@@ -3098,19 +3141,22 @@ window.FMCUApp = {
     if (!this.weeklyMondayDate) {
       this.weeklyMondayDate = this.getMondayOfWeek();
     }
-    const users = window.FMCUData.getUsers();
+    // Daftar nama yang diatur jadwal HANYA Auditor / Regional Bestie (selain itu tidak termasuk)
+    const auditors = this.getSchedulableAuditors();
+    const validIds = new Set(auditors.map((u) => u.id));
+
     if (!Array.isArray(this.weeklySelectedAuditors) || this.weeklySelectedAuditors.length === 0) {
-      // Pilih semua user yang memiliki otoritas create_visit atau role AUDITOR secara default
-      const defaultAuditors = users.filter((u) => u.role === 'AUDITOR' || this.hasAuthority('create_visit', u));
-      this.weeklySelectedAuditors = (defaultAuditors.length > 0 ? defaultAuditors : users).map((u) => u.id);
+      this.weeklySelectedAuditors = auditors.map((u) => u.id);
     } else {
-      const validIds = new Set(users.map((u) => u.id));
       this.weeklySelectedAuditors = this.weeklySelectedAuditors.filter((id) => validIds.has(id));
+      if (this.weeklySelectedAuditors.length === 0 && auditors.length > 0 && !this._userClearedAuditors) {
+        this.weeklySelectedAuditors = auditors.map((u) => u.id);
+      }
     }
 
     if (!this.weeklyActiveSlot.auditorId || !this.weeklySelectedAuditors.includes(this.weeklyActiveSlot.auditorId)) {
       this.weeklyActiveSlot = {
-        auditorId: this.weeklySelectedAuditors[0] || (users[0] ? users[0].id : null),
+        auditorId: this.weeklySelectedAuditors[0] || (auditors[0] ? auditors[0].id : null),
         dayIndex: 0
       };
     }
@@ -3119,10 +3165,7 @@ window.FMCUApp = {
   setWeeklyMondayToCurrentWeek(offsetDays = 0) {
     const dt = new Date();
     dt.setDate(dt.getDate() + Number(offsetDays || 0));
-    const yyyy = dt.getFullYear();
-    const mm = String(dt.getMonth() + 1).padStart(2, '0');
-    const dd = String(dt.getDate()).padStart(2, '0');
-    this.weeklyMondayDate = this.getMondayOfWeek(`${yyyy}-${mm}-${dd}`);
+    this.weeklyMondayDate = this.getMondayOfWeek(this.getLocalDateISO(dt));
     this.renderWeeklySchedulePlanner();
   },
 
@@ -3130,10 +3173,7 @@ window.FMCUApp = {
     this.ensureWeeklyPlannerInitialized();
     const dt = new Date(this.weeklyMondayDate + 'T00:00:00');
     dt.setDate(dt.getDate() + Number(deltaDays || 0));
-    const yyyy = dt.getFullYear();
-    const mm = String(dt.getMonth() + 1).padStart(2, '0');
-    const dd = String(dt.getDate()).padStart(2, '0');
-    this.weeklyMondayDate = this.getMondayOfWeek(`${yyyy}-${mm}-${dd}`);
+    this.weeklyMondayDate = this.getMondayOfWeek(this.getLocalDateISO(dt));
     this.renderWeeklySchedulePlanner();
   },
 
@@ -3141,7 +3181,7 @@ window.FMCUApp = {
     if (!val) return;
     const snappedMonday = this.getMondayOfWeek(val);
     if (snappedMonday !== val) {
-      this.showToast('Tanggal otomatis disesuaikan ke hari Senin pada minggu tersebut (Senin–Jumat).', 'info');
+      this.showToast('Tanggal otomatis disesuaikan ke hari Senin terdekat pada minggu tersebut (Senin–Jumat).', 'info');
     }
     this.weeklyMondayDate = snappedMonday;
     this.renderWeeklySchedulePlanner();
@@ -3152,8 +3192,10 @@ window.FMCUApp = {
     const idx = this.weeklySelectedAuditors.indexOf(userId);
     if (idx !== -1) {
       this.weeklySelectedAuditors.splice(idx, 1);
+      this._userClearedAuditors = this.weeklySelectedAuditors.length === 0;
     } else {
       this.weeklySelectedAuditors.push(userId);
+      this._userClearedAuditors = false;
       this.weeklyActiveSlot = { auditorId: userId, dayIndex: 0 };
     }
     if (this.weeklySelectedAuditors.length > 0 && !this.weeklySelectedAuditors.includes(this.weeklyActiveSlot.auditorId)) {
@@ -3163,24 +3205,20 @@ window.FMCUApp = {
   },
 
   selectAllWeeklyAuditors(selectAll = true) {
-    const users = window.FMCUData.getUsers();
+    const auditors = this.getSchedulableAuditors();
     if (selectAll) {
-      this.weeklySelectedAuditors = users.map((u) => u.id);
-      if (users.length > 0) this.weeklyActiveSlot = { auditorId: users[0].id, dayIndex: 0 };
+      this._userClearedAuditors = false;
+      this.weeklySelectedAuditors = auditors.map((u) => u.id);
+      if (auditors.length > 0) this.weeklyActiveSlot = { auditorId: auditors[0].id, dayIndex: 0 };
     } else {
+      this._userClearedAuditors = true;
       this.weeklySelectedAuditors = [];
     }
     this.renderWeeklySchedulePlanner();
   },
 
   selectOnlyRoleAuditors() {
-    const users = window.FMCUData.getUsers();
-    const onlyAud = users.filter((u) => u.role === 'AUDITOR');
-    this.weeklySelectedAuditors = (onlyAud.length > 0 ? onlyAud : users).map((u) => u.id);
-    if (this.weeklySelectedAuditors.length > 0) {
-      this.weeklyActiveSlot = { auditorId: this.weeklySelectedAuditors[0], dayIndex: 0 };
-    }
-    this.renderWeeklySchedulePlanner();
+    this.selectAllWeeklyAuditors(true);
   },
 
   setActiveWeeklySlot(auditorId, dayIndex) {
@@ -3450,12 +3488,12 @@ window.FMCUApp = {
 
   renderWeeklySchedulePlanner() {
     this.ensureWeeklyPlannerInitialized();
-    const users = window.FMCUData.getUsers();
+    const users = this.getSchedulableAuditors();
     const stores = window.FMCUData.getStores();
     const schedules = window.FMCUData.getSchedules();
     const storeMap = new Map(stores.map((s) => [String(s.code), s]));
 
-    // 1. Update Monday Input & Range Badge
+    // 1. Update Monday Input, Nearest Monday Info & Range Badge
     const monInput = document.getElementById('weekly-monday-input');
     if (monInput && monInput.value !== this.weeklyMondayDate) {
       monInput.value = this.weeklyMondayDate;
@@ -3465,13 +3503,22 @@ window.FMCUApp = {
     if (rangeBadge && fiveDays.length === 5) {
       rangeBadge.textContent = `${fiveDays[0].shortDate} – ${fiveDays[4].shortDate} (Senin–Jumat)`;
     }
+    const nearestInfoEl = document.getElementById('weekly-nearest-monday-info');
+    if (nearestInfoEl && fiveDays.length === 5) {
+      const todayActualStr = window.FMCUPdf.formatIndonesianDate(this.getLocalDateISO(), true);
+      const mondayTargetStr = window.FMCUPdf.formatIndonesianDate(fiveDays[0].dateStr, true);
+      nearestInfoEl.innerHTML = `<i class="fa-regular fa-calendar-check mr-1"></i>Aktual Hari Ini: <strong>${todayActualStr}</strong> &rarr; Senin Terdekat: <strong>${mondayTargetStr}</strong>`;
+    }
 
-    // 2. Render Step 2 Auditor Multi-Select Cards
+    // 2. Render Step 2 Auditor Multi-Select Cards (Khusus Auditor / Regional Bestie)
     const audGrid = document.getElementById('weekly-auditor-selector-grid');
     if (audGrid) {
-      const weekDatesSet = new Set(fiveDays.map((d) => d.dateStr));
-      audGrid.innerHTML = users
-        .map((u) => {
+      if (users.length === 0) {
+        audGrid.innerHTML = `<div class="col-span-full text-xs text-slate-400 py-3">Belum ada akun dengan role Auditor / Regional Bestie.</div>`;
+      } else {
+        const weekDatesSet = new Set(fiveDays.map((d) => d.dateStr));
+        audGrid.innerHTML = users
+          .map((u) => {
           const isSelected = this.weeklySelectedAuditors.includes(u.id);
           let draftCount = 0;
           for (let d = 0; d < 5; d++) {
@@ -3517,6 +3564,7 @@ window.FMCUApp = {
           `;
         })
         .join('');
+      }
     }
 
     // 3. Update Active Slot Indicator & Quick Store Results
@@ -3775,14 +3823,14 @@ window.FMCUApp = {
 
   applyWeeklySchedulesBatch() {
     this.ensureWeeklyPlannerInitialized();
-    const users = window.FMCUData.getUsers();
+    const users = this.getSchedulableAuditors();
     const stores = window.FMCUData.getStores();
     const schedules = window.FMCUData.getSchedules();
     const userMap = new Map(users.map((u) => [u.id, u]));
     const storeMap = new Map(stores.map((s) => [String(s.code), s]));
     const fiveDays = this.getFiveWorkDays(this.weeklyMondayDate);
 
-    const windowStr = (document.getElementById('weekly-default-window')?.value || '09:00 - 15:00 WIB').trim();
+    const windowStr = (document.getElementById('weekly-default-window')?.value || '08:30 - 17:30').trim();
     const focusStr = (document.getElementById('weekly-default-focus')?.value || '').trim() || 'Audit Rutin Mingguan (QSC & Observasi)';
     const assignedBy = this.currentUser?.name || 'Admin FMCU';
 
@@ -3807,7 +3855,7 @@ window.FMCUApp = {
             auditorId: au.id,
             auditorName: au.name,
             scheduledDate: dayObj.dateStr,
-            shiftWindow: windowStr || '09:00 - 15:00 WIB',
+            shiftWindow: windowStr || '08:30 - 17:30',
             priority: item.priority || 'NORMAL',
             auditFocus: focusStr,
             status: 'PENDING',
@@ -3840,7 +3888,7 @@ window.FMCUApp = {
   renderAdminAuditorRecapStrip() {
     const stripEl = document.getElementById('admin-auditor-recap-strip');
     if (!stripEl) return;
-    const users = window.FMCUData.getUsers();
+    const users = this.getSchedulableAuditors();
     const schedules = window.FMCUData.getSchedules();
     const reports = window.FMCUData.getReports();
     const currentFilter = document.getElementById('adm-sch-list-auditor')?.value || 'ALL';
@@ -3914,13 +3962,14 @@ window.FMCUApp = {
       return;
     }
 
-    const users = window.FMCUData.getUsers();
+    const allUsers = window.FMCUData.getUsers();
+    const users = this.getSchedulableAuditors();
     const schedules = window.FMCUData.getSchedules();
     const stores = window.FMCUData.getStores();
     const reports = window.FMCUData.getReports();
 
     const storeMap = new Map(stores.map((s) => [String(s.code), s]));
-    const userMap = new Map(users.map((u) => [u.id, u]));
+    const userMap = new Map(allUsers.map((u) => [u.id, u]));
     const reportByIdMap = new Map(reports.map((r) => [r.id, r]));
 
     // ========================================================================
@@ -4214,7 +4263,7 @@ window.FMCUApp = {
       auditorId: au.id,
       auditorName: au.name,
       scheduledDate: dateStr,
-      shiftWindow: windowStr || '-',
+      shiftWindow: windowStr || '08:30 - 17:30',
       priority,
       auditFocus: focus || '-',
       status: 'PENDING',
