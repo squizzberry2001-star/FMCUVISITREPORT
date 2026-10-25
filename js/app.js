@@ -531,6 +531,7 @@ window.FMCUApp = {
       sessionStorage.removeItem('fmcu_active_sch_subtab');
       sessionStorage.removeItem('fmcu_active_admin_tab');
       sessionStorage.removeItem('fmcu_active_analytics_subtab');
+      sessionStorage.removeItem('fmcu_active_home_subtab');
     } catch (e) {}
     this.currentView = 'home';
 
@@ -2258,6 +2259,7 @@ window.FMCUApp = {
     }
 
     // No pending schedule found for today
+    this.switchHomeSubSection('schedule');
     const filterEl = document.getElementById('schedule-filter-scope');
     if (filterEl) {
       filterEl.value = 'TODAY';
@@ -2370,10 +2372,74 @@ window.FMCUApp = {
     }
   },
 
+  currentHomeSubSection: 'overview',
+
+  switchHomeSubSection(subSec, scrollTop = false) {
+    const validSections = ['overview', 'schedule', 'history'];
+    const target = validSections.includes(subSec) ? subSec : 'overview';
+    this.currentHomeSubSection = target;
+
+    try {
+      sessionStorage.setItem('fmcu_active_home_subtab', target);
+    } catch (e) {}
+
+    validSections.forEach((sec) => {
+      const el = document.getElementById(`home-subsec-${sec}`);
+      if (el) el.classList.toggle('hidden', sec !== target);
+
+      const btn = document.getElementById(`home-subtab-btn-${sec}`);
+      if (btn) {
+        if (sec === target) {
+          btn.className = 'flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-2 cursor-pointer bg-[#009944] text-white shadow-xs whitespace-nowrap';
+        } else {
+          btn.className = 'flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-2 cursor-pointer text-slate-600 hover:text-slate-900 hover:bg-slate-100 whitespace-nowrap';
+        }
+      }
+    });
+
+    this.updateHomeSubSectionPills();
+
+    if (target === 'overview') {
+      setTimeout(() => {
+        if (this.homeMap) this.homeMap.invalidateSize();
+      }, 150);
+    } else if (target === 'schedule') {
+      this.renderHomeSchedules();
+    } else if (target === 'history') {
+      this.renderHomeHistory();
+    }
+
+    if (scrollTop) {
+      document.getElementById('home-subsection-switcher-bar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  },
+
+  updateHomeSubSectionPills() {
+    const schedules = window.FMCUData.getSchedules();
+    const reports = window.FMCUData.getReports();
+
+    const schPill = document.getElementById('home-schedule-count-pill');
+    if (schPill) {
+      schPill.textContent = schedules.length;
+    }
+
+    const histPill = document.getElementById('home-history-count-pill');
+    if (histPill) {
+      histPill.textContent = reports.length;
+    }
+  },
+
   renderHomeView() {
+    let savedSubSec = 'overview';
+    try {
+      savedSubSec = sessionStorage.getItem('fmcu_active_home_subtab') || 'overview';
+    } catch (e) {}
+
+    this.switchHomeSubSection(this.currentHomeSubSection || savedSubSec, false);
     this.renderHomeSchedules();
     this.renderHomeHistory();
     this.initOrUpdateHomeMap();
+    this.updateHomeSubSectionPills();
   },
 
   renderAnalyticsView() {

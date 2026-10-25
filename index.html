@@ -520,139 +520,221 @@
            ================================================================== -->
       <main id="view-home" class="view-section p-4 sm:p-6 max-w-7xl w-full mx-auto space-y-6">
 
-        <!-- Welcome Hero + Live Location Banner -->
-        <div class="fm-card overflow-hidden">
-          <div class="p-5 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-            <div class="lg:col-span-7 space-y-3">
-              <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold">
-                <i class="fa-solid fa-shield-check"></i>
-                <span id="home-welcome-role">Otoritas: Visitor / Regional Bestie</span>
-              </div>
-              <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900">
-                Selamat Bertugas, <span id="home-welcome-name" class="text-[#0099A6]">Visitor FMCU</span>!
-              </h2>
-              <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                Silakan pilih toko pada <strong>Jadwal Toko yang Diminta Visit</strong> di bawah ini atau tekan tombol <strong>Visit Toko Jadwal Hari Ini</strong> untuk melakukan <em>Check-In (Actual In)</em> dan membuka Form Visit toko tersebut.
-              </p>
+        <!-- Home Sub-Section Navigation Switcher Bar -->
+        <div id="home-subsection-switcher-bar" class="fm-card p-2 sm:p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-gradient-to-r from-emerald-50/60 via-white to-teal-50/60 border border-slate-200 shadow-2xs">
+          <div class="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto p-0.5">
+            <!-- Sub-tab 1: Maps & Welcome Page -->
+            <button type="button" id="home-subtab-btn-overview" onclick="FMCUApp.switchHomeSubSection('overview')" class="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-2 cursor-pointer bg-[#009944] text-white shadow-xs whitespace-nowrap">
+              <i class="fa-solid fa-map-location-dot"></i>
+              <span>1. Maps & Welcome</span>
+            </button>
+            <!-- Sub-tab 2: Jadwal Visit -->
+            <button type="button" id="home-subtab-btn-schedule" onclick="FMCUApp.switchHomeSubSection('schedule')" class="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-2 cursor-pointer text-slate-600 hover:text-slate-900 hover:bg-slate-100 whitespace-nowrap">
+              <i class="fa-solid fa-calendar-days text-[#009944]"></i>
+              <span>2. Jadwal Visit</span>
+              <span id="home-schedule-count-pill" class="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-extrabold">0</span>
+            </button>
+            <!-- Sub-tab 3: History & Arsip Visit -->
+            <button type="button" id="home-subtab-btn-history" onclick="FMCUApp.switchHomeSubSection('history')" class="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-2 cursor-pointer text-slate-600 hover:text-slate-900 hover:bg-slate-100 whitespace-nowrap">
+              <i class="fa-solid fa-clock-rotate-left text-[#0099A6]"></i>
+              <span>3. History & Arsip Visit</span>
+              <span id="home-history-count-pill" class="px-2 py-0.5 rounded-full text-[10px] bg-teal-100 text-teal-800 font-extrabold">0</span>
+            </button>
+          </div>
 
-              <!-- Quick Action Buttons (Tanpa tombol Kelola Toko & Jadwal Admin) -->
-              <div class="pt-2 flex flex-wrap items-center gap-3">
-                <button onclick="FMCUApp.handleVisitTodaySchedule()" class="fm-gradient hover:opacity-95 text-white font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm shadow-sm transition flex items-center gap-2 cursor-pointer">
-                  <i class="fa-solid fa-calendar-day"></i>
-                  <span>Visit Toko Jadwal Hari Ini</span>
-                </button>
-                <button onclick="FMCUApp.openProfileModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3.5 py-2.5 rounded-xl text-xs sm:text-sm transition flex items-center gap-2 cursor-pointer">
-                  <i class="fa-regular fa-id-badge text-[#0099A6]"></i>
-                  <span>Profil & Log Kehadiran</span>
-                </button>
-              </div>
-            </div>
+          <div class="hidden sm:flex items-center gap-2 text-xs font-bold text-slate-500 pr-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 gps-pulse"></span>
+            <span>Navigasi Home FMCU</span>
+          </div>
+        </div>
 
-            <!-- Live Location & Actual In/Out Status Card -->
-            <div id="home-map-card" class="lg:col-span-5 bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3 transition-all duration-300">
-              <div class="flex flex-wrap items-center justify-between gap-2">
-                <div class="flex items-center gap-2">
-                  <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 gps-pulse"></span>
-                  <span class="font-extrabold text-xs uppercase tracking-wider text-slate-700">Live Location & Actual In/Out</span>
+        <!-- ==============================================================
+             SUB-SECTION 1: MAPS & WELCOME PAGE
+             ============================================================== -->
+        <div id="home-subsec-overview" class="home-subsec space-y-6">
+          <!-- Welcome Hero + Live Location Banner -->
+          <div class="fm-card overflow-hidden">
+            <div class="p-5 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+              <div class="lg:col-span-7 space-y-3">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold">
+                  <i class="fa-solid fa-shield-check"></i>
+                  <span id="home-welcome-role">Otoritas: Visitor / Regional Bestie</span>
                 </div>
-                <div class="flex items-center gap-1.5">
-                  <span id="home-gps-status-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 shrink-0">
-                    GPS Terkunci
+                <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900">
+                  Selamat Bertugas, <span id="home-welcome-name" class="text-[#0099A6]">Visitor FMCU</span>!
+                </h2>
+                <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                  Silakan pilih toko pada sub section <strong>Jadwal Visit</strong> atau tekan tombol <strong>Visit Toko Jadwal Hari Ini</strong> di bawah ini untuk melakukan <em>Check-In (Actual In)</em> dan membuka Form Visit toko tersebut.
+                </p>
+
+                <!-- Quick Action Buttons -->
+                <div class="pt-2 flex flex-wrap items-center gap-3">
+                  <button onclick="FMCUApp.handleVisitTodaySchedule()" class="fm-gradient hover:opacity-95 text-white font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm shadow-sm transition flex items-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-calendar-day"></i>
+                    <span>Visit Toko Jadwal Hari Ini</span>
+                  </button>
+                  <button onclick="FMCUApp.switchHomeSubSection('schedule')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold px-3.5 py-2.5 rounded-xl text-xs sm:text-sm transition flex items-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-calendar-days text-[#009944]"></i>
+                    <span>Lihat Jadwal Visit Toko</span>
+                  </button>
+                  <button onclick="FMCUApp.openProfileModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3.5 py-2.5 rounded-xl text-xs sm:text-sm transition flex items-center gap-2 cursor-pointer">
+                    <i class="fa-regular fa-id-badge text-[#0099A6]"></i>
+                    <span>Profil & Log Kehadiran</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Live Location & Actual In/Out Status Card -->
+              <div id="home-map-card" class="lg:col-span-5 bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3 transition-all duration-300">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 gps-pulse"></span>
+                    <span class="font-extrabold text-xs uppercase tracking-wider text-slate-700">Live Location & Actual In/Out</span>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <span id="home-gps-status-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 shrink-0">
+                      GPS Terkunci
+                    </span>
+                    <!-- Tombol Perbesar / Perkecil Ukuran Maps Inline -->
+                    <button type="button" onclick="FMCUApp.toggleHomeMapExpand()" id="btn-toggle-home-map" class="text-[11px] font-extrabold text-slate-700 hover:text-emerald-700 bg-white hover:bg-slate-100 border border-slate-300 px-2.5 py-1 rounded-xl shadow-2xs transition flex items-center gap-1.5 cursor-pointer" title="Perbesar atau perkecil tampilan peta">
+                      <i id="icon-toggle-home-map" class="fa-solid fa-maximize text-[#0099A6]"></i>
+                      <span id="text-toggle-home-map" class="hidden sm:inline">Perbesar Maps</span>
+                    </button>
+                    <!-- Tombol Fullscreen Modal Maps -->
+                    <button type="button" onclick="FMCUApp.openHomeMapModal()" class="text-[11px] font-extrabold text-[#0099A6] hover:text-emerald-700 bg-white hover:bg-teal-50 border border-teal-300 p-1.5 rounded-xl shadow-2xs transition flex items-center justify-center cursor-pointer" title="Buka Peta Interaktif Layar Penuh">
+                      <i class="fa-solid fa-expand"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Mini Map Container with Expand Capability -->
+                <div id="home-live-map" class="w-full h-44 rounded-xl border border-slate-200 overflow-hidden bg-slate-200 relative z-0 transition-all duration-300 shadow-inner"></div>
+
+                <!-- Current Coordinates & Active Check-In Box -->
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                    <div class="text-[10px] font-bold text-slate-400 uppercase">Titik Koordinat User</div>
+                    <div id="home-gps-latlng" class="font-mono font-bold text-slate-800 mt-0.5 truncate">Mendeteksi...</div>
+                  </div>
+                  <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                    <div class="text-[10px] font-bold text-slate-400 uppercase">Status Actual In / Out</div>
+                    <div id="home-checkin-summary" class="font-bold text-slate-700 mt-0.5 truncate">Belum Check-In</div>
+                  </div>
+                </div>
+
+                <!-- Bestie & Store Quick Legend Indicator -->
+                <div class="flex flex-wrap items-center justify-between text-[10px] font-bold text-slate-500 pt-0.5 px-1 border-t border-slate-200/60">
+                  <span class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#009944] border border-white shadow-2xs"></span>
+                    <span>610 Toko FM</span>
                   </span>
-                  <!-- Tombol Perbesar / Perkecil Ukuran Maps Inline -->
-                  <button type="button" onclick="FMCUApp.toggleHomeMapExpand()" id="btn-toggle-home-map" class="text-[11px] font-extrabold text-slate-700 hover:text-emerald-700 bg-white hover:bg-slate-100 border border-slate-300 px-2.5 py-1 rounded-xl shadow-2xs transition flex items-center gap-1.5 cursor-pointer" title="Perbesar atau perkecil tampilan peta">
-                    <i id="icon-toggle-home-map" class="fa-solid fa-maximize text-[#0099A6]"></i>
-                    <span id="text-toggle-home-map" class="hidden sm:inline">Perbesar Maps</span>
-                  </button>
-                  <!-- Tombol Fullscreen Modal Maps -->
-                  <button type="button" onclick="FMCUApp.openHomeMapModal()" class="text-[11px] font-extrabold text-[#0099A6] hover:text-emerald-700 bg-white hover:bg-teal-50 border border-teal-300 p-1.5 rounded-xl shadow-2xs transition flex items-center justify-center cursor-pointer" title="Buka Peta Interaktif Layar Penuh">
-                    <i class="fa-solid fa-expand"></i>
-                  </button>
+                  <span class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-indigo-600 border border-white shadow-2xs"></span>
+                    <span class="text-indigo-700">18 Bestie / Visitor (GPS)</span>
+                  </span>
+                  <span class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#0099A6] border border-white shadow-2xs"></span>
+                    <span class="text-[#0099A6]">GPS Anda</span>
+                  </span>
                 </div>
               </div>
+            </div>
+          </div>
 
-              <!-- Mini Map Container with Expand Capability -->
-              <div id="home-live-map" class="w-full h-36 rounded-xl border border-slate-200 overflow-hidden bg-slate-200 relative z-0 transition-all duration-300 shadow-inner"></div>
-
-              <!-- Current Coordinates & Active Check-In Box -->
-              <div class="grid grid-cols-2 gap-2 text-xs">
-                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
-                  <div class="text-[10px] font-bold text-slate-400 uppercase">Titik Koordinat User</div>
-                  <div id="home-gps-latlng" class="font-mono font-bold text-slate-800 mt-0.5 truncate">Mendeteksi...</div>
+          <!-- Quick Navigation Jump Cards Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div onclick="FMCUApp.switchHomeSubSection('schedule')" class="fm-card fm-card-hover p-4 cursor-pointer flex items-center justify-between gap-4 border-l-4 border-l-[#009944] bg-white group">
+              <div class="flex items-center gap-3.5">
+                <div class="w-12 h-12 rounded-xl bg-emerald-50 text-[#009944] group-hover:bg-[#009944] group-hover:text-white transition flex items-center justify-center text-xl shrink-0">
+                  <i class="fa-solid fa-calendar-check"></i>
                 </div>
-                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
-                  <div class="text-[10px] font-bold text-slate-400 uppercase">Status Actual In / Out</div>
-                  <div id="home-checkin-summary" class="font-bold text-slate-700 mt-0.5 truncate">Belum Check-In</div>
+                <div>
+                  <div class="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                    <span>Sub Section: Jadwal Visit Toko</span>
+                    <span class="text-[10px] px-2 py-0.2 rounded-full bg-emerald-100 text-emerald-800 font-bold">Buka</span>
+                  </div>
+                  <div class="text-xs text-slate-500 mt-0.5">Daftar toko yang diminta visit, tanggal jadwal terdekat & tombol Check-In</div>
                 </div>
               </div>
+              <div class="text-[#009944] font-extrabold text-xs flex items-center gap-1 shrink-0 group-hover:translate-x-1 transition-transform">
+                <span>Masuk</span>
+                <i class="fa-solid fa-arrow-right"></i>
+              </div>
+            </div>
 
-              <!-- Bestie & Store Quick Legend Indicator -->
-              <div class="flex flex-wrap items-center justify-between text-[10px] font-bold text-slate-500 pt-0.5 px-1 border-t border-slate-200/60">
-                <span class="flex items-center gap-1.5">
-                  <span class="w-2.5 h-2.5 rounded-full bg-[#009944] border border-white shadow-2xs"></span>
-                  <span>610 Toko FM</span>
-                </span>
-                <span class="flex items-center gap-1.5">
-                  <span class="w-2.5 h-2.5 rounded-full bg-indigo-600 border border-white shadow-2xs"></span>
-                  <span class="text-indigo-700">18 Bestie / Visitor (GPS)</span>
-                </span>
-                <span class="flex items-center gap-1.5">
-                  <span class="w-2.5 h-2.5 rounded-full bg-[#0099A6] border border-white shadow-2xs"></span>
-                  <span class="text-[#0099A6]">GPS Anda</span>
-                </span>
+            <div onclick="FMCUApp.switchHomeSubSection('history')" class="fm-card fm-card-hover p-4 cursor-pointer flex items-center justify-between gap-4 border-l-4 border-l-[#0099A6] bg-white group">
+              <div class="flex items-center gap-3.5">
+                <div class="w-12 h-12 rounded-xl bg-teal-50 text-[#0099A6] group-hover:bg-[#0099A6] group-hover:text-white transition flex items-center justify-center text-xl shrink-0">
+                  <i class="fa-solid fa-clock-rotate-left"></i>
+                </div>
+                <div>
+                  <div class="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                    <span>Sub Section: History & Arsip Visit</span>
+                    <span class="text-[10px] px-2 py-0.2 rounded-full bg-teal-100 text-teal-800 font-bold">Buka</span>
+                  </div>
+                  <div class="text-xs text-slate-500 mt-0.5">Riwayat hasil visit toko, pencarian arsip, preview slide & unduh file PDF</div>
+                </div>
+              </div>
+              <div class="text-[#0099A6] font-extrabold text-xs flex items-center gap-1 shrink-0 group-hover:translate-x-1 transition-transform">
+                <span>Masuk</span>
+                <i class="fa-solid fa-arrow-right"></i>
               </div>
             </div>
           </div>
         </div>
 
         <!-- ==============================================================
-             SECTION 1 HOME: JADWAL TOKO YANG DIMINTA VISIT (SCHEDULE VISIT)
+             SUB-SECTION 2: JADWAL TOKO YANG DIMINTA VISIT (SCHEDULE VISIT)
              ============================================================== -->
-        <div id="home-schedule-section" class="fm-card p-5 sm:p-6 space-y-4">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-            <div>
-              <div class="flex items-center gap-2">
-                <span class="w-2 h-5 rounded-full bg-[#009944]"></span>
-                <h3 class="text-base sm:text-lg font-extrabold text-slate-900">Jadwal Toko yang Diminta Visit</h3>
+        <div id="home-subsec-schedule" class="home-subsec space-y-6 hidden">
+          <div id="home-schedule-section" class="fm-card p-5 sm:p-6 space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-5 rounded-full bg-[#009944]"></span>
+                  <h3 class="text-base sm:text-lg font-extrabold text-slate-900">Jadwal Toko yang Diminta Visit</h3>
+                </div>
+                <p class="text-xs text-slate-500 mt-0.5">Urutan jadwal dimulai dari tanggal terdekat. Klik <strong>Check-In & Masuk Form Toko</strong> untuk mulai mengisi Form Visit</p>
               </div>
-              <p class="text-xs text-slate-500 mt-0.5">Klik tombol <strong>Check-In & Masuk Form Toko</strong> pada jadwal toko Anda untuk membuka halaman Form Visit Store</p>
+              <div class="flex flex-wrap items-center gap-2">
+                <select id="schedule-filter-scope" onchange="FMCUApp.renderHomeSchedules()" class="text-xs font-semibold border border-slate-200 rounded-xl px-3 py-2 bg-slate-50">
+                  <option value="ALL">Semua Jadwal Visit</option>
+                  <option value="TODAY">Jadwal Hari Ini</option>
+                  <option value="PENDING">Status: Belum Visit (Pending)</option>
+                  <option value="COMPLETED">Status: Selesai Visit</option>
+                </select>
+              </div>
             </div>
-            <div class="flex flex-wrap items-center gap-2">
-              <select id="schedule-filter-scope" onchange="FMCUApp.renderHomeSchedules()" class="text-xs font-semibold border border-slate-200 rounded-xl px-3 py-2 bg-slate-50">
-                <option value="ALL">Semua Jadwal Visit</option>
-                <option value="TODAY">Jadwal Hari Ini</option>
-                <option value="PENDING">Status: Belum Visit (Pending)</option>
-                <option value="COMPLETED">Status: Selesai Visit</option>
-              </select>
-            </div>
-          </div>
 
-          <!-- Schedule Cards Grid -->
-          <div id="home-schedule-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Schedule Cards Grid -->
+            <div id="home-schedule-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            </div>
           </div>
         </div>
 
         <!-- ==============================================================
-             SECTION 2 HOME: HISTORY VISIT & ARSIP LAPORAN PDF
+             SUB-SECTION 3: HISTORY VISIT & ARSIP LAPORAN PDF
              ============================================================== -->
-        <div class="fm-card p-5 sm:p-6 space-y-4">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-            <div>
+        <div id="home-subsec-history" class="home-subsec space-y-6 hidden">
+          <div class="fm-card p-5 sm:p-6 space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-5 rounded-full bg-[#0099A6]"></span>
+                  <h3 class="text-base sm:text-lg font-extrabold text-slate-900">History Visit & Arsip Laporan PDF</h3>
+                </div>
+                <p class="text-xs text-slate-500 mt-0.5">Riwayat kunjungan yang telah selesai beserta akses cepat Preview Slide 16:9, Unduh PDF, dan Kirim Email/GDrive</p>
+              </div>
               <div class="flex items-center gap-2">
-                <span class="w-2 h-5 rounded-full bg-[#0099A6]"></span>
-                <h3 class="text-base sm:text-lg font-extrabold text-slate-900">History Visit & Arsip Laporan PDF</h3>
-              </div>
-              <p class="text-xs text-slate-500 mt-0.5">Riwayat kunjungan yang telah selesai beserta akses cepat Preview Slide 16:9, Unduh PDF, dan Kirim Email/GDrive</p>
-            </div>
-            <div class="flex items-center gap-2">
-              <div class="relative">
-                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                <input type="text" id="history-search-input" oninput="FMCUApp.renderHomeHistory()" placeholder="Cari toko / visitor..." class="fm-input pl-8 py-1.5 text-xs w-48 sm:w-60" />
+                <div class="relative">
+                  <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                  <input type="text" id="history-search-input" oninput="FMCUApp.renderHomeHistory()" placeholder="Cari toko / visitor..." class="fm-input pl-8 py-1.5 text-xs w-48 sm:w-60" />
+                </div>
               </div>
             </div>
-          </div>
 
-          <div id="home-history-list" class="space-y-3"></div>
+            <div id="home-history-list" class="space-y-3"></div>
+          </div>
         </div>
 
       </main>
