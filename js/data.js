@@ -1055,7 +1055,7 @@ window.FMCUData = {
     }
   },
 
-    clearDummyBestieLocations() {
+  clearDummyBestieLocations() {
     try {
       const raw = localStorage.getItem(STORAGE_KEYS.USERS);
       if (!raw) return;
@@ -1076,6 +1076,31 @@ window.FMCUData = {
     } catch (e) {}
   },
 
+  markUserExited(userId) {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.USERS);
+      if (!raw) return;
+      let users = JSON.parse(raw);
+      const idx = users.findIndex(
+        (u) =>
+          u.id === userId ||
+          String(u.nik) === String(userId) ||
+          String(u.username).toLowerCase() === String(userId).toLowerCase()
+      );
+      if (idx !== -1 && users[idx].lastLocation) {
+        users[idx].lastLocation.isExited = true;
+        users[idx].lastLocation.exitedAt = new Date().toISOString();
+        users[idx].lastLocation.status = 'EXITED';
+        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+
+        if (this.db) {
+          const docId = String(users[idx].id || users[idx].username);
+          this.db.collection('users').doc(docId).set({ lastLocation: users[idx].lastLocation }, { merge: true }).catch(() => {});
+        }
+      }
+    } catch (e) {}
+  },
+
   updateUserLocation(userId, lat, lng, storeVisit = null, status = 'LIVE_GPS') {
     const users = this.getUsers();
     const idx = users.findIndex(
@@ -1091,7 +1116,9 @@ window.FMCUData = {
       updatedAt: new Date().toISOString(),
       storeVisit: storeVisit || users[idx].lastLocation?.storeVisit || null,
       status: status || users[idx].lastLocation?.status || 'LIVE_GPS',
-      isActualGps: true
+      isActualGps: true,
+      isExited: false,
+      exitedAt: null
     };
     users[idx].lastLocation = loc;
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));

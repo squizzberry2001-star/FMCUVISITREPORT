@@ -535,10 +535,10 @@
               <span id="home-schedule-count-pill" class="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-extrabold">0</span>
             </button>
             <!-- Sub-tab 3: History & Arsip Visit -->
-            <button type="button" id="home-subtab-btn-history" onclick="FMCUApp.switchHomeSubSection('history')" class="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-2 cursor-pointer text-slate-600 hover:text-slate-900 hover:bg-slate-100 whitespace-nowrap">
+            <button type="button" id="home-subtab-btn-history" onclick="FMCUApp.switchHomeSubSection('history')" class="flex-1 sm:flex-initial px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer text-slate-600 hover:text-slate-900 hover:bg-slate-100 whitespace-nowrap">
               <i class="fa-solid fa-clock-rotate-left text-[#0099A6]"></i>
-              <span>3. History & Arsip Visit</span>
-              <span id="home-history-count-pill" class="px-2 py-0.5 rounded-full text-[10px] bg-teal-100 text-teal-800 font-extrabold">0</span>
+              <span>3. History & Arsip</span>
+              <span id="home-history-count-pill" class="px-1.5 py-0.5 rounded-full text-[10px] bg-teal-100 text-teal-800 font-extrabold">0</span>
             </button>
           </div>
 
@@ -885,7 +885,7 @@
         </div>
 
         <!-- Analitik Performa & Aktivitas User (Visitor KPI + Live Location + Actual In/Out) -->
-        <div class="fm-card p-5 sm:p-6 space-y-4">
+        <div id="analytics-user-performance-card" class="fm-card p-5 sm:p-6 space-y-4">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
             <div>
               <h3 class="font-extrabold text-base text-slate-900 flex items-center gap-2">
@@ -897,7 +897,7 @@
           </div>
 
           <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse text-xs sm:text-sm">
+            <table class="w-full text-left border-collapse text-xs sm:text-sm min-w-[700px]">
               <thead>
                 <tr class="bg-slate-50 text-slate-600 border-y border-slate-200 text-[11px] uppercase tracking-wider">
                   <th class="py-3 px-4 font-bold">Nama User / Visitor</th>
@@ -1124,7 +1124,7 @@
 
               <!-- Navigasi Section Footer -->
               <div class="pt-4 border-t border-slate-100 flex items-center justify-end">
-                <button type="button" onclick="FMCUApp.switchFormSection(2)" class="fm-gradient hover:opacity-95 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm shadow-sm transition flex items-center gap-2 cursor-pointer">
+                <button type="button" onclick="FMCUApp.switchFormSection(2)" class="w-full sm:w-auto text-center justify-center fm-gradient hover:opacity-95 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm shadow-sm transition flex items-center gap-2 cursor-pointer">
                   <span>Lanjut ke Section 2: QSC Observation</span>
                   <i class="fa-solid fa-arrow-right"></i>
                 </button>
@@ -1151,11 +1151,11 @@
               <div id="form-observations-list" class="space-y-4"></div>
 
               <!-- Navigasi Section Footer -->
-              <div class="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
-                <button type="button" onclick="FMCUApp.switchFormSection(1)" class="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs sm:text-sm hover:bg-slate-50 transition cursor-pointer">
+              <div class="pt-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+                <button type="button" onclick="FMCUApp.switchFormSection(1)" class="w-full sm:w-auto text-center justify-center px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs sm:text-sm hover:bg-slate-50 transition cursor-pointer">
                   <i class="fa-solid fa-arrow-left mr-1.5"></i>Kembali ke Section 1
                 </button>
-                <button type="button" onclick="FMCUApp.switchFormSection(3)" class="fm-gradient hover:opacity-95 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm shadow-sm transition flex items-center gap-2 cursor-pointer">
+                <button type="button" onclick="FMCUApp.switchFormSection(3)" class="w-full sm:w-auto text-center justify-center fm-gradient hover:opacity-95 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm shadow-sm transition flex items-center gap-2 cursor-pointer">
                   <span>Lanjut ke Section 3: Finding Evidence</span>
                   <i class="fa-solid fa-arrow-right"></i>
                 </button>
@@ -1193,11 +1193,11 @@
               <div id="form-evidence-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
 
               <!-- Navigasi Section Footer -->
-              <div class="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
-                <button type="button" onclick="FMCUApp.switchFormSection(2)" class="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs sm:text-sm hover:bg-slate-50 transition cursor-pointer">
+              <div class="pt-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+                <button type="button" onclick="FMCUApp.switchFormSection(2)" class="w-full sm:w-auto text-center justify-center px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs sm:text-sm hover:bg-slate-50 transition cursor-pointer">
                   <i class="fa-solid fa-arrow-left mr-1.5"></i>Kembali ke Section 2
                 </button>
-                <button type="button" onclick="FMCUApp.switchFormSection(4)" class="fm-gradient hover:opacity-95 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm shadow-sm transition flex items-center gap-2 cursor-pointer">
+                <button type="button" onclick="FMCUApp.switchFormSection(4)" class="w-full sm:w-auto text-center justify-center fm-gradient hover:opacity-95 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm shadow-sm transition flex items-center gap-2 cursor-pointer">
                   <span>Lanjut ke Section 4: Store Assignment & Submit</span>
                   <i class="fa-solid fa-arrow-right"></i>
                 </button>
@@ -1231,20 +1231,20 @@
               </div>
 
               <!-- Action Buttons Bar -->
-              <div class="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
-                <button type="button" onclick="FMCUApp.switchFormSection(3)" class="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs sm:text-sm hover:bg-slate-50 transition cursor-pointer">
+              <div class="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <button type="button" onclick="FMCUApp.switchFormSection(3)" class="w-full sm:w-auto text-center justify-center px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs sm:text-sm hover:bg-slate-50 transition cursor-pointer">
                   <i class="fa-solid fa-arrow-left mr-1.5"></i>Kembali ke Section 3
                 </button>
 
-                <div class="flex flex-wrap items-center gap-3">
-                  <button type="submit" class="bg-slate-900 hover:bg-slate-800 text-white font-bold px-5 py-3 rounded-xl text-xs sm:text-sm shadow-md transition flex items-center gap-2 cursor-pointer">
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
+                  <button type="submit" class="w-full sm:w-auto text-center justify-center bg-slate-900 hover:bg-slate-800 text-white font-bold px-5 py-3 rounded-xl text-xs sm:text-sm shadow-md transition flex items-center gap-2 cursor-pointer">
                     <i class="fa-solid fa-eye text-teal-400"></i>
-                    <span>Simpan & Preview Hasil PDF (16:9)</span>
+                    <span>Simpan & Preview PDF (16:9)</span>
                   </button>
 
-                  <button type="button" onclick="FMCUApp.handleSaveAndSendIntegration()" class="fm-gradient hover:opacity-95 text-white font-bold px-5 py-3 rounded-xl text-xs sm:text-sm shadow-md transition flex items-center gap-2 cursor-pointer">
+                  <button type="button" onclick="FMCUApp.handleSaveAndSendIntegration()" class="w-full sm:w-auto text-center justify-center fm-gradient hover:opacity-95 text-white font-bold px-5 py-3 rounded-xl text-xs sm:text-sm shadow-md transition flex items-center gap-2 cursor-pointer">
                     <i class="fa-solid fa-paper-plane"></i>
-                    <span>Check-Out & Kirim ke Email + Google Drive</span>
+                    <span>Check-Out & Kirim (Email + GDrive)</span>
                   </button>
                 </div>
               </div>
@@ -2214,18 +2214,18 @@ service cloud.firestore {
             </div>
           </div>
 
-          <div class="flex flex-wrap items-center gap-2 self-start md:self-auto">
-            <button type="button" onclick="FMCUApp.refreshLiveLocMap()" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 shadow-xs transition cursor-pointer flex items-center gap-1.5">
+          <div class="grid grid-cols-3 gap-1.5 w-full sm:w-auto sm:flex sm:flex-wrap sm:items-center">
+            <button type="button" onclick="FMCUApp.refreshLiveLocMap()" class="px-2.5 sm:px-3.5 py-2 rounded-xl text-[11px] sm:text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5">
               <i class="fa-solid fa-arrows-rotate text-[#0099A6]"></i>
               <span>Refresh GPS</span>
             </button>
-            <button type="button" onclick="FMCUApp.fitLiveLocMapToAllBesties()" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#0099A6] text-white hover:bg-teal-700 shadow-xs transition cursor-pointer flex items-center gap-1.5">
+            <button type="button" onclick="FMCUApp.fitLiveLocMapToAllBesties()" class="px-2.5 sm:px-3.5 py-2 rounded-xl text-[11px] sm:text-xs font-bold bg-[#0099A6] text-white hover:bg-teal-700 shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5">
               <i class="fa-solid fa-users"></i>
-              <span>Semua Bestie (18)</span>
+              <span>Bestie (18)</span>
             </button>
-            <button type="button" onclick="FMCUApp.fitLiveLocMapToAllStores()" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#009944] text-white hover:bg-emerald-700 shadow-xs transition cursor-pointer flex items-center gap-1.5">
+            <button type="button" onclick="FMCUApp.fitLiveLocMapToAllStores()" class="px-2.5 sm:px-3.5 py-2 rounded-xl text-[11px] sm:text-xs font-bold bg-[#009944] text-white hover:bg-emerald-700 shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5">
               <i class="fa-solid fa-store"></i>
-              <span>Semua Toko (610)</span>
+              <span>Toko (610)</span>
             </button>
           </div>
         </div>
@@ -2336,44 +2336,31 @@ service cloud.firestore {
               </label>
             </div>
 
-            <!-- Bestie List Scope Chips (Semua, Sedang Visit, Diluar Radius, Belum Akses Web) -->
-            <div class="flex flex-wrap items-center gap-1 bg-slate-100 p-1 rounded-xl">
-              <button type="button" id="btn-bestie-scope-all" onclick="FMCUApp.filterLiveLocBestieScope('ALL')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white text-slate-900 shadow-xs cursor-pointer">
+            <!-- Bestie List Scope Chips (Semua, Sedang Visit, Diluar Radius, Keluar Aplikasi, Belum Akses Web) -->
+            <div class="flex flex-wrap items-center gap-1 bg-slate-100 p-1 rounded-xl w-full lg:w-auto">
+              <button type="button" id="btn-bestie-scope-all" onclick="FMCUApp.filterLiveLocBestieScope('ALL')" class="flex-1 sm:flex-initial text-center justify-center px-2 sm:px-2.5 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold bg-slate-900 text-white shadow-xs cursor-pointer">
                 Semua (18)
               </button>
-              <button type="button" id="btn-bestie-scope-visiting" onclick="FMCUApp.filterLiveLocBestieScope('VISITING')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold text-emerald-800 hover:bg-white transition cursor-pointer">
+              <button type="button" id="btn-bestie-scope-visiting" onclick="FMCUApp.filterLiveLocBestieScope('VISITING')" class="flex-1 sm:flex-initial text-center justify-center px-2 sm:px-2.5 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold text-emerald-800 hover:bg-white transition cursor-pointer">
                 Sedang Visit
               </button>
-              <button type="button" id="btn-bestie-scope-outside" onclick="FMCUApp.filterLiveLocBestieScope('OUTSIDE_RADIUS')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold text-amber-800 hover:bg-white transition cursor-pointer">
+              <button type="button" id="btn-bestie-scope-outside" onclick="FMCUApp.filterLiveLocBestieScope('OUTSIDE_RADIUS')" class="flex-1 sm:flex-initial text-center justify-center px-2 sm:px-2.5 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold text-amber-800 hover:bg-white transition cursor-pointer">
                 Diluar Radius Toko
               </button>
-              <button type="button" id="btn-bestie-scope-not-accessed" onclick="FMCUApp.filterLiveLocBestieScope('NOT_ACCESSED')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-600 hover:bg-white transition cursor-pointer">
+              <button type="button" id="btn-bestie-scope-exited" onclick="FMCUApp.filterLiveLocBestieScope('EXITED')" class="flex-1 sm:flex-initial text-center justify-center px-2 sm:px-2.5 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold text-slate-700 hover:bg-white transition cursor-pointer">
+                Keluar Aplikasi
+              </button>
+              <button type="button" id="btn-bestie-scope-not-accessed" onclick="FMCUApp.filterLiveLocBestieScope('NOT_ACCESSED')" class="flex-1 sm:flex-initial text-center justify-center px-2 sm:px-2.5 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold text-slate-500 hover:bg-white transition cursor-pointer">
                 Belum Akses Web
               </button>
             </div>
           </div>
         </div>
 
-        <!-- 4. Split Monitoring Grid: Side Bestie Cards + Large Map Canvas -->
+        <!-- 4. Split Monitoring Grid: Dedicated Interactive Map + Side Bestie Cards -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-          <!-- Left: Bestie List Side Panel (4 cols on lg) -->
-          <div class="lg:col-span-5 xl:col-span-4 fm-card p-4 space-y-3 flex flex-col">
-            <div class="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div class="flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 gps-pulse"></span>
-                <h3 class="font-extrabold text-sm text-slate-900">Daftar Tim Regional Bestie</h3>
-              </div>
-              <span id="live-loc-bestie-count-badge" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800">18 Personil</span>
-            </div>
-
-            <!-- Scrollable Bestie Cards List -->
-            <div id="live-loc-bestie-list-container" class="space-y-2.5 max-h-[640px] overflow-y-auto pr-1">
-              <!-- Rendered dynamically by FMCUApp.renderLiveLocView() -->
-            </div>
-          </div>
-
-          <!-- Right: Dedicated Interactive Map (8 cols on lg) -->
-          <div class="lg:col-span-7 xl:col-span-8 fm-card p-3 sm:p-4 space-y-3 flex flex-col relative">
+          <!-- Interactive Map: Order 1 on mobile, Order 2 on lg -->
+          <div class="lg:col-span-7 xl:col-span-8 fm-card p-3 sm:p-4 space-y-3 flex flex-col relative order-1 lg:order-2">
             <div class="flex items-center justify-between text-xs">
               <div class="font-extrabold text-slate-800 flex items-center gap-2">
                 <i class="fa-solid fa-map text-[#0099A6]"></i>
@@ -2384,8 +2371,8 @@ service cloud.firestore {
               </div>
             </div>
 
-            <!-- Leaflet Map Container -->
-            <div id="live-loc-dedicated-map" class="w-full h-[580px] sm:h-[640px] rounded-xl border border-slate-200 overflow-hidden relative z-0"></div>
+            <!-- Leaflet Map Container: Responsive height on mobile -->
+            <div id="live-loc-dedicated-map" class="w-full h-[380px] sm:h-[480px] lg:h-[640px] rounded-xl border border-slate-200 overflow-hidden relative z-0"></div>
 
             <!-- Map Floating Bottom Legend -->
             <div class="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600">
@@ -2416,6 +2403,22 @@ service cloud.firestore {
               </div>
             </div>
           </div>
+
+          <!-- Bestie Cards List: Order 2 on mobile, Order 1 on lg -->
+          <div class="lg:col-span-5 xl:col-span-4 fm-card p-4 space-y-3 flex flex-col order-2 lg:order-1">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 gps-pulse"></span>
+                <h3 class="font-extrabold text-sm text-slate-900">Daftar Tim Regional Bestie</h3>
+              </div>
+              <span id="live-loc-bestie-count-badge" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800">18 Personil</span>
+            </div>
+
+            <!-- Scrollable Bestie Cards List -->
+            <div id="live-loc-bestie-list-container" class="space-y-2.5 max-h-[640px] overflow-y-auto pr-1">
+              <!-- Rendered dynamically by FMCUApp.renderLiveLocView() -->
+            </div>
+          </div>
         </div>
       </main>
 
@@ -2428,7 +2431,7 @@ service cloud.firestore {
        ==================================================================== -->
   <nav id="mobile-bottom-nav" class="lg:hidden fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 z-40 py-1.5 px-2 shadow-lg overflow-x-auto">
     <!-- A. MENU UTAMA MOBILE -->
-    <div id="mobile-main-nav" class="flex items-center justify-around w-full">
+    <div id="mobile-main-nav" class="flex items-center gap-1 min-w-max sm:min-w-0 sm:justify-around w-full px-1">
       <button onclick="FMCUApp.navigate('home')" id="mnav-home" class="mobile-nav-item active flex flex-col items-center justify-center py-1 px-2.5 text-slate-500 cursor-pointer shrink-0">
         <i class="fa-solid fa-house text-base"></i>
         <span class="text-[10px] mt-0.5">Home</span>
