@@ -839,7 +839,7 @@ window.FMCUData = {
             cloudSchedules.push(data);
           }
         });
-        cloudSchedules.sort((a, b) => String(b.scheduledDate || '').localeCompare(String(a.scheduledDate || '')));
+        cloudSchedules.sort((a, b) => String(a.scheduledDate || '').localeCompare(String(b.scheduledDate || '')));
         localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(cloudSchedules));
         if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
           window.FMCUApp.onCloudDataUpdated('schedules');
@@ -1117,7 +1117,9 @@ window.FMCUData = {
   },
 
   getSchedules() {
-    return JSON.parse(localStorage.getItem(STORAGE_KEYS.SCHEDULES) || '[]');
+    const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.SCHEDULES) || '[]');
+    // Urutkan jadwal toko dimulai dari tanggal terdekat secara kronologis
+    return list.sort((a, b) => String(a.scheduledDate || '').localeCompare(String(b.scheduledDate || '')));
   },
   saveSchedules(schedules) {
     const prevSchedules = this.getSchedules();

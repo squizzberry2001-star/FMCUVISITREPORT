@@ -2384,6 +2384,16 @@ window.FMCUApp = {
       schedules = schedules.filter((s) => s.status === 'COMPLETED');
     }
 
+    // Urutkan jadwal toko dimulai dari tanggal terdekat untuk card pertama dan seterusnya
+    schedules.sort((a, b) => {
+      const dateA = String(a.scheduledDate || '');
+      const dateB = String(b.scheduledDate || '');
+      if (dateA !== dateB) {
+        return dateA.localeCompare(dateB);
+      }
+      return String(a.storeCode || '').localeCompare(String(b.storeCode || ''));
+    });
+
     if (schedules.length === 0) {
       container.innerHTML = `
         <div class="col-span-full border border-dashed border-slate-200 rounded-2xl py-10 px-4 text-center space-y-1 bg-slate-50/50">
@@ -4095,6 +4105,16 @@ window.FMCUApp = {
         String(s.scheduledDate || '').toLowerCase().includes(listSearchQ) ||
         String(s.auditFocus || '').toLowerCase().includes(listSearchQ)
       );
+    });
+
+    // Urutkan jadwal toko dimulai dari tanggal terdekat
+    filteredSchedules.sort((a, b) => {
+      const dateA = String(a.scheduledDate || '');
+      const dateB = String(b.scheduledDate || '');
+      if (dateA !== dateB) {
+        return dateA.localeCompare(dateB);
+      }
+      return String(a.storeCode || '').localeCompare(String(b.storeCode || ''));
     });
 
     const schCountEl = document.getElementById('admin-schedule-count');
