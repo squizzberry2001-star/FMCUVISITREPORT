@@ -935,60 +935,64 @@
 
         <!-- Active Store Form Wrapper -->
         <div id="form-active-store-wrapper" class="space-y-6">
-          <!-- Sticky Top Live Check-In (Actual In / Out & GPS) Bar - Hanya Tampil di Section 1 & 4 -->
-          <div id="form-top-geofence-banner" class="fm-card p-4 sm:p-5 bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white shadow-lg">
-            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-              <div class="space-y-1">
-                <div class="flex items-center gap-2">
-                  <span class="px-2.5 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                    Form Audit Kunjungan Toko
+          <!-- Sticky Top Live Check-In (Actual In / Out & GPS) Bar - Hanya Tampil di Section 1 & 4 (Minimalist Mobile Typography & Side-by-Side IN/OUT) -->
+          <div id="form-top-geofence-banner" class="fm-card p-3 sm:p-5 bg-gradient-to-r from-emerald-950 via-teal-950 to-slate-900 text-white shadow-md rounded-2xl">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
+              <!-- Left: Store & GPS Info (Minimalist Typography) -->
+              <div class="space-y-1 min-w-0">
+                <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <span class="px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1 shrink-0">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                    Audit Toko
                   </span>
-                  <span id="form-banner-store-badge" class="text-xs font-bold text-teal-200">Kode Toko: -</span>
+                  <span id="form-banner-store-badge" class="text-[11px] font-bold text-teal-200 bg-white/10 px-2 py-0.5 rounded-md truncate">Kode Toko: -</span>
                 </div>
-                <h2 id="form-banner-title" class="text-lg sm:text-xl font-extrabold tracking-tight">
+                <h2 id="form-banner-title" class="text-sm sm:text-base font-extrabold tracking-tight text-white truncate">
                   FMCU Visit Store Report
                 </h2>
-                <div id="form-banner-gps" class="text-xs text-slate-300 font-mono flex items-center gap-2">
-                  <i class="fa-solid fa-location-dot text-emerald-400"></i>
-                  <span>Live GPS: Mendeteksi koordinat...</span>
+                <div id="form-banner-gps" class="text-[10px] sm:text-xs text-slate-300 font-mono flex items-center gap-1.5 truncate">
+                  <i class="fa-solid fa-location-dot text-emerald-400 text-[10px] shrink-0"></i>
+                  <span class="truncate">Live GPS: Mendeteksi koordinat...</span>
                 </div>
               </div>
 
-              <!-- AUTOMATIC GPS GEOFENCE RADAR & AUTO IN/OUT STATUS (15m Radius & 15m Away Span) -->
-              <div class="flex flex-wrap items-center gap-2.5">
-                <!-- Auto Actual In Card -->
-                <div class="bg-white/10 backdrop-blur-sm border border-emerald-400/30 rounded-xl px-3 py-2 min-w-[125px]">
-                  <div class="flex items-center justify-between gap-1 text-[10px] uppercase tracking-wider text-emerald-300 font-extrabold">
-                    <span>Actual In (Auto GPS)</span>
-                    <i class="fa-solid fa-satellite-dish text-[10px] text-emerald-300 animate-pulse"></i>
+              <!-- Right: Check-In/Out & Geofence (Horizontal Side-by-Side IN/OUT + Radius Beneath) -->
+              <div class="w-full lg:max-w-md space-y-2">
+                <!-- Row 1: Badge IN & OUT (Berdampingan Horizontal Kiri & Kanan) -->
+                <div class="grid grid-cols-2 gap-2 w-full">
+                  <!-- Actual In Card (Kiri) -->
+                  <div class="bg-white/10 backdrop-blur-sm border border-emerald-400/30 rounded-xl p-2 sm:p-2.5 flex flex-col justify-between">
+                    <div class="flex items-center justify-between gap-1 text-[9px] sm:text-[10px] uppercase tracking-wider text-emerald-300 font-extrabold">
+                      <span>Actual In</span>
+                      <i class="fa-solid fa-satellite-dish text-[9px] text-emerald-300 animate-pulse"></i>
+                    </div>
+                    <div class="flex items-center gap-1.5 my-0.5">
+                      <span id="form-auto-in-status" class="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
+                      <input type="text" id="form-actual-in" readonly placeholder="--:-- WIB" class="bg-transparent font-extrabold text-xs sm:text-sm text-white w-full focus:outline-none cursor-default placeholder:text-white/40" value="" />
+                    </div>
+                    <div class="text-[8.5px] sm:text-[9px] text-emerald-200/80 leading-tight">&le; 08:30 (Radius &le;15m)</div>
                   </div>
-                  <div class="flex items-center gap-1.5 mt-0.5">
-                    <span id="form-auto-in-status" class="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
-                    <input type="text" id="form-actual-in" readonly placeholder="--:-- WIB" class="bg-transparent font-extrabold text-sm text-white w-24 focus:outline-none cursor-default placeholder:text-white/40" value="" />
+
+                  <!-- Actual Out Card (Kanan) -->
+                  <div class="bg-white/10 backdrop-blur-sm border border-amber-400/30 rounded-xl p-2 sm:p-2.5 flex flex-col justify-between">
+                    <div class="flex items-center justify-between gap-1 text-[9px] sm:text-[10px] uppercase tracking-wider text-amber-300 font-extrabold">
+                      <span>Actual Out</span>
+                      <i class="fa-solid fa-clock-rotate-left text-[9px] text-amber-300"></i>
+                    </div>
+                    <div class="flex items-center gap-1.5 my-0.5">
+                      <span id="form-auto-out-status" class="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
+                      <input type="text" id="form-actual-out" readonly placeholder="--:-- WIB" class="bg-transparent font-extrabold text-xs sm:text-sm text-white w-full focus:outline-none cursor-default placeholder:text-white/40" value="" />
+                    </div>
+                    <div class="text-[8.5px] sm:text-[9px] text-amber-200/80 leading-tight">&ge; 17:30 (Radius &le;15m)</div>
                   </div>
-                  <div class="text-[9px] text-emerald-200/80">Buka Web &le; 08:30 (Radius &le; 15m)</div>
                 </div>
 
-                <!-- Auto Actual Out Card -->
-                <div class="bg-white/10 backdrop-blur-sm border border-amber-400/30 rounded-xl px-3 py-2 min-w-[125px]">
-                  <div class="flex items-center justify-between gap-1 text-[10px] uppercase tracking-wider text-amber-300 font-extrabold">
-                    <span>Actual Out (Auto GPS)</span>
-                    <i class="fa-solid fa-clock-rotate-left text-[10px] text-amber-300"></i>
-                  </div>
-                  <div class="flex items-center gap-1.5 mt-0.5">
-                    <span id="form-auto-out-status" class="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
-                    <input type="text" id="form-actual-out" readonly placeholder="--:-- WIB" class="bg-transparent font-extrabold text-sm text-white w-24 focus:outline-none cursor-default placeholder:text-white/40" value="" />
-                  </div>
-                  <div class="text-[9px] text-amber-200/80">Buka Web &ge; 17:30 (Radius &le; 15m)</div>
-                </div>
-
-                <!-- Live Geofence Radar Pill -->
-                <div id="form-geofence-radar-pill" class="bg-emerald-500/20 border border-emerald-400/40 rounded-xl px-3 py-2 text-xs flex items-center gap-2">
-                  <div class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping shrink-0"></div>
-                  <div>
-                    <div id="form-geofence-radar-title" class="font-extrabold text-[11px] text-emerald-200 leading-tight">Radar Geofence 15m Aktif</div>
-                    <div id="form-geofence-radar-desc" class="text-[10px] text-emerald-300/80">Mendeteksi jarak toko...</div>
+                <!-- Row 2: Badge Radius Geofence (Tepat di Bawah Badge IN & OUT) -->
+                <div id="form-geofence-radar-pill" class="w-full bg-emerald-500/20 border border-emerald-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center gap-2">
+                  <div class="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0"></div>
+                  <div class="min-w-0 flex-1">
+                    <div id="form-geofence-radar-title" class="font-extrabold text-[10px] sm:text-[11px] text-emerald-200 leading-tight truncate">Radar Geofence 15m Aktif</div>
+                    <div id="form-geofence-radar-desc" class="text-[9px] sm:text-[9.5px] text-emerald-300/80 leading-tight truncate mt-0.5">Mendeteksi jarak toko...</div>
                   </div>
                 </div>
               </div>

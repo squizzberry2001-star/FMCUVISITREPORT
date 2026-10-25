@@ -2214,37 +2214,37 @@ window.FMCUApp = {
     if (!radarPill) return;
 
     if (state === 'INSIDE_WAITING_OUT') {
-      radarPill.className = 'bg-emerald-500/20 border border-emerald-400/40 rounded-xl px-3 py-2 text-xs flex items-center gap-2';
+      radarPill.className = 'w-full bg-emerald-500/20 border border-emerald-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center gap-2';
       if (titleEl) titleEl.textContent = '✓ Di Titik Pinpoint Toko (Radius ≤ 15m)';
       if (descEl) descEl.textContent = `Jarak: ${distance}m • In: ${auxInfo || '08:30 WIB'} • Out aktif jam ≥ 17:30`;
       if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0';
       if (outDot) outDot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
     } else if (state === 'AUTO_OUT_COMPLETED') {
-      radarPill.className = 'bg-teal-500/20 border border-teal-400/40 rounded-xl px-3 py-2 text-xs flex items-center gap-2';
+      radarPill.className = 'w-full bg-teal-500/20 border border-teal-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center gap-2';
       if (titleEl) titleEl.textContent = '✓ Sesi Presensi Selesai (Actual IN & OUT Lengkap)';
       if (descEl) descEl.textContent = `Actual Out: ${auxInfo || '17:30 WIB'} • Jarak toko: ${distance}m`;
       if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-emerald-400 shrink-0';
       if (outDot) outDot.className = 'w-2 h-2 rounded-full bg-teal-400 shrink-0';
     } else if (state === 'OUTSIDE_DENIED_IN') {
-      radarPill.className = 'bg-rose-500/20 border border-rose-400/40 rounded-xl px-3 py-2 text-xs flex items-center gap-2';
+      radarPill.className = 'w-full bg-rose-500/20 border border-rose-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center gap-2';
       if (titleEl) titleEl.textContent = '⛔ Di Luar Radius Toko (> 15m)';
       if (descEl) descEl.textContent = `Jarak: ${distance}m > 15m • Mendekat ke titik toko untuk record Actual IN`;
       if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
       if (outDot) outDot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
     } else if (state === 'OUTSIDE_DENIED_OUT') {
-      radarPill.className = 'bg-amber-500/20 border border-amber-400/40 rounded-xl px-3 py-2 text-xs flex items-center gap-2';
+      radarPill.className = 'w-full bg-amber-500/20 border border-amber-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center gap-2';
       if (titleEl) titleEl.textContent = '⛔ Di Luar Radius Toko (> 15m)';
       if (descEl) descEl.textContent = `In: ${auxInfo} • Out TIDAK direcord jika web dibuka di luar lokasi toko`;
       if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-emerald-400 shrink-0';
       if (outDot) outDot.className = 'w-2 h-2 rounded-full bg-amber-400 shrink-0';
     } else if (state === 'NO_STORE_COORDS') {
-      radarPill.className = 'bg-amber-500/20 border border-amber-400/40 rounded-xl px-3 py-2 text-xs flex items-center gap-2';
+      radarPill.className = 'w-full bg-amber-500/20 border border-amber-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center gap-2';
       if (titleEl) titleEl.textContent = '⚠️ Koordinat Pinpoint Toko Belum Ada';
       if (descEl) descEl.textContent = 'Hubungi Admin untuk mengisi Latitude & Longitude toko di Master Toko';
       if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
       if (outDot) outDot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
     } else {
-      radarPill.className = 'bg-slate-500/20 border border-slate-400/30 rounded-xl px-3 py-2 text-xs flex items-center gap-2';
+      radarPill.className = 'w-full bg-slate-500/20 border border-slate-400/30 rounded-xl p-2 sm:p-2.5 text-xs flex items-center gap-2';
       if (titleEl) titleEl.textContent = '⚠️ Sinyal GPS Tidak Terdeteksi';
       if (descEl) descEl.textContent = 'Pastikan izin GPS perangkat aktif agar kehadiran toko dapat direcord';
       if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
