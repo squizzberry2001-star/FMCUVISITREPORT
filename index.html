@@ -1464,27 +1464,34 @@ service cloud.firestore {
                 <div id="weekly-planner-board" class="space-y-4"></div>
 
                 <!-- STICKY ACTION BAR: APPLY ALL 5-DAY SCHEDULES -->
-                <div id="weekly-submit-bar" class="fm-card p-4 sm:p-5 bg-gradient-to-r from-emerald-50 via-white to-teal-50 border-2 border-[#009944]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sticky bottom-16 lg:bottom-4 z-20 shadow-lg">
-                  <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-[#009944] text-white flex items-center justify-center text-base font-extrabold shrink-0">
+                <div id="weekly-submit-bar" class="fm-card p-2.5 sm:p-4 lg:p-5 bg-gradient-to-r from-emerald-50 via-white to-teal-50 border-2 border-[#009944]/40 flex flex-row items-center justify-between gap-2 sm:gap-3 sticky bottom-16 lg:bottom-4 z-20 shadow-lg">
+                  <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <div class="hidden sm:flex w-9 h-9 lg:w-10 lg:h-10 rounded-xl bg-[#009944] text-white items-center justify-center text-sm lg:text-base font-extrabold shrink-0 shadow-xs">
                       <i class="fa-solid fa-rocket"></i>
                     </div>
-                    <div>
-                      <div class="flex flex-wrap items-center gap-2">
-                        <span id="weekly-total-draft-badge" class="font-extrabold text-sm sm:text-base text-slate-900">0 Jadwal Visit Siap Ditugaskan</span>
-                        <span id="weekly-total-auditor-badge" class="text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800">0 Visitor</span>
+                    <div class="min-w-0">
+                      <div class="flex items-center gap-1.5 flex-wrap">
+                        <span id="weekly-total-draft-badge" class="font-extrabold text-xs sm:text-sm lg:text-base text-slate-900 leading-tight">
+                          <span class="sm:hidden">0 Jadwal Siap</span>
+                          <span class="hidden sm:inline">0 Jadwal Visit Siap Ditugaskan (Senin–Jumat)</span>
+                        </span>
+                        <span id="weekly-total-auditor-badge" class="text-[10px] sm:text-[11px] font-extrabold px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-800 shrink-0">0 Visitor</span>
                       </div>
-                      <p class="text-[11px] text-slate-500">Seluruh jadwal dalam matriks Senin–Jumat di atas akan langsung disimpan ke Cloud Firestore & siap dikunjungi oleh masing-masing Visitor.</p>
+                      <p class="hidden sm:block text-[11px] text-slate-500 mt-0.5">Seluruh jadwal dalam matriks Senin–Jumat di atas akan langsung disimpan ke Cloud Firestore & siap dikunjungi oleh masing-masing Visitor.</p>
                     </div>
                   </div>
 
-                  <div class="flex flex-wrap items-center gap-2">
-                    <button type="button" onclick="FMCUApp.clearAllWeeklyDrafts()" class="px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs transition cursor-pointer">
-                      <i class="fa-solid fa-rotate-left mr-1"></i>Reset Draft
+                  <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                    <button type="button" onclick="FMCUApp.clearAllWeeklyDrafts()" title="Reset Draft" class="px-2 py-1.5 sm:px-3.5 sm:py-2 rounded-lg sm:rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1">
+                      <i class="fa-solid fa-rotate-left text-xs"></i>
+                      <span class="hidden md:inline">Reset Draft</span>
                     </button>
-                    <button type="button" onclick="FMCUApp.applyWeeklySchedulesBatch()" class="px-5 py-2.5 rounded-xl fm-gradient text-white font-extrabold text-xs sm:text-sm shadow-md hover:opacity-95 transition flex items-center gap-2 cursor-pointer">
-                      <i class="fa-solid fa-check-double"></i>
-                      <span id="weekly-apply-btn-text">Terapkan & Simpan Jadwal 5 Hari</span>
+                    <button type="button" onclick="FMCUApp.applyWeeklySchedulesBatch()" class="px-2.5 py-1.5 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl fm-gradient text-white font-extrabold text-xs sm:text-sm shadow-md hover:opacity-95 transition flex items-center justify-center gap-1.5 cursor-pointer">
+                      <i class="fa-solid fa-check-double text-xs"></i>
+                      <span id="weekly-apply-btn-text">
+                        <span class="sm:hidden">Simpan Jadwal</span>
+                        <span class="hidden sm:inline">Terapkan & Simpan Jadwal 5 Hari</span>
+                      </span>
                     </button>
                   </div>
                 </div>

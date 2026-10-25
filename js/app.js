@@ -4236,7 +4236,10 @@ window.FMCUApp = {
 
     const totalDraftBadge = document.getElementById('weekly-total-draft-badge');
     if (totalDraftBadge) {
-      totalDraftBadge.textContent = `${totalDraftSchedules} Jadwal Visit Siap Ditugaskan (Senin–Jumat)`;
+      totalDraftBadge.innerHTML = `
+        <span class="sm:hidden">${totalDraftSchedules} Jadwal Siap</span>
+        <span class="hidden sm:inline">${totalDraftSchedules} Jadwal Visit Siap Ditugaskan (Senin–Jumat)</span>
+      `;
     }
     const totalAudBadge = document.getElementById('weekly-total-auditor-badge');
     if (totalAudBadge) {
@@ -4244,10 +4247,10 @@ window.FMCUApp = {
     }
     const applyBtnText = document.getElementById('weekly-apply-btn-text');
     if (applyBtnText) {
-      applyBtnText.textContent =
+      applyBtnText.innerHTML =
         totalDraftSchedules > 0
-          ? `Terapkan & Simpan ${totalDraftSchedules} Jadwal 5 Hari`
-          : 'Terapkan & Simpan Jadwal 5 Hari';
+          ? `<span class="sm:hidden">Simpan (${totalDraftSchedules})</span><span class="hidden sm:inline">Terapkan & Simpan ${totalDraftSchedules} Jadwal 5 Hari</span>`
+          : `<span class="sm:hidden">Simpan Jadwal</span><span class="hidden sm:inline">Terapkan & Simpan Jadwal 5 Hari</span>`;
     }
   },
 
