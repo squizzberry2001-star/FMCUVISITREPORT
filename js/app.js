@@ -45,6 +45,9 @@ window.FMCUApp = {
   previewMode: 'slide',
   previewSlides: [],
   currentSlideIndex: 0,
+  newsCurrentIndex: 0,
+  newsTimer: null,
+  newsItems: [],
 
   init() {
     window.FMCUData.init();
@@ -80,6 +83,7 @@ window.FMCUApp = {
 
     this.populateHeaderRoleSwitcher();
     this.updateUserHeaderUI();
+    this.renderHomeNewsSlider();
     this.resetVisitForm(true);
     if (activeCheckIn && activeCheckIn.storeCode) {
       this.restoreActiveCheckInToForm(activeCheckIn);
@@ -798,6 +802,8 @@ window.FMCUApp = {
       if (mEl) mEl.classList.toggle('hidden', !allowed);
     };
 
+    const isSuperAdmin = Boolean(u && (u.role === 'SUPER_ADMIN' || u.username === 'admin'));
+
     // 1. Sidebar & Mobile Bottom Nav Buttons (Muncul sesuai otoritas masing-masing)
     togglePair('nav-home', 'mnav-home', canHome);
     togglePair('nav-analytics', 'mnav-analytics', canAnalytics);
@@ -807,16 +813,22 @@ window.FMCUApp = {
     togglePair('nav-stores', 'mnav-stores', canStores);
     togglePair('nav-admin', 'mnav-admin', canPortalAdmin);
     togglePair('nav-live-maps', 'mnav-live-maps', canLiveMaps);
+    togglePair('nav-news', 'mnav-news', isSuperAdmin);
 
-    // 2. Portal Admin Sub-Tab Buttons (User & Integrasi)
+    // 2. Portal Admin Sub-Tab Buttons (User, News & Integrasi)
     const adminTabMap = [
       { tab: 'users', auth: 'manage_users' },
+      { tab: 'news', isSuper: true },
       { tab: 'integrations', auth: 'manage_integrations' }
     ];
-    adminTabMap.forEach(({ tab, auth }) => {
+    adminTabMap.forEach(({ tab, auth, isSuper }) => {
       const btn = document.getElementById(`admin-tab-btn-${tab}`);
       if (btn) {
-        btn.classList.toggle('hidden', !this.hasAuthority(auth, u));
+        if (isSuper) {
+          btn.classList.toggle('hidden', !isSuperAdmin);
+        } else {
+          btn.classList.toggle('hidden', !this.hasAuthority(auth, u));
+        }
       }
     });
   },
@@ -968,13 +980,28 @@ window.FMCUApp = {
       }
     });
 
-    const navKeys = ['home', 'analytics', 'form', 'preview', 'schedules', 'stores', 'admin', 'live-maps'];
+    const navKeys = ['home', 'analytics', 'form', 'preview', 'schedules', 'stores', 'admin', 'live-maps', 'news'];
     navKeys.forEach((k) => {
       const dNav = document.getElementById(`nav-${k}`);
-      if (dNav) dNav.classList.toggle('active', k === viewName);
-
+      if (dNav) {
+        if (k === 'news') {
+          dNav.classList.toggle('active', viewName === 'admin' && this.currentAdminTab === 'news');
+        } else if (k === 'admin') {
+          dNav.classList.toggle('active', viewName === 'admin' && this.currentAdminTab !== 'news');
+        } else {
+          dNav.classList.toggle('active', k === viewName);
+        }
+      }
       const mNav = document.getElementById(`mnav-${k}`);
-      if (mNav) mNav.classList.toggle('active', k === viewName);
+      if (mNav) {
+        if (k === 'news') {
+          mNav.classList.toggle('active', viewName === 'admin' && this.currentAdminTab === 'news');
+        } else if (k === 'admin') {
+          mNav.classList.toggle('active', viewName === 'admin' && this.currentAdminTab !== 'news');
+        } else {
+          mNav.classList.toggle('active', k === viewName);
+        }
+      }
     });
 
     const titles = {
@@ -1070,8 +1097,9 @@ window.FMCUApp = {
       if (ctrlHeader) ctrlHeader.classList.remove('hidden');
       const syncBanner = document.getElementById('admin-firestore-sync-banner');
       if (syncBanner) syncBanner.classList.remove('hidden');
+      const isSuperAdmin = Boolean(this.currentUser && (this.currentUser.role === 'SUPER_ADMIN' || this.currentUser.username === 'admin'));
       const defaultPortalTab = this.hasAuthority('manage_users') ? 'users' : 'integrations';
-      const targetTab = subTab && (subTab === 'users' || subTab === 'integrations') ? subTab : defaultPortalTab;
+      const targetTab = subTab && (subTab === 'users' || subTab === 'integrations' || (subTab === 'news' && isSuperAdmin)) ? subTab : defaultPortalTab;
       this.switchAdminTab(targetTab);
       this.renderAdminView();
     } else if (viewName === 'live-maps') {
@@ -2481,6 +2509,7 @@ window.FMCUApp = {
     this.updateHomeSubSectionPills();
 
     if (target === 'overview') {
+      this.renderHomeNewsSlider();
       setTimeout(() => {
         if (this.homeMap) this.homeMap.invalidateSize();
       }, 150);
@@ -2517,6 +2546,7 @@ window.FMCUApp = {
     } catch (e) {}
 
     this.switchHomeSubSection(this.currentHomeSubSection || savedSubSec, false);
+    this.renderHomeNewsSlider();
     this.renderHomeSchedules();
     this.renderHomeHistory();
     this.initOrUpdateHomeMap();
@@ -4297,29 +4327,35 @@ window.FMCUApp = {
   },
 
   switchAdminTab(tabName) {
+    const isSuperAdmin = Boolean(this.currentUser && (this.currentUser.role === 'SUPER_ADMIN' || this.currentUser.username === 'admin'));
     const tabAuthMap = {
       schedules: 'manage_schedule',
       stores: 'manage_stores',
       users: 'manage_users',
-      integrations: 'manage_integrations'
+      integrations: 'manage_integrations',
+      news: 'super_admin'
     };
-    const requiredAuth = tabAuthMap[tabName];
-    if (requiredAuth && !this.hasAuthority(requiredAuth)) {
+    if (tabName === 'news' && !isSuperAdmin) {
       tabName = this.getFirstAllowedAdminTab();
+    } else {
+      const requiredAuth = tabAuthMap[tabName];
+      if (requiredAuth && requiredAuth !== 'super_admin' && !this.hasAuthority(requiredAuth)) {
+        tabName = this.getFirstAllowedAdminTab();
+      }
     }
 
     this.currentAdminTab = tabName;
     try {
       sessionStorage.setItem('fmcu_active_admin_tab', tabName);
     } catch (e) {}
-    const tabs = ['schedules', 'stores', 'users', 'integrations'];
+    const tabs = ['schedules', 'stores', 'users', 'integrations', 'news'];
     tabs.forEach((t) => {
       const panel = document.getElementById(`admin-tab-${t}`);
       if (panel) panel.classList.toggle('hidden', t !== tabName);
 
       const btn = document.getElementById(`admin-tab-btn-${t}`);
       if (btn) {
-        const isAllowed = this.hasAuthority(tabAuthMap[t]);
+        const isAllowed = t === 'news' ? isSuperAdmin : this.hasAuthority(tabAuthMap[t]);
         if (t === tabName) {
           btn.className = `px-3.5 py-2 rounded-xl text-xs font-bold bg-[#009944] text-white transition cursor-pointer ${isAllowed ? '' : 'hidden'}`;
         } else {
@@ -4327,6 +4363,10 @@ window.FMCUApp = {
         }
       }
     });
+
+    if (tabName === 'news') {
+      this.renderAdminNewsTable();
+    }
   },
 
   filterAdminScheduleStoreDropdown(query = '') {
@@ -4760,6 +4800,9 @@ window.FMCUApp = {
     document.getElementById('set-gdrive-folder').value = settings.gdriveFolderId || '';
     document.getElementById('set-cc-emails').value = settings.defaultCcEmails || '';
     document.getElementById('set-gas-url').value = settings.gasWebhookUrl || '';
+
+    // 5. Populate Admin News Table
+    this.renderAdminNewsTable();
   },
 
   // ==========================================================================
@@ -7394,6 +7437,302 @@ function getOrCreateSubFolder_(parent, name) {
     setBtn(btnNotAccessed, scope === 'NOT_ACCESSED', 'bg-slate-400', 'text-slate-500');
 
     this.renderLiveLocBestieList();
+  },
+
+  // ==========================================================================
+  // HOME NEWS & INFORMATION SLIDER (SWIPEABLE TEXT & DOT INDICATORS)
+  // ==========================================================================
+  renderHomeNewsSlider() {
+    const rawItems = window.FMCUData ? window.FMCUData.getNews(true) : [];
+    const items = rawItems.length > 0 ? rawItems : [
+      {
+        id: 'news-def',
+        category: 'Panduan Visit',
+        content: 'Silakan pilih toko pada sub section Jadwal Visit atau tekan tombol Visit Toko Jadwal Hari Ini di bawah ini untuk melakukan Check-In (Actual In) dan membuka Form Visit toko tersebut.'
+      }
+    ];
+    this.newsItems = items;
+
+    if (this.newsCurrentIndex >= items.length) {
+      this.newsCurrentIndex = 0;
+    }
+    if (this.newsCurrentIndex < 0) {
+      this.newsCurrentIndex = items.length - 1;
+    }
+
+    const currentItem = items[this.newsCurrentIndex] || items[0];
+
+    const catBadge = document.getElementById('news-badge-category');
+    if (catBadge) {
+      catBadge.textContent = currentItem.category || 'Info Visit';
+    }
+
+    const counter = document.getElementById('news-slide-counter');
+    if (counter) {
+      counter.textContent = `${this.newsCurrentIndex + 1} / ${items.length}`;
+    }
+
+    const textEl = document.getElementById('home-news-text');
+    if (textEl) {
+      textEl.style.opacity = '0';
+      setTimeout(() => {
+        textEl.textContent = currentItem.content || '';
+        textEl.style.opacity = '1';
+      }, 150);
+    }
+
+    // Render Indicator Dots
+    const dotsContainer = document.getElementById('home-news-dots');
+    if (dotsContainer) {
+      dotsContainer.innerHTML = items
+        .map((_, idx) => {
+          const isActive = idx === this.newsCurrentIndex;
+          return `<button type="button" onclick="FMCUApp.goToNewsSlide(${idx})" class="${
+            isActive ? 'w-5 h-1.5 bg-[#009944]' : 'w-1.5 h-1.5 bg-slate-300 hover:bg-slate-400'
+          } rounded-full transition-all duration-300 cursor-pointer" title="Informasi ${idx + 1}"></button>`;
+        })
+        .join('');
+    }
+
+    // Touch Swipe Event Listener on Carousel
+    const carousel = document.getElementById('home-news-carousel');
+    if (carousel && !carousel._touchBound) {
+      carousel._touchBound = true;
+      let startX = 0;
+      let startY = 0;
+      carousel.addEventListener('touchstart', (e) => {
+        if (e.touches && e.touches[0]) {
+          startX = e.touches[0].clientX;
+          startY = e.touches[0].clientY;
+          this.stopNewsAutoSlide();
+        }
+      }, { passive: true });
+      carousel.addEventListener('touchend', (e) => {
+        if (e.changedTouches && e.changedTouches[0]) {
+          const deltaX = e.changedTouches[0].clientX - startX;
+          const deltaY = e.changedTouches[0].clientY - startY;
+          if (Math.abs(deltaX) > 35 && Math.abs(deltaX) > Math.abs(deltaY)) {
+            if (deltaX < 0) {
+              this.nextNewsSlide();
+            } else {
+              this.prevNewsSlide();
+            }
+          }
+          this.startNewsAutoSlide();
+        }
+      }, { passive: true });
+      carousel.addEventListener('mouseenter', () => this.stopNewsAutoSlide());
+      carousel.addEventListener('mouseleave', () => this.startNewsAutoSlide());
+    }
+
+    this.startNewsAutoSlide();
+  },
+
+  goToNewsSlide(idx) {
+    const total = this.newsItems ? this.newsItems.length : 0;
+    if (idx >= 0 && idx < total) {
+      this.newsCurrentIndex = idx;
+      this.renderHomeNewsSlider();
+    }
+  },
+
+  nextNewsSlide() {
+    const total = this.newsItems ? this.newsItems.length : 0;
+    if (total > 0) {
+      this.newsCurrentIndex = (this.newsCurrentIndex + 1) % total;
+      this.renderHomeNewsSlider();
+    }
+  },
+
+  prevNewsSlide() {
+    const total = this.newsItems ? this.newsItems.length : 0;
+    if (total > 0) {
+      this.newsCurrentIndex = (this.newsCurrentIndex - 1 + total) % total;
+      this.renderHomeNewsSlider();
+    }
+  },
+
+  startNewsAutoSlide() {
+    this.stopNewsAutoSlide();
+    if (this.newsItems && this.newsItems.length > 1) {
+      this.newsTimer = setInterval(() => {
+        this.nextNewsSlide();
+      }, 6000);
+    }
+  },
+
+  stopNewsAutoSlide() {
+    if (this.newsTimer) {
+      clearInterval(this.newsTimer);
+      this.newsTimer = null;
+    }
+  },
+
+  // ==========================================================================
+  // SUPER ADMIN NEWS CONTROL METHODS (CRUD)
+  // ==========================================================================
+  renderAdminNewsTable() {
+    const tbody = document.getElementById('admin-news-table-body');
+    if (!tbody) return;
+    const newsList = window.FMCUData ? window.FMCUData.getNews(false) : [];
+    if (newsList.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-slate-400">Belum ada item berita/informasi. Klik "Tambah Informasi Baru" untuk membuat pengumuman.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = newsList
+      .map(
+        (item, idx) => `
+        <tr class="hover:bg-slate-50 transition">
+          <td class="py-2.5 px-3 text-center font-bold text-slate-500">${idx + 1}</td>
+          <td class="py-2.5 px-3">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold uppercase">
+              ${item.category || 'Info'}
+            </span>
+            ${item.title ? `<div class="font-bold text-slate-800 mt-0.5 truncate">${item.title}</div>` : ''}
+          </td>
+          <td class="py-2.5 px-3">
+            <p class="text-slate-700 leading-snug line-clamp-2 max-w-xl">${item.content}</p>
+            <span class="text-[9px] text-slate-400 font-mono mt-0.5 block">${
+              item.createdAt
+                ? new Date(item.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+                : ''
+            }</span>
+          </td>
+          <td class="py-2.5 px-3 text-center">
+            <button type="button" onclick="FMCUApp.toggleNewsActive('${item.id}')" class="px-2.5 py-1 rounded-full text-[10px] font-extrabold transition cursor-pointer ${
+          item.active !== false
+            ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+            : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+        }">
+              ${item.active !== false ? '✓ Aktif di Slide' : '✕ Dinonaktifkan'}
+            </button>
+          </td>
+          <td class="py-2.5 px-3 text-center whitespace-nowrap space-x-1.5">
+            <button type="button" onclick="FMCUApp.openNewsModal('${item.id}')" class="text-[#0099A6] hover:text-teal-800 font-bold p-1 cursor-pointer" title="Edit informasi">
+              <i class="fa-solid fa-pen-to-square"></i> Edit
+            </button>
+            <button type="button" onclick="FMCUApp.deleteNewsItem('${item.id}')" class="text-rose-600 hover:text-rose-800 font-bold p-1 ml-2 cursor-pointer" title="Hapus informasi">
+              <i class="fa-solid fa-trash"></i> Hapus
+            </button>
+          </td>
+        </tr>
+      `
+      )
+      .join('');
+  },
+
+  openNewsModal(id = null) {
+    const isSuperAdmin = Boolean(
+      this.currentUser && (this.currentUser.role === 'SUPER_ADMIN' || this.currentUser.username === 'admin')
+    );
+    if (!isSuperAdmin) {
+      this.showToast('Fitur Kontrol News khusus untuk Super Admin.', 'warning');
+      return;
+    }
+
+    const modal = document.getElementById('modal-news-editor');
+    if (!modal) return;
+
+    const idInput = document.getElementById('news-edit-id');
+    const catInput = document.getElementById('news-edit-category');
+    const headInput = document.getElementById('news-edit-headline');
+    const contentInput = document.getElementById('news-edit-content');
+    const activeInput = document.getElementById('news-edit-active');
+    const titleEl = document.getElementById('modal-news-title');
+
+    if (id) {
+      const newsList = window.FMCUData.getNews(false);
+      const item = newsList.find((n) => n.id === id);
+      if (item) {
+        if (idInput) idInput.value = item.id;
+        if (catInput) catInput.value = item.category || 'Panduan Visit';
+        if (headInput) headInput.value = item.title || '';
+        if (contentInput) contentInput.value = item.content || '';
+        if (activeInput) activeInput.checked = item.active !== false;
+        if (titleEl) titleEl.textContent = 'Edit Informasi Berita';
+      }
+    } else {
+      if (idInput) idInput.value = '';
+      if (catInput) catInput.value = 'Panduan Visit';
+      if (headInput) headInput.value = '';
+      if (contentInput) contentInput.value = '';
+      if (activeInput) activeInput.checked = true;
+      if (titleEl) titleEl.textContent = 'Tambah Informasi Berita Baru';
+    }
+
+    modal.classList.remove('hidden');
+  },
+
+  closeNewsModal() {
+    const modal = document.getElementById('modal-news-editor');
+    if (modal) modal.classList.add('hidden');
+  },
+
+  handleSaveNews(event) {
+    if (event) event.preventDefault();
+    const id = document.getElementById('news-edit-id')?.value;
+    const category = document.getElementById('news-edit-category')?.value || 'Info Visit';
+    const title = document.getElementById('news-edit-headline')?.value || '';
+    const content = (document.getElementById('news-edit-content')?.value || '').trim();
+    const active = document.getElementById('news-edit-active')?.checked ?? true;
+
+    if (!content) {
+      this.showToast('Teks informasi tidak boleh kosong!', 'error');
+      return;
+    }
+
+    const newsList = window.FMCUData.getNews(false);
+    if (id) {
+      const idx = newsList.findIndex((n) => n.id === id);
+      if (idx !== -1) {
+        newsList[idx] = {
+          ...newsList[idx],
+          category,
+          title,
+          content,
+          active,
+          updatedAt: new Date().toISOString()
+        };
+        this.showToast('Informasi berita berhasil diperbarui.', 'success');
+      }
+    } else {
+      newsList.unshift({
+        id: 'news-' + Date.now(),
+        category,
+        title,
+        content,
+        active,
+        createdAt: new Date().toISOString()
+      });
+      this.showToast('Informasi berita baru berhasil ditambahkan.', 'success');
+    }
+
+    window.FMCUData.saveNews(newsList);
+    this.closeNewsModal();
+    this.renderAdminNewsTable();
+    this.renderHomeNewsSlider();
+  },
+
+  toggleNewsActive(id) {
+    const newsList = window.FMCUData.getNews(false);
+    const item = newsList.find((n) => n.id === id);
+    if (!item) return;
+
+    item.active = item.active === false ? true : false;
+    window.FMCUData.saveNews(newsList);
+    this.renderAdminNewsTable();
+    this.renderHomeNewsSlider();
+    this.showToast(`Status slide untuk "${item.title || item.category}" diperbarui.`, 'info');
+  },
+
+  deleteNewsItem(id) {
+    if (!confirm('Apakah Anda yakin ingin menghapus informasi berita ini?')) return;
+    let newsList = window.FMCUData.getNews(false);
+    newsList = newsList.filter((n) => n.id !== id);
+    window.FMCUData.saveNews(newsList);
+    this.renderAdminNewsTable();
+    this.renderHomeNewsSlider();
+    this.showToast('Informasi berita berhasil dihapus.', 'info');
   },
 
   closeModal(id) {

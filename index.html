@@ -387,6 +387,18 @@
               <div class="text-[10px] font-normal text-slate-400">User, Otoritas & Integrasi GDrive</div>
             </div>
           </button>
+
+          <!-- 8. KONTROL NEWS (Khusus Super Admin) -->
+          <button onclick="FMCUApp.navigate('admin', 'news')" id="nav-news" class="nav-item hidden w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
+            <i class="fa-solid fa-bullhorn w-5 text-center text-base text-amber-500"></i>
+            <div class="flex-1">
+              <div class="leading-tight flex items-center justify-between">
+                <span>Kontrol News</span>
+                <span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">Super Admin</span>
+              </div>
+              <div class="text-[10px] font-normal text-slate-400">Broadcast & Slide Teks Home</div>
+            </div>
+          </button>
         </div>
 
         <!-- B. MENU NAVIGASI SECTION FORM VISIT (Otomatis menggantikan isi Navbar saat masuk ke Form Visit) -->
@@ -523,10 +535,10 @@
         <!-- Home Sub-Section Navigation Switcher Bar -->
         <div id="home-subsection-switcher-bar" class="fm-card p-2 sm:p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-gradient-to-r from-emerald-50/60 via-white to-teal-50/60 border border-slate-200 shadow-2xs">
           <div class="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto p-0.5">
-            <!-- Sub-tab 1: Maps & Welcome Page -->
+            <!-- Sub-tab 1: News & Maps Page -->
             <button type="button" id="home-subtab-btn-overview" onclick="FMCUApp.switchHomeSubSection('overview')" class="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-2 cursor-pointer bg-[#009944] text-white shadow-xs whitespace-nowrap">
-              <i class="fa-solid fa-map-location-dot"></i>
-              <span>1. Maps & Welcome</span>
+              <i class="fa-solid fa-newspaper text-white"></i>
+              <span>1. News & Maps</span>
             </button>
             <!-- Sub-tab 2: Jadwal Visit -->
             <button type="button" id="home-subtab-btn-schedule" onclick="FMCUApp.switchHomeSubSection('schedule')" class="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-2 cursor-pointer text-slate-600 hover:text-slate-900 hover:bg-slate-100 whitespace-nowrap">
@@ -549,26 +561,53 @@
         </div>
 
         <!-- ==============================================================
-             SUB-SECTION 1: MAPS & WELCOME PAGE
+             SUB-SECTION 1: NEWS & MAPS
              ============================================================== -->
         <div id="home-subsec-overview" class="home-subsec space-y-6">
-          <!-- Welcome Hero + Live Location Banner -->
+          <!-- Welcome Hero + Live Location Banner (Layout Minimalis ke Atas, Slide News & 2 Tombol) -->
           <div class="fm-card overflow-hidden">
-            <div class="p-5 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-              <div class="lg:col-span-7 space-y-3">
-                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold">
-                  <i class="fa-solid fa-shield-check"></i>
-                  <span id="home-welcome-role">Otoritas: Visitor / Regional Bestie</span>
-                </div>
-                <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900">
+            <div class="p-5 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              <div class="lg:col-span-7 space-y-3 flex flex-col justify-start">
+                <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight leading-snug">
                   Selamat Bertugas, <span id="home-welcome-name" class="text-[#0099A6]">Visitor FMCU</span>!
                 </h2>
-                <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                  Silakan pilih toko pada sub section <strong>Jadwal Visit</strong> atau tekan tombol <strong>Visit Toko Jadwal Hari Ini</strong> di bawah ini untuk melakukan <em>Check-In (Actual In)</em> dan membuka Form Visit toko tersebut.
-                </p>
+
+                <!-- News & Information Text Carousel with Dots and Touch Swipe -->
+                <div id="home-news-carousel" class="relative bg-gradient-to-br from-slate-50 via-slate-50/90 to-emerald-50/40 hover:to-emerald-50/70 border border-slate-200/90 rounded-2xl p-3.5 sm:p-4 select-none transition-all shadow-2xs group overflow-hidden">
+                  <!-- Header: Badge Category, Slide Counter & Arrow Controls -->
+                  <div class="flex items-center justify-between gap-2 mb-2">
+                    <div class="flex items-center gap-2">
+                      <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold uppercase tracking-wider">
+                        <i class="fa-solid fa-bullhorn text-[9px] text-[#009944]"></i>
+                        <span id="news-badge-category">Panduan Visit</span>
+                      </span>
+                      <span id="news-slide-counter" class="text-[10px] font-bold text-slate-400 font-mono">1 / 4</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                      <button type="button" onclick="FMCUApp.prevNewsSlide()" class="w-6 h-6 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] transition cursor-pointer shadow-2xs" title="Informasi sebelumnya">
+                        <i class="fa-solid fa-chevron-left"></i>
+                      </button>
+                      <button type="button" onclick="FMCUApp.nextNewsSlide()" class="w-6 h-6 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] transition cursor-pointer shadow-2xs" title="Informasi berikutnya">
+                        <i class="fa-solid fa-chevron-right"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Text Slide Content Area (Swipeable) -->
+                  <div id="home-news-track" class="min-h-[48px] sm:min-h-[42px] flex items-center">
+                    <p id="home-news-text" class="text-xs sm:text-[13px] text-slate-700 leading-relaxed font-medium transition-all duration-300">
+                      Silakan pilih toko pada sub section <strong>Jadwal Visit</strong> atau tekan tombol <strong>Visit Toko Jadwal Hari Ini</strong> di bawah ini untuk melakukan <em>Check-In (Actual In)</em> dan membuka Form Visit toko tersebut.
+                    </p>
+                  </div>
+
+                  <!-- Indicator Dots (Tanda Titik Kecil Sesuai Jumlah Informasi) -->
+                  <div id="home-news-dots" class="flex items-center justify-center gap-1.5 pt-2.5">
+                    <!-- Dots dynamically rendered in JS -->
+                  </div>
+                </div>
 
                 <!-- Quick Action Buttons: 2 Tombol Berdampingan Horizontal -->
-                <div class="pt-2 grid grid-cols-2 gap-2 sm:gap-3 w-full">
+                <div class="pt-0.5 grid grid-cols-2 gap-2 sm:gap-3 w-full">
                   <button type="button" onclick="FMCUApp.handleVisitTodaySchedule()" class="fm-gradient hover:opacity-95 text-white font-extrabold p-2.5 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm shadow-sm transition flex items-center justify-center text-center gap-1.5 sm:gap-2 cursor-pointer">
                     <i class="fa-solid fa-calendar-day text-xs sm:text-sm shrink-0"></i>
                     <span class="leading-tight">Visit Jadwal Toko Hari Ini</span>
@@ -1395,6 +1434,9 @@
               <button type="button" onclick="FMCUApp.switchAdminTab('users')" id="admin-tab-btn-users" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#009944] text-white transition cursor-pointer">
                 <i class="fa-solid fa-users-gear mr-1.5"></i>User & Otoritas Login
               </button>
+              <button type="button" onclick="FMCUApp.switchAdminTab('news')" id="admin-tab-btn-news" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer">
+                <i class="fa-solid fa-bullhorn mr-1.5 text-amber-500"></i>Kontrol News & Info
+              </button>
               <button type="button" onclick="FMCUApp.switchAdminTab('integrations')" id="admin-tab-btn-integrations" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer">
                 <i class="fa-brands fa-google-drive mr-1.5"></i>Integrasi Email & GDrive
               </button>
@@ -2111,6 +2153,47 @@ service cloud.firestore {
           </div>
 
           <!-- ADMIN TAB 4: INTEGRASI EMAIL & FOLDER GOOGLE DRIVE -->
+          <!-- TAB: KONTROL NEWS & BROADCAST INFORMASI (KHUSUS SUPER ADMIN) -->
+          <div id="admin-tab-news" class="hidden space-y-6">
+            <div class="fm-card p-5 sm:p-6 space-y-4">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h3 class="font-extrabold text-base sm:text-lg text-slate-900">Kontrol News & Broadcast Informasi</h3>
+                    <span class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800">Super Admin</span>
+                  </div>
+                  <p class="text-xs text-slate-500 mt-1">
+                    Kelola slide teks kumpulan informasi berita, instruksi kerja, dan broadcast pengumuman yang tampil pada halaman utama (News & Maps).
+                  </p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button type="button" onclick="FMCUApp.openNewsModal()" class="fm-gradient hover:opacity-95 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-sm transition flex items-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Tambah Informasi Baru</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Table of News Items -->
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                  <thead>
+                    <tr class="border-b border-slate-200 text-slate-500 uppercase font-bold text-[10px]">
+                      <th class="py-2.5 px-3 w-12 text-center">No</th>
+                      <th class="py-2.5 px-3 w-44">Kategori</th>
+                      <th class="py-2.5 px-3">Isi Pesan Informasi</th>
+                      <th class="py-2.5 px-3 w-32 text-center">Status Slide</th>
+                      <th class="py-2.5 px-3 w-28 text-center">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-news-table-body" class="divide-y divide-slate-100">
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
           <div id="admin-tab-integrations" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div class="lg:col-span-6 fm-card p-5 sm:p-6 space-y-4">
               <h3 class="font-extrabold text-base text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
@@ -2667,5 +2750,59 @@ service cloud.firestore {
   <script src="js/data.js"></script>
   <script src="js/pdf-generator.js"></script>
   <script src="js/app.js"></script>
+    <!-- Modal Tambah / Edit News (Super Admin) -->
+    <div id="modal-news-editor" class="hidden fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 space-y-4 shadow-2xl">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-sm font-bold">
+              <i class="fa-solid fa-bullhorn"></i>
+            </div>
+            <h3 id="modal-news-title" class="font-extrabold text-slate-900 text-sm sm:text-base">Tambah Informasi Berita Baru</h3>
+          </div>
+          <button type="button" onclick="FMCUApp.closeNewsModal()" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
+            <i class="fa-solid fa-xmark text-lg"></i>
+          </button>
+        </div>
+
+        <form id="form-news-editor" onsubmit="FMCUApp.handleSaveNews(event)" class="space-y-3.5 text-xs">
+          <input type="hidden" id="news-edit-id" value="" />
+          
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Kategori / Label Tag <span class="text-rose-500">*</span></label>
+            <select id="news-edit-category" required class="fm-input">
+              <option value="Panduan Visit">Panduan Visit</option>
+              <option value="GPS & Geofence">GPS & Geofence</option>
+              <option value="Standar Operasional">Standar Operasional</option>
+              <option value="Monitoring Bestie">Monitoring Bestie</option>
+              <option value="Pengumuman Penting">Pengumuman Penting</option>
+              <option value="Tips & Trik">Tips & Trik</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Judul Singkat (Opsional)</label>
+            <input type="text" id="news-edit-headline" placeholder="Contoh: Petunjuk Check-In Hari Ini" class="fm-input" />
+          </div>
+
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Teks Informasi Lengkap <span class="text-rose-500">*</span></label>
+            <textarea id="news-edit-content" rows="4" required placeholder="Tuliskan kalimat instruksi, pengumuman, atau berita yang akan tampil pada slide..." class="fm-input leading-relaxed"></textarea>
+          </div>
+
+          <div class="flex items-center gap-2 pt-1">
+            <input type="checkbox" id="news-edit-active" checked class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300" />
+            <label for="news-edit-active" class="font-bold text-slate-700 select-none cursor-pointer">Tampilkan dalam Slide Informasi (Aktif)</label>
+          </div>
+
+          <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+            <button type="button" onclick="FMCUApp.closeNewsModal()" class="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition cursor-pointer">Batal</button>
+            <button type="submit" class="fm-gradient text-white font-extrabold px-5 py-2 rounded-xl shadow-xs hover:opacity-95 transition cursor-pointer">
+              <i class="fa-solid fa-floppy-disk mr-1.5"></i>Simpan Informasi
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
 </body>
 </html>

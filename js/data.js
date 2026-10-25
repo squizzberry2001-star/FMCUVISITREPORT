@@ -23,10 +23,47 @@ const STORAGE_KEYS = {
   ACTIVE_CHECKIN: 'fmcu_active_checkin_v2',
   DRAFT_REPORT: 'fmcu_draft_report_v2',
   SETTINGS: 'fmcu_settings_v2',
-  ATTENDANCE_LOGS: 'fmcu_attendance_logs_v2'
+  ATTENDANCE_LOGS: 'fmcu_attendance_logs_v2',
+  NEWS: 'fmcu_news_v2'
 };
 
 // Generic Standard SOP Templates (Tanpa data/tanggal dummy)
+// Default Berita & Slide Informasi Home FMCU
+const DEFAULT_NEWS_ITEMS = [
+  {
+    id: 'news-1',
+    category: 'Panduan Visit',
+    title: 'Petunjuk Check-In & Buka Form Visit',
+    content: 'Silakan pilih toko pada sub section Jadwal Visit atau tekan tombol Visit Toko Jadwal Hari Ini di bawah ini untuk melakukan Check-In (Actual In) dan membuka Form Visit toko tersebut.',
+    active: true,
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'news-2',
+    category: 'GPS & Geofence',
+    title: 'Radius Akurat 15 Meter',
+    content: 'Pastikan titik GPS perangkat aktif dan berada dalam radius 15 meter dari pinpoint toko agar jam kehadiran Actual In & Actual Out terekam secara otomatis dan akurat.',
+    active: true,
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'news-3',
+    category: 'Standar Operasional',
+    title: 'Batas Pelaporan & Dokumentasi QSC',
+    content: 'Lakukan pengisian form observasi QSC dan foto display produk secara aktual sebelum batas operasional toko selesai setiap hari kunjungan.',
+    active: true,
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'news-4',
+    category: 'Monitoring Bestie',
+    title: 'Pantau Sebaran Tim di Live Loc Maps',
+    content: 'Admin Jadwal dan Super Admin dapat memantau sebaran live GPS seluruh Regional Bestie dan status kunjungan toko secara real-time pada halaman Live Loc Maps.',
+    active: true,
+    createdAt: new Date().toISOString()
+  }
+];
+
 const FINDING_PRESETS = [
   {
     id: 'preset-food-safety',
@@ -321,6 +358,10 @@ window.FMCUData = {
 
     // Bersihkan dummy location GPS Regional Bestie
     this.clearDummyBestieLocations();
+
+    if (!localStorage.getItem(STORAGE_KEYS.NEWS)) {
+      localStorage.setItem(STORAGE_KEYS.NEWS, JSON.stringify(DEFAULT_NEWS_ITEMS));
+    }
 
     if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(INITIAL_USERS));
@@ -1021,6 +1062,45 @@ window.FMCUData = {
   // ==========================================================================
   // CRUD METHODS (WRITE-THROUGH KE LOCALSTORAGE + CLOUD FIRESTORE)
   // ==========================================================================
+  // ==========================================================================
+  // NEWS & SLIDE INFORMASI MANAGEMENT (SUPER ADMIN)
+  // ==========================================================================
+  getNews(onlyActive = false) {
+    let list = [];
+    try {
+      list = JSON.parse(localStorage.getItem(STORAGE_KEYS.NEWS) || '[]');
+    } catch (e) {
+      list = [];
+    }
+    if (!Array.isArray(list) || list.length === 0) {
+      list = (typeof DEFAULT_NEWS_ITEMS !== 'undefined' ? DEFAULT_NEWS_ITEMS : []).map(item => ({ ...item }));
+      try {
+        localStorage.setItem(STORAGE_KEYS.NEWS, JSON.stringify(list));
+      } catch (e) {}
+    }
+    if (onlyActive) {
+      return list.filter((n) => n.active !== false);
+    }
+    return list;
+  },
+
+  saveNews(list) {
+    if (!Array.isArray(list)) list = [];
+    localStorage.setItem(STORAGE_KEYS.NEWS, JSON.stringify(list));
+
+    if (this.db) {
+      try {
+        const batch = this.db.batch();
+        list.forEach((n) => {
+          const docId = String(n.id || 'news-' + Date.now());
+          const ref = this.db.collection('news').doc(docId);
+          batch.set(ref, sanitizeForFirestore({ ...n, id: docId, updatedAt: new Date().toISOString() }), { merge: true });
+        });
+        batch.commit().catch(() => {});
+      } catch (e) {}
+    }
+  },
+
   getUsers() {
     const raw = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
     return raw.map((u) => ({
