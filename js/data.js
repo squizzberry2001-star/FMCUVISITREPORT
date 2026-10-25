@@ -112,6 +112,7 @@ const INITIAL_USERS = [
     avatarColor: '#009944',
     active: true,
     authorities: [
+      'view_home',
       'create_visit',
       'view_analytics',
       'export_pdf',
@@ -135,7 +136,7 @@ const INITIAL_USERS = [
     phone: '',
     avatarColor: '#0099A6',
     active: true,
-    authorities: ['create_visit', 'view_analytics', 'export_pdf', 'live_checkin'],
+    authorities: ['view_home', 'create_visit', 'view_analytics', 'export_pdf', 'live_checkin'],
     lastLocation: null
   }
 ];

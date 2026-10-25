@@ -1353,7 +1353,7 @@ service cloud.firestore {
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Level Otoritas Utama *</label>
-                  <select id="adm-usr-role" class="fm-input font-semibold">
+                  <select id="adm-usr-role" onchange="FMCUApp.onChangeUserRolePreset(this.value)" class="fm-input font-semibold">
                     <option value="AUDITOR">AUDITOR (Regional Bestie / Trainer)</option>
                     <option value="ADMIN_SCHEDULE">ADMIN JADWAL (Regional / Area Manager)</option>
                     <option value="SUPER_ADMIN">SUPER ADMIN FMCU (Full Akses)</option>
@@ -1368,14 +1368,18 @@ service cloud.firestore {
                   <input type="email" id="adm-usr-email" placeholder="Masukkan Email" class="fm-input" />
                 </div>
 
-                <!-- Granular Authority Checkboxes -->
+                <!-- Granular Authority Checkboxes (Directly controls Sidebar Buttons & Admin Sub-tabs) -->
                 <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5">
-                  <div class="text-[11px] font-extrabold text-slate-600 uppercase">Hak Akses Otoritas Spesifik:</div>
-                  <label class="flex items-center gap-2 text-xs"><input type="checkbox" name="adm-auth" value="create_visit" checked /> Buat & Edit Form Visit</label>
-                  <label class="flex items-center gap-2 text-xs"><input type="checkbox" name="adm-auth" value="view_analytics" checked /> Akses Dashboard Analitik</label>
-                  <label class="flex items-center gap-2 text-xs"><input type="checkbox" name="adm-auth" value="manage_schedule" /> Atur Jadwal & Assign Toko</label>
-                  <label class="flex items-center gap-2 text-xs"><input type="checkbox" name="adm-auth" value="manage_stores" /> Kelola Master Data Toko</label>
-                  <label class="flex items-center gap-2 text-xs"><input type="checkbox" name="adm-auth" value="manage_users" /> Kelola User & Otoritas</label>
+                  <div class="text-[11px] font-extrabold text-slate-600 uppercase">Hak Akses Menu Sidebar & Otoritas:</div>
+                  <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="view_home" checked /> <span><strong>Menu Home</strong> (Jadwal Toko & History)</span></label>
+                  <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="view_analytics" checked /> <span><strong>Menu Analitik Dashboard</strong></span></label>
+                  <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="create_visit" checked /> <span><strong>Menu Form Visit Store</strong> (Check-In & Input)</span></label>
+                  <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="export_pdf" checked /> <span><strong>Menu Preview & Unduh PDF</strong> (+ Email/GDrive)</span></label>
+                  <div class="border-t border-slate-200 my-1.5 pt-1.5 text-[10px] font-extrabold text-amber-700 uppercase">Hak Akses Portal Admin:</div>
+                  <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="manage_schedule" /> <span><strong>Admin:</strong> Atur Jadwal & Assign Toko</span></label>
+                  <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="manage_stores" /> <span><strong>Admin:</strong> Kelola Master Data Toko</span></label>
+                  <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="manage_users" /> <span><strong>Admin:</strong> Kelola User & Otoritas</span></label>
+                  <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="manage_integrations" /> <span><strong>Admin:</strong> Integrasi Email & GDrive</span></label>
                 </div>
 
                 <button type="submit" class="w-full fm-gradient text-white font-bold py-2.5 rounded-xl shadow-sm hover:opacity-95 transition text-xs sm:text-sm cursor-pointer">

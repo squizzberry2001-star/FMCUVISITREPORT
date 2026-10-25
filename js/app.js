@@ -435,16 +435,18 @@ window.FMCUApp = {
     this.updateUserHeaderUI();
     this.renderAllViews();
 
-    // If switched to a regular user while on Admin page, redirect to Home
-    if (this.currentView === 'admin' && !this.hasAdminAuthority(user)) {
-      this.navigate('home');
-    }
+    // Pastikan halaman yang sedang dibuka sesuai dengan hak akses otoritas user ini
+    const allowedView = this.isViewAllowedForUser(this.currentView, user)
+      ? this.currentView
+      : this.getFirstAllowedView(user);
+    this.navigate(allowedView);
   },
 
   logout(reasonMsg = '') {
     window.FMCUData.setSession(null);
     this.currentUser = null;
     this.closeModal('modal-user-profile');
+    this.updateSidebarAuthoritiesUI();
 
     const passInput = document.getElementById('login-password');
     if (passInput) passInput.value = '';
@@ -464,11 +466,104 @@ window.FMCUApp = {
     if (authScreen) authScreen.classList.remove('hidden');
   },
 
+  hasAuthority(authKey, user = this.currentUser) {
+    if (!user) return false;
+    const auths = Array.isArray(user.authorities) ? user.authorities : [];
+    if (user._v2AuthSchema) {
+      return auths.includes(authKey);
+    }
+    // Kompatibilitas mundur untuk akun yang dibuat sebelum schema checkbox lengkap ditambahkan
+    if (authKey === 'view_home') {
+      return auths.includes('view_home') || auths.includes('create_visit') || auths.length === 0;
+    }
+    if (authKey === 'export_pdf') {
+      return auths.includes('export_pdf') || auths.includes('create_visit') || user.role === 'SUPER_ADMIN';
+    }
+    if (authKey === 'manage_integrations') {
+      return auths.includes('manage_integrations') || user.role === 'SUPER_ADMIN';
+    }
+    if (authKey === 'manage_schedule') {
+      return auths.includes('manage_schedule') || user.role === 'SUPER_ADMIN' || user.role === 'ADMIN_SCHEDULE';
+    }
+    if (authKey === 'manage_stores' || authKey === 'manage_users') {
+      return auths.includes(authKey) || user.role === 'SUPER_ADMIN';
+    }
+    return auths.includes(authKey);
+  },
+
   hasAdminAuthority(user = this.currentUser) {
     if (!user) return false;
-    if (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN_SCHEDULE') return true;
-    const auths = user.authorities || [];
-    return auths.includes('manage_schedule') || auths.includes('manage_users') || auths.includes('manage_stores');
+    return (
+      this.hasAuthority('manage_schedule', user) ||
+      this.hasAuthority('manage_stores', user) ||
+      this.hasAuthority('manage_users', user) ||
+      this.hasAuthority('manage_integrations', user)
+    );
+  },
+
+  isViewAllowedForUser(viewName, user = this.currentUser) {
+    if (!user) return false;
+    if (viewName === 'home') return this.hasAuthority('view_home', user);
+    if (viewName === 'analytics') return this.hasAuthority('view_analytics', user);
+    if (viewName === 'form') return this.hasAuthority('create_visit', user) && this.hasActiveStoreForm;
+    if (viewName === 'preview') return this.hasAuthority('export_pdf', user);
+    if (viewName === 'admin') return this.hasAdminAuthority(user);
+    return false;
+  },
+
+  getFirstAllowedView(user = this.currentUser) {
+    if (!user) return 'home';
+    if (this.hasAuthority('view_home', user)) return 'home';
+    if (this.hasAuthority('view_analytics', user)) return 'analytics';
+    if (this.hasAuthority('export_pdf', user)) return 'preview';
+    if (this.hasAdminAuthority(user)) return 'admin';
+    return 'home';
+  },
+
+  getFirstAllowedAdminTab(user = this.currentUser) {
+    if (this.hasAuthority('manage_schedule', user)) return 'schedules';
+    if (this.hasAuthority('manage_stores', user)) return 'stores';
+    if (this.hasAuthority('manage_users', user)) return 'users';
+    if (this.hasAuthority('manage_integrations', user)) return 'integrations';
+    return 'schedules';
+  },
+
+  updateSidebarAuthoritiesUI() {
+    const u = this.currentUser;
+    const canHome = this.hasAuthority('view_home', u);
+    const canAnalytics = this.hasAuthority('view_analytics', u);
+    const canCreateVisit = this.hasAuthority('create_visit', u);
+    const canForm = canCreateVisit && this.hasActiveStoreForm;
+    const canPreview = this.hasAuthority('export_pdf', u);
+    const canAdmin = this.hasAdminAuthority(u);
+
+    const togglePair = (desktopId, mobileId, allowed) => {
+      const dEl = document.getElementById(desktopId);
+      const mEl = document.getElementById(mobileId);
+      if (dEl) dEl.classList.toggle('hidden', !allowed);
+      if (mEl) mEl.classList.toggle('hidden', !allowed);
+    };
+
+    // 1. Sidebar & Mobile Bottom Nav Buttons
+    togglePair('nav-home', 'mnav-home', canHome);
+    togglePair('nav-analytics', 'mnav-analytics', canAnalytics);
+    togglePair('nav-form', 'mnav-form', canForm);
+    togglePair('nav-preview', 'mnav-preview', canPreview);
+    togglePair('nav-admin', 'mnav-admin', canAdmin);
+
+    // 2. Portal Admin Sub-Tab Buttons (Hanya muncul sesuai hak akses admin spesifik)
+    const adminTabMap = [
+      { tab: 'schedules', auth: 'manage_schedule' },
+      { tab: 'stores', auth: 'manage_stores' },
+      { tab: 'users', auth: 'manage_users' },
+      { tab: 'integrations', auth: 'manage_integrations' }
+    ];
+    adminTabMap.forEach(({ tab, auth }) => {
+      const btn = document.getElementById(`admin-tab-btn-${tab}`);
+      if (btn) {
+        btn.classList.toggle('hidden', !this.hasAuthority(auth, u));
+      }
+    });
   },
 
   populateHeaderRoleSwitcher() {
@@ -486,6 +581,7 @@ window.FMCUApp = {
 
   updateUserHeaderUI() {
     const u = this.currentUser;
+    this.updateSidebarAuthoritiesUI();
     if (!u) return;
     const initials = u.name
       .split(' ')
@@ -513,13 +609,6 @@ window.FMCUApp = {
     const welcomeRole = document.getElementById('home-welcome-role');
     if (welcomeRole) welcomeRole.textContent = `Otoritas: ${u.roleBadge || u.role}`;
 
-    // Hide Portal Admin button completely for Regular Users (User Biasa)
-    const isAdmin = this.hasAdminAuthority(u);
-    const navAdmin = document.getElementById('nav-admin');
-    const mnavAdmin = document.getElementById('mnav-admin');
-    if (navAdmin) navAdmin.classList.toggle('hidden', !isAdmin);
-    if (mnavAdmin) mnavAdmin.classList.toggle('hidden', !isAdmin);
-
     this.updateActiveCheckInUI();
   },
 
@@ -527,16 +616,34 @@ window.FMCUApp = {
   // NAVIGATION & VIEW ROUTER (HOME, ANALYTICS, FORM, PREVIEW, ADMIN)
   // ==========================================================================
   navigate(viewName, subTab = null) {
-    // Guard: Regular user cannot open Admin page
+    this.updateSidebarAuthoritiesUI();
+
     if (viewName === 'admin' && !this.hasAdminAuthority()) {
-      this.showToast('Halaman Admin hanya tersedia untuk otoritas Admin.', 'warning');
+      this.showToast('Akun Anda tidak memiliki otoritas untuk mengakses Portal Admin.', 'warning');
       return;
     }
+    if (viewName === 'analytics' && !this.hasAuthority('view_analytics')) {
+      this.showToast('Akun Anda tidak memiliki otoritas untuk mengakses Analitik Dashboard.', 'warning');
+      return;
+    }
+    if (viewName === 'preview' && !this.hasAuthority('export_pdf')) {
+      this.showToast('Akun Anda tidak memiliki otoritas untuk mengakses Preview & Unduh PDF.', 'warning');
+      return;
+    }
+    if (viewName === 'home' && !this.hasAuthority('view_home')) {
+      viewName = this.getFirstAllowedView();
+    }
 
-    // Guard: Form Visit Store only opens if user has entered a store's form
-    if (viewName === 'form' && !this.hasActiveStoreForm) {
-      this.showToast('Pilih dan lakukan Check-In pada toko di jadwal Anda terlebih dahulu untuk membuka Form Visit.', 'warning');
-      viewName = 'home';
+    // Guard: Form Visit Store only opens if user has create_visit authority AND has entered a store's form
+    if (viewName === 'form') {
+      if (!this.hasAuthority('create_visit')) {
+        this.showToast('Akun Anda tidak memiliki otoritas untuk mengisi Form Visit Store.', 'warning');
+        return;
+      }
+      if (!this.hasActiveStoreForm) {
+        this.showToast('Pilih dan lakukan Check-In pada toko di jadwal Anda terlebih dahulu untuk membuka Form Visit.', 'warning');
+        viewName = this.getFirstAllowedView();
+      }
     }
 
     this.currentView = viewName;
@@ -594,7 +701,8 @@ window.FMCUApp = {
       this.renderPreviewView();
     } else if (viewName === 'admin') {
       this.checkAdminGateUI();
-      if (subTab) this.switchAdminTab(subTab);
+      const targetTab = subTab || this.currentAdminTab;
+      this.switchAdminTab(targetTab);
       this.renderAdminView();
     }
   },
@@ -604,11 +712,12 @@ window.FMCUApp = {
     const wrapperEl = document.getElementById('form-active-store-wrapper');
     const navForm = document.getElementById('nav-form');
     const mnavForm = document.getElementById('mnav-form');
+    const canShowFormNav = this.hasActiveStoreForm && this.hasAuthority('create_visit');
 
     if (guardEl) guardEl.classList.toggle('hidden', this.hasActiveStoreForm);
     if (wrapperEl) wrapperEl.classList.toggle('hidden', !this.hasActiveStoreForm);
-    if (navForm) navForm.classList.toggle('hidden', !this.hasActiveStoreForm);
-    if (mnavForm) mnavForm.classList.toggle('hidden', !this.hasActiveStoreForm);
+    if (navForm) navForm.classList.toggle('hidden', !canShowFormNav);
+    if (mnavForm) mnavForm.classList.toggle('hidden', !canShowFormNav);
   },
 
   // ==========================================================================
@@ -2155,6 +2264,17 @@ window.FMCUApp = {
   },
 
   switchAdminTab(tabName) {
+    const tabAuthMap = {
+      schedules: 'manage_schedule',
+      stores: 'manage_stores',
+      users: 'manage_users',
+      integrations: 'manage_integrations'
+    };
+    const requiredAuth = tabAuthMap[tabName];
+    if (requiredAuth && !this.hasAuthority(requiredAuth)) {
+      tabName = this.getFirstAllowedAdminTab();
+    }
+
     this.currentAdminTab = tabName;
     const tabs = ['schedules', 'stores', 'users', 'integrations'];
     tabs.forEach((t) => {
@@ -2163,10 +2283,11 @@ window.FMCUApp = {
 
       const btn = document.getElementById(`admin-tab-btn-${t}`);
       if (btn) {
+        const isAllowed = this.hasAuthority(tabAuthMap[t]);
         if (t === tabName) {
-          btn.className = 'px-3.5 py-2 rounded-xl text-xs font-bold bg-[#009944] text-white transition cursor-pointer';
+          btn.className = `px-3.5 py-2 rounded-xl text-xs font-bold bg-[#009944] text-white transition cursor-pointer ${isAllowed ? '' : 'hidden'}`;
         } else {
-          btn.className = 'px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer';
+          btn.className = `px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer ${isAllowed ? '' : 'hidden'}`;
         }
       }
     });
@@ -2608,6 +2729,27 @@ window.FMCUApp = {
     this.showToast(`Toko Site ${code} dihapus dari Master Toko & Firestore`, 'info');
   },
 
+  onChangeUserRolePreset(role) {
+    const presets = {
+      AUDITOR: ['view_home', 'view_analytics', 'create_visit', 'export_pdf'],
+      ADMIN_SCHEDULE: ['view_home', 'view_analytics', 'create_visit', 'export_pdf', 'manage_schedule'],
+      SUPER_ADMIN: [
+        'view_home',
+        'view_analytics',
+        'create_visit',
+        'export_pdf',
+        'manage_schedule',
+        'manage_stores',
+        'manage_users',
+        'manage_integrations'
+      ]
+    };
+    const set = new Set(presets[role] || presets.AUDITOR);
+    document.querySelectorAll('input[name="adm-auth"]').forEach((cb) => {
+      cb.checked = set.has(cb.value);
+    });
+  },
+
   editUser(userId) {
     const users = window.FMCUData.getUsers();
     const u = users.find((x) => x.id === userId);
@@ -2619,11 +2761,10 @@ window.FMCUApp = {
     document.getElementById('adm-usr-region').value = u.region || '';
     document.getElementById('adm-usr-email').value = u.email || '';
 
-    const authSet = new Set(u.authorities || []);
     document.querySelectorAll('input[name="adm-auth"]').forEach((cb) => {
-      cb.checked = authSet.has(cb.value);
+      cb.checked = this.hasAuthority(cb.value, u);
     });
-    this.showToast(`Memuat akun @${u.username} untuk ubah data / password`, 'info');
+    this.showToast(`Memuat akun @${u.username} untuk ubah data / password / otoritas`, 'info');
   },
 
   handleSaveUser(event) {
@@ -2656,7 +2797,8 @@ window.FMCUApp = {
       avatarColor: role === 'SUPER_ADMIN' ? '#009944' : '#0099A6',
       active: true,
       authorities: checkedAuths,
-      lastLocation: null
+      _v2AuthSchema: true,
+      lastLocation: existingIdx !== -1 ? users[existingIdx].lastLocation || null : null
     };
 
     if (existingIdx !== -1) {
@@ -2665,10 +2807,16 @@ window.FMCUApp = {
       users.push(newUser);
     }
     window.FMCUData.saveUsers(users);
-    this.populateHeaderRoleSwitcher();
-    this.renderAllViews();
+    if (this.currentUser && (this.currentUser.id === newUser.id || this.currentUser.username === newUser.username)) {
+      this.setLoggedInUser(newUser);
+    } else {
+      this.populateHeaderRoleSwitcher();
+      this.updateSidebarAuthoritiesUI();
+      this.renderAllViews();
+    }
     event.target.reset();
-    this.showToast(`User ${name} (@${username}) berhasil disimpan!`, 'success');
+    this.onChangeUserRolePreset('AUDITOR');
+    this.showToast(`User ${name} (@${username}) beserta otoritas menu sidebar berhasil disimpan ke Firestore!`, 'success');
   },
 
   deleteUser(userId) {
