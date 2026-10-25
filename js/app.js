@@ -735,11 +735,13 @@ window.FMCUApp = {
   populateHeaderRoleSwitcher() {
     const users = window.FMCUData.getUsers();
 
-    // 1. Populate Login Form Registered Users Dropdown (#login-username) - Hanya Nama Lengkap (Super Admin disembunyikan)
+    // 1. Populate Login Form Registered Users Dropdown (#login-username) - Hanya Nama Lengkap (Super Admin disembunyikan & Diurutkan Abjad A-Z)
     const loginSel = document.getElementById('login-username');
     if (loginSel && loginSel.tagName === 'SELECT') {
       const currentVal = loginSel.value;
-      const visibleLoginUsers = users.filter((u) => u.role !== 'SUPER_ADMIN');
+      const visibleLoginUsers = users
+        .filter((u) => u.role !== 'SUPER_ADMIN')
+        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'id', { sensitivity: 'base' }));
       loginSel.innerHTML =
         `<option value="">-- Pilih Nama User --</option>` +
         visibleLoginUsers
@@ -755,11 +757,14 @@ window.FMCUApp = {
       }
     }
 
-    // 2. Populate Header Role Switcher (if present)
+    // 2. Populate Header Role Switcher (if present) - Diurutkan Abjad A-Z
     const sel = document.getElementById('header-role-switcher');
     if (!sel) return;
+    const sortedUsers = [...users].sort((a, b) =>
+      String(a.name || '').localeCompare(String(b.name || ''), 'id', { sensitivity: 'base' })
+    );
     sel.innerHTML =
-      users
+      sortedUsers
         .map(
           (u) =>
             `<option value="${u.id}" ${this.currentUser && this.currentUser.id === u.id ? 'selected' : ''}>👤 ${u.name} (${u.role === 'SUPER_ADMIN' ? 'Admin' : u.role === 'ADMIN_SCHEDULE' ? 'Admin Jadwal' : 'Visitor'})</option>`
@@ -1250,7 +1255,9 @@ window.FMCUApp = {
 
   getSchedulableAuditors() {
     const users = window.FMCUData.getUsers();
-    return users.filter((u) => this.isAuditorUser(u));
+    return users
+      .filter((u) => this.isAuditorUser(u))
+      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'id', { sensitivity: 'base' }));
   },
 
   isScheduleOwnedByUser(schedule, user = this.currentUser) {
@@ -3107,17 +3114,23 @@ window.FMCUApp = {
 
     // 3. Render Admin Users & Authorities Table
     const userSearchQ = (document.getElementById('adm-user-search-input')?.value || '').trim().toLowerCase();
-    const filteredUsers = users.filter((u) => {
-      if (!userSearchQ) return true;
-      return (
-        String(u.name || '').toLowerCase().includes(userSearchQ) ||
-        String(u.nik || '').toLowerCase().includes(userSearchQ) ||
-        String(u.username || '').toLowerCase().includes(userSearchQ) ||
-        String(u.jabatan || '').toLowerCase().includes(userSearchQ) ||
-        String(u.roleBadge || '').toLowerCase().includes(userSearchQ) ||
-        String(u.region || '').toLowerCase().includes(userSearchQ)
-      );
-    });
+    const filteredUsers = users
+      .filter((u) => {
+        if (!userSearchQ) return true;
+        return (
+          String(u.name || '').toLowerCase().includes(userSearchQ) ||
+          String(u.nik || '').toLowerCase().includes(userSearchQ) ||
+          String(u.username || '').toLowerCase().includes(userSearchQ) ||
+          String(u.jabatan || '').toLowerCase().includes(userSearchQ) ||
+          String(u.roleBadge || '').toLowerCase().includes(userSearchQ) ||
+          String(u.region || '').toLowerCase().includes(userSearchQ)
+        );
+      })
+      .sort((a, b) => {
+        if (a.role === 'SUPER_ADMIN' && b.role !== 'SUPER_ADMIN') return -1;
+        if (b.role === 'SUPER_ADMIN' && a.role !== 'SUPER_ADMIN') return 1;
+        return String(a.name || '').localeCompare(String(b.name || ''), 'id', { sensitivity: 'base' });
+      });
 
     const usrCountEl = document.getElementById('admin-user-count');
     if (usrCountEl) {
