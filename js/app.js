@@ -2017,6 +2017,10 @@ window.FMCUApp = {
   // ==========================================================================
   // AUTOMATIC GEOFENCE GPS IN / OUT ENGINE (15M RADIUS & 15-MINUTE AWAY SPAN)
   // ==========================================================================
+  calculateDistance(lat1, lon1, lat2, lon2) {
+    return this.calculateHaversineDistance(lat1, lon1, lat2, lon2);
+  },
+
   calculateHaversineDistance(lat1, lon1, lat2, lon2) {
     if (lat1 === null || lon1 === null || lat2 === null || lon2 === null) return null;
     const R = 6371000; // Radius bumi dalam meter
@@ -2425,7 +2429,7 @@ window.FMCUApp = {
       document.getElementById('form-store-code').value = sch.storeCode || '';
       document.getElementById('form-store-name').value = sch.storeName || '';
       document.getElementById('form-store-type').value = sch.storeType || 'CVS';
-      document.getElementById('form-banner-title').textContent = `FMCU Visit Store Report — ${sch.storeName || ''}`;
+      if (document.getElementById('form-banner-title')) document.getElementById('form-banner-title').textContent = `FMCU Visit Store Report — ${sch.storeName || ''}`;
       document.getElementById('form-banner-store-badge').textContent = `Kode Toko: ${sch.storeCode || '-'}`;
     }
 
@@ -3303,7 +3307,7 @@ window.FMCUApp = {
     document.getElementById('form-regional-manager').value = st.regionalManager || '';
     document.getElementById('form-store-email').value = st.email || '';
 
-    document.getElementById('form-banner-title').textContent = `FMCU Visit Store Report — ${st.name}`;
+    if (document.getElementById('form-banner-title')) document.getElementById('form-banner-title').textContent = `FMCU Visit Store Report — ${st.name}`;
     document.getElementById('form-banner-store-badge').textContent = `Kode Toko: ${st.code} (${st.type})`;
 
     if (st.defaultCrew && st.defaultCrew.length > 0) {
@@ -3354,7 +3358,7 @@ window.FMCUApp = {
     document.getElementById('form-actual-in').value = '';
     document.getElementById('form-actual-out').value = '';
 
-    document.getElementById('form-banner-title').textContent = 'FMCU Visit Store Report';
+    if (document.getElementById('form-banner-title')) document.getElementById('form-banner-title').textContent = 'FMCU Visit Store Report';
     document.getElementById('form-banner-store-badge').textContent = 'Kode Toko: -';
 
     this.formCrew = [
@@ -3416,7 +3420,7 @@ window.FMCUApp = {
     document.getElementById('form-actual-in').value = rep.actualIn || '';
     document.getElementById('form-actual-out').value = rep.actualOut || '';
 
-    document.getElementById('form-banner-title').textContent = `FMCU Visit Store Report — ${rep.storeName || '-'}`;
+    if (document.getElementById('form-banner-title')) document.getElementById('form-banner-title').textContent = `FMCU Visit Store Report — ${rep.storeName || '-'}`;
     document.getElementById('form-banner-store-badge').textContent = `Kode Toko: ${rep.storeCode || '-'} (${rep.storeType || 'CVS'})`;
 
     const navSub = document.getElementById('nav-form-store-subtitle');
@@ -7814,7 +7818,7 @@ function getOrCreateSubFolder_(parent, name) {
     const expDist = document.getElementById('hud-exp-distance');
     let distVal = '--';
     if (active.storeLat && active.storeLng && this.liveGps.lat && this.liveGps.lng) {
-      const d = Math.round(this.calculateDistance(this.liveGps.lat, this.liveGps.lng, active.storeLat, active.storeLng));
+      const d = Math.round(this.calculateHaversineDistance(this.liveGps.lat, this.liveGps.lng, active.storeLat, active.storeLng));
       distVal = d <= 15 ? `${d}m (Dalam Radius)` : `${d}m`;
       if (distPill) {
         distPill.textContent = `📍 ${d}m`;
