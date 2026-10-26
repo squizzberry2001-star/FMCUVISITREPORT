@@ -1005,43 +1005,25 @@ window.FMCUApp = {
     });
 
     const titles = {
-      home: [
-        'Home — Jadwal Toko & History Visit',
-        'Daftar jadwal toko yang diminta visit serta riwayat & arsip laporan PDF'
-      ],
-      analytics: [
-        'Analitik Dashboard — Performa, Trend Temuan & Toko',
-        'Statistik realisasi visit, distribusi kategori temuan QSC, ranking toko, dan aktivitas live GPS visitor'
-      ],
-      form: [
-        'Form Laporan Visit Toko (QSC, FamiTrack & Observasi)',
-        'Lengkapi data kunjungan toko, bukti foto ber-watermark GPS, dan analisis akar masalah'
-      ],
-      preview: [
-        'Preview Hasil PDF (Slide 16:9) & Download PDF',
-        'Tampilan presisi sesuai format standar FMCU Visit Store Report siap unduh & kirim ke Google Drive'
-      ],
-      schedules: [
-        'Atur Jadwal Visit Toko — Penugasan Visitor',
-        'Buat dan kelola jadwal kunjungan toko untuk masing-masing Visitor / Regional Bestie'
-      ],
-      stores: [
-        'Master Data Toko FamilyMart — Ekstraksi & Upload Excel',
-        'Kelola database 610+ Master Toko FamilyMart dan upload file Excel (.xlsx / .xls / .csv)'
-      ],
-      admin: [
-        'Portal Otoritas Admin FMCU',
-        'Manajemen User & Otoritas Login serta Konfigurasi Integrasi Email & Google Drive'
-      ],
-      'live-maps': [
-        'Live Location Maps — Monitoring GPS Real-Time',
-        'Pemantauan sebaran live GPS 18 Regional Bestie & 610 Toko FamilyMart untuk Admin Jadwal & Super Admin'
-      ]
+      home: ['Home', ''],
+      analytics: ['Analitik Performa', ''],
+      form: ['Form Visit Store', ''],
+      preview: ['Preview PDF', ''],
+      schedules: ['Atur Jadwal Visit', ''],
+      stores: ['Master Data Toko', ''],
+      admin: ['Portal Admin', ''],
+      'live-maps': ['Live Loc Maps', '']
     };
 
     const [t, sub] = titles[viewName] || titles.home;
-    document.getElementById('header-page-title').textContent = t;
-    document.getElementById('header-page-subtitle').textContent = sub;
+    const titleEl = document.getElementById('header-page-title');
+    if (titleEl) titleEl.textContent = t;
+    const subEl = document.getElementById('header-page-subtitle');
+    if (subEl) {
+      subEl.textContent = sub || '';
+      subEl.classList.toggle('hidden', !sub);
+    }
+    this.triggerHaptic('light');
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -1133,6 +1115,8 @@ window.FMCUApp = {
   },
 
   switchFormSection(secNum, scrollTop = true) {
+    this.triggerHaptic('light');
+    this.updateFormProgress();
     const targetSec = Number(secNum) || 1;
     this.currentFormSection = targetSec;
 
@@ -2240,6 +2224,7 @@ window.FMCUApp = {
     const outDot = document.getElementById('form-auto-out-status');
 
     if (!radarPill) return;
+    this.updateDynamicIslandUI();
 
     if (state === 'INSIDE_WAITING_OUT') {
       radarPill.className = 'w-full bg-emerald-500/20 border border-emerald-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center gap-2';
@@ -2308,6 +2293,7 @@ window.FMCUApp = {
       }
     }
     this.updateFormGuardVisibility();
+    this.updateDynamicIslandUI();
   },
 
   isAuditorUser(user = this.currentUser) {
@@ -2484,6 +2470,7 @@ window.FMCUApp = {
   currentHomeSubSection: 'overview',
 
   switchHomeSubSection(subSec, scrollTop = false) {
+    this.triggerHaptic('light');
     const validSections = ['overview', 'schedule', 'history'];
     const target = validSections.includes(subSec) ? subSec : 'overview';
     this.currentHomeSubSection = target;
@@ -2948,10 +2935,16 @@ window.FMCUApp = {
                   <i class="fa-solid fa-satellite-dish text-emerald-600 animate-pulse"></i>
                   <span>${s.actualIn ? `In: ${s.actualIn} (Auto GPS)` : 'Auto Geofence 15m'}</span>
                 </div>
-                <button onclick="FMCUApp.openStoreVisitForm('${s.storeCode}', '${s.id}')" class="fm-gradient hover:opacity-95 text-white font-bold px-3.5 py-2 rounded-xl text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer">
-                  <i class="fa-solid fa-file-waveform"></i>
-                  <span>Buka Form Toko</span>
-                </button>
+                <div class="flex items-center gap-1.5">
+                  <button type="button" onclick="FMCUApp.openGoogleMapsRoute('${s.storeCode}')" class="bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 font-bold px-2.5 py-2 rounded-xl text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Buka Rute di Google Maps">
+                    <i class="fa-solid fa-diamond-turn-right text-[#0099A6]"></i>
+                    <span>Rute Maps</span>
+                  </button>
+                  <button onclick="FMCUApp.openStoreVisitForm('${s.storeCode}', '${s.id}')" class="fm-gradient hover:opacity-95 text-white font-bold px-3.5 py-2 rounded-xl text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                    <i class="fa-solid fa-file-waveform"></i>
+                    <span>Buka Form</span>
+                  </button>
+                </div>
               `
               }
             </div>
@@ -3652,8 +3645,14 @@ window.FMCUApp = {
           <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
             <div class="bg-[#FEFCE8] border border-amber-300 rounded-xl p-3 space-y-1.5">
               <div class="flex items-center justify-between">
-                <label class="font-extrabold text-amber-800 uppercase">Temuan (Finding) *</label>
-                <select onchange="FMCUApp.formObservations[${idx}].category = this.value" class="text-[11px] bg-white border border-amber-200 rounded px-2 py-0.5 font-semibold text-slate-700">
+                <div class="flex items-center gap-2">
+                  <label class="font-extrabold text-amber-800 uppercase">Temuan (Finding) *</label>
+                  <button type="button" onclick="FMCUApp.startVoiceInput('obs-temuan-${idx}', this)" class="text-[10px] font-bold text-teal-800 bg-white hover:bg-teal-50 px-2 py-0.5 rounded border border-teal-200 flex items-center gap-1 transition cursor-pointer shadow-2xs" title="Diktekan temuan dengan suara">
+                    <i class="fa-solid fa-microphone text-rose-500"></i>
+                    <span>Dikte Suara</span>
+                  </button>
+                </div>
+                <select onchange="FMCUApp.formObservations[${idx}].category = this.value; FMCUApp.renderObservationsList();" class="text-[11px] bg-white border border-amber-200 rounded px-2 py-0.5 font-semibold text-slate-700">
                   ${[
                     'Food Safety & Expired',
                     'Standar SOP & Alat Takar',
@@ -3668,7 +3667,27 @@ window.FMCUApp = {
                     .join('')}
                 </select>
               </div>
-              <textarea rows="2" oninput="FMCUApp.formObservations[${idx}].temuan = this.value" placeholder="Tuliskan detail temuan observasi..." class="w-full bg-white/90 border border-amber-200 rounded-lg p-2 font-bold text-slate-900 focus:outline-none">${obs.temuan || ''}</textarea>
+
+              <!-- Point 4: Smart Recommendation SOP Chips -->
+              <div class="flex flex-wrap items-center gap-1 pt-0.5 pb-1">
+                <span class="text-[9.5px] font-bold text-amber-900/70 flex items-center gap-1 uppercase mr-0.5">
+                  <i class="fa-solid fa-wand-magic-sparkles text-amber-600"></i> Rekomendasi:
+                </span>
+                <button type="button" onclick="FMCUApp.applyFindingPreset(${idx}, 'preset-food-safety')" class="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 transition cursor-pointer">
+                  ⚡ Expired / FEFO
+                </button>
+                <button type="button" onclick="FMCUApp.applyFindingPreset(${idx}, 'preset-kebersihan')" class="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 transition cursor-pointer">
+                  ⚡ Kebersihan Area
+                </button>
+                <button type="button" onclick="FMCUApp.applyFindingPreset(${idx}, 'preset-alat-takar')" class="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 transition cursor-pointer">
+                  ⚡ Alat Takar SOP
+                </button>
+                <button type="button" onclick="FMCUApp.applyFindingPreset(${idx}, 'preset-price-card')" class="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 transition cursor-pointer">
+                  ⚡ Price Card
+                </button>
+              </div>
+
+              <textarea id="obs-temuan-${idx}" rows="2" oninput="FMCUApp.formObservations[${idx}].temuan = this.value; FMCUApp.updateFormProgress();" placeholder="Tuliskan detail temuan observasi..." class="w-full bg-white/90 border border-amber-200 rounded-lg p-2 font-bold text-slate-900 focus:outline-none">${obs.temuan || ''}</textarea>
             </div>
 
             <div class="bg-slate-50/70 border border-slate-200 rounded-xl p-3 space-y-1.5">
@@ -3774,22 +3793,30 @@ window.FMCUApp = {
             <i class="fa-solid fa-xmark"></i>
           </button>
 
-          <div class="col-span-5 h-36 bg-slate-100 rounded-xl overflow-hidden relative flex items-center justify-center border border-slate-200">
+          <div class="col-span-5 h-36 bg-slate-100 rounded-xl overflow-hidden relative flex items-center justify-center border border-slate-200 group">
             ${
               displaySrc
                 ? `<img src="${displaySrc}" class="w-full h-full object-cover" alt="Evidence" />`
-                : `<i class="fa-solid fa-camera text-slate-300 text-xl"></i>`
+                : `<div class="text-center p-2"><i class="fa-solid fa-camera text-slate-300 text-xl block mb-1"></i><span class="text-[9px] text-slate-400 font-bold block leading-tight">Panduan: Rak tegak lurus</span></div>`
             }
-            <label class="absolute bottom-1.5 inset-x-1.5 bg-slate-900/80 hover:bg-slate-900 text-white text-[10px] font-bold py-1 rounded text-center cursor-pointer">
-              Pilih Foto
-              <input type="file" accept="image/*" onchange="FMCUApp.handleSingleEvidenceUpload(event, ${idx})" class="hidden" />
+            <div class="absolute inset-0 viewfinder-grid pointer-events-none opacity-20 group-hover:opacity-40 transition"></div>
+            <label class="absolute bottom-1.5 inset-x-1.5 bg-slate-900/85 hover:bg-slate-900 text-white text-[10px] font-bold py-1 rounded text-center cursor-pointer flex items-center justify-center gap-1 shadow-sm">
+              <i class="fa-solid fa-camera text-[10px]"></i>
+              <span>Pilih / Foto</span>
+              <input type="file" accept="image/*" capture="environment" onchange="FMCUApp.handleSingleEvidenceUpload(event, ${idx})" class="hidden" />
             </label>
           </div>
 
           <div class="col-span-7 flex flex-col justify-between pr-4">
             <div>
-              <label class="block text-[10px] font-extrabold text-slate-400 uppercase mb-1">Bukti #${idx + 1} — Keterangan</label>
-              <textarea rows="3" oninput="FMCUApp.formEvidencePhotos[${idx}].description = this.value" placeholder="Tuliskan deskripsi temuan foto ini..." class="w-full border border-slate-200 rounded-lg p-2 text-xs text-slate-800 focus:outline-none focus:border-teal-500">${ev.description || ''}</textarea>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-[10px] font-extrabold text-slate-400 uppercase">Bukti #${idx + 1} — Keterangan</label>
+                <button type="button" onclick="FMCUApp.startVoiceInput('ev-desc-${idx}', this)" class="text-[9.5px] font-bold text-teal-800 bg-teal-50 hover:bg-teal-100 px-1.5 py-0.5 rounded border border-teal-200 flex items-center gap-1 cursor-pointer transition shadow-2xs" title="Diktekan dengan Suara">
+                  <i class="fa-solid fa-microphone text-rose-500"></i>
+                  <span>Dikte</span>
+                </button>
+              </div>
+              <textarea id="ev-desc-${idx}" rows="3" oninput="FMCUApp.formEvidencePhotos[${idx}].description = this.value; FMCUApp.updateFormProgress();" placeholder="Tuliskan deskripsi temuan foto ini..." class="w-full border border-slate-200 rounded-lg p-2 text-xs text-slate-800 focus:outline-none focus:border-teal-500">${ev.description || ''}</textarea>
               ${driveBadge}
             </div>
           </div>
@@ -4024,6 +4051,7 @@ window.FMCUApp = {
     const saved = await this.collectAndSaveFormReport();
     this.activePreviewReportId = saved.id;
     this.renderAllViews();
+    this.triggerConfetti();
     this.openIntegrationSendModal(saved.id);
   },
 
@@ -7537,6 +7565,7 @@ function getOrCreateSubFolder_(parent, name) {
   },
 
   nextNewsSlide() {
+    this.triggerHaptic('light');
     const total = this.newsItems ? this.newsItems.length : 0;
     if (total > 0) {
       this.newsCurrentIndex = (this.newsCurrentIndex + 1) % total;
@@ -7735,7 +7764,303 @@ function getOrCreateSubFolder_(parent, name) {
     this.showToast('Informasi berita berhasil dihapus.', 'info');
   },
 
-  closeModal(id) {
+  // ==========================================================================
+  // POINT 1 - 8: INTERACTIVE MODERN UI/UX ENHANCEMENTS
+  // ==========================================================================
+
+  // Point 2: Haptic Feedback Engine
+  triggerHaptic(type = 'light') {
+    if (!('vibrate' in navigator)) return;
+    try {
+      if (type === 'light') navigator.vibrate(15);
+      else if (type === 'medium') navigator.vibrate(30);
+      else if (type === 'success') navigator.vibrate([30, 50, 40]);
+      else if (type === 'warning') navigator.vibrate([60, 40, 60]);
+      else if (type === 'error') navigator.vibrate([100, 50, 100]);
+    } catch (e) {}
+  },
+
+  // Point 1: Dynamic Island Floating HUD Controller
+  toggleDynamicIsland(force = null) {
+    this.triggerHaptic('light');
+    const drawer = document.getElementById('hud-expanded-drawer');
+    const chevron = document.getElementById('hud-chevron');
+    if (!drawer) return;
+    const shouldOpen = force !== null ? force : drawer.classList.contains('hidden');
+    drawer.classList.toggle('hidden', !shouldOpen);
+    if (chevron) {
+      chevron.style.transform = shouldOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+    }
+  },
+
+  updateDynamicIslandUI() {
+    const hud = document.getElementById('dynamic-island-hud');
+    if (!hud) return;
+    const active = window.FMCUData.getActiveCheckIn();
+    if (!active || !active.storeCode) {
+      hud.classList.add('hidden');
+      return;
+    }
+
+    hud.classList.remove('hidden');
+    const nameEl = document.getElementById('hud-store-name');
+    const expTitle = document.getElementById('hud-expanded-title');
+    const storeLabel = active.storeName || active.storeCode;
+    if (nameEl) nameEl.textContent = storeLabel;
+    if (expTitle) expTitle.textContent = `${active.storeName} (${active.storeCode})`;
+
+    // Distance calculation
+    const distPill = document.getElementById('hud-distance-pill');
+    const expDist = document.getElementById('hud-exp-distance');
+    let distVal = '--';
+    if (active.storeLat && active.storeLng && this.liveGps.lat && this.liveGps.lng) {
+      const d = Math.round(this.calculateDistance(this.liveGps.lat, this.liveGps.lng, active.storeLat, active.storeLng));
+      distVal = d <= 15 ? `${d}m (Dalam Radius)` : `${d}m`;
+      if (distPill) {
+        distPill.textContent = `📍 ${d}m`;
+        distPill.className =
+          d <= 15
+            ? 'text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/25 text-emerald-300 font-extrabold shrink-0 border border-emerald-400/40'
+            : 'text-[10px] font-mono px-2 py-0.5 rounded-full bg-rose-500/25 text-rose-300 font-extrabold shrink-0 border border-rose-400/40';
+      }
+    } else if (distPill) {
+      distPill.textContent = '📍 GPS Aktif';
+    }
+    if (expDist) expDist.textContent = distVal;
+
+    // Time calculation (time elapsed since actualIn)
+    const timerEl = document.getElementById('hud-timer');
+    const expTimer = document.getElementById('hud-exp-timer');
+    if (active.actualIn) {
+      const parts = String(active.actualIn).split(':').map(Number);
+      if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        const inDate = new Date();
+        inDate.setHours(parts[0], parts[1], 0, 0);
+        let diffMs = Date.now() - inDate.getTime();
+        if (diffMs < 0) diffMs = 0;
+        const diffHrs = Math.floor(diffMs / 3600000);
+        const diffMins = Math.floor((diffMs % 3600000) / 60000);
+        const diffSecs = Math.floor((diffMs % 60000) / 1000);
+        if (timerEl) {
+          timerEl.textContent = `⏱️ ${String(diffHrs).padStart(2, '0')}:${String(diffMins).padStart(2, '0')}:${String(diffSecs).padStart(2, '0')}`;
+        }
+        if (expTimer) expTimer.textContent = `${diffHrs}j ${diffMins}m`;
+      }
+    }
+
+    this.updateFormProgress();
+  },
+
+  openActiveStoreInGoogleMaps() {
+    this.triggerHaptic('light');
+    const active = window.FMCUData.getActiveCheckIn();
+    if (!active || !active.storeCode) {
+      this.showToast('Belum ada jadwal toko yang sedang aktif di-visit.', 'warning');
+      return;
+    }
+    this.openGoogleMapsRoute(active.storeCode);
+  },
+
+  // Point 7: 1-Click Google Maps Turn-by-Turn Route Navigation
+  openGoogleMapsRoute(storeCode) {
+    this.triggerHaptic('light');
+    const stores = window.FMCUData.getStores();
+    const st = stores.find((s) => String(s.code || '').toLowerCase() === String(storeCode || '').toLowerCase());
+    if (!st || (!st.lat && !st.latitude)) {
+      this.showToast(`Koordinat GPS toko ${storeCode} belum tersedia di master toko.`, 'warning');
+      return;
+    }
+    const lat = Number(st.lat || st.latitude);
+    const lng = Number(st.lng || st.longitude);
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+    window.open(url, '_blank');
+  },
+
+  // Point 3: Voice-to-Text Speech Recognition (Indonesian ID-ID)
+  startVoiceInput(targetId, btn) {
+    this.triggerHaptic('medium');
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      this.showToast('Fitur Dikte Suara belum didukung browser ini. Silakan gunakan keyboard.', 'warning');
+      return;
+    }
+    const targetEl = document.getElementById(targetId);
+    if (!targetEl) return;
+
+    if (this._activeRecognition) {
+      try {
+        this._activeRecognition.stop();
+      } catch (e) {}
+      this._activeRecognition = null;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'id-ID';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      const originalHtml = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.classList.add('mic-recording');
+        btn.innerHTML = '<i class="fa-solid fa-microphone-lines animate-pulse"></i> Mendengarkan...';
+      }
+      this.showToast('Mendengarkan... Silakan berbicara sekarang.', 'info');
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript) {
+          const prev = targetEl.value ? targetEl.value.trim() + ' ' : '';
+          targetEl.value = prev + transcript;
+          targetEl.dispatchEvent(new Event('input', { bubbles: true }));
+          this.triggerHaptic('success');
+          this.showToast('Dikte suara berhasil dicatat!', 'success');
+          this.updateFormProgress();
+        }
+      };
+
+      recognition.onerror = (e) => {
+        this.showToast('Selesai / tidak ada suara terdeteksi: ' + (e.error || ''), 'info');
+      };
+
+      recognition.onend = () => {
+        if (btn) {
+          btn.classList.remove('mic-recording');
+          btn.innerHTML = originalHtml;
+        }
+        this._activeRecognition = null;
+      };
+
+      this._activeRecognition = recognition;
+      recognition.start();
+    } catch (err) {
+      this.showToast('Tidak dapat mengaktifkan mikrofon.', 'error');
+    }
+  },
+
+  // Point 6: Circular Progress Ring & Audit Completion Calculator
+  updateFormProgress() {
+    let progress = 0;
+    const storeName = document.getElementById('form-store-name')?.value;
+    if (storeName && storeName.trim()) progress += 25;
+
+    if (
+      this.formObservations &&
+      this.formObservations.length > 0 &&
+      this.formObservations.some((o) => o.temuan && o.temuan.trim())
+    ) {
+      progress += 25;
+    }
+
+    if (
+      this.formEvidencePhotos &&
+      this.formEvidencePhotos.length > 0 &&
+      this.formEvidencePhotos.some((e) => e.dataUrl || e.driveFileId)
+    ) {
+      progress += 25;
+    }
+
+    if (progress >= 75) {
+      progress = 100;
+    }
+
+    const miniProg = document.getElementById('hud-mini-progress');
+    const expProg = document.getElementById('hud-exp-progress');
+    if (miniProg) miniProg.textContent = `${progress}%`;
+    if (expProg) expProg.textContent = `${progress}% Selesai`;
+
+    const circle = document.getElementById('form-progress-ring-circle');
+    const text = document.getElementById('form-progress-ring-text');
+    if (circle && text) {
+      const circumference = 100.53;
+      const offset = circumference - (progress / 100) * circumference;
+      circle.style.strokeDashoffset = offset;
+      text.textContent = `${progress}%`;
+    }
+  },
+
+  // Point 6: Celebration Confetti Particle Burst
+  triggerConfetti() {
+    this.triggerHaptic('success');
+    const canvas = document.createElement('canvas');
+    canvas.id = 'fm-confetti-canvas';
+    canvas.style.position = 'fixed';
+    canvas.style.top = '0';
+    canvas.style.left = '0';
+    canvas.style.width = '100vw';
+    canvas.style.height = '100vh';
+    canvas.style.zIndex = '9999';
+    canvas.style.pointerEvents = 'none';
+    document.body.appendChild(canvas);
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const ctx = canvas.getContext('2d');
+    const particles = [];
+    const colors = ['#009944', '#0099a6', '#f59e0b', '#3b82f6', '#ec4899', '#10b981'];
+
+    for (let i = 0; i < 90; i++) {
+      particles.push({
+        x: canvas.width / 2,
+        y: canvas.height / 2,
+        r: Math.random() * 5 + 3,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        vx: (Math.random() - 0.5) * 16,
+        vy: (Math.random() - 0.5) * 16 - 3,
+        gravity: 0.25,
+        alpha: 1,
+        decay: Math.random() * 0.015 + 0.012
+      });
+    }
+
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      let alive = false;
+      particles.forEach((p) => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += p.gravity;
+        p.alpha -= p.decay;
+        if (p.alpha > 0) {
+          alive = true;
+          ctx.save();
+          ctx.globalAlpha = p.alpha;
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      });
+      if (alive) {
+        requestAnimationFrame(animate);
+      } else {
+        canvas.remove();
+      }
+    };
+    requestAnimationFrame(animate);
+  },
+
+  // Point 8: Shimmer Skeleton Placeholder Generator
+  getSkeletonCardHtml(count = 3) {
+    return Array(count)
+      .fill(0)
+      .map(
+        () => `
+      <div class="fm-card p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="w-24 h-4 fm-skeleton"></div>
+          <div class="w-20 h-4 fm-skeleton"></div>
+        </div>
+        <div class="w-48 h-5 fm-skeleton"></div>
+        <div class="w-full h-10 fm-skeleton"></div>
+      </div>
+    `
+      )
+      .join('');
+  },
+
+    closeModal(id) {
     const el = document.getElementById(id);
     if (el) el.classList.add('hidden');
   }

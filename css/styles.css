@@ -239,3 +239,80 @@ body {
   width: 0%;
   animation: splashProgressFill 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
+
+
+/* ==========================================================================
+   INTERACTIVE REVAMP UI/UX (POINTS 1 - 8 & SKELETON SHIMMER)
+   ========================================================================== */
+
+/* Shimmer Skeleton Loading */
+@keyframes fmShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.fm-skeleton {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: fmShimmer 1.5s infinite;
+  border-radius: 0.75rem;
+}
+
+/* Voice-to-Text Recording Pulse Animation */
+@keyframes micPulseWave {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.mic-recording {
+  animation: micPulseWave 1.4s infinite !important;
+  background-color: #ef4444 !important;
+  color: #ffffff !important;
+  border-color: #dc2626 !important;
+}
+
+/* Radar Sweep Ripple Effect on Leaflet Marker */
+@keyframes radarSweepRing {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(3.5);
+    opacity: 0;
+  }
+}
+
+.radar-sweep-ring {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  margin-top: -16px;
+  margin-left: -16px;
+  border-radius: 50%;
+  border: 2px solid #009944;
+  background: rgba(0, 153, 68, 0.25);
+  animation: radarSweepRing 2.4s cubic-bezier(0.2, 0.8, 0.4, 1) infinite;
+  pointer-events: none;
+}
+
+/* Camera Viewfinder Rule-of-Thirds Grid */
+.viewfinder-grid {
+  background-image: 
+    linear-gradient(to right, rgba(255,255,255,0.2) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.2) 1px, transparent 1px);
+  background-size: 33.333% 33.333%;
+}
+
+/* Circular Progress Ring */
+.progress-ring-circle {
+  transition: stroke-dashoffset 0.45s ease-in-out;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+
+/* Dynamic Island Floating Capsule */
+#dynamic-island-hud {
+  filter: drop-shadow(0 12px 28px rgba(15, 23, 42, 0.25));
+}

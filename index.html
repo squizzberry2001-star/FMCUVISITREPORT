@@ -57,6 +57,66 @@
   <div class="fm-top-stripe w-full fixed top-0 left-0 z-50"></div>
 
   <!-- ====================================================================
+       POINT 1: DYNAMIC ISLAND / FLOATING HUD BAR (LIVE VISIT STATUS)
+       ==================================================================== -->
+  <div id="dynamic-island-hud" class="hidden fixed top-2 sm:top-3 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-md transition-all duration-300">
+    <!-- Compact Pill -->
+    <div onclick="FMCUApp.toggleDynamicIsland()" class="fm-card bg-slate-900/95 backdrop-blur-md text-white border border-slate-700/80 shadow-2xl rounded-full px-3.5 py-1.5 flex items-center justify-between gap-2.5 cursor-pointer hover:border-emerald-500/60 transition select-none">
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping shrink-0"></span>
+        <span id="hud-store-name" class="font-extrabold text-xs text-white truncate max-w-[120px] sm:max-w-[150px]">Store Visit</span>
+        <span id="hud-distance-pill" class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold shrink-0">📍 0m</span>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <span id="hud-timer" class="text-[11px] font-mono font-extrabold text-slate-300">⏱️ 00:00:00</span>
+        <div id="hud-mini-progress" class="w-6 h-6 rounded-full bg-slate-800 border border-emerald-400/50 flex items-center justify-center text-[9px] font-extrabold text-emerald-300">
+          0%
+        </div>
+        <i id="hud-chevron" class="fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform"></i>
+      </div>
+    </div>
+
+    <!-- Expanded Drawer (Tap to toggle) -->
+    <div id="hud-expanded-drawer" class="hidden mt-2 fm-card bg-slate-900/98 backdrop-blur-lg text-white border border-slate-700/90 shadow-2xl rounded-2xl p-4 space-y-3.5 animate-in fade-in duration-200">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+        <div>
+          <div class="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Status Visit Aktif</div>
+          <div id="hud-expanded-title" class="text-sm font-extrabold text-emerald-400 truncate">FMCU Visit Store</div>
+        </div>
+        <button type="button" onclick="FMCUApp.toggleDynamicIsland(false)" class="w-7 h-7 rounded-lg bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center text-xs cursor-pointer">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-3 gap-2 text-center">
+        <div class="bg-slate-800/80 rounded-xl p-2 border border-slate-700/50">
+          <div class="text-[9px] font-bold text-slate-400 uppercase">Jarak Toko</div>
+          <div id="hud-exp-distance" class="font-extrabold text-xs text-emerald-300 mt-0.5">--</div>
+        </div>
+        <div class="bg-slate-800/80 rounded-xl p-2 border border-slate-700/50">
+          <div class="text-[9px] font-bold text-slate-400 uppercase">Durasi Visit</div>
+          <div id="hud-exp-timer" class="font-extrabold text-xs text-white font-mono mt-0.5">00:00</div>
+        </div>
+        <div class="bg-slate-800/80 rounded-xl p-2 border border-slate-700/50">
+          <div class="text-[9px] font-bold text-slate-400 uppercase">Progress Form</div>
+          <div id="hud-exp-progress" class="font-extrabold text-xs text-teal-300 mt-0.5">0%</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button type="button" onclick="FMCUApp.navigate('form'); FMCUApp.toggleDynamicIsland(false);" class="py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs">
+          <i class="fa-solid fa-file-pen text-xs"></i>
+          <span>Buka Form</span>
+        </button>
+        <button type="button" onclick="FMCUApp.openActiveStoreInGoogleMaps()" class="py-2 px-3 rounded-xl bg-teal-700 hover:bg-teal-600 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs">
+          <i class="fa-solid fa-diamond-turn-right text-xs"></i>
+          <span>Arahkan Rute</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================
        MANDATORY GPS LOCATION GATE OVERLAY
        (Web hanya terbuka apabila GPS diizinkan & menyala di browser/device)
        ==================================================================== -->
@@ -729,7 +789,7 @@
                   <span class="w-2 h-5 rounded-full bg-[#009944]"></span>
                   <h3 class="text-base sm:text-lg font-extrabold text-slate-900">Jadwal Toko yang Diminta Visit</h3>
                 </div>
-                <p class="text-xs text-slate-500 mt-0.5">Urutan jadwal dimulai dari tanggal terdekat. Klik <strong>Check-In & Masuk Form Toko</strong> untuk mulai mengisi Form Visit</p>
+                
               </div>
               <div class="flex flex-wrap items-center gap-2">
                 <select id="schedule-filter-scope" onchange="FMCUApp.renderHomeSchedules()" class="text-xs font-semibold border border-slate-200 rounded-xl px-3 py-2 bg-slate-50">
@@ -758,7 +818,7 @@
                   <span class="w-2 h-5 rounded-full bg-[#0099A6]"></span>
                   <h3 class="text-base sm:text-lg font-extrabold text-slate-900">History Visit & Arsip Laporan PDF</h3>
                 </div>
-                <p class="text-xs text-slate-500 mt-0.5">Riwayat kunjungan yang telah selesai beserta akses cepat Preview Slide 16:9, Unduh PDF, dan Kirim Email/GDrive</p>
+                
               </div>
               <div class="flex items-center gap-2">
                 <div class="relative">
@@ -787,7 +847,7 @@
             </div>
             <div>
               <h2 class="font-extrabold text-sm sm:text-base text-slate-900">Analitik Dashboard & Riwayat Audit FMCU</h2>
-              <p class="text-[11px] text-slate-500">History kunjungan visit toko, arsip laporan PDF seluruh toko, analitik performa, dan monitoring live location user</p>
+              
             </div>
           </div>
 
@@ -813,7 +873,7 @@
                   <span class="w-2 h-5 rounded-full bg-[#0099A6]"></span>
                   <h3 class="text-base sm:text-lg font-extrabold text-slate-900">History Visit & Arsip Laporan PDF Seluruh Toko</h3>
                 </div>
-                <p class="text-xs text-slate-500 mt-0.5">Daftar seluruh riwayat laporan audit kunjungan toko yang telah selesai dilaporkan oleh para Visitor, lengkap dengan akses Preview Slide 16:9 dan Unduh PDF resmi.</p>
+                
               </div>
 
               <div class="flex flex-wrap items-center gap-2">
@@ -890,7 +950,7 @@
                   <i class="fa-solid fa-chart-pie text-[#0099A6]"></i>
                   <span>Trend Temuan Observasi QSC</span>
                 </h3>
-                <p class="text-xs text-slate-500">Distribusi kategori temuan terbanyak di seluruh toko</p>
+                
               </div>
               <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-teal-50 text-[#0099A6]">Real-time Data</span>
             </div>
@@ -908,7 +968,7 @@
                   <i class="fa-solid fa-store text-[#009944]"></i>
                   <span>Trend Toko (Jumlah Temuan vs Skor QSC)</span>
                 </h3>
-                <p class="text-xs text-slate-500">Perbandingan hasil observasi dan kepatuhan standar tiap toko</p>
+                
               </div>
               <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700">Performa Toko</span>
             </div>
@@ -927,7 +987,7 @@
                 <i class="fa-solid fa-users-gear text-[#0099A6]"></i>
                 <span>Analitik Performa & Aktivitas User (Live Location & Actual In/Out)</span>
               </h3>
-              <p class="text-xs text-slate-500">Rekap produktivitas visitor, ketepatan jadwal visit, rata-rata waktu kunjungan, dan posisi GPS terkini</p>
+              
             </div>
           </div>
 
@@ -986,9 +1046,17 @@
                   </span>
                   <span id="form-banner-store-badge" class="text-[11px] font-bold text-teal-200 bg-white/10 px-2 py-0.5 rounded-md truncate">Kode Toko: -</span>
                 </div>
-                <h2 id="form-banner-title" class="text-sm sm:text-base font-extrabold tracking-tight text-white truncate">
-                  FMCU Visit Store Report
+                <div class="flex items-center gap-3">
+                  <div class="relative w-10 h-10 flex items-center justify-center shrink-0">
+                    <svg class="w-10 h-10 -rotate-90">
+                      <circle cx="20" cy="20" r="16" stroke="rgba(255,255,255,0.15)" stroke-width="3.5" fill="transparent" />
+                      <circle id="form-progress-ring-circle" cx="20" cy="20" r="16" stroke="#34d399" stroke-width="3.5" fill="transparent" stroke-dasharray="100.53" stroke-dashoffset="100.53" class="progress-ring-circle" />
+                    </svg>
+                    <span id="form-progress-ring-text" class="absolute text-[10px] font-extrabold text-white">0%</span>
+                  </div>
+                    FMCU Visit Store Report
                 </h2>
+                </div>
                 <div id="form-banner-gps" class="text-[10px] sm:text-xs text-slate-300 font-mono flex items-center gap-1.5 truncate">
                   <i class="fa-solid fa-location-dot text-emerald-400 text-[10px] shrink-0"></i>
                   <span class="truncate">Live GPS: Mendeteksi koordinat...</span>
@@ -1179,7 +1247,7 @@
                   <div class="w-8 h-8 rounded-xl fm-gradient text-white font-extrabold text-sm flex items-center justify-center">2</div>
                   <div>
                     <h3 class="font-extrabold text-base sm:text-lg text-slate-900">Section 2: QSC Observation (Findings & Root Cause Analysis)</h3>
-                    <p class="text-xs text-slate-500">Detail Temuan, Kondisi Ideal, Penyebab, Dampak, Tindakan Perbaikan, Hasil, dan Deadline Perbaikan (Halaman 5-6 PDF)</p>
+                    
                   </div>
                 </div>
                 <button type="button" onclick="FMCUApp.addObservationCard()" class="fm-gradient hover:opacity-95 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-sm transition cursor-pointer self-start sm:self-auto">
@@ -1210,7 +1278,7 @@
                   <div class="w-8 h-8 rounded-xl fm-gradient text-white font-extrabold text-sm flex items-center justify-center">3</div>
                   <div>
                     <h3 class="font-extrabold text-base sm:text-lg text-slate-900">Section 3: Finding Evidence - Evidence Photos</h3>
-                    <p class="text-xs text-slate-500">Foto bukti temuan di lapangan dengan Watermark GPS & Timestamp Toko otomatis + deskripsi temuan (Halaman 8-9 PDF, 6 foto/halaman)</p>
+                    
                   </div>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
@@ -1420,7 +1488,7 @@
                   <h2 class="font-extrabold text-lg text-slate-900">Control Center Admin FMCU</h2>
                   <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">Full Authority</span>
                 </div>
-                <p class="text-xs text-slate-500">Kelola manajemen user, otoritas login, dan konfigurasi integrasi otomatis Email & Google Drive</p>
+                
               </div>
             </div>
 
