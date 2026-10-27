@@ -3479,7 +3479,8 @@ window.FMCUApp = {
       localStorage.removeItem('fmcu_taro_ai_cache');
       localStorage.removeItem('fmcu_taro_ai_cache_v2');
       localStorage.removeItem('fmcu_taro_ai_cache_v3');
-      const raw = localStorage.getItem('fmcu_taro_ai_cache_v4');
+      localStorage.removeItem('fmcu_taro_ai_cache_v4');
+      const raw = localStorage.getItem('fmcu_taro_ai_cache_v5');
       if (raw) cached = JSON.parse(raw);
     } catch (e) {}
 
@@ -3549,7 +3550,8 @@ window.FMCUApp = {
 ATURAN UTAMA (SANGAT PENTING - BUKAN STORYTELLING):
 - DILARANG KERAS membuat paragraf naratif panjang / mendongeng (storytelling)!
 - JANGAN menulis basa-basi pembuka yang bertele-tele (seperti "Senang sekali rasanya...", "Toko ini punya sejarah...", dll).
-- WAJIB menyajikan setiap poin analisa dalam bentuk 3 BULLET POINTS yang ringkas, tajam, padat, dan langsung to the point.
+- FORMAT BULLET POINTS FLEKSIBEL: Sajikan analisa dalam bentuk BULLET POINTS yang ringkas, tajam, padat, dan langsung to the point.
+- JUMLAH BULLET POINT FLEKSIBEL (JANGAN KONSISTEN 3, BISA SAMPAI MAKSIMAL 8): Sesuaikan banyaknya bullet points dengan temuan riil di lapangan (fleksibel mulai dari 2 hingga MAKSIMAL 8 bullet points per heading, tergantung seberapa banyak temuan/poin penting yang perlu disampaikan).
 - Setiap bullet point WAJIB diawali KATA KUNCI TEBAL (bold), contoh: "- **Food Safety & Expired**: Penjelasan ringkas...".
 - Gaya bahasa tetap santai, asyik, dan akrab khas teman kerja di Famima Cafe, tapi informasinya harus cepat dan mudah dibaca sekilas (scannable).
 - TIDAK BERHALUSINASI: Analisis HANYA data observasi toko nyata di bawah (Quality, Service, Cleanliness, Suhu Chiller, Hot Snack, FEFO, Grooming, dll).
@@ -3557,26 +3559,18 @@ ATURAN UTAMA (SANGAT PENTING - BUKAN STORYTELLING):
 DATA OBSERVASI TOKO SELURUH VISITOR:
 ${dataSummaryText}
 
-FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH DENGAN 3 BULLET POINTS TIAP HEADING):
+FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET POINTS FLEKSIBEL MAKSIMAL 8 POIN PER HEADING):
 ### 1. Kabar Baik & Performa Toko Kita
-- **Skor & Disiplin**: (Apresiasi singkat pencapaian skor visit toko dan kepatuhan standar operasional)
-- **Pelayanan Prima**: (Sorot keramahan crew dan kesiapan melayani customer)
-- **Kerapian Area**: (Catat area toko yang sudah bersih, higienis, dan tertata rapi)
+(Sajikan 2 s/d maksimal 8 bullet points poin positif performa toko, apresiasi area bersih/rapi, keramahan crew, dan kepatuhan SOP yang sudah prima, dengan kata kunci bold di awal tiap bullet)
 
 ### 2. Catatan & Pola Temuan Kritis
-- **Food Safety & Expired**: (Sebutkan temuan produk mendekati/melewati expired date atau suhu chiller yang kurang stabil)
-- **Standar Kebersihan**: (Poin temuan kebersihan area dapur, display hot snack, atau mesin kopi)
-- **Kerapian Display & Label**: (Poin temuan display produk, ketersediaan label harga, atau kelengkapan atribut)
+(Sajikan 2 s/d maksimal 8 bullet points sesuai banyaknya temuan nyata seluruh visitor: Food Safety, suhu chiller, expired date, display hot snack, kebersihan dapur, label harga, dll, dengan kata kunci bold di awal tiap bullet)
 
 ### 3. Kenapa Bisa Terjadi? (Akar Masalah)
-- **Kondisi Rush Hour**: (Analisa apakah jam sibuk pesanan online/offline membuat pengecekan fisik terburu-buru)
-- **Briefing & Serah Terima**: (Analisa apakah checklist harian atau briefing antar-shift terlewatkan)
-- **Disiplin Rotasi FEFO**: (Analisa kebiasaan rotasi stok lama dan stok baru di rak/chiller)
+(Sajikan 2 s/d maksimal 8 bullet points analisa faktor penyebab: rush hour, briefing shift, rotasi FEFO, atau fasilitas, dengan kata kunci bold di awal tiap bullet)
 
 ### 4. Action Plan Asyik & Solusi Cepat 1x24 Jam
-- **Penyisiran Kilat FEFO**: (Instruksi langsung tarik item expired dan rapikan susunan stok 1x24 jam)
-- **Kontrol Suhu & Checklist**: (Langkah praktis cek suhu chiller dan cross-check checklist tiap shift)
-- **Supervisi Leader**: (Tindakan coaching ringan Store Leader/Trainer untuk memastikan temuan tidak terulang)`;
+(Sajikan 2 s/d maksimal 8 bullet points rekomendasi solusi konkret 1x24 jam dan supervisi berkelanjutan yang siap dieksekusi crew toko, dengan kata kunci bold di awal tiap bullet)`;
 
       let aiResultText = '';
       let fetchError = null;
@@ -3624,7 +3618,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH DENGAN 3 BULLET 
                 body: JSON.stringify({
                   model: gModel,
                   messages: [
-                    { role: 'system', content: 'Anda adalah T.A.R.O (Trainer Asyik Rekan Operasional) AI di FamilyMart Indonesia. Sajikan jawaban dalam bentuk 3 bullet points dengan kata kunci tebal di awal. Jangan bercerita naratif panjang/storytelling, langsung to the point dan mudah dibaca sekilas.' },
+                    { role: 'system', content: 'Anda adalah T.A.R.O (Trainer Asyik Rekan Operasional) AI di FamilyMart Indonesia. Sajikan jawaban dalam bentuk bullet points fleksibel (2 hingga maksimal 8 bullet points sesuai kebutuhan data temuan riil) dengan kata kunci tebal di awal. Jangan bercerita naratif panjang/storytelling, langsung to the point dan mudah dibaca sekilas.' },
                     { role: 'user', content: promptText }
                   ],
                   temperature: 0.3
@@ -3663,7 +3657,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH DENGAN 3 BULLET 
                 body: JSON.stringify({
                   model: orModel,
                   messages: [
-                    { role: 'system', content: 'Anda adalah T.A.R.O (Trainer Asyik Rekan Operasional) AI di FamilyMart Indonesia. Sajikan jawaban dalam bentuk 3 bullet points dengan kata kunci tebal di awal. Jangan bercerita naratif panjang/storytelling, langsung to the point dan mudah dibaca sekilas.' },
+                    { role: 'system', content: 'Anda adalah T.A.R.O (Trainer Asyik Rekan Operasional) AI di FamilyMart Indonesia. Sajikan jawaban dalam bentuk bullet points fleksibel (2 hingga maksimal 8 bullet points sesuai kebutuhan data temuan riil) dengan kata kunci tebal di awal. Jangan bercerita naratif panjang/storytelling, langsung to the point dan mudah dibaca sekilas.' },
                     { role: 'user', content: promptText }
                   ]
                 })
@@ -3735,7 +3729,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH DENGAN 3 BULLET 
         reportCount: reports.length
       };
       try {
-        localStorage.setItem('fmcu_taro_ai_cache_v4', JSON.stringify(cacheObj));
+        localStorage.setItem('fmcu_taro_ai_cache_v5', JSON.stringify(cacheObj));
       } catch (e) {}
 
       if (loadingEl) loadingEl.classList.add('hidden');
@@ -3890,7 +3884,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH DENGAN 3 BULLET 
 
     let currentIdx = 0;
     let isCancelled = false;
-    const charsPerTick = 6; // Snappy 8-line typewriter speed
+    const charsPerTick = 8; // Ultra-snappy typewriter speed (handles up to 8 bullets in ~1s)
     const tickIntervalMs = 10;
 
     const intervalId = setInterval(() => {
@@ -4137,7 +4131,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH DENGAN 3 BULLET 
     let textToCopy = this._taroFullText;
     if (!textToCopy) {
       try {
-        const raw = localStorage.getItem('fmcu_taro_ai_cache_v4');
+        const raw = localStorage.getItem('fmcu_taro_ai_cache_v5');
         if (raw) {
           const obj = JSON.parse(raw);
           textToCopy = obj.content;
