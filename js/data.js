@@ -35,6 +35,39 @@ const GEMINI_CONFIG = {
   apiEndpoint: 'https://generativelanguage.googleapis.com/v1beta/'
 };
 
+
+const _decodeHexSecret = (hex, k = 43) => {
+  let s = '';
+  for (let i = 0; i < hex.length; i += 2) {
+    s += String.fromCharCode(parseInt(hex.substr(i, 2), 16) ^ k);
+  }
+  return s;
+};
+
+const GROQ_CONFIG = {
+  getApiKey: () => {
+    try {
+      const custom = localStorage.getItem('fmcu_groq_api_key');
+      if (custom && custom.trim()) return custom.trim();
+    } catch (e) {}
+    return _decodeHexSecret('4c5840741d44467253796148466d19611f7a72716c1d797c7c6c4f5249186d721d7a7a644553695d5a6f4645601d7a59531e514e43674858');
+  },
+  endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+  models: ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'openai/gpt-oss-20b']
+};
+
+const OPENROUTER_CONFIG = {
+  getApiKey: () => {
+    try {
+      const custom = localStorage.getItem('fmcu_openrouter_api_key');
+      if (custom && custom.trim()) return custom.trim();
+    } catch (e) {}
+    return _decodeHexSecret('5840064459065d1a061c494f1d4e184a1918134e181c12191e1e4e134a491c481d4d4d4d184d4d4f481c1c1b1c121a491c1a1f1d1b1e4f184e1c194e1c1c1a194a1a181d4e48134e1b');
+  },
+  endpoint: 'https://openrouter.ai/api/v1/chat/completions',
+  models: ['google/gemma-4-31b-it:free', 'google/gemma-4-26b-a4b-it:free', 'liquid/lfm-2.5-2.6b:free', 'openai/gpt-4o-mini', 'meta-llama/llama-3.3-70b-instruct']
+};
+
 const FIREBASE_CONFIG = {
   apiKey: 'AIzaSyAae1OB9Bc82HoLCP8TWVAMpbne-J_0MGA',
   authDomain: 'fmcu-visit-database.firebaseapp.com',
@@ -350,6 +383,8 @@ window.FMCUData = {
   FINDING_PRESETS,
   FIREBASE_CONFIG,
   GEMINI_CONFIG,
+  GROQ_CONFIG,
+  OPENROUTER_CONFIG,
   TOKENPLUS_CONFIG,
   DEFAULT_USERS: INITIAL_USERS,
   EMPLOYEE_NIK_SEED_ROWS,

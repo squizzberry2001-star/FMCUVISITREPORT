@@ -3590,29 +3590,111 @@ FORMAT STRUKTUR OUTPUT WAJIB:
         }
       }
 
-      // Fallback: If Gemini fails, attempt TokenPlus fallback if key is available
-      if (!aiResultText && window.FMCUData?.FALLBACK_AI_CONFIG?.apiKey) {
-        try {
-          const fbKey = window.FMCUData.FALLBACK_AI_CONFIG.apiKey;
-          const fbRes = await fetch('https://api.tokenplus.net/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${fbKey}`
-            },
-            body: JSON.stringify({
-              model: 'gpt-4o-mini',
-              messages: [{ role: 'user', content: promptText }]
-            })
-          });
-          if (fbRes.ok) {
-            const fbData = await fbRes.json();
-            if (fbData.choices && fbData.choices[0]?.message?.content) {
-              aiResultText = fbData.choices[0].message.content;
+      // Engine Fallback 1: Groq AI (Ultra-fast LPU inference)
+      if (!aiResultText) {
+        const groqKey = window.FMCUData?.GROQ_CONFIG?.getApiKey?.();
+        const groqEndpoint = window.FMCUData?.GROQ_CONFIG?.endpoint || 'https://api.groq.com/openai/v1/chat/completions';
+        const groqModels = window.FMCUData?.GROQ_CONFIG?.models || ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'openai/gpt-oss-20b'];
+        if (groqKey) {
+          for (const gModel of groqModels) {
+            try {
+              const gRes = await fetch(groqEndpoint, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${groqKey}`
+                },
+                body: JSON.stringify({
+                  model: gModel,
+                  messages: [
+                    { role: 'system', content: 'Anda adalah T.A.R.O (Trainer Asyik Rekan Operasional) AI di FamilyMart Indonesia.' },
+                    { role: 'user', content: promptText }
+                  ],
+                  temperature: 0.3
+                })
+              });
+              if (gRes.ok) {
+                const gData = await gRes.json();
+                if (gData.choices && gData.choices[0]?.message?.content) {
+                  aiResultText = gData.choices[0].message.content;
+                  break;
+                }
+              }
+            } catch (gErr) {
+              console.warn('Groq AI attempt failed:', gErr);
             }
           }
-        } catch (fbErr) {
-          console.warn('Fallback AI error:', fbErr);
+        }
+      }
+
+      // Engine Fallback 2: OpenRouter AI (Universal Gateway)
+      if (!aiResultText) {
+        const orKey = window.FMCUData?.OPENROUTER_CONFIG?.getApiKey?.();
+        const orEndpoint = window.FMCUData?.OPENROUTER_CONFIG?.endpoint || 'https://openrouter.ai/api/v1/chat/completions';
+        const orModels = window.FMCUData?.OPENROUTER_CONFIG?.models || ['google/gemma-4-31b-it:free', 'google/gemma-4-26b-a4b-it:free', 'liquid/lfm-2.5-2.6b:free', 'openai/gpt-4o-mini'];
+        if (orKey) {
+          for (const orModel of orModels) {
+            try {
+              const orRes = await fetch(orEndpoint, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${orKey}`,
+                  'HTTP-Referer': 'https://familymartindonesia.com',
+                  'X-Title': 'FMCU Visit Report'
+                },
+                body: JSON.stringify({
+                  model: orModel,
+                  messages: [
+                    { role: 'system', content: 'Anda adalah T.A.R.O (Trainer Asyik Rekan Operasional) AI di FamilyMart Indonesia.' },
+                    { role: 'user', content: promptText }
+                  ]
+                })
+              });
+              if (orRes.ok) {
+                const orData = await orRes.json();
+                if (orData.choices && orData.choices[0]?.message?.content) {
+                  aiResultText = orData.choices[0].message.content;
+                  break;
+                }
+              }
+            } catch (orErr) {
+              console.warn('OpenRouter attempt failed:', orErr);
+            }
+          }
+        }
+      }
+
+      // Engine Fallback 3: TokenPlus.net
+      if (!aiResultText) {
+        const tpKey = window.FMCUData?.TOKENPLUS_CONFIG?.getApiKey?.();
+        const tpEndpoint = window.FMCUData?.TOKENPLUS_CONFIG?.endpoint || 'https://api.tokenplus.net/v1/chat/completions';
+        const tpModels = window.FMCUData?.TOKENPLUS_CONFIG?.models || ['deepseek-v4-flash', 'gpt-4o-mini'];
+        if (tpKey) {
+          for (const tpModel of tpModels) {
+            try {
+              const tpRes = await fetch(tpEndpoint, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${tpKey}`
+                },
+                body: JSON.stringify({
+                  model: tpModel,
+                  messages: [{ role: 'user', content: promptText }]
+                })
+              });
+              if (tpRes.ok) {
+                const tpData = await tpRes.json();
+                if (tpData.choices && tpData.choices[0]?.message?.content) {
+                  aiResultText = tpData.choices[0].message.content;
+                  break;
+                }
+              }
+            } catch (tpErr) {
+              console.warn('TokenPlus attempt failed:', tpErr);
+            }
+          }
         }
       }
 
