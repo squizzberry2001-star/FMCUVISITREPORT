@@ -569,3 +569,14 @@ body {
 #taro-expanded-content::-webkit-scrollbar-thumb:hover {
   background: #009944;
 }
+
+/* Fixed height and full justify for TARO slide body */
+#taro-slide-body {
+  text-align: justify;
+  text-justify: inter-word;
+}
+#taro-slide-body p,
+#taro-slide-body li {
+  text-align: justify;
+  text-justify: inter-word;
+}

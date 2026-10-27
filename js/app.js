@@ -3473,10 +3473,12 @@ window.FMCUApp = {
     // Strict fingerprint based on report IDs, findings count, and timestamps
     const fingerprint = `${completedReports.length}_${completedReports.map((r) => `${r.id || ''}:${(r.observations || []).length}:${r.updatedAt || r.visitDate || ''}`).join('|')}`;
     
-    // Check localStorage cache
+    // Check localStorage cache (v3 with conversational 8-line format)
     let cached = null;
     try {
-      const raw = localStorage.getItem('fmcu_taro_ai_cache_v2');
+      localStorage.removeItem('fmcu_taro_ai_cache');
+      localStorage.removeItem('fmcu_taro_ai_cache_v2');
+      const raw = localStorage.getItem('fmcu_taro_ai_cache_v3');
       if (raw) cached = JSON.parse(raw);
     } catch (e) {}
 
@@ -3542,28 +3544,34 @@ window.FMCUApp = {
       const dataSummaryText = this.buildReportDataForGemini(reports);
 
       const promptText = `Anda adalah "T.A.R.O (Trainer Asyik Rekan Operasional) AI" di FamilyMart Indonesia (FMCU).
-Peran & Karakter Anda:
-- Anda adalah sosok Trainer Operasional yang asyik, edukatif, dan solutif bagi crew toko, sekaligus bertindak tegas, teliti, dan berwibawa layaknya Senior Audit QC & Corporate Leadership Retail F&B FamilyMart.
-- Berbicaralah langsung, to the point, tanpa basa-basi berlebihan, namun tetap ramah dan memotivasi tim operasional.
-- TIDAK BERHALUSINASI: Analisis HANYA data observasi toko nyata di bawah ini. Jangan mengarang toko atau temuan yang tidak ada.
-- HIGHLY RELEVANT FAMILYMART F&B RETAIL: Fokus pada pilar QSC (Quality, Service, Cleanliness), Food Safety & Hygiene (suhu chiller/freezer, expired date/FEFO, mesin kopi Famima Cafe, hot snack display, oil quality/tester), Standar Grooming/SOP Crew, kelengkapan POS/kasir, dan kepatuhan kunjungan.
-- ACTION-ORIENTED: Tentukan akar masalah operasional yang nyata dan berikan langkah konkret 1x24 jam serta perbaikan jangka panjang.
+
+KARAKTER & GAYA BICARA T.A.R.O:
+- Bicaralah seperti sedang mengobrol santai dan asyik dengan teman kerja / rekan sesama crew toko di Famima Cafe. JANGAN kaku, JANGAN terlalu formal, dan JANGAN pakai bahasa birokrasi korporat yang membosankan.
+- Gunakan bahasa yang hangat, memotivasi, dan akrab (misalnya: "Halo Rekan Ops!", "Nah ini yang asyik nih...", "Keren banget bagian ini udah solid", "Tapi ada catatan penting yang perlu kita jagain bareng", "Yuk kita gaspol beresin biar toko makin mantap").
+- TIDAK BERHALUSINASI: Analisis HANYA data observasi toko nyata di bawah.
+- FOKUS RETAIL F&B FAMILYMART: Quality, Service, Cleanliness (QSC), Food Safety & Hygiene (suhu chiller, display hot snack, mesin kopi Famima Cafe, FEFO & expired date, kebersihan dapur & dining area).
+
+ATURAN PANJANG JAWABAN (SANGAT KETAT):
+- Setiap poin analisa (Poin 1, 2, 3, dan 4) WAJIB terdiri tepat 8 baris kalimat padat (sekitar 75-90 kata).
+- DILARANG membuat prolog atau sapaan pembuka di luar struktur "### ".
+- DILARANG kurang dari 7 baris, dan DILARANG lebih dari 8 baris per poin!
+- Tuliskan dalam paragraf yang rapi dan mengalir agar pas 8 baris saat dibaca rata kanan-kiri.
 
 DATA OBSERVASI TOKO SELURUH VISITOR:
 ${dataSummaryText}
 
-FORMAT STRUKTUR OUTPUT WAJIB:
-### 1. Ringkasan Eksekutif Operasional
-(Berikan ringkasan performa toko, skor rata-rata, tingkat kepatuhan SOP, dan apresiasi area yang sudah prima)
+FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH):
+### 1. Kabar Baik & Performa Toko Kita
+(Ceritakan dengan santai dan asyik performa toko yang sudah keren, apresiasi area yang bersih dan rapi, serta skor visit yang memuaskan. Tepat 8 baris.)
 
-### 2. Rekapitulasi & Pola Temuan Kritis (Trend Masalah)
-(Sebutkan pola temuan paling sering muncul dari seluruh visitor, kategori QSC yang paling banyak bermasalah, dan toko yang perlu atensi khusus)
+### 2. Catatan & Pola Temuan yang Perlu Kita Jagain
+(Bahas temuan yang paling sering muncul dari hasil kunjungan all visitor dengan gaya santai tapi tegas, sebutkan toko yang butuh perhatian ekstra di area kebersihan atau food safety. Tepat 8 baris.)
 
-### 3. Analisa Akar Masalah (Root Cause - Senior QC Perspective)
-(Identifikasi mengapa temuan tersebut berulang: apakah masalah habit/kedisiplinan crew, kelemahan sistem checklist harian, atau kendala fasilitas)
+### 3. Kenapa Hal Ini Bisa Terjadi? (Ngobrol Akar Masalah)
+(Ajak rekan ops memahami penyebab temuan berulang dengan gaya teman berdiskusi: apakah karena jam sibuk rush hour, briefing checklist harian yang terlewat, atau kendala fasilitas toko. Tepat 8 baris.)
 
-### 4. Rekomendasi Strategis & Action Plan Leadership
-(Berikan tindakan korektif cepat 1x24 jam untuk toko dan rekomendasi pelatihan/supervisi terpadu dari Trainer/Leadership)`;
+### 4. Action Plan Asyik & Solusi Cepat 1x24 Jam
+(Berikan langkah perbaikan nyata yang praktis dan langsung bisa dikerjakan crew toko dalam 1x24 jam, plus tips ringan untuk supervisi berkelanjutan. Tepat 8 baris.)`;
 
       let aiResultText = '';
       let fetchError = null;
@@ -3611,7 +3619,7 @@ FORMAT STRUKTUR OUTPUT WAJIB:
                 body: JSON.stringify({
                   model: gModel,
                   messages: [
-                    { role: 'system', content: 'Anda adalah T.A.R.O (Trainer Asyik Rekan Operasional) AI di FamilyMart Indonesia.' },
+                    { role: 'system', content: 'Anda adalah T.A.R.O (Trainer Asyik Rekan Operasional) AI di FamilyMart Indonesia. Bicaralah santai seperti teman ngobrol akrab, tidak formal/baku, dan setiap poin wajib tepat 8 baris.' },
                     { role: 'user', content: promptText }
                   ],
                   temperature: 0.3
@@ -3650,7 +3658,7 @@ FORMAT STRUKTUR OUTPUT WAJIB:
                 body: JSON.stringify({
                   model: orModel,
                   messages: [
-                    { role: 'system', content: 'Anda adalah T.A.R.O (Trainer Asyik Rekan Operasional) AI di FamilyMart Indonesia.' },
+                    { role: 'system', content: 'Anda adalah T.A.R.O (Trainer Asyik Rekan Operasional) AI di FamilyMart Indonesia. Bicaralah santai seperti teman ngobrol akrab, tidak formal/baku, dan setiap poin wajib tepat 8 baris.' },
                     { role: 'user', content: promptText }
                   ]
                 })
@@ -3722,7 +3730,7 @@ FORMAT STRUKTUR OUTPUT WAJIB:
         reportCount: reports.length
       };
       try {
-        localStorage.setItem('fmcu_taro_ai_cache_v2', JSON.stringify(cacheObj));
+        localStorage.setItem('fmcu_taro_ai_cache_v3', JSON.stringify(cacheObj));
       } catch (e) {}
 
       if (loadingEl) loadingEl.classList.add('hidden');
@@ -3766,42 +3774,55 @@ FORMAT STRUKTUR OUTPUT WAJIB:
   parseTaroSections(rawText) {
     if (!rawText) return [];
     const metaList = [
-      { defaultTitle: '1. Ringkasan Eksekutif Operasional', icon: 'fa-chart-pie', color: 'emerald' },
-      { defaultTitle: '2. Rekapitulasi & Pola Temuan Kritis', icon: 'fa-triangle-exclamation', color: 'amber' },
-      { defaultTitle: '3. Analisa Akar Masalah (Senior QC)', icon: 'fa-magnifying-glass-chart', color: 'rose' },
-      { defaultTitle: '4. Rekomendasi & Action Plan Leadership', icon: 'fa-rocket', color: 'teal' }
+      { defaultTitle: '1. Kabar Baik & Performa Toko Kita', icon: 'fa-thumbs-up', color: 'emerald' },
+      { defaultTitle: '2. Catatan & Pola Temuan Toko', icon: 'fa-triangle-exclamation', color: 'amber' },
+      { defaultTitle: '3. Kenapa Bisa Terjadi? (Akar Masalah)', icon: 'fa-magnifying-glass-chart', color: 'rose' },
+      { defaultTitle: '4. Action Plan Asyik & Solusi Cepat', icon: 'fa-rocket', color: 'teal' }
     ];
 
     // Split markdown by headings "### "
-    const chunks = rawText.split(/^###\s+/m).filter((c) => c && c.trim());
-    const sections = [];
+    let chunks = rawText.split(/^###\s+/m).map(c => c.trim()).filter(Boolean);
 
+    // If first chunk is an unstructured intro or greeting, skip it if there are 4+ sections
+    if (chunks.length > 4 && !/^\d+[\.\)]/i.test(chunks[0])) {
+      chunks = chunks.slice(1);
+    }
+
+    const sections = [];
     chunks.forEach((chunk, idx) => {
       const lines = chunk.split('\n');
       let titleLine = (lines[0] || '').trim();
       const bodyLines = lines.slice(1).join('\n').trim();
       const meta = metaList[idx] || { defaultTitle: `Poin ${idx + 1}`, icon: 'fa-clipboard-check', color: 'emerald' };
 
-      const displayTitle = titleLine || meta.defaultTitle;
-      const formattedHtml = this.formatAiMarkdown(bodyLines);
+      const content = bodyLines || titleLine;
+      const title = bodyLines ? titleLine : meta.defaultTitle;
 
       sections.push({
-        title: displayTitle,
+        title: title || meta.defaultTitle,
         icon: meta.icon,
         color: meta.color,
-        rawText: bodyLines,
-        html: formattedHtml
+        rawText: content,
+        html: this.formatAiMarkdown(content)
       });
     });
 
-    if (sections.length === 0) {
-      sections.push({
-        title: 'Ringkasan Analisa T.A.R.O',
-        icon: 'fa-robot',
-        color: 'emerald',
-        rawText: rawText,
-        html: this.formatAiMarkdown(rawText)
-      });
+    // Fallback: If AI returned fewer than 3 sections, split paragraphs into exactly 4 balanced points
+    if (sections.length < 3) {
+      const paragraphs = rawText.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+      const cleanSections = [];
+      for (let i = 0; i < 4; i++) {
+        const meta = metaList[i];
+        let pText = paragraphs[i] || paragraphs[0] || rawText;
+        cleanSections.push({
+          title: meta.defaultTitle,
+          icon: meta.icon,
+          color: meta.color,
+          rawText: pText,
+          html: this.formatAiMarkdown(pText)
+        });
+      }
+      return cleanSections;
     }
 
     return sections;
@@ -3864,8 +3885,8 @@ FORMAT STRUKTUR OUTPUT WAJIB:
 
     let currentIdx = 0;
     let isCancelled = false;
-    const charsPerTick = 4; // Fast typewriter speed
-    const tickIntervalMs = 12;
+    const charsPerTick = 6; // Snappy 8-line typewriter speed
+    const tickIntervalMs = 10;
 
     const intervalId = setInterval(() => {
       if (isCancelled) {
@@ -3949,12 +3970,12 @@ FORMAT STRUKTUR OUTPUT WAJIB:
 
   startTaroCarousel() {
     this.pauseTaroCarousel();
-    if (this._isTaroExpanded) return; // Don't cycle if expanded
+    if (this._isTaroExpanded) return;
     if (!this._taroSections || this._taroSections.length <= 1) return;
 
     this._taroSlideInterval = setInterval(() => {
       this.nextTaroSlide();
-    }, 8500); // 8.5 seconds per slide (fast typewriter + comfortable reading)
+    }, 8500);
   },
 
   pauseTaroCarousel() {
@@ -3962,10 +3983,20 @@ FORMAT STRUKTUR OUTPUT WAJIB:
       clearInterval(this._taroSlideInterval);
       this._taroSlideInterval = null;
     }
+    if (this._taroHoverTimeout) clearTimeout(this._taroHoverTimeout);
+    this._taroHoverTimeout = setTimeout(() => {
+      if (!this._isTaroExpanded && !this._taroSlideInterval) {
+        this.startTaroCarousel();
+      }
+    }, 12000);
   },
 
   resumeTaroCarousel() {
-    if (!this._isTaroExpanded) {
+    if (this._taroHoverTimeout) {
+      clearTimeout(this._taroHoverTimeout);
+      this._taroHoverTimeout = null;
+    }
+    if (!this._isTaroExpanded && !this._taroSlideInterval) {
       this.startTaroCarousel();
     }
   },
@@ -4089,7 +4120,7 @@ FORMAT STRUKTUR OUTPUT WAJIB:
       if (p.startsWith('<div') || p.startsWith('<h') || p.startsWith('<li') || p.startsWith('<hr')) {
         return p;
       }
-      return '<p class="text-xs sm:text-[13px] text-slate-700 leading-relaxed my-1.5">' + p + '</p>';
+      return '<p class="text-xs sm:text-[13.5px] text-slate-700 leading-relaxed my-1.5 text-justify">' + p + '</p>';
     }).join('\n');
 
     return html;
@@ -4100,7 +4131,7 @@ FORMAT STRUKTUR OUTPUT WAJIB:
     let textToCopy = this._taroFullText;
     if (!textToCopy) {
       try {
-        const raw = localStorage.getItem('fmcu_taro_ai_cache_v2');
+        const raw = localStorage.getItem('fmcu_taro_ai_cache_v3');
         if (raw) {
           const obj = JSON.parse(raw);
           textToCopy = obj.content;
