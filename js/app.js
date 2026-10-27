@@ -1034,13 +1034,6 @@ window.FMCUApp = {
                 <div class="text-xs sm:text-sm font-bold ${isSelected ? 'text-emerald-950' : 'text-slate-800'} truncate">
                   ${u.name}
                 </div>
-                <div class="text-[10px] sm:text-[11px] flex items-center gap-1.5 text-slate-500 mt-0.5 flex-wrap">
-                  <span class="font-mono font-bold text-emerald-700 bg-emerald-100/60 px-1.5 py-0.5 rounded">
-                    NIK: ${u.nik || '-'}
-                  </span>
-                  <span class="text-slate-300">•</span>
-                  <span class="truncate text-slate-600 font-medium">${u.jabatan || u.roleBadge || 'Visitor'}</span>
-                </div>
               </div>
             </div>
             ${
@@ -1067,12 +1060,14 @@ window.FMCUApp = {
   },
 
   openCustomUserDropdown() {
+    const container = document.getElementById('custom-user-select-container');
     const menu = document.getElementById('custom-user-dropdown-menu');
     const btn = document.getElementById('custom-user-select-btn');
     const arrow = document.getElementById('custom-user-select-arrow');
     const searchInput = document.getElementById('custom-user-search-input');
     if (!menu) return;
 
+    if (container) container.classList.add('is-open');
     menu.classList.remove('hidden');
     requestAnimationFrame(() => {
       menu.classList.remove('scale-95', 'opacity-0');
@@ -1106,11 +1101,13 @@ window.FMCUApp = {
   },
 
   closeCustomUserDropdown() {
+    const container = document.getElementById('custom-user-select-container');
     const menu = document.getElementById('custom-user-dropdown-menu');
     const btn = document.getElementById('custom-user-select-btn');
     const arrow = document.getElementById('custom-user-select-arrow');
     if (!menu || menu.classList.contains('hidden')) return;
 
+    if (container) container.classList.remove('is-open');
     menu.classList.remove('scale-100', 'opacity-100');
     menu.classList.add('scale-95', 'opacity-0');
 
@@ -1140,13 +1137,9 @@ window.FMCUApp = {
     }
 
     const nameEl = document.getElementById('custom-user-selected-name');
-    const subEl = document.getElementById('custom-user-selected-sub');
     const avatarEl = document.getElementById('custom-user-selected-avatar');
 
     if (nameEl) nameEl.textContent = user.name;
-    if (subEl) {
-      subEl.innerHTML = `<span class="font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded">NIK: ${user.nik || '-'}</span> <span class="text-slate-300">•</span> <span>${user.jabatan || user.roleBadge || 'Visitor'}</span>`;
-    }
     if (avatarEl) {
       const nameParts = (user.name || '').trim().split(' ').filter(Boolean);
       const initials = nameParts.slice(0, 2).map((p) => p[0].toUpperCase()).join('') || 'FM';

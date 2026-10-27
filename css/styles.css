@@ -381,7 +381,32 @@ body.has-hud .flex-1.lg\:pl-72 {
   -webkit-text-size-adjust: 100%;
 }
 
-/* Custom User Dropdown Menu Scrollbar & Shadow */
+/* Custom User Dropdown Menu Scrollbar, Stacking & Clipping Fix */
+#custom-user-select-container {
+  position: relative;
+  z-index: 30;
+}
+
+#custom-user-select-container.is-open {
+  z-index: 70 !important;
+}
+
+#custom-user-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 100 !important;
+  box-shadow: 0 20px 35px -5px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(15, 23, 42, 0.1);
+}
+
+#auth-screen > div,
+#auth-login-panel,
+#auth-login-panel > div,
+#login-form {
+  overflow: visible !important;
+}
+
 #custom-user-options-list::-webkit-scrollbar {
   width: 5px;
 }
@@ -394,10 +419,6 @@ body.has-hud .flex-1.lg\:pl-72 {
 }
 #custom-user-options-list::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
-}
-
-#custom-user-dropdown-menu {
-  box-shadow: 0 20px 35px -5px rgba(15, 23, 42, 0.15), 0 0 0 1px rgba(15, 23, 42, 0.05);
 }
 
 
