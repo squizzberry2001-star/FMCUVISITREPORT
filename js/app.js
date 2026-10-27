@@ -66,6 +66,33 @@ window.FMCUApp = {
       }
     });
 
+    // Touch swipe navigation for PDF Slide Preview on Mobile
+    let previewTouchStartX = 0;
+    let previewTouchStartY = 0;
+    const previewStage = document.getElementById('preview-active-slide-stage');
+    if (previewStage) {
+      previewStage.addEventListener('touchstart', (e) => {
+        if (e.touches && e.touches.length === 1) {
+          previewTouchStartX = e.touches[0].clientX;
+          previewTouchStartY = e.touches[0].clientY;
+        }
+      }, { passive: true });
+
+      previewStage.addEventListener('touchend', (e) => {
+        if (e.changedTouches && e.changedTouches.length === 1) {
+          const deltaX = e.changedTouches[0].clientX - previewTouchStartX;
+          const deltaY = e.changedTouches[0].clientY - previewTouchStartY;
+          if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3) {
+            if (deltaX < 0) {
+              this.nextSlide();
+            } else {
+              this.prevSlide();
+            }
+          }
+        }
+      }, { passive: true });
+    }
+
     // Cek sesi login aktif di tab ini (sessionStorage). Jika tutup tab / buka baru / expired -> wajib login!
     const sessionUser = window.FMCUData.getSession();
     this.currentUser = sessionUser || null;
@@ -2332,40 +2359,65 @@ window.FMCUApp = {
 
   // Handler for "Visit Toko Jadwal Hari Ini" button on Home
   handleVisitTodaySchedule() {
+    this.triggerHaptic('light');
+    const todayStr = this.getLocalDateISO();
+    const todayFormatted = window.FMCUPdf.formatIndonesianDate(todayStr, true);
+
     // 1. If already checked in to a store, jump directly to its Form Visit
     const activeCheckIn = window.FMCUData.getActiveCheckIn();
     if (activeCheckIn && activeCheckIn.storeCode) {
       this.hasActiveStoreForm = true;
       this.updateFormGuardVisibility();
       this.navigate('form');
+      this.showToast(`Melanjutkan Form Visit aktif di FamilyMart ${activeCheckIn.storeName || activeCheckIn.storeCode}.`, 'info');
       return;
     }
 
-    const todayStr = this.getLocalDateISO();
     const schedules = window.FMCUData.getSchedules();
-    const myPendingToday = schedules.find(
-      (s) => s.status !== 'COMPLETED' && s.scheduledDate === todayStr && this.isScheduleOwnedByUser(s, this.currentUser)
+    const reports = window.FMCUData.getReports();
+
+    // 2. Find schedules owned by current user for today
+    const myTodaySchedules = schedules.filter(
+      (s) => s.scheduledDate === todayStr && this.isScheduleOwnedByUser(s, this.currentUser)
     );
 
-    const myNextPending = schedules.find(
-      (s) => s.status !== 'COMPLETED' && this.isScheduleOwnedByUser(s, this.currentUser)
-    );
+    // Pick first today schedule that hasn't completed or had report filled
+    const myPendingToday = myTodaySchedules.find((s) => {
+      const hasReport = s.reportId || reports.some((r) => r.storeCode === s.storeCode && r.visitDate === s.scheduledDate);
+      return s.status !== 'COMPLETED' && !hasReport;
+    });
 
-    const targetSchedule = myPendingToday || myNextPending;
-    if (targetSchedule) {
-      this.checkInAndOpenForm(targetSchedule.storeCode, targetSchedule.id);
+    if (myPendingToday) {
+      this.openStoreVisitForm(myPendingToday.storeCode, myPendingToday.id);
+      this.showToast(`Membuka Form Visit ${myPendingToday.storeName} untuk jadwal hari ini (${todayFormatted}).`, 'success');
       return;
     }
 
-    // No pending schedule found for today
-    this.switchHomeSubSection('schedule');
-    const filterEl = document.getElementById('schedule-filter-scope');
-    if (filterEl) {
-      filterEl.value = 'TODAY';
-      this.renderHomeSchedules();
+    // 3. If user has schedules today but all are already completed
+    if (myTodaySchedules.length > 0) {
+      const completedToday = myTodaySchedules[0];
+      const rep = reports.find((r) => (completedToday.reportId && r.id === completedToday.reportId) || (r.storeCode === completedToday.storeCode && r.visitDate === todayStr));
+      if (rep) {
+        this.openReportPreview(rep.id);
+        this.showToast(`Seluruh jadwal visit hari ini telah selesai. Menampilkan preview PDF ${completedToday.storeName}.`, 'info');
+        return;
+      }
+      this.openStoreVisitForm(completedToday.storeCode, completedToday.id);
+      return;
     }
-    document.getElementById('home-schedule-section')?.scrollIntoView({ behavior: 'smooth' });
-    this.showToast('Belum ada jadwal toko yang ditugaskan untuk akun Anda hari ini.', 'warning');
+
+    // 4. If user has NO assigned schedule today: Auto redirect to Form Visit with today's actual date
+    this.resetVisitForm(true);
+    this.hasActiveStoreForm = true;
+    this.updateFormGuardVisibility();
+    const dateInput = document.getElementById('form-visit-date');
+    if (dateInput) dateInput.value = todayStr;
+    if (this.currentUser) {
+      const audInput = document.getElementById('form-auditor-name');
+      if (audInput) audInput.value = this.currentUser.name || '';
+    }
+    this.navigate('form');
+    this.showToast(`Membuka Form Visit tanggal aktual (${todayFormatted}). Silakan pilih toko yang dikunjungi.`, 'info');
   },
 
   restoreActiveCheckInToForm(checkInObj) {
@@ -2516,12 +2568,24 @@ window.FMCUApp = {
   },
 
   updateHomeSubSectionPills() {
-    const schedules = window.FMCUData.getSchedules();
-    const reports = window.FMCUData.getReports();
+    const todayStr = this.getLocalDateISO();
+    let schedules = window.FMCUData.getSchedules();
+    let reports = window.FMCUData.getReports();
+
+    if (this.currentUser && (this.isAuditorUser(this.currentUser) || !this.hasAuthority('manage_schedule'))) {
+      schedules = schedules.filter((s) => this.isScheduleOwnedByUser(s, this.currentUser));
+      reports = reports.filter((r) => !this.currentUser.name || r.auditorName === this.currentUser.name);
+    }
+
+    const activeSchedules = schedules.filter((s) => {
+      const isPast = s.scheduledDate < todayStr;
+      const isDone = s.status === 'COMPLETED' || Boolean(s.reportId) || reports.some((r) => r.storeCode === s.storeCode && r.visitDate === s.scheduledDate);
+      return !isPast && !isDone;
+    });
 
     const schPill = document.getElementById('home-schedule-count-pill');
     if (schPill) {
-      schPill.textContent = schedules.length;
+      schPill.textContent = activeSchedules.length;
     }
 
     const histPill = document.getElementById('home-history-count-pill');
@@ -2839,23 +2903,36 @@ window.FMCUApp = {
   renderHomeSchedules() {
     const container = document.getElementById('home-schedule-list');
     if (!container) return;
-    const scope = document.getElementById('schedule-filter-scope')?.value || 'ALL';
+    const scope = document.getElementById('schedule-filter-scope')?.value || 'ACTIVE';
     const todayStr = this.getLocalDateISO();
     let schedules = window.FMCUData.getSchedules();
+    const reports = window.FMCUData.getReports();
 
-    // User Auditor / Regional Bestie HANYA melihat jadwalnya masing-masing (tidak bisa melihat jadwal auditor lain)
+    // User Auditor / Regional Bestie HANYA melihat jadwalnya masing-masing
     if (this.currentUser && (this.isAuditorUser(this.currentUser) || !this.hasAuthority('manage_schedule'))) {
       schedules = schedules.filter((s) => this.isScheduleOwnedByUser(s, this.currentUser));
     }
 
-    if (scope === 'TODAY') {
-      schedules = schedules.filter((s) => s.scheduledDate === todayStr);
-    } else if (scope === 'MINE' && this.currentUser) {
-      schedules = schedules.filter((s) => this.isScheduleOwnedByUser(s, this.currentUser));
+    // Helper untuk mendeteksi apakah jadwal masuk kategori ARSIP (lewat hari atau sudah pernah diisi form)
+    const isScheduleArchived = (s) => {
+      const isPast = String(s.scheduledDate || '') < todayStr;
+      const isDone = s.status === 'COMPLETED' || Boolean(s.reportId) || reports.some((r) => r.storeCode === s.storeCode && r.visitDate === s.scheduledDate);
+      return isPast || isDone;
+    };
+
+    if (scope === 'ACTIVE') {
+      // Sisi user: Otomatis exclude yang sudah lewat hari atau sudah pernah diisi form
+      schedules = schedules.filter((s) => !isScheduleArchived(s));
+    } else if (scope === 'TODAY') {
+      schedules = schedules.filter((s) => s.scheduledDate === todayStr && !isScheduleArchived(s));
+    } else if (scope === 'UPCOMING') {
+      schedules = schedules.filter((s) => s.scheduledDate > todayStr && !isScheduleArchived(s));
+    } else if (scope === 'ARCHIVED') {
+      schedules = schedules.filter((s) => isScheduleArchived(s));
     } else if (scope === 'PENDING') {
-      schedules = schedules.filter((s) => s.status !== 'COMPLETED');
+      schedules = schedules.filter((s) => s.status !== 'COMPLETED' && !s.reportId);
     } else if (scope === 'COMPLETED') {
-      schedules = schedules.filter((s) => s.status === 'COMPLETED');
+      schedules = schedules.filter((s) => s.status === 'COMPLETED' || s.reportId);
     }
 
     // Urutkan jadwal toko dimulai dari tanggal terdekat untuk card pertama dan seterusnya
@@ -2879,16 +2956,24 @@ window.FMCUApp = {
 
     container.innerHTML = schedules
       .map((s) => {
-        const isDone = s.status === 'COMPLETED';
+        const isPast = String(s.scheduledDate || '') < todayStr;
+        const matchedRep = reports.find((r) => (s.reportId && r.id === s.reportId) || (r.storeCode === s.storeCode && r.visitDate === s.scheduledDate));
+        const isDone = s.status === 'COMPLETED' || Boolean(s.reportId) || Boolean(matchedRep);
+        const isArchived = isPast || isDone;
+        const repId = s.reportId || matchedRep?.id || null;
         const dateFormatted = window.FMCUPdf.formatIndonesianDate(s.scheduledDate, true);
         return `
-          <div class="border ${isDone ? 'border-slate-200 bg-slate-50/60' : 'border-emerald-200 bg-white'} rounded-2xl p-4 flex flex-col justify-between gap-3 shadow-sm hover:shadow-md transition">
+          <div class="border ${isArchived ? 'border-slate-200 bg-slate-50/70' : 'border-emerald-200 bg-white'} rounded-2xl p-4 flex flex-col justify-between gap-3 shadow-sm hover:shadow-md transition">
             <div class="space-y-2">
               <div class="flex items-center justify-between gap-2">
                 <span class="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full ${
-                  isDone ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                  isDone
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : isPast
+                    ? 'bg-slate-200 text-slate-700'
+                    : 'bg-amber-100 text-amber-800'
                 }">
-                  ${isDone ? '✓ Visit Selesai' : '⏳ Menunggu Visit'}
+                  ${isDone ? '🗃️ Arsip • Selesai Visit' : isPast ? '🗃️ Arsip • Lewat Hari' : '⏳ Menunggu Visit'}
                 </span>
                 <span class="text-[11px] font-mono font-bold text-slate-500">Kode: ${s.storeCode} (${s.storeType})</span>
               </div>
@@ -2918,16 +3003,23 @@ window.FMCUApp = {
                   <i class="fa-solid fa-clock-rotate-left mr-1"></i>In: ${s.actualIn || '-'} • Out: ${s.actualOut || '-'}
                 </div>
                 ${
-                  s.reportId
-                    ? `<button onclick="FMCUApp.openReportPreview('${s.reportId}')" class="px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition cursor-pointer">Lihat PDF →</button>`
+                  repId
+                    ? `<button onclick="FMCUApp.openReportPreview('${repId}')" class="px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition cursor-pointer">Lihat PDF →</button>`
                     : ''
                 }
               `
-                  : s.scheduledDate !== todayStr && (FMCUApp.isAuditorUser(FMCUApp.currentUser) || !FMCUApp.hasAuthority('manage_schedule'))
+                  : isPast
+                  ? `
+                <div class="text-[11px] text-slate-500 font-semibold flex items-center gap-1">
+                  <i class="fa-solid fa-box-archive text-slate-400"></i>
+                  <span>Jadwal telah kadaluarsa & diarsipkan</span>
+                </div>
+              `
+                  : s.scheduledDate !== todayStr && (this.isAuditorUser(this.currentUser) || !this.hasAuthority('manage_schedule'))
                   ? `
                 <div class="text-[11px] text-amber-700 font-semibold flex items-center gap-1">
                   <i class="fa-solid fa-lock text-amber-600"></i>
-                  <span>${s.scheduledDate < todayStr ? 'Jadwal Lewat Hari' : 'Jadwal Mendatang'}</span>
+                  <span>Jadwal Mendatang</span>
                 </div>
                 <button type="button" onclick="FMCUApp.showLockedScheduleNotice('${s.storeName}', '${s.scheduledDate}')" class="bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-300 font-bold px-3 py-2 rounded-xl text-xs transition flex items-center gap-1.5 cursor-pointer">
                   <i class="fa-solid fa-lock text-amber-600"></i>
@@ -4107,17 +4199,68 @@ window.FMCUApp = {
 
   setPreviewMode(mode) {
     this.previewMode = mode;
-    document.getElementById('preview-slide-mode-container').classList.toggle('hidden', mode !== 'slide');
-    document.getElementById('preview-grid-mode-container').classList.toggle('hidden', mode !== 'grid');
+    const slideCont = document.getElementById('preview-slide-mode-container');
+    const pdfCont = document.getElementById('preview-pdf-mode-container');
+    const gridCont = document.getElementById('preview-grid-mode-container');
+
+    if (slideCont) slideCont.classList.toggle('hidden', mode !== 'slide');
+    if (pdfCont) pdfCont.classList.toggle('hidden', mode !== 'pdf');
+    if (gridCont) gridCont.classList.toggle('hidden', mode !== 'grid');
 
     const btnSlide = document.getElementById('btn-mode-slide');
+    const btnPdf = document.getElementById('btn-mode-pdf');
     const btnGrid = document.getElementById('btn-mode-grid');
-    if (mode === 'slide') {
-      btnSlide.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-900 shadow-sm transition cursor-pointer';
-      btnGrid.className = 'px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition cursor-pointer';
+
+    const activeCls = 'px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-900 shadow-sm transition cursor-pointer truncate';
+    const inactiveCls = 'px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition cursor-pointer truncate';
+
+    if (btnSlide) btnSlide.className = mode === 'slide' ? activeCls : inactiveCls;
+    if (btnPdf) btnPdf.className = mode === 'pdf' ? activeCls : inactiveCls;
+    if (btnGrid) btnGrid.className = mode === 'grid' ? activeCls : inactiveCls;
+
+    if (mode === 'pdf') {
+      this.renderActualPdfViewer();
+    }
+  },
+
+  renderActualPdfViewer() {
+    const report = this.getActivePreviewReport();
+    if (!report) return;
+    const loadingEl = document.getElementById('preview-pdf-loading');
+    if (loadingEl) loadingEl.classList.remove('hidden');
+
+    try {
+      const doc = window.FMCUPdf.generatePdfDoc(report);
+      const blobUrl = doc.output('bloburl');
+      this.currentPdfBlobUrl = blobUrl;
+      const iframe = document.getElementById('preview-actual-pdf-iframe');
+      if (iframe) {
+        iframe.src = blobUrl;
+      }
+      const docNameEl = document.getElementById('preview-pdf-doc-name');
+      if (docNameEl) {
+        docNameEl.textContent = `Dokumen PDF Asli: ${window.FMCUPdf.getFileName(report)}`;
+      }
+    } catch (e) {
+      console.warn('Error generating actual PDF preview:', e);
+    } finally {
+      if (loadingEl) {
+        setTimeout(() => loadingEl.classList.add('hidden'), 350);
+      }
+    }
+  },
+
+  openActualPdfInNewTab() {
+    this.triggerHaptic('light');
+    if (this.currentPdfBlobUrl) {
+      window.open(this.currentPdfBlobUrl, '_blank');
     } else {
-      btnGrid.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-900 shadow-sm transition cursor-pointer';
-      btnSlide.className = 'px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition cursor-pointer';
+      const report = this.getActivePreviewReport();
+      if (!report) return;
+      const doc = window.FMCUPdf.generatePdfDoc(report);
+      const blobUrl = doc.output('bloburl');
+      this.currentPdfBlobUrl = blobUrl;
+      window.open(blobUrl, '_blank');
     }
   },
 
@@ -4133,6 +4276,10 @@ window.FMCUApp = {
 
     this.renderActiveSlide();
     this.renderAllSlidesGrid();
+
+    if (this.previewMode === 'pdf') {
+      this.renderActualPdfViewer();
+    }
   },
 
   renderActiveSlide() {
@@ -7789,9 +7936,13 @@ function getOrCreateSubFolder_(parent, name) {
     this.triggerHaptic('light');
     const drawer = document.getElementById('hud-expanded-drawer');
     const chevron = document.getElementById('hud-chevron');
+    const backdrop = document.getElementById('hud-backdrop');
     if (!drawer) return;
     const shouldOpen = force !== null ? force : drawer.classList.contains('hidden');
     drawer.classList.toggle('hidden', !shouldOpen);
+    if (backdrop) {
+      backdrop.classList.toggle('hidden', !shouldOpen);
+    }
     if (chevron) {
       chevron.style.transform = shouldOpen ? 'rotate(180deg)' : 'rotate(0deg)';
     }
@@ -7803,10 +7954,14 @@ function getOrCreateSubFolder_(parent, name) {
     const active = window.FMCUData.getActiveCheckIn();
     if (!active || !active.storeCode) {
       hud.classList.add('hidden');
+      document.body.classList.remove('has-hud');
+      const backdrop = document.getElementById('hud-backdrop');
+      if (backdrop) backdrop.classList.add('hidden');
       return;
     }
 
     hud.classList.remove('hidden');
+    document.body.classList.add('has-hud');
     const nameEl = document.getElementById('hud-store-name');
     const expTitle = document.getElementById('hud-expanded-title');
     const storeLabel = active.storeName || active.storeCode;

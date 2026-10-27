@@ -748,9 +748,9 @@ window.FMCUPdf = {
             <img src="${PA.bannerStorefront || PA.bannerFamilyMart || ''}" class="w-full h-full object-cover object-top" alt="FamilyMart Banner" />
           </div>
           <div class="w-full h-[43%] px-[3.8%] pt-[1.8%] pb-[3%] flex flex-col justify-between bg-white">
-            <h1 class="text-[#0099A6] font-extrabold text-[clamp(16px,2.7cqw,34px)] tracking-tight">${reportTitle}</h1>
+            <h1 class="text-[#0099A6] font-extrabold text-[clamp(11px,2.7cqw,32px)] tracking-tight">${reportTitle}</h1>
             <div class="grid grid-cols-12 gap-4 items-center my-auto">
-              <div class="col-span-6 space-y-[0.8cqw] text-[clamp(9px,1.15cqw,15px)]">
+              <div class="col-span-6 space-y-[0.8cqw] text-[clamp(7.5px,1.15cqw,15px)]">
                 <div class="grid grid-cols-12">
                   <span class="col-span-4 text-slate-600">Nama</span>
                   <span class="col-span-1 text-slate-600">:</span>
@@ -767,7 +767,7 @@ window.FMCUPdf = {
                   <span class="col-span-7 font-bold text-slate-900">${report.storeHead || '-'}</span>
                 </div>
               </div>
-              <div class="col-span-6 bg-[#F7FAFC] border border-slate-200 rounded-xl p-[1.4cqw] grid grid-cols-2 gap-y-[0.8cqw] gap-x-4 text-[clamp(7px,0.85cqw,12px)]">
+              <div class="col-span-6 bg-[#F7FAFC] border border-slate-200 rounded-xl p-[1.2cqw] grid grid-cols-2 gap-y-[0.6cqw] gap-x-3 text-[clamp(6px,0.85cqw,12px)]">
                 <div>
                   <div class="text-slate-500 font-bold uppercase text-[0.72cqw]">TANGGAL VISIT</div>
                   <div class="text-slate-900 font-semibold mt-0.5">${visitDateText}</div>
@@ -789,8 +789,8 @@ window.FMCUPdf = {
                   <div class="text-slate-900 font-semibold mt-0.5">${report.regionalManager || '-'}</div>
                 </div>
                 <div>
-                  <div class="text-slate-500 font-bold uppercase text-[0.72cqw]">ACTUAL IN / OUT</div>
-                  <div class="text-emerald-700 font-bold mt-0.5">${report.actualIn || '-'} - ${report.actualOut || '-'}</div>
+                  <div class="text-slate-500 font-bold uppercase text-[clamp(5.5px,0.72cqw,9px)]">WAKTU VISIT (IN - OUT)</div>
+                  <div class="text-emerald-700 font-bold mt-0.5">${report.actualIn || '-'} s/d ${report.actualOut || '-'}</div>
                 </div>
               </div>
             </div>
@@ -812,7 +812,7 @@ window.FMCUPdf = {
         html: `
           <div class="w-full h-full bg-white px-[3.2%] py-[2.8%] flex flex-col justify-between">
             <div>
-              <h2 class="text-[#0099A6] font-extrabold text-[clamp(14px,2.2cqw,28px)]">QSC/ Famitrack Result</h2>
+              <h2 class="text-[#0099A6] font-extrabold text-[clamp(10px,2.2cqw,26px)]">QSC/ Famitrack Result</h2>
               <div class="w-full h-[2px] bg-[#0099A6] mt-[1cqw]"></div>
             </div>
             <div class="grid grid-cols-2 gap-[3cqw] my-auto h-[68%]">
@@ -825,7 +825,7 @@ window.FMCUPdf = {
                       ? `<img src="${src}" class="w-full h-full object-cover" alt="QSC" />`
                       : `<span class="text-slate-400 text-xs">Tidak ada foto</span>`}
                   </div>
-                  <div class="text-[clamp(8px,0.85cqw,11px)] text-slate-800 pt-1">${p.caption || `Foto QSC / Famitrack ${i + idx + 1}`}</div>
+                  <div class="text-[clamp(6.5px,0.85cqw,11px)] text-slate-800 pt-1">${p.caption || `Foto QSC / Famitrack ${i + idx + 1}`}</div>
                 </div>
               `;
               }).join('')}
@@ -843,14 +843,14 @@ window.FMCUPdf = {
       html: `
         <div class="w-full h-full bg-white px-[3.2%] py-[3%] flex flex-col justify-between">
           <div>
-            <h2 class="text-slate-800 font-extrabold text-[clamp(14px,1.9cqw,24px)]">General Information</h2>
-            <div class="mt-[1.4cqw] text-[clamp(9px,1.15cqw,15px)] text-slate-700">
+            <h2 class="text-slate-800 font-extrabold text-[clamp(10px,1.9cqw,24px)]">General Information</h2>
+            <div class="mt-[1.4cqw] text-[clamp(7.5px,1.15cqw,15px)] text-slate-700">
               <span>Hari, Tanggal</span>
               <span class="mx-4">:</span>
               <strong class="text-slate-900">${dayDateText}</strong>
             </div>
             <div class="mt-[1.8cqw] overflow-hidden border border-slate-300">
-              <table class="w-full border-collapse text-[clamp(8px,1.05cqw,14px)]">
+              <table class="w-full border-collapse text-[clamp(6.5px,1.05cqw,13px)]">
                 <thead>
                   <tr class="bg-[#0099A6] text-white font-bold">
                     <th class="border border-slate-300 py-[0.8cqw] px-3 w-[20%] text-center">Role</th>
@@ -894,22 +894,22 @@ window.FMCUPdf = {
         title: `QSC Observation (Temuan ${i + 1}-${Math.min(i + 2, obsList.length)})`,
         html: `
           <div class="w-full h-full bg-white flex flex-col justify-between">
-            <div class="bg-[#0099A6] text-white px-[3.5%] py-[1cqw] font-bold text-[clamp(10px,1.2cqw,16px)]">
+            <div class="bg-[#0099A6] text-white px-[3.5%] py-[0.8cqw] font-bold text-[clamp(8px,1.2cqw,15px)]">
               QSC Observation
             </div>
             <div class="px-[2.6%] pt-[0.5cqw] pb-[0.5cqw] flex-1 flex flex-col justify-start gap-[1.1cqw]">
-              <div class="text-[clamp(7px,0.85cqw,11px)] text-slate-500">Ringkasan observasi - beberapa temuan per halaman</div>
+              <div class="text-[clamp(6px,0.85cqw,11px)] text-slate-500">Ringkasan observasi - beberapa temuan per halaman</div>
               ${pair.map((obs, idx) => {
                 const dl = obs.deadlineFormatted || this.formatIndonesianDate(obs.deadline, false);
                 return `
                   <div class="border border-slate-400 rounded-lg overflow-hidden bg-white shadow-sm">
                     <div class="bg-[#0099A6] text-white px-3 py-[0.35cqw] flex items-center justify-between">
-                      <span class="font-bold text-[clamp(8px,0.95cqw,12px)]">Temuan ${i + idx + 1}/${obsList.length}</span>
-                      <span class="bg-white text-red-700 font-bold text-[clamp(6.5px,0.72cqw,9.5px)] px-2.5 py-0.5 rounded-full">
+                      <span class="font-bold text-[clamp(6.5px,0.95cqw,12px)]">Temuan ${i + idx + 1}/${obsList.length}</span>
+                      <span class="bg-white text-red-700 font-bold text-[clamp(5.5px,0.72cqw,9px)] px-2 py-0.5 rounded-full">
                         Deadline Perbaikan: ${dl}
                       </span>
                     </div>
-                    <div class="p-[0.6cqw] grid grid-cols-2 gap-[0.55cqw] text-[clamp(6.5px,0.78cqw,10px)] leading-tight">
+                    <div class="p-[0.6cqw] grid grid-cols-2 gap-[0.55cqw] text-[clamp(5.5px,0.78cqw,10px)] leading-tight">
                       <div class="bg-[#FEFCE8] border border-slate-300 rounded p-[0.5cqw]">
                         <div class="font-bold text-amber-700">Temuan</div>
                         <div class="font-bold text-slate-900 mt-0.5 whitespace-pre-line">${obs.temuan || '-'}</div>
@@ -975,7 +975,7 @@ window.FMCUPdf = {
                   <div class="col-span-6 bg-slate-100 rounded-lg overflow-hidden h-full">
                     ${src ? `<img src="${src}" class="w-full h-full object-cover" alt="Evidence" />` : ''}
                   </div>
-                  <div class="col-span-6 text-[clamp(7px,0.82cqw,11px)] text-slate-900 pt-1 leading-snug overflow-hidden">
+                  <div class="col-span-6 text-[clamp(6px,0.82cqw,11px)] text-slate-900 pt-1 leading-snug overflow-hidden">
                     ${ev.description || '-'}
                   </div>
                 </div>
@@ -1005,11 +1005,11 @@ window.FMCUPdf = {
       html: `
         <div class="w-full h-full bg-white px-[3.2%] py-[4.5%] flex flex-col justify-between">
           <div class="space-y-[1.8cqw]">
-            <h2 class="text-slate-900 font-extrabold text-[clamp(14px,1.8cqw,24px)]">Mekanisme pelaporan</h2>
+            <h2 class="text-slate-900 font-extrabold text-[clamp(10px,1.8cqw,24px)]">Mekanisme pelaporan</h2>
             <div>
-              <a href="${caLink}" target="_blank" class="text-[#0099A6] font-extrabold text-[clamp(11px,1.4cqw,19px)] hover:underline">${caLink}</a>
+              <a href="${caLink}" target="_blank" class="text-[#0099A6] font-extrabold text-[clamp(8.5px,1.4cqw,18px)] hover:underline">${caLink}</a>
             </div>
-            <ol class="space-y-[1.2cqw] text-[clamp(9px,1.15cqw,15px)] text-slate-800 pt-2">
+            <ol class="space-y-[1.2cqw] text-[clamp(7.5px,1.15cqw,15px)] text-slate-800 pt-2">
               <li>1. Unduh file pada link di atas.</li>
               <li>2. Tim store mengisi form tersebut berdasarkan temuan yang telah ditunjukkan pada file laporan ini.</li>
               <li>3. Tindakan perbaikan WAJIB dilakukan sebelum deadline yang diberikan oleh FMCU / Regional Bestie.</li>

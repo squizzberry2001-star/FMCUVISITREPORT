@@ -56,6 +56,9 @@
   <!-- Top Corporate Brand Stripe -->
   <div class="fm-top-stripe w-full fixed top-0 left-0 z-50"></div>
 
+  <!-- Backdrop for Dynamic Island Expanded Drawer (Click to close & prevent click-through) -->
+  <div id="hud-backdrop" class="fixed inset-0 bg-slate-900/35 backdrop-blur-[2px] z-45 hidden transition-opacity duration-200" onclick="FMCUApp.toggleDynamicIsland(false)"></div>
+
   <!-- ====================================================================
        POINT 1: DYNAMIC ISLAND / FLOATING HUD BAR (LIVE VISIT STATUS)
        ==================================================================== -->
@@ -793,10 +796,11 @@
               </div>
               <div class="flex flex-wrap items-center gap-2">
                 <select id="schedule-filter-scope" onchange="FMCUApp.renderHomeSchedules()" class="text-xs font-semibold border border-slate-200 rounded-xl px-3 py-2 bg-slate-50">
-                  <option value="ALL">Semua Jadwal Visit</option>
+                  <option value="ACTIVE" selected>Jadwal Aktif (Hari Ini & Mendatang)</option>
                   <option value="TODAY">Jadwal Hari Ini</option>
-                  <option value="PENDING">Status: Belum Visit (Pending)</option>
-                  <option value="COMPLETED">Status: Selesai Visit</option>
+                  <option value="UPCOMING">Jadwal Mendatang</option>
+                  <option value="ARCHIVED">Arsip Jadwal (Lewat Hari / Selesai)</option>
+                  <option value="ALL">Semua Jadwal Termasuk Arsip</option>
                 </select>
               </div>
             </div>
@@ -1365,80 +1369,124 @@
       <!-- ==================================================================
            HALAMAN 3: PREVIEW HASIL PDF & DOWNLOAD PDF
            ================================================================== -->
-      <main id="view-preview" class="view-section p-4 sm:p-6 max-w-7xl w-full mx-auto space-y-6 hidden">
+      <main id="view-preview" class="view-section p-3.5 sm:p-6 max-w-7xl w-full mx-auto space-y-4 sm:space-y-6 hidden">
 
-        <!-- Top PDF Control Bar -->
-        <div class="fm-card p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div class="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div class="w-11 h-11 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-xl shrink-0">
+        <!-- Top PDF Control Bar (Mobile-Optimized & Responsive) -->
+        <div class="fm-card p-3.5 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 sm:gap-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-lg sm:text-xl shrink-0">
               <i class="fa-solid fa-file-pdf"></i>
             </div>
-            <div>
-              <div class="flex items-center gap-2">
-                <h2 class="font-extrabold text-base sm:text-lg text-slate-900">Preview Hasil PDF & Download Laporan</h2>
-                <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-teal-50 text-[#0099A6]">Format 16:9 Landscape</span>
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <h2 class="font-extrabold text-sm sm:text-lg text-slate-900 truncate">Preview & Download PDF</h2>
+                <span class="text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-[#0099A6] shrink-0">16:9 Landscape</span>
               </div>
               <div class="flex items-center gap-2 mt-1">
-                <label class="text-xs font-bold text-slate-500">Pilih Laporan:</label>
-                <select id="preview-report-selector" onchange="FMCUApp.onChangePreviewReport(this.value)" class="text-xs font-bold border border-slate-300 rounded-lg px-2.5 py-1 bg-white text-slate-800">
+                <label class="text-[11px] sm:text-xs font-bold text-slate-500 shrink-0">Laporan:</label>
+                <select id="preview-report-selector" onchange="FMCUApp.onChangePreviewReport(this.value)" class="text-[11px] sm:text-xs font-bold border border-slate-300 rounded-lg px-2 py-1 bg-white text-slate-800 w-full sm:w-auto truncate max-w-[260px] sm:max-w-md">
                 </select>
               </div>
             </div>
           </div>
 
-          <div class="flex flex-wrap items-center gap-2.5">
-            <!-- View Mode Toggle -->
-            <div class="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200">
-              <button type="button" id="btn-mode-slide" onclick="FMCUApp.setPreviewMode('slide')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-900 shadow-sm transition cursor-pointer">
-                <i class="fa-solid fa-display mr-1 text-[#0099A6]"></i>Slide Interaktif
+          <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2.5 w-full lg:w-auto">
+            <!-- View Mode 3-Way Toggle: Slide 16:9, PDF Asli, Semua Halaman -->
+            <div class="grid grid-cols-3 sm:inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200 w-full sm:w-auto text-center">
+              <button type="button" id="btn-mode-slide" onclick="FMCUApp.setPreviewMode('slide')" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-900 shadow-sm transition cursor-pointer truncate">
+                <i class="fa-solid fa-display mr-1 text-[#0099A6]"></i><span>Slide</span>
               </button>
-              <button type="button" id="btn-mode-grid" onclick="FMCUApp.setPreviewMode('grid')" class="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition cursor-pointer">
-                <i class="fa-solid fa-grip mr-1"></i>Semua Halaman
+              <button type="button" id="btn-mode-pdf" onclick="FMCUApp.setPreviewMode('pdf')" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition cursor-pointer truncate">
+                <i class="fa-solid fa-file-pdf mr-1 text-rose-600"></i><span>PDF Asli</span>
+              </button>
+              <button type="button" id="btn-mode-grid" onclick="FMCUApp.setPreviewMode('grid')" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition cursor-pointer truncate">
+                <i class="fa-solid fa-grip mr-1 text-slate-500"></i><span>Semua</span>
               </button>
             </div>
 
-            <button type="button" onclick="FMCUApp.openIntegrationSendModal()" class="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-sm cursor-pointer">
-              <i class="fa-brands fa-google-drive"></i>
-              <span>Kirim Email & Rekap GDrive</span>
-            </button>
+            <!-- Action Buttons: Responsive Grid in Mobile -->
+            <div class="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
+              <button type="button" onclick="FMCUApp.openIntegrationSendModal()" class="px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer">
+                <i class="fa-brands fa-google-drive"></i>
+                <span class="truncate">Kirim / GDrive</span>
+              </button>
 
-            <button type="button" onclick="FMCUApp.downloadCurrentPreviewPdf()" class="fm-gradient hover:opacity-95 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm shadow-md transition flex items-center gap-2 cursor-pointer">
-              <i class="fa-solid fa-download"></i>
-              <span>Download PDF</span>
-            </button>
+              <button type="button" onclick="FMCUApp.downloadCurrentPreviewPdf()" class="fm-gradient hover:opacity-95 text-white font-bold px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer">
+                <i class="fa-solid fa-download"></i>
+                <span class="truncate">Download PDF</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        <!-- Mode 1: Interactive Single Slide Deck Viewer -->
-        <div id="preview-slide-mode-container" class="space-y-4">
-          <div class="flex items-center justify-between bg-slate-900 text-white px-4 py-2.5 rounded-xl">
-            <div class="flex items-center gap-2">
-              <span id="preview-slide-counter" class="text-xs font-extrabold bg-[#0099A6] px-2.5 py-1 rounded-md">Halaman 1 / 10</span>
-              <span id="preview-slide-title" class="text-xs sm:text-sm font-semibold text-slate-200">Cover - FMCU Visit Store Report</span>
+        <!-- Mode 1: Interactive Single Slide Deck Viewer (Mobile-Responsive & Swipe-Friendly) -->
+        <div id="preview-slide-mode-container" class="space-y-3 sm:space-y-4">
+          <div class="flex items-center justify-between bg-slate-900 text-white p-2.5 sm:px-4 sm:py-2.5 rounded-xl gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <span id="preview-slide-counter" class="text-[10px] sm:text-xs font-extrabold bg-[#0099A6] px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md shrink-0">Hal 1 / 10</span>
+              <span id="preview-slide-title" class="text-xs sm:text-sm font-semibold text-slate-200 truncate">Cover - FMCU Visit Store Report</span>
             </div>
-            <div class="flex items-center gap-2">
-              <button type="button" onclick="FMCUApp.prevSlide()" class="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold transition cursor-pointer">
-                <i class="fa-solid fa-chevron-left mr-1"></i>Sebelumnya
+            <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <button type="button" onclick="FMCUApp.prevSlide()" class="px-2.5 sm:px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold transition cursor-pointer flex items-center gap-1">
+                <i class="fa-solid fa-chevron-left text-[11px]"></i><span class="hidden sm:inline">Sebelumnya</span>
               </button>
-              <button type="button" onclick="FMCUApp.nextSlide()" class="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold transition cursor-pointer">
-                Selanjutnya<i class="fa-solid fa-chevron-right ml-1"></i>
+              <button type="button" onclick="FMCUApp.nextSlide()" class="px-2.5 sm:px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold transition cursor-pointer flex items-center gap-1">
+                <span class="hidden sm:inline">Selanjutnya</span><i class="fa-solid fa-chevron-right text-[11px]"></i>
               </button>
             </div>
           </div>
 
           <!-- Active 16:9 Slide Stage -->
-          <div class="max-w-5xl mx-auto">
+          <div class="max-w-5xl mx-auto w-full">
             <div class="pdf-slide-wrapper">
               <div id="preview-active-slide-stage" class="pdf-slide-canvas"></div>
             </div>
           </div>
 
-          <!-- Thumbnail Strip -->
-          <div id="preview-thumbnails-strip" class="flex items-center gap-3 overflow-x-auto py-2 px-1"></div>
+          <!-- Mobile Swipe Hint & Thumbnail Strip -->
+          <div class="space-y-1.5">
+            <div class="text-[10px] sm:text-xs text-slate-400 text-center flex items-center justify-center gap-1.5 sm:hidden">
+              <i class="fa-solid fa-hand-pointer text-slate-400"></i>
+              <span>Geser (swipe) slide ke kanan / kiri untuk berpindah halaman</span>
+            </div>
+            <div id="preview-thumbnails-strip" class="flex items-center gap-2 sm:gap-3 overflow-x-auto py-1 sm:py-2 px-1"></div>
+          </div>
         </div>
 
-        <!-- Mode 2: All Slides Grid View -->
-        <div id="preview-grid-mode-container" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+        <!-- Mode 2: Actual Native PDF Document Viewer (Tampilan Dokumen Asli Seperti Download) -->
+        <div id="preview-pdf-mode-container" class="hidden space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 bg-slate-900 text-white rounded-2xl">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+              <div class="min-w-0">
+                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Dokumen Asli (Direct jsPDF Output)</div>
+                <div id="preview-pdf-doc-name" class="text-xs sm:text-sm font-extrabold text-white truncate">Dokumen PDF Aktual (16:9 Landscape)</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <button type="button" onclick="FMCUApp.openActualPdfInNewTab()" class="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                <span>Buka di Tab Baru</span>
+              </button>
+              <button type="button" onclick="FMCUApp.downloadCurrentPreviewPdf()" class="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-[#009944] hover:bg-emerald-600 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs">
+                <i class="fa-solid fa-download"></i>
+                <span>Unduh PDF</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Embedded Native PDF Viewer Frame -->
+          <div class="w-full bg-slate-100 rounded-2xl border border-slate-300 overflow-hidden shadow-sm relative">
+            <div id="preview-pdf-loading" class="absolute inset-0 bg-white/80 backdrop-blur-xs flex flex-col items-center justify-center gap-2 z-10 hidden">
+              <div class="w-8 h-8 rounded-full border-3 border-teal-600 border-t-transparent animate-spin"></div>
+              <span class="text-xs font-bold text-slate-700">Merender Dokumen PDF Aktual...</span>
+            </div>
+            <iframe id="preview-actual-pdf-iframe" class="w-full h-[65vh] sm:h-[750px] border-0" title="Actual PDF Preview"></iframe>
+          </div>
+        </div>
+
+        <!-- Mode 3: All Slides Grid View -->
+        <div id="preview-grid-mode-container" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6"></div>
 
       </main>
 
