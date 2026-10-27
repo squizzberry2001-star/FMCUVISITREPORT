@@ -548,7 +548,6 @@ body.has-hud .flex-1.lg\:pl-72 {
 }
 
 .taro-mascot-img {
-  mix-blend-mode: multiply;
   filter: drop-shadow(0 4px 8px rgba(0, 153, 68, 0.14));
   user-select: none;
   -webkit-user-drag: none;
