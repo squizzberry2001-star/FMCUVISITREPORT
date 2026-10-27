@@ -461,7 +461,7 @@ body.has-hud .flex-1.lg\:pl-72 {
     transform: translateY(0px) rotate(0deg);
   }
   50% {
-    transform: translateY(-8px) rotate(1.5deg);
+    transform: translateY(-5px) rotate(1deg);
   }
 }
 
@@ -492,10 +492,10 @@ body.has-hud .flex-1.lg\:pl-72 {
     transform: translateY(0) scale(1) rotate(0deg);
   }
   30% {
-    transform: translateY(-16px) scale(1.08) rotate(-3deg);
+    transform: translateY(-10px) scale(1.12) rotate(-3deg);
   }
   65% {
-    transform: translateY(2px) scale(0.96) rotate(1.5deg);
+    transform: translateY(1px) scale(0.96) rotate(1.5deg);
   }
 }
 
@@ -504,14 +504,14 @@ body.has-hud .flex-1.lg\:pl-72 {
     height: 3px;
   }
   50% {
-    height: 10px;
+    height: 9px;
   }
 }
 
 @keyframes taroSlideFadeIn {
   from {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(3px);
   }
   to {
     opacity: 1;
@@ -529,18 +529,18 @@ body.has-hud .flex-1.lg\:pl-72 {
 }
 
 .taro-mascot-floating {
-  animation: taroMascotFloat 3.8s ease-in-out infinite;
+  animation: taroMascotFloat 3.6s ease-in-out infinite;
   transform-origin: center bottom;
   will-change: transform;
 }
 
 .taro-mascot-shadow-anim {
-  animation: taroMascotShadow 3.8s ease-in-out infinite;
+  animation: taroMascotShadow 3.6s ease-in-out infinite;
   transform-origin: center center;
 }
 
 .taro-mascot-aura-anim {
-  animation: taroMascotAura 3s ease-in-out infinite;
+  animation: taroMascotAura 2.8s ease-in-out infinite;
 }
 
 .taro-mascot-jump-anim {
@@ -549,7 +549,7 @@ body.has-hud .flex-1.lg\:pl-72 {
 
 .taro-mascot-img {
   mix-blend-mode: multiply;
-  filter: drop-shadow(0 6px 14px rgba(0, 153, 68, 0.16));
+  filter: drop-shadow(0 4px 8px rgba(0, 153, 68, 0.14));
   user-select: none;
   -webkit-user-drag: none;
 }
