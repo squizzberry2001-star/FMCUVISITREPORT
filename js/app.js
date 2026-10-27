@@ -138,6 +138,9 @@ window.FMCUApp = {
     }
     if (!this.currentUser) {
       this.triggerMobileAuthSplash();
+      if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+        this.focusLoginNikInput();
+      }
     }
 
     // Check if there was an active store check-in session
@@ -538,13 +541,14 @@ window.FMCUApp = {
       (u) =>
         (String(u.username || '').toLowerCase() === uInput ||
           (u.nik && String(u.nik).toLowerCase() === uInput) ||
-          (u.email && u.email.toLowerCase() === uInput)) &&
+          (u.email && u.email.toLowerCase() === uInput) ||
+          (u.name && String(u.name).toLowerCase() === uInput)) &&
         (String(u.password || '') === pInput || (u.nik && String(u.nik) === pInput))
     );
 
     const errEl = document.getElementById('login-error');
     if (!found) {
-      errEl.textContent = 'Akun User atau Password/NIK tidak sesuai.';
+      errEl.textContent = 'NIK Karyawan atau Password tidak sesuai.';
       errEl.classList.remove('hidden');
       return;
     }
@@ -630,6 +634,9 @@ window.FMCUApp = {
     const authScreen = document.getElementById('auth-screen');
     if (authScreen) authScreen.classList.remove('hidden');
     this.triggerMobileAuthSplash();
+    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+      this.focusLoginNikInput();
+    }
   },
 
   // ==========================================================================
@@ -679,6 +686,23 @@ window.FMCUApp = {
       loginPanel.classList.remove('hidden');
       loginPanel.classList.add('flex');
     }
+    this.focusLoginNikInput();
+  },
+
+  focusLoginNikInput() {
+    setTimeout(() => {
+      const authScreen = document.getElementById('auth-screen');
+      if (authScreen && !authScreen.classList.contains('hidden')) {
+        const nikInput = document.getElementById('login-username');
+        if (nikInput) {
+          try {
+            nikInput.focus({ preventScroll: true });
+          } catch (e) {
+            nikInput.focus();
+          }
+        }
+      }
+    }, 120);
   },
 
   // ==========================================================================
@@ -899,13 +923,24 @@ window.FMCUApp = {
   populateHeaderRoleSwitcher() {
     const users = window.FMCUData.getUsers();
 
-    // 1. Populate Login Form Registered Users Dropdown (#login-username) - Hanya Nama Lengkap (Super Admin disembunyikan & Diurutkan Abjad A-Z)
-    const loginSel = document.getElementById('login-username');
-    if (loginSel && loginSel.tagName === 'SELECT') {
-      const currentVal = loginSel.value;
-      const visibleLoginUsers = users
-        .filter((u) => u.role !== 'SUPER_ADMIN')
-        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'id', { sensitivity: 'base' }));
+    // 1. Populate Login Form Registered Users (Input Datalist & Select Fallback)
+    const loginInput = document.getElementById('login-username');
+    const loginDatalist = document.getElementById('login-users-datalist');
+    const visibleLoginUsers = users
+      .filter((u) => u.role !== 'SUPER_ADMIN')
+      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'id', { sensitivity: 'base' }));
+
+    if (loginDatalist) {
+      const dlHtml = visibleLoginUsers
+        .map((u) => `<option value="${u.nik || u.username}">${u.name} — ${u.jabatan || u.roleBadge || 'Visitor'}</option>`)
+        .join('');
+      if (loginDatalist.innerHTML !== dlHtml) {
+        loginDatalist.innerHTML = dlHtml;
+      }
+    }
+
+    if (loginInput && loginInput.tagName === 'SELECT') {
+      const currentVal = loginInput.value;
       const newHtml =
         `<option value="">-- Pilih Nama User --</option>` +
         visibleLoginUsers
@@ -915,12 +950,12 @@ window.FMCUApp = {
           )
           .join('');
 
-      if (loginSel.innerHTML !== newHtml) {
-        loginSel.innerHTML = newHtml;
+      if (loginInput.innerHTML !== newHtml) {
+        loginInput.innerHTML = newHtml;
         if (currentVal && visibleLoginUsers.some((u) => u.username === currentVal)) {
-          loginSel.value = currentVal;
-        } else if (visibleLoginUsers.length > 0 && !loginSel.value) {
-          loginSel.value = visibleLoginUsers[0].username;
+          loginInput.value = currentVal;
+        } else if (visibleLoginUsers.length > 0 && !loginInput.value) {
+          loginInput.value = visibleLoginUsers[0].username;
         }
       }
     }

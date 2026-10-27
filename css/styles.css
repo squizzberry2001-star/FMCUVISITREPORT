@@ -361,3 +361,21 @@ body.has-hud .flex-1.lg\:pl-72 {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Prevent iOS Safari & Android Mobile Viewport Auto-Zoom on Input Focus */
+@media screen and (max-width: 768px) {
+  input,
+  select,
+  textarea,
+  .fm-input {
+    font-size: 16px !important;
+  }
+}
+
+#login-username,
+#login-password {
+  font-size: 16px !important;
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+}
+
