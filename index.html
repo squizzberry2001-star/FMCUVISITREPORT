@@ -248,29 +248,90 @@
           <div class="mb-3.5 sm:mb-6">
             <span class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full">Portal Akses Otoritas</span>
             <h2 id="login-title-secret" onclick="FMCUApp.handleSecretTitleTap(event)" class="text-lg sm:text-2xl font-extrabold text-slate-900 mt-1.5 select-none cursor-pointer">Masuk ke Sistem FMCU</h2>
-            <p class="text-[11px] sm:text-sm text-slate-500 mt-0.5">Masukkan NIK Karyawan dan password otoritas Anda.</p>
+            <p class="text-[11px] sm:text-sm text-slate-500 mt-0.5">Pilih nama user / karyawan dan masukkan password otoritas Anda.</p>
           </div>
 
           <form id="login-form" class="space-y-3 sm:space-y-4">
-            <div>
-              <label for="login-username" class="block text-[11px] sm:text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">NIK Karyawan</label>
-              <div class="relative">
-                <i class="fa-solid fa-id-card absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
-                <input
-                  type="text"
-                  id="login-username"
-                  name="nik"
-                  required
-                  inputmode="numeric"
-                  pattern="[0-9A-Za-z]*"
-                  placeholder="Masukkan NIK Karyawan"
-                  class="fm-input pl-10 font-bold text-slate-800 text-base"
-                  autocomplete="username"
-                  list="login-users-datalist"
-                  autofocus
-                  style="font-size: 16px !important; touch-action: manipulation;"
-                />
-                <datalist id="login-users-datalist"></datalist>
+            <!-- Custom Interactive User Dropdown (UI Elegan Tanpa Picker Bawaan HP) -->
+            <div class="relative" id="custom-user-select-container">
+              <label id="custom-user-select-label" class="block text-[11px] sm:text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Pilih Nama User / Karyawan</label>
+              
+              <!-- Hidden Backing Input for Form Submit -->
+              <input type="hidden" id="login-username" name="username" required value="" />
+
+              <!-- Custom Trigger Button (UI Custom) -->
+              <button
+                type="button"
+                id="custom-user-select-btn"
+                onclick="FMCUApp.toggleCustomUserDropdown()"
+                class="w-full flex items-center justify-between text-left cursor-pointer transition-all duration-200 border border-slate-300 hover:border-emerald-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/25 bg-slate-50/60 hover:bg-white p-2 sm:p-2.5 rounded-xl shadow-sm select-none"
+                style="font-size: 16px !important; touch-action: manipulation;"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+              >
+                <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div id="custom-user-selected-avatar" class="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center font-extrabold text-xs shrink-0 shadow-sm">
+                    <i class="fa-regular fa-user"></i>
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <div id="custom-user-selected-name" class="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                      -- Pilih Nama User --
+                    </div>
+                    <div id="custom-user-selected-sub" class="text-[10px] sm:text-[11px] text-slate-400 truncate flex items-center gap-1.5 mt-0.5">
+                      Ketuk untuk mencari nama atau NIK
+                    </div>
+                  </div>
+                </div>
+                <div class="shrink-0 ml-2 w-7 h-7 rounded-lg bg-white border border-slate-200/80 flex items-center justify-center text-slate-400 transition-all duration-200" id="custom-user-select-arrow">
+                  <i class="fa-solid fa-chevron-down text-xs"></i>
+                </div>
+              </button>
+
+              <!-- Custom Dropdown Menu Panel (Smooth Floating UI) -->
+              <div
+                id="custom-user-dropdown-menu"
+                class="hidden absolute z-40 left-0 right-0 top-full mt-1.5 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl shadow-2xl overflow-hidden transition-all duration-200 origin-top transform scale-95 opacity-0"
+                style="touch-action: manipulation;"
+              >
+                <!-- Search Bar inside Custom Dropdown -->
+                <div class="p-2 sm:p-2.5 bg-slate-50/95 border-b border-slate-100 flex items-center gap-2">
+                  <div class="relative flex-1">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
+                    <input
+                      type="text"
+                      id="custom-user-search-input"
+                      oninput="FMCUApp.filterCustomUserDropdown(this.value)"
+                      placeholder="Ketik nama atau NIK karyawan..."
+                      class="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-medium placeholder:text-slate-400"
+                      style="font-size: 16px !important; touch-action: manipulation;"
+                      autocomplete="off"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onclick="FMCUApp.clearCustomUserSearch()"
+                    id="custom-user-search-clear"
+                    class="hidden w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/70 flex items-center justify-center text-xs shrink-0 cursor-pointer"
+                    title="Bersihkan pencarian"
+                  >
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+
+                <!-- Scrollable Items List -->
+                <div
+                  id="custom-user-options-list"
+                  class="max-h-56 sm:max-h-64 overflow-y-auto p-1.5 space-y-1 overscroll-contain"
+                  role="listbox"
+                >
+                  <!-- Populated dynamically via JS -->
+                </div>
+
+                <!-- Dropdown Footer -->
+                <div class="px-3 py-1.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
+                  <span id="custom-user-count-label" class="font-semibold text-slate-600">Daftar Karyawan</span>
+                  <span class="text-slate-400">Pilih untuk login</span>
+                </div>
               </div>
             </div>
             <div>

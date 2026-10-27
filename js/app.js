@@ -147,6 +147,7 @@ window.FMCUApp = {
     const activeCheckIn = window.FMCUData.getActiveCheckIn();
     this.hasActiveStoreForm = Boolean(activeCheckIn && activeCheckIn.storeCode);
 
+    this.setupCustomUserSelectListeners();
     this.populateHeaderRoleSwitcher();
     this.updateUserHeaderUI();
     this.renderHomeNewsSlider();
@@ -533,9 +534,19 @@ window.FMCUApp = {
   // ==========================================================================
   handleLoginSubmit(e) {
     e.preventDefault();
-    const uInput = document.getElementById('login-username').value.trim().toLowerCase();
-    const pInput = document.getElementById('login-password').value.trim();
+    const uInput = (document.getElementById('login-username')?.value || '').trim().toLowerCase();
+    const pInput = (document.getElementById('login-password')?.value || '').trim();
     const users = window.FMCUData.getUsers();
+
+    if (!uInput) {
+      const errEl = document.getElementById('login-error');
+      if (errEl) {
+        errEl.textContent = 'Silakan pilih Nama Karyawan terlebih dahulu.';
+        errEl.classList.remove('hidden');
+      }
+      this.openCustomUserDropdown();
+      return;
+    }
 
     const found = users.find(
       (u) =>
@@ -693,6 +704,15 @@ window.FMCUApp = {
     setTimeout(() => {
       const authScreen = document.getElementById('auth-screen');
       if (authScreen && !authScreen.classList.contains('hidden')) {
+        const customBtn = document.getElementById('custom-user-select-btn');
+        if (customBtn) {
+          try {
+            customBtn.focus({ preventScroll: true });
+          } catch (e) {
+            customBtn.focus();
+          }
+          return;
+        }
         const nikInput = document.getElementById('login-username');
         if (nikInput) {
           try {
@@ -920,43 +940,292 @@ window.FMCUApp = {
     });
   },
 
-  populateHeaderRoleSwitcher() {
-    const users = window.FMCUData.getUsers();
 
-    // 1. Populate Login Form Registered Users (Input Datalist & Select Fallback)
-    const loginInput = document.getElementById('login-username');
-    const loginDatalist = document.getElementById('login-users-datalist');
+  // ==========================================================================
+  // CUSTOM USER DROPDOWN (SMOOTH & INTERACTIVE UI - TANPA NATIVE OS PICKER HP)
+  // ==========================================================================
+  setupCustomUserSelectListeners() {
+    if (this._customUserSelectListenerBound) return;
+    this._customUserSelectListenerBound = true;
+
+    document.addEventListener('click', (e) => {
+      const container = document.getElementById('custom-user-select-container');
+      if (container && !container.contains(e.target)) {
+        this.closeCustomUserDropdown();
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        this.closeCustomUserDropdown();
+      }
+    });
+  },
+
+  populateCustomUserDropdown() {
+    const users = window.FMCUData.getUsers();
     const visibleLoginUsers = users
       .filter((u) => u.role !== 'SUPER_ADMIN')
       .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'id', { sensitivity: 'base' }));
 
-    if (loginDatalist) {
-      const dlHtml = visibleLoginUsers
-        .map((u) => `<option value="${u.nik || u.username}">${u.name} — ${u.jabatan || u.roleBadge || 'Visitor'}</option>`)
-        .join('');
-      if (loginDatalist.innerHTML !== dlHtml) {
-        loginDatalist.innerHTML = dlHtml;
-      }
+    this._cachedLoginUsers = visibleLoginUsers;
+    this.renderCustomUserOptions(visibleLoginUsers);
+
+    // Update count label
+    const countEl = document.getElementById('custom-user-count-label');
+    if (countEl) {
+      countEl.textContent = `${visibleLoginUsers.length} Karyawan Terdaftar`;
     }
 
+    // Set initial selection
+    const backingInput = document.getElementById('login-username');
+    const currentVal = backingInput ? backingInput.value : '';
+    if (currentVal && visibleLoginUsers.some((u) => u.username === currentVal || u.nik === currentVal)) {
+      this.selectCustomUser(currentVal, false);
+    } else if (visibleLoginUsers.length > 0 && !currentVal) {
+      this.selectCustomUser(visibleLoginUsers[0].username, false);
+    }
+  },
+
+  renderCustomUserOptions(list, query = '') {
+    const container = document.getElementById('custom-user-options-list');
+    if (!container) return;
+
+    if (!list || list.length === 0) {
+      container.innerHTML = `
+        <div class="py-6 px-4 text-center text-slate-400">
+          <i class="fa-solid fa-user-slash text-2xl mb-1.5 text-slate-300"></i>
+          <div class="text-xs font-bold text-slate-600">Karyawan tidak ditemukan</div>
+          <div class="text-[11px] text-slate-400 mt-0.5">Coba gunakan kata kunci nama atau NIK lain</div>
+        </div>
+      `;
+      return;
+    }
+
+    const backingInput = document.getElementById('login-username');
+    const currentVal = backingInput ? backingInput.value : '';
+
+    const html = list
+      .map((u) => {
+        const isSelected = u.username === currentVal || (u.nik && u.nik === currentVal);
+        const nameParts = (u.name || '').trim().split(' ').filter(Boolean);
+        const initials = nameParts.slice(0, 2).map((p) => p[0].toUpperCase()).join('') || 'FM';
+
+        return `
+          <button
+            type="button"
+            onclick="FMCUApp.selectCustomUser('${u.username}')"
+            class="w-full text-left p-2 sm:p-2.5 rounded-xl flex items-center justify-between gap-2.5 transition-all duration-150 cursor-pointer select-none ${
+              isSelected
+                ? 'bg-emerald-50/90 border border-emerald-300/80 shadow-sm'
+                : 'hover:bg-slate-100/80 active:bg-slate-200/60 border border-transparent'
+            }"
+            style="touch-action: manipulation;"
+          >
+            <div class="flex items-center gap-2.5 min-w-0 flex-1">
+              <div class="w-8 h-8 rounded-full ${
+                isSelected
+                  ? 'bg-gradient-to-br from-emerald-600 to-teal-700 text-white shadow-sm ring-2 ring-emerald-300'
+                  : 'bg-emerald-100/80 text-emerald-800'
+              } flex items-center justify-center font-extrabold text-[11px] shrink-0 tracking-wider">
+                ${initials}
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="text-xs sm:text-sm font-bold ${isSelected ? 'text-emerald-950' : 'text-slate-800'} truncate">
+                  ${u.name}
+                </div>
+                <div class="text-[10px] sm:text-[11px] flex items-center gap-1.5 text-slate-500 mt-0.5 flex-wrap">
+                  <span class="font-mono font-bold text-emerald-700 bg-emerald-100/60 px-1.5 py-0.5 rounded">
+                    NIK: ${u.nik || '-'}
+                  </span>
+                  <span class="text-slate-300">•</span>
+                  <span class="truncate text-slate-600 font-medium">${u.jabatan || u.roleBadge || 'Visitor'}</span>
+                </div>
+              </div>
+            </div>
+            ${
+              isSelected
+                ? '<i class="fa-solid fa-circle-check text-emerald-600 text-base shrink-0 ml-1"></i>'
+                : '<i class="fa-solid fa-chevron-right text-slate-300 text-xs shrink-0 ml-1 opacity-0 group-hover:opacity-100"></i>'
+            }
+          </button>
+        `;
+      })
+      .join('');
+
+    container.innerHTML = html;
+  },
+
+  toggleCustomUserDropdown() {
+    const menu = document.getElementById('custom-user-dropdown-menu');
+    if (!menu) return;
+    if (menu.classList.contains('hidden')) {
+      this.openCustomUserDropdown();
+    } else {
+      this.closeCustomUserDropdown();
+    }
+  },
+
+  openCustomUserDropdown() {
+    const menu = document.getElementById('custom-user-dropdown-menu');
+    const btn = document.getElementById('custom-user-select-btn');
+    const arrow = document.getElementById('custom-user-select-arrow');
+    const searchInput = document.getElementById('custom-user-search-input');
+    if (!menu) return;
+
+    menu.classList.remove('hidden');
+    requestAnimationFrame(() => {
+      menu.classList.remove('scale-95', 'opacity-0');
+      menu.classList.add('scale-100', 'opacity-100');
+    });
+
+    if (btn) {
+      btn.setAttribute('aria-expanded', 'true');
+      btn.classList.add('border-emerald-500', 'ring-2', 'ring-emerald-500/20');
+    }
+    if (arrow) {
+      arrow.classList.add('rotate-180', 'text-emerald-600');
+    }
+
+    if (searchInput) {
+      searchInput.value = '';
+      const clearBtn = document.getElementById('custom-user-search-clear');
+      if (clearBtn) clearBtn.classList.add('hidden');
+      setTimeout(() => {
+        try {
+          searchInput.focus({ preventScroll: true });
+        } catch (e) {
+          searchInput.focus();
+        }
+      }, 60);
+    }
+
+    if (this._cachedLoginUsers) {
+      this.renderCustomUserOptions(this._cachedLoginUsers);
+    }
+  },
+
+  closeCustomUserDropdown() {
+    const menu = document.getElementById('custom-user-dropdown-menu');
+    const btn = document.getElementById('custom-user-select-btn');
+    const arrow = document.getElementById('custom-user-select-arrow');
+    if (!menu || menu.classList.contains('hidden')) return;
+
+    menu.classList.remove('scale-100', 'opacity-100');
+    menu.classList.add('scale-95', 'opacity-0');
+
+    if (btn) {
+      btn.setAttribute('aria-expanded', 'false');
+      btn.classList.remove('border-emerald-500', 'ring-2', 'ring-emerald-500/20');
+    }
+    if (arrow) {
+      arrow.classList.remove('rotate-180', 'text-emerald-600');
+    }
+
+    setTimeout(() => {
+      menu.classList.add('hidden');
+    }, 150);
+  },
+
+  selectCustomUser(username, shouldFocusPassword = true) {
+    if (!this._cachedLoginUsers) {
+      this._cachedLoginUsers = window.FMCUData.getUsers().filter((u) => u.role !== 'SUPER_ADMIN');
+    }
+    const user = this._cachedLoginUsers.find((u) => u.username === username || u.nik === username);
+    if (!user) return;
+
+    const backingInput = document.getElementById('login-username');
+    if (backingInput) {
+      backingInput.value = user.username;
+    }
+
+    const nameEl = document.getElementById('custom-user-selected-name');
+    const subEl = document.getElementById('custom-user-selected-sub');
+    const avatarEl = document.getElementById('custom-user-selected-avatar');
+
+    if (nameEl) nameEl.textContent = user.name;
+    if (subEl) {
+      subEl.innerHTML = `<span class="font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded">NIK: ${user.nik || '-'}</span> <span class="text-slate-300">•</span> <span>${user.jabatan || user.roleBadge || 'Visitor'}</span>`;
+    }
+    if (avatarEl) {
+      const nameParts = (user.name || '').trim().split(' ').filter(Boolean);
+      const initials = nameParts.slice(0, 2).map((p) => p[0].toUpperCase()).join('') || 'FM';
+      avatarEl.innerHTML = `<span class="font-extrabold text-[11px] tracking-wider">${initials}</span>`;
+    }
+
+    this.closeCustomUserDropdown();
+
+    if (this._cachedLoginUsers) {
+      this.renderCustomUserOptions(this._cachedLoginUsers);
+    }
+
+    if (shouldFocusPassword) {
+      setTimeout(() => {
+        const passInput = document.getElementById('login-password');
+        if (passInput) {
+          try {
+            passInput.focus({ preventScroll: true });
+          } catch (e) {
+            passInput.focus();
+          }
+        }
+      }, 100);
+    }
+  },
+
+  filterCustomUserDropdown(query) {
+    const q = (query || '').trim().toLowerCase();
+    const clearBtn = document.getElementById('custom-user-search-clear');
+    if (clearBtn) {
+      clearBtn.classList.toggle('hidden', !q);
+    }
+
+    if (!this._cachedLoginUsers) {
+      this._cachedLoginUsers = window.FMCUData.getUsers()
+        .filter((u) => u.role !== 'SUPER_ADMIN')
+        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'id', { sensitivity: 'base' }));
+    }
+
+    const filtered = this._cachedLoginUsers.filter((u) => {
+      const name = String(u.name || '').toLowerCase();
+      const nik = String(u.nik || '').toLowerCase();
+      const jabatan = String(u.jabatan || u.roleBadge || '').toLowerCase();
+      return name.includes(q) || nik.includes(q) || jabatan.includes(q);
+    });
+
+    this.renderCustomUserOptions(filtered, q);
+  },
+
+  clearCustomUserSearch() {
+    const searchInput = document.getElementById('custom-user-search-input');
+    if (searchInput) {
+      searchInput.value = '';
+      this.filterCustomUserDropdown('');
+      try {
+        searchInput.focus({ preventScroll: true });
+      } catch (e) {
+        searchInput.focus();
+      }
+    }
+  },
+
+  populateHeaderRoleSwitcher() {
+    const users = window.FMCUData.getUsers();
+
+    // 1. Populate Custom User Dropdown UI (#custom-user-select-container)
+    this.populateCustomUserDropdown();
+
+    // Backward compatibility if select exists
+    const loginInput = document.getElementById('login-username');
     if (loginInput && loginInput.tagName === 'SELECT') {
-      const currentVal = loginInput.value;
+      const visibleLoginUsers = users
+        .filter((u) => u.role !== 'SUPER_ADMIN')
+        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'id', { sensitivity: 'base' }));
       const newHtml =
         `<option value="">-- Pilih Nama User --</option>` +
-        visibleLoginUsers
-          .map(
-            (u) =>
-              `<option value="${u.username}">${u.name}</option>`
-          )
-          .join('');
-
+        visibleLoginUsers.map((u) => `<option value="${u.username}">${u.name}</option>`).join('');
       if (loginInput.innerHTML !== newHtml) {
         loginInput.innerHTML = newHtml;
-        if (currentVal && visibleLoginUsers.some((u) => u.username === currentVal)) {
-          loginInput.value = currentVal;
-        } else if (visibleLoginUsers.length > 0 && !loginInput.value) {
-          loginInput.value = visibleLoginUsers[0].username;
-        }
       }
     }
 

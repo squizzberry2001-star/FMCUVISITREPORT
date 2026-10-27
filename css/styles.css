@@ -373,9 +373,31 @@ body.has-hud .flex-1.lg\:pl-72 {
 }
 
 #login-username,
-#login-password {
+#login-password,
+#custom-user-select-btn,
+#custom-user-search-input {
   font-size: 16px !important;
   touch-action: manipulation;
   -webkit-text-size-adjust: 100%;
 }
+
+/* Custom User Dropdown Menu Scrollbar & Shadow */
+#custom-user-options-list::-webkit-scrollbar {
+  width: 5px;
+}
+#custom-user-options-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+#custom-user-options-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+#custom-user-options-list::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+#custom-user-dropdown-menu {
+  box-shadow: 0 20px 35px -5px rgba(15, 23, 42, 0.15), 0 0 0 1px rgba(15, 23, 42, 0.05);
+}
+
 
