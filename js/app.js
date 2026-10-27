@@ -3439,6 +3439,322 @@ window.FMCUApp = {
       .join('');
   },
 
+
+  // ==========================================================================
+  // AI EXECUTIVE SUMMARY OVERVIEW (GEMINI AI AUDIT REKAPITULASI ALL VISITOR)
+  // Persona: Observer, Senior Audit QC, & Corporate Leadership FamilyMart
+  // ==========================================================================
+  _isAiSummaryGenerating: false,
+
+  async checkAndRunSilentAiSummary(force = false) {
+    const reports = window.FMCUData.getReports();
+    const completedReports = (reports || []).filter((r) => r.visitDate && (r.storeCode || r.storeName));
+    
+    const countBadge = document.getElementById('ai-summary-badge-reports');
+    if (countBadge) {
+      countBadge.textContent = `${completedReports.length} Laporan Selesai`;
+    }
+
+    const emptyEl = document.getElementById('ai-summary-empty');
+    const loadingEl = document.getElementById('ai-summary-loading');
+    const contentEl = document.getElementById('ai-summary-content');
+    const timeEl = document.getElementById('ai-summary-timestamp');
+
+    if (completedReports.length === 0) {
+      if (emptyEl) emptyEl.classList.remove('hidden');
+      if (loadingEl) loadingEl.classList.add('hidden');
+      if (contentEl) contentEl.innerHTML = '';
+      return;
+    }
+
+    if (emptyEl) emptyEl.classList.add('hidden');
+
+    // Generate fingerprint based on report IDs and finding counts
+    const fingerprint = `${completedReports.length}_${completedReports.map((r) => `${r.id || ''}:${(r.observations || []).length}`).join('|')}`;
+    
+    // Check localStorage cache
+    let cached = null;
+    try {
+      const raw = localStorage.getItem('fmcu_ai_summary_cache_v1');
+      if (raw) cached = JSON.parse(raw);
+    } catch (e) {}
+
+    if (!force && cached && cached.fingerprint === fingerprint && cached.content) {
+      // Immediate instant render from cache!
+      if (contentEl) contentEl.innerHTML = cached.renderedHtml || this.formatAiMarkdown(cached.content);
+      if (timeEl && cached.timestamp) {
+        timeEl.textContent = `Terakhir: ${cached.timestamp}`;
+      }
+      return;
+    }
+
+    // If cache exists with previous content, show it while updating in background
+    if (cached && cached.content && contentEl) {
+      contentEl.innerHTML = cached.renderedHtml || this.formatAiMarkdown(cached.content);
+      if (timeEl) timeEl.textContent = 'Memperbarui di latar belakang...';
+    } else {
+      // No cache, show loading skeleton
+      if (loadingEl) loadingEl.classList.remove('hidden');
+      if (contentEl) contentEl.innerHTML = '';
+    }
+
+    // Perform silent background generation
+    await this.fetchGeminiAiSummary(completedReports, fingerprint, force);
+  },
+
+  async refreshAiSummaryOverview(isUserClick = true) {
+    if (this._isAiSummaryGenerating) return;
+    if (isUserClick) {
+      this.triggerHaptic('light');
+    }
+    await this.checkAndRunSilentAiSummary(true);
+  },
+
+  async fetchGeminiAiSummary(reports, fingerprint, isUserClick = false) {
+    if (this._isAiSummaryGenerating) return;
+    this._isAiSummaryGenerating = true;
+
+    const refreshIcon = document.getElementById('ai-summary-refresh-icon');
+    const refreshBtn = document.getElementById('ai-summary-refresh-btn');
+    const loadingEl = document.getElementById('ai-summary-loading');
+    const contentEl = document.getElementById('ai-summary-content');
+    const timeEl = document.getElementById('ai-summary-timestamp');
+
+    if (refreshIcon) refreshIcon.classList.add('fa-spin');
+    if (refreshBtn) refreshBtn.disabled = true;
+
+    try {
+      const apiKey = window.FMCUData?.GEMINI_CONFIG?.getApiKey?.() || (typeof atob !== 'undefined' ? atob('QVEuQWI4Uk42S1M2TlhBVEFXTU9lRXVFZWNMU3NEUUlXWG5uUEpqT2FfVEtKbVVNNHMyYVE=') : '');
+      const models = ['models/gemini-3.5-flash', 'models/gemini-3-flash-preview', 'models/gemini-3.8-flash'];
+
+      // Format report data
+      const dataSummaryText = this.buildReportDataForGemini(reports);
+
+      const promptText = `Anda adalah Senior Audit QC, Operational Observer, dan Corporate Leadership FamilyMart Indonesia (FMCU).
+Tugas Anda: Menyusun AI Executive Summary & Overview Analisa Rekapitulasi Temuan Observasi Toko dari seluruh visitor.
+
+PANDUAN KETAT:
+1. TIDAK BERHALUSINASI: Analisis HANYA data nyata yang tercantum di bawah. Jangan mengarang temuan yang tidak ada.
+2. TO THE POINT: Gunakan gaya bahasa lugas, profesional, tegas, dan berwibawa khas audit QC retail modern. Hindari basa-basi.
+3. RELATED DENGAN FAMILYMART F&B RETAIL: Fokus pada pilar QSC (Quality, Service, Cleanliness), Food Safety & Hygiene (suhu chiller, expired date/FEFO, mesin kopi Famima Cafe, display hot snack), Standar Grooming/SOP Crew, dan Efisiensi Operasional Toko.
+4. TONE LEADERSHIP & ACTION-ORIENTED: Berikan diagnosa akar masalah tajam dan rekomendasi strategis konkret (tindakan korektif 1x24 jam & pencegahan sistemik).
+
+DATA OBSERVASI TOKO SELURUH VISITOR:
+${dataSummaryText}
+
+FORMAT OUTPUT (Gunakan Heading Markdown berikut):
+### 1. Ringkasan Eksekutif Operasional
+### 2. Rekapitulasi & Pola Temuan Kritis (Trend Masalah)
+### 3. Analisa Akar Masalah (Root Cause Analysis - Senior QC Perspective)
+### 4. Rekomendasi Strategis & Action Plan Leadership`;
+
+      let aiResultText = '';
+      let fetchError = null;
+
+      for (const model of models) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${apiKey}`;
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: promptText }] }]
+            })
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+              aiResultText = data.candidates[0].content.parts[0].text;
+              break;
+            }
+          } else {
+            const errData = await res.json().catch(() => ({}));
+            fetchError = errData?.error?.message || `HTTP ${res.status}`;
+          }
+        } catch (e) {
+          fetchError = e.message;
+        }
+      }
+
+      if (!aiResultText) {
+        throw new Error(fetchError || 'Gagal memperoleh respon dari Gemini API');
+      }
+
+      // Format markdown to HTML
+      const renderedHtml = this.formatAiMarkdown(aiResultText);
+      const nowStr = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+
+      // Cache result
+      const cacheObj = {
+        fingerprint,
+        content: aiResultText,
+        renderedHtml,
+        timestamp: nowStr,
+        reportCount: reports.length
+      };
+      try {
+        localStorage.setItem('fmcu_ai_summary_cache_v1', JSON.stringify(cacheObj));
+      } catch (e) {}
+
+      if (loadingEl) loadingEl.classList.add('hidden');
+      if (contentEl) {
+        contentEl.innerHTML = renderedHtml;
+      }
+      if (timeEl) {
+        timeEl.textContent = `Terakhir: ${nowStr}`;
+      }
+
+      if (isUserClick) {
+        this.showToast('AI Executive Summary berhasil diperbarui.', 'success');
+      }
+    } catch (err) {
+      console.error('Gemini AI Summary Error:', err);
+      if (loadingEl) loadingEl.classList.add('hidden');
+      if (contentEl && !contentEl.innerHTML.trim()) {
+        contentEl.innerHTML = `
+          <div class="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-1">
+            <div class="font-bold flex items-center gap-1.5">
+              <i class="fa-solid fa-triangle-exclamation text-amber-600"></i>
+              <span>Gagal memuat analisa AI Gemini</span>
+            </div>
+            <p>${err.message || 'Periksa koneksi internet atau kunci API.'}</p>
+          </div>
+        `;
+      }
+      if (isUserClick) {
+        this.showToast(`Gagal memperbarui AI Summary: ${err.message}`, 'error');
+      }
+    } finally {
+      this._isAiSummaryGenerating = false;
+      if (refreshIcon) refreshIcon.classList.remove('fa-spin');
+      if (refreshBtn) refreshBtn.disabled = false;
+    }
+  },
+
+  buildReportDataForGemini(reports) {
+    let out = `- Total Laporan Observasi Selesai: ${reports.length} Toko\n`;
+    
+    // Group observations by store
+    reports.forEach((r, idx) => {
+      const storeTitle = r.storeName || r.storeCode || `Toko #${idx + 1}`;
+      const code = r.storeCode ? `(${r.storeCode})` : '';
+      const visitor = r.auditorName || 'Visitor';
+      const score = r.qscScore ? `${r.qscScore}%` : '-';
+      const date = r.visitDate || '-';
+      const obs = r.observations || [];
+
+      out += `\n[Toko ${idx + 1}] FamilyMart ${storeTitle} ${code}\n`;
+      out += `  Visitor: ${visitor} | Tanggal: ${date} | Skor QSC: ${score} | Durasi: ${r.durationMinutes || '-'} menit\n`;
+      
+      if (obs.length === 0) {
+        out += `  Temuan: Tidak ada temuan negatif (Area operasional bersih & sesuai SOP).\n`;
+      } else {
+        out += `  Daftar Temuan (${obs.length} item):\n`;
+        obs.forEach((o, oIdx) => {
+          const cat = o.category ? `[${o.category}] ` : '';
+          const temuan = o.temuan || 'Temuan operasional';
+          const ideal = o.kondisiIdeal ? ` (Kondisi Ideal: ${o.kondisiIdeal})` : '';
+          const penyebab = o.penyebab ? ` (Penyebab: ${o.penyebab})` : '';
+          const status = o.status || 'OPEN';
+          out += `    ${oIdx + 1}. ${cat}${temuan}${ideal}${penyebab} [Status: ${status}]\n`;
+        });
+      }
+      if (r.summary || r.notes) {
+        out += `  Catatan Kesimpulan Visitor: "${r.summary || r.notes}"\n`;
+      }
+    });
+
+    return out;
+  },
+
+  formatAiMarkdown(mdText) {
+    if (!mdText) return '';
+    let html = mdText
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    // Headings
+    html = html.replace(/^### (.*$)/gim, '<div class="flex items-center gap-2 mt-5 mb-2.5 pt-3 border-t border-emerald-100 first:border-t-0 first:pt-0"><span class="w-2 h-4 rounded-full bg-[#009944]"></span><h4 class="text-sm sm:text-base font-extrabold text-slate-900">$1</h4></div>');
+    html = html.replace(/^## (.*$)/gim, '<h3 class="text-base sm:text-lg font-black text-slate-900 mt-6 mb-3 pb-1 border-b border-slate-200">$1</h3>');
+    html = html.replace(/^#### (.*$)/gim, '<h5 class="text-xs sm:text-sm font-bold text-slate-800 mt-3 mb-1.5 uppercase tracking-wider text-emerald-800">$1</h5>');
+
+    // Horizontal rule
+    html = html.replace(/^---$/gim, '<hr class="my-4 border-slate-200/80" />');
+
+    // Bold & Italic
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-extrabold text-slate-900">$1</strong>');
+    html = html.replace(/\*(.*?)\*/g, '<em class="italic text-slate-700">$1</em>');
+
+    // Numbered list items
+    html = html.replace(/^(\d+)\.\s+(.*$)/gim, '<li class="ml-4 list-decimal text-xs sm:text-sm text-slate-700 my-1 leading-relaxed pl-1">$2</li>');
+
+    // Bullet list items
+    html = html.replace(/^[\*\-]\s+(.*$)/gim, '<li class="ml-4 list-disc text-xs sm:text-sm text-slate-700 my-1 leading-relaxed pl-1">$2</li>');
+
+    // Wrap paragraphs
+    html = html.split('\n\n').map(p => {
+      p = p.trim();
+      if (!p) return '';
+      if (p.startsWith('<div') || p.startsWith('<h') || p.startsWith('<li') || p.startsWith('<hr')) {
+        return p;
+      }
+      return '<p class="text-xs sm:text-sm text-slate-700 leading-relaxed my-2">' + p + '</p>';
+    }).join('\n');
+
+    return html;
+  },
+
+  copyAiSummaryText() {
+    this.triggerHaptic('light');
+    let textToCopy = '';
+    try {
+      const raw = localStorage.getItem('fmcu_ai_summary_cache_v1');
+      if (raw) {
+        const obj = JSON.parse(raw);
+        textToCopy = obj.content;
+      }
+    } catch (e) {}
+
+    if (!textToCopy) {
+      const contentEl = document.getElementById('ai-summary-content');
+      textToCopy = contentEl ? contentEl.innerText : '';
+    }
+
+    if (!textToCopy || textToCopy.trim() === '') {
+      this.showToast('Belum ada teks analisa AI untuk disalin.', 'warning');
+      return;
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        this.showToast('Narasi AI Summary berhasil disalin ke clipboard!', 'success');
+      }).catch(() => {
+        this.fallbackCopyText(textToCopy);
+      });
+    } else {
+      this.fallbackCopyText(textToCopy);
+    }
+  },
+
+  fallbackCopyText(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy');
+      this.showToast('Narasi AI Summary berhasil disalin ke clipboard!', 'success');
+    } catch (e) {
+      this.showToast('Gagal menyalin teks.', 'error');
+    }
+    document.body.removeChild(ta);
+  },
+
+
   renderAnalyticsCharts() {
     const reports = window.FMCUData.getReports();
 

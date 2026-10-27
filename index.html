@@ -933,8 +933,8 @@
               <span id="analytics-history-count-pill" class="px-1.5 py-0.2 rounded-full text-[10px] bg-white/25 text-white font-extrabold">0</span>
             </button>
             <button type="button" id="analytics-subtab-btn-performance" onclick="FMCUApp.switchAnalyticsSubSection('performance')" class="flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white">
-              <i class="fa-solid fa-users-gear"></i>
-              <span>Analitik Performa & Aktivitas User</span>
+              <i class="fa-solid fa-wand-magic-sparkles text-emerald-600"></i>
+              <span>AI Overview & Analitik Performa</span>
             </button>
           </div>
         </div>
@@ -968,6 +968,99 @@
 
         <!-- SUB-SECTION 2: ANALITIK PERFORMA & AKTIVITAS USER (LIVE LOCATION & ACTUAL IN/OUT) -->
         <div id="analytics-subsection-performance" class="space-y-6">
+        <!-- ==============================================================
+             AI EXECUTIVE SUMMARY OVERVIEW (GEMINI AI AUDIT REKAPITULASI)
+             ============================================================== -->
+        <div id="analytics-ai-summary-card" class="fm-card p-5 sm:p-7 bg-gradient-to-br from-emerald-50/70 via-white to-teal-50/60 border border-emerald-200 shadow-sm relative overflow-hidden transition-all duration-300">
+          <!-- Background decorative glow -->
+          <div class="absolute -right-12 -top-12 w-48 h-48 bg-emerald-400/10 rounded-full blur-2xl pointer-events-none"></div>
+          <div class="absolute -left-12 -bottom-12 w-48 h-48 bg-teal-400/10 rounded-full blur-2xl pointer-events-none"></div>
+
+          <!-- Header AI Summary -->
+          <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-emerald-100/80 pb-4 mb-4">
+            <div class="flex items-start gap-3">
+              <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center text-lg shrink-0 shadow-md shadow-emerald-600/20">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+              </div>
+              <div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Gemini AI • Senior Audit QC & Leadership
+                  </span>
+                  <span id="ai-summary-badge-reports" class="text-[10px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded-full border border-slate-200">
+                    0 Laporan Selesai
+                  </span>
+                </div>
+                <h3 class="text-base sm:text-lg font-black text-slate-900 mt-1 flex items-center gap-2">
+                  <span>AI Summary Overview Analisa Temuan All Visitor</span>
+                </h3>
+                <p class="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                  Rekapitulasi narasi audit otomatis, diagnosa akar masalah operasional QSC, dan rekomendasi perbaikan dari seluruh visitor.
+                </p>
+              </div>
+            </div>
+
+            <!-- Action Controls -->
+            <div class="flex items-center gap-2 shrink-0 self-start md:self-center">
+              <span id="ai-summary-timestamp" class="text-[11px] font-medium text-slate-400 hidden sm:inline">
+                Memeriksa data...
+              </span>
+              <button
+                type="button"
+                id="ai-summary-refresh-btn"
+                onclick="FMCUApp.refreshAiSummaryOverview(true)"
+                title="Analisa Ulang dengan Gemini AI"
+                class="px-3 py-1.5 rounded-xl bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-300 text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer active:scale-95"
+              >
+                <i class="fa-solid fa-arrows-rotate" id="ai-summary-refresh-icon"></i>
+                <span class="hidden sm:inline">Analisa Ulang</span>
+              </button>
+              <button
+                type="button"
+                onclick="FMCUApp.copyAiSummaryText()"
+                title="Salin Narasi Analisa"
+                class="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer active:scale-95"
+              >
+                <i class="fa-regular fa-copy"></i>
+                <span class="hidden sm:inline">Salin</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Loading State (Skeleton Pulse) -->
+          <div id="ai-summary-loading" class="hidden py-8 px-4 text-center space-y-3 relative z-10">
+            <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 text-xl animate-spin">
+              <i class="fa-solid fa-circle-notch"></i>
+            </div>
+            <div class="font-bold text-xs sm:text-sm text-slate-800">
+              AI Gemini sedang menganalisa data temuan observasi seluruh visitor...
+            </div>
+            <div class="text-[11px] text-slate-400 max-w-md mx-auto">
+              Memproses pola temuan QSC, mengidentifikasi akar masalah operasional, dan merumuskan rekomendasi leadership secara otomatis.
+            </div>
+            <div class="w-full max-w-sm mx-auto h-1.5 bg-emerald-100 rounded-full overflow-hidden">
+              <div class="h-full bg-[#009944] rounded-full animate-pulse"></div>
+            </div>
+          </div>
+
+          <!-- Empty State (When no completed reports yet) -->
+          <div id="ai-summary-empty" class="hidden py-8 px-4 text-center space-y-2 relative z-10 bg-white/60 rounded-2xl border border-dashed border-slate-200">
+            <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center text-xl mx-auto">
+              <i class="fa-solid fa-clipboard-list"></i>
+            </div>
+            <div class="text-xs sm:text-sm font-bold text-slate-700">Belum Ada Laporan Observasi yang Selesai</div>
+            <p class="text-xs text-slate-400 max-w-md mx-auto">
+              Setelah visitor menyelesaikan observasi form kunjungan toko, AI Gemini akan otomatis menyusun narasi rekapitulasi temuan dan diagnosa QC di sini.
+            </p>
+          </div>
+
+          <!-- Content Output Container -->
+          <div id="ai-summary-content" class="relative z-10 text-slate-800 text-xs sm:text-sm leading-relaxed space-y-2">
+            <!-- Rendered AI Output will be injected here -->
+          </div>
+        </div>
+
         <!-- 4 Executive KPI Cards -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div class="fm-card fm-card-hover p-4 sm:p-5">
