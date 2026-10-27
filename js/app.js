@@ -3478,7 +3478,8 @@ window.FMCUApp = {
     try {
       localStorage.removeItem('fmcu_taro_ai_cache');
       localStorage.removeItem('fmcu_taro_ai_cache_v2');
-      const raw = localStorage.getItem('fmcu_taro_ai_cache_v3');
+      localStorage.removeItem('fmcu_taro_ai_cache_v3');
+      const raw = localStorage.getItem('fmcu_taro_ai_cache_v4');
       if (raw) cached = JSON.parse(raw);
     } catch (e) {}
 
@@ -3545,33 +3546,37 @@ window.FMCUApp = {
 
       const promptText = `Anda adalah "T.A.R.O (Trainer Asyik Rekan Operasional) AI" di FamilyMart Indonesia (FMCU).
 
-KARAKTER & GAYA BICARA T.A.R.O:
-- Bicaralah seperti sedang mengobrol santai dan asyik dengan teman kerja / rekan sesama crew toko di Famima Cafe. JANGAN kaku, JANGAN terlalu formal, dan JANGAN pakai bahasa birokrasi korporat yang membosankan.
-- Gunakan bahasa yang hangat, memotivasi, dan akrab (misalnya: "Halo Rekan Ops!", "Nah ini yang asyik nih...", "Keren banget bagian ini udah solid", "Tapi ada catatan penting yang perlu kita jagain bareng", "Yuk kita gaspol beresin biar toko makin mantap").
-- TIDAK BERHALUSINASI: Analisis HANYA data observasi toko nyata di bawah.
-- FOKUS RETAIL F&B FAMILYMART: Quality, Service, Cleanliness (QSC), Food Safety & Hygiene (suhu chiller, display hot snack, mesin kopi Famima Cafe, FEFO & expired date, kebersihan dapur & dining area).
-
-ATURAN PANJANG JAWABAN (SANGAT KETAT):
-- Setiap poin analisa (Poin 1, 2, 3, dan 4) WAJIB terdiri tepat 8 baris kalimat padat (sekitar 75-90 kata).
-- DILARANG membuat prolog atau sapaan pembuka di luar struktur "### ".
-- DILARANG kurang dari 7 baris, dan DILARANG lebih dari 8 baris per poin!
-- Tuliskan dalam paragraf yang rapi dan mengalir agar pas 8 baris saat dibaca rata kanan-kiri.
+ATURAN UTAMA (SANGAT PENTING - BUKAN STORYTELLING):
+- DILARANG KERAS membuat paragraf naratif panjang / mendongeng (storytelling)!
+- JANGAN menulis basa-basi pembuka yang bertele-tele (seperti "Senang sekali rasanya...", "Toko ini punya sejarah...", dll).
+- WAJIB menyajikan setiap poin analisa dalam bentuk 3 BULLET POINTS yang ringkas, tajam, padat, dan langsung to the point.
+- Setiap bullet point WAJIB diawali KATA KUNCI TEBAL (bold), contoh: "- **Food Safety & Expired**: Penjelasan ringkas...".
+- Gaya bahasa tetap santai, asyik, dan akrab khas teman kerja di Famima Cafe, tapi informasinya harus cepat dan mudah dibaca sekilas (scannable).
+- TIDAK BERHALUSINASI: Analisis HANYA data observasi toko nyata di bawah (Quality, Service, Cleanliness, Suhu Chiller, Hot Snack, FEFO, Grooming, dll).
 
 DATA OBSERVASI TOKO SELURUH VISITOR:
 ${dataSummaryText}
 
-FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH):
+FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH DENGAN 3 BULLET POINTS TIAP HEADING):
 ### 1. Kabar Baik & Performa Toko Kita
-(Ceritakan dengan santai dan asyik performa toko yang sudah keren, apresiasi area yang bersih dan rapi, serta skor visit yang memuaskan. Tepat 8 baris.)
+- **Skor & Disiplin**: (Apresiasi singkat pencapaian skor visit toko dan kepatuhan standar operasional)
+- **Pelayanan Prima**: (Sorot keramahan crew dan kesiapan melayani customer)
+- **Kerapian Area**: (Catat area toko yang sudah bersih, higienis, dan tertata rapi)
 
-### 2. Catatan & Pola Temuan yang Perlu Kita Jagain
-(Bahas temuan yang paling sering muncul dari hasil kunjungan all visitor dengan gaya santai tapi tegas, sebutkan toko yang butuh perhatian ekstra di area kebersihan atau food safety. Tepat 8 baris.)
+### 2. Catatan & Pola Temuan Kritis
+- **Food Safety & Expired**: (Sebutkan temuan produk mendekati/melewati expired date atau suhu chiller yang kurang stabil)
+- **Standar Kebersihan**: (Poin temuan kebersihan area dapur, display hot snack, atau mesin kopi)
+- **Kerapian Display & Label**: (Poin temuan display produk, ketersediaan label harga, atau kelengkapan atribut)
 
-### 3. Kenapa Hal Ini Bisa Terjadi? (Ngobrol Akar Masalah)
-(Ajak rekan ops memahami penyebab temuan berulang dengan gaya teman berdiskusi: apakah karena jam sibuk rush hour, briefing checklist harian yang terlewat, atau kendala fasilitas toko. Tepat 8 baris.)
+### 3. Kenapa Bisa Terjadi? (Akar Masalah)
+- **Kondisi Rush Hour**: (Analisa apakah jam sibuk pesanan online/offline membuat pengecekan fisik terburu-buru)
+- **Briefing & Serah Terima**: (Analisa apakah checklist harian atau briefing antar-shift terlewatkan)
+- **Disiplin Rotasi FEFO**: (Analisa kebiasaan rotasi stok lama dan stok baru di rak/chiller)
 
 ### 4. Action Plan Asyik & Solusi Cepat 1x24 Jam
-(Berikan langkah perbaikan nyata yang praktis dan langsung bisa dikerjakan crew toko dalam 1x24 jam, plus tips ringan untuk supervisi berkelanjutan. Tepat 8 baris.)`;
+- **Penyisiran Kilat FEFO**: (Instruksi langsung tarik item expired dan rapikan susunan stok 1x24 jam)
+- **Kontrol Suhu & Checklist**: (Langkah praktis cek suhu chiller dan cross-check checklist tiap shift)
+- **Supervisi Leader**: (Tindakan coaching ringan Store Leader/Trainer untuk memastikan temuan tidak terulang)`;
 
       let aiResultText = '';
       let fetchError = null;
@@ -3619,7 +3624,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH):
                 body: JSON.stringify({
                   model: gModel,
                   messages: [
-                    { role: 'system', content: 'Anda adalah T.A.R.O (Trainer Asyik Rekan Operasional) AI di FamilyMart Indonesia. Bicaralah santai seperti teman ngobrol akrab, tidak formal/baku, dan setiap poin wajib tepat 8 baris.' },
+                    { role: 'system', content: 'Anda adalah T.A.R.O (Trainer Asyik Rekan Operasional) AI di FamilyMart Indonesia. Sajikan jawaban dalam bentuk 3 bullet points dengan kata kunci tebal di awal. Jangan bercerita naratif panjang/storytelling, langsung to the point dan mudah dibaca sekilas.' },
                     { role: 'user', content: promptText }
                   ],
                   temperature: 0.3
@@ -3658,7 +3663,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH):
                 body: JSON.stringify({
                   model: orModel,
                   messages: [
-                    { role: 'system', content: 'Anda adalah T.A.R.O (Trainer Asyik Rekan Operasional) AI di FamilyMart Indonesia. Bicaralah santai seperti teman ngobrol akrab, tidak formal/baku, dan setiap poin wajib tepat 8 baris.' },
+                    { role: 'system', content: 'Anda adalah T.A.R.O (Trainer Asyik Rekan Operasional) AI di FamilyMart Indonesia. Sajikan jawaban dalam bentuk 3 bullet points dengan kata kunci tebal di awal. Jangan bercerita naratif panjang/storytelling, langsung to the point dan mudah dibaca sekilas.' },
                     { role: 'user', content: promptText }
                   ]
                 })
@@ -3730,7 +3735,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH):
         reportCount: reports.length
       };
       try {
-        localStorage.setItem('fmcu_taro_ai_cache_v3', JSON.stringify(cacheObj));
+        localStorage.setItem('fmcu_taro_ai_cache_v4', JSON.stringify(cacheObj));
       } catch (e) {}
 
       if (loadingEl) loadingEl.classList.add('hidden');
@@ -4107,13 +4112,14 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH):
     html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-extrabold text-slate-900">$1</strong>');
     html = html.replace(/\*(.*?)\*/g, '<em class="italic text-slate-700">$1</em>');
 
-    // Numbered list items
-    html = html.replace(/^(\d+)\.\s+(.*$)/gim, '<li class="ml-4 list-decimal text-xs sm:text-[13px] text-slate-700 my-0.5 leading-relaxed pl-1">$2</li>');
+        // Bullet items to styled lists with custom emerald dots
+    html = html.replace(/^[\*\-]\s+(.*$)/gim, '<li class="text-xs sm:text-[13px] text-slate-700 leading-relaxed flex items-start gap-2 my-1"><span class="w-1.5 h-1.5 rounded-full bg-[#009944] mt-1.5 shrink-0"></span><div class="flex-1 text-justify">$1</div></li>');
+    html = html.replace(/^(\d+)\.\s+(.*$)/gim, '<li class="text-xs sm:text-[13px] text-slate-700 leading-relaxed flex items-start gap-2 my-1"><span class="font-black text-[#009944] text-[11px] shrink-0">$1.</span><div class="flex-1 text-justify">$2</div></li>');
 
-    // Bullet list items
-    html = html.replace(/^[\*\-]\s+(.*$)/gim, '<li class="ml-4 list-disc text-xs sm:text-[13px] text-slate-700 my-0.5 leading-relaxed pl-1">$2</li>');
+    // Wrap consecutive li elements in ul container
+    html = html.replace(/((?:<li[\s\S]*?<\/li>\s*)+)/g, '<ul class="space-y-1 my-1">$1</ul>');
 
-    // Wrap paragraphs
+// Wrap paragraphs
     html = html.split('\n\n').map(p => {
       p = p.trim();
       if (!p) return '';
@@ -4131,7 +4137,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH):
     let textToCopy = this._taroFullText;
     if (!textToCopy) {
       try {
-        const raw = localStorage.getItem('fmcu_taro_ai_cache_v3');
+        const raw = localStorage.getItem('fmcu_taro_ai_cache_v4');
         if (raw) {
           const obj = JSON.parse(raw);
           textToCopy = obj.content;
