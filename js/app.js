@@ -2612,39 +2612,15 @@ window.FMCUApp = {
     const track = document.getElementById('home-subtab-track');
     if (!track) return;
 
-    const arrow = document.getElementById('home-subtab-peek-arrow');
-    const icon = document.getElementById('home-subtab-peek-icon');
-
-    const updateArrowState = () => {
-      if (!arrow) return;
-      const maxScroll = track.scrollWidth - track.clientWidth;
-      if (maxScroll <= 8) {
-        arrow.classList.add('hidden');
-        return;
-      }
-      arrow.classList.remove('hidden');
-      const isAtEnd = track.scrollLeft >= maxScroll - 15;
-      if (icon) {
-        icon.className = isAtEnd ? 'fa-solid fa-chevron-left' : 'fa-solid fa-chevron-right';
-      }
-    };
-
-    updateArrowState();
-
-    if (!track._scrollBound) {
-      track._scrollBound = true;
-      track.addEventListener('scroll', updateArrowState, { passive: true });
-    }
-
     // Auto-slide peek on mobile:
     // Saat user membuka halaman Home pada HP, track secara otomatis geser halus ke kanan
-    // untuk menampilkan tombol ke-3 (History & Arsip) sehingga user tahu ada lebih dari 2 button section!
+    // untuk memperlihatkan button History & Arsip agar user tahu ada lebih dari 2 button section!
     if (this._subtabPeekTimer) clearTimeout(this._subtabPeekTimer);
     this._subtabPeekTimer = setTimeout(() => {
       if (this.currentView !== 'home') return;
       const maxScroll = track.scrollWidth - track.clientWidth;
-      if (maxScroll > 15) {
-        // 1. Auto slide ke kanan (peek tombol ke-3)
+      if (maxScroll > 10) {
+        // 1. Auto slide ke kanan (peek tombol History & Arsip)
         track.scrollTo({ left: maxScroll, behavior: 'smooth' });
 
         // 2. Tahan sebentar lalu auto slide kembali ke tab aktif
@@ -2655,12 +2631,12 @@ window.FMCUApp = {
       }
     }, 650);
 
-    // Subtle auto-peek reminder berkala setiap 9 detik jika masih di section 1
+    // Subtle auto-peek reminder berkala setiap 9 detik jika masih di section overview
     if (this._subtabInterval) clearInterval(this._subtabInterval);
     this._subtabInterval = setInterval(() => {
       if (this.currentView !== 'home' || this.currentHomeSubSection !== 'overview') return;
       const maxScroll = track.scrollWidth - track.clientWidth;
-      if (maxScroll > 15 && track.scrollLeft <= 5) {
+      if (maxScroll > 10 && track.scrollLeft <= 5) {
         track.scrollTo({ left: Math.min(80, maxScroll), behavior: 'smooth' });
         setTimeout(() => {
           if (this.currentHomeSubSection === 'overview') {
@@ -2679,19 +2655,6 @@ window.FMCUApp = {
       const btnRect = activeBtn.getBoundingClientRect();
       const offset = (btnRect.left - trackRect.left) + track.scrollLeft - (track.clientWidth / 2) + (btnRect.width / 2);
       track.scrollTo({ left: Math.max(0, offset), behavior: 'smooth' });
-    }
-  },
-
-  peekNextHomeSubtab() {
-    this.triggerHaptic('light');
-    const track = document.getElementById('home-subtab-track');
-    if (!track) return;
-    const maxScroll = track.scrollWidth - track.clientWidth;
-    const isAtEnd = track.scrollLeft >= maxScroll - 15;
-    if (isAtEnd) {
-      track.scrollTo({ left: 0, behavior: 'smooth' });
-    } else {
-      track.scrollTo({ left: maxScroll, behavior: 'smooth' });
     }
   },
 
