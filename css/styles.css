@@ -548,9 +548,30 @@ body.has-hud .flex-1.lg\:pl-72 {
 }
 
 .taro-mascot-img {
-  filter: drop-shadow(0 4px 8px rgba(0, 153, 68, 0.14));
+  mix-blend-mode: multiply;
+  filter: brightness(1.015);
   user-select: none;
   -webkit-user-drag: none;
+}
+
+@keyframes taroCursorBlink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.taro-typewriter-cursor {
+  display: inline-block;
+  margin-left: 2px;
+  width: 2.5px;
+  height: 1.1em;
+  vertical-align: -0.15em;
+  background-color: #009944;
+  border-radius: 1px;
+  animation: taroCursorBlink 0.65s step-end infinite;
 }
 
 .taro-sound-bar {
@@ -569,7 +590,7 @@ body.has-hud .flex-1.lg\:pl-72 {
 }
 
 .taro-progress-active {
-  animation: taroProgressBar 7.5s linear infinite;
+  animation: taroProgressBar 8.5s linear infinite;
 }
 
 /* Custom mini scrollbar for TARO slide body */

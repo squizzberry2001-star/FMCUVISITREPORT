@@ -3460,6 +3460,8 @@ window.FMCUApp = {
     const emptyEl = document.getElementById('ai-summary-empty');
     const loadingEl = document.getElementById('ai-summary-loading');
     const containerEl = document.getElementById('taro-summary-container');
+    if (loadingEl) loadingEl.classList.add('hidden');
+    if (containerEl) containerEl.classList.remove('hidden');
 
     if (completedReports.length === 0) {
       if (emptyEl) emptyEl.classList.remove('hidden');
@@ -3500,9 +3502,13 @@ window.FMCUApp = {
       if (containerEl) containerEl.classList.remove('hidden');
       this.renderTaroAnalysis(cached);
     } else {
-      // First time generation: show TARO thinking loading skeleton
-      if (loadingEl) loadingEl.classList.remove('hidden');
-      if (containerEl) containerEl.classList.add('hidden');
+      // First time generation: seamless silent generation, no bouncing loading skeleton
+      if (loadingEl) loadingEl.classList.add('hidden');
+      if (containerEl) containerEl.classList.remove('hidden');
+      const bodyEl = document.getElementById('taro-slide-body');
+      if (bodyEl && !bodyEl.innerHTML.trim()) {
+        bodyEl.innerHTML = '<p class="text-xs sm:text-[13px] text-slate-500 italic">Menyusun rekapitulasi temuan observasi all visitor...</p>';
+      }
     }
 
     // Rate-limiting / debounce: avoid spamming Gemini API if called repeatedly within 60s
@@ -3821,6 +3827,91 @@ FORMAT STRUKTUR OUTPUT WAJIB:
     this.startTaroCarousel();
   },
 
+  typewriterElement(el, htmlContent, onComplete) {
+    if (!el) return;
+
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      el.innerHTML = htmlContent;
+      if (typeof onComplete === 'function') onComplete();
+      return;
+    }
+
+    el.innerHTML = htmlContent;
+
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
+    const textItems = [];
+    let textNode;
+    while ((textNode = walker.nextNode())) {
+      const fullText = textNode.nodeValue;
+      if (fullText && fullText.trim().length > 0) {
+        textItems.push({
+          node: textNode,
+          fullText: fullText,
+          pos: 0
+        });
+        textNode.nodeValue = '';
+      }
+    }
+
+    if (textItems.length === 0) {
+      el.innerHTML = htmlContent;
+      if (typeof onComplete === 'function') onComplete();
+      return;
+    }
+
+    const cursor = document.createElement('span');
+    cursor.className = 'taro-typewriter-cursor';
+    cursor.setAttribute('aria-hidden', 'true');
+    el.appendChild(cursor);
+
+    let currentIdx = 0;
+    let isCancelled = false;
+    const charsPerTick = 4; // Fast typewriter speed
+    const tickIntervalMs = 12;
+
+    const intervalId = setInterval(() => {
+      if (isCancelled) {
+        clearInterval(intervalId);
+        cursor.remove();
+        return;
+      }
+
+      if (currentIdx >= textItems.length) {
+        clearInterval(intervalId);
+        cursor.remove();
+        if (this._activeTaroTypewriter?.intervalId === intervalId) {
+          this._activeTaroTypewriter = null;
+        }
+        if (typeof onComplete === 'function') onComplete();
+        return;
+      }
+
+      const currentItem = textItems[currentIdx];
+      currentItem.pos = Math.min(currentItem.pos + charsPerTick, currentItem.fullText.length);
+      currentItem.node.nodeValue = currentItem.fullText.slice(0, currentItem.pos);
+
+      if (currentItem.node.parentNode) {
+        currentItem.node.parentNode.insertBefore(cursor, currentItem.node.nextSibling);
+      }
+
+      if (currentItem.pos >= currentItem.fullText.length) {
+        currentIdx++;
+      }
+    }, tickIntervalMs);
+
+    this._activeTaroTypewriter = {
+      intervalId,
+      cancel: () => {
+        isCancelled = true;
+        clearInterval(intervalId);
+        cursor.remove();
+        textItems.forEach(it => {
+          if (it.node) it.node.nodeValue = it.fullText;
+        });
+      }
+    };
+  },
+
   showTaroSlide(index) {
     if (!this._taroSections || this._taroSections.length === 0) return;
     if (index < 0) index = 0;
@@ -3831,20 +3922,17 @@ FORMAT STRUKTUR OUTPUT WAJIB:
     const titleEl = document.getElementById('taro-slide-title');
     const iconEl = document.getElementById('taro-slide-icon');
     const bodyEl = document.getElementById('taro-slide-body');
-    const counterEl = document.getElementById('taro-carousel-counter');
     const progressEl = document.getElementById('taro-progress-indicator');
 
     if (titleEl) titleEl.textContent = sec.title;
     if (iconEl) iconEl.className = `fa-solid ${sec.icon} text-${sec.color}-600`;
+
     if (bodyEl) {
-      bodyEl.classList.remove('taro-slide-fade-in');
-      void bodyEl.offsetWidth; // Reflow to re-trigger smooth fade
-      bodyEl.innerHTML = sec.html;
-      bodyEl.scrollTop = 0;
-      bodyEl.classList.add('taro-slide-fade-in');
-    }
-    if (counterEl) {
-      counterEl.textContent = `Poin ${index + 1} dari ${this._taroSections.length}`;
+      if (this._activeTaroTypewriter) {
+        this._activeTaroTypewriter.cancel();
+        this._activeTaroTypewriter = null;
+      }
+      this.typewriterElement(bodyEl, sec.html);
     }
 
     // Restart smooth auto-progress bar animation
@@ -3874,7 +3962,7 @@ FORMAT STRUKTUR OUTPUT WAJIB:
 
     this._taroSlideInterval = setInterval(() => {
       this.nextTaroSlide();
-    }, 7500); // 7.5 seconds per slide
+    }, 8500); // 8.5 seconds per slide (fast typewriter + comfortable reading)
   },
 
   pauseTaroCarousel() {
@@ -3900,6 +3988,10 @@ FORMAT STRUKTUR OUTPUT WAJIB:
     const expandIcon = document.getElementById('taro-expand-icon');
 
     if (this._isTaroExpanded) {
+      if (this._activeTaroTypewriter) {
+        this._activeTaroTypewriter.cancel();
+        this._activeTaroTypewriter = null;
+      }
       if (minView) minView.classList.add('hidden');
       if (expView) expView.classList.remove('hidden');
       if (expandLabel) expandLabel.textContent = 'Perkecil';
@@ -3910,6 +4002,7 @@ FORMAT STRUKTUR OUTPUT WAJIB:
       if (expView) expView.classList.add('hidden');
       if (expandLabel) expandLabel.textContent = 'Perbesar';
       if (expandIcon) expandIcon.className = 'fa-solid fa-expand';
+      this.showTaroSlide(this._taroActiveSlide);
       this.startTaroCarousel();
     }
   },
@@ -3927,8 +4020,8 @@ FORMAT STRUKTUR OUTPUT WAJIB:
     }
 
     const greetings = [
-      'Halo Rekan Ops! T.A.R.O (Trainer Asyik Rekan Operasional) siap mendampingi peningkatan standar QSC toko kita!',
-      'T.A.R.O memantau temuan visit secara real-time untuk memastikan Food Safety & Service prima!',
+      'Hai! Aku T.A.R.O. AI, siap mendampingi peningkatan standar QSC toko kita!',
+      'Aku memantau temuan visit secara real-time untuk memastikan Food Safety & Service prima!',
       'Disiplin checklist harian dan FEFO adalah kunci operasional retail kelas dunia. Semangat Rekan Ops!',
       'Kualitas kopi Famima Cafe & display hot snack yang prima berawal dari komitmen kita bersama!'
     ];
