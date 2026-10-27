@@ -93,6 +93,42 @@ window.FMCUApp = {
       }, { passive: true });
     }
 
+    // Touch swipe navigation for Home Subsections (Overview, Schedule, History)
+    let homeTouchStartX = 0;
+    let homeTouchStartY = 0;
+    const viewHome = document.getElementById('view-home');
+    if (viewHome) {
+      viewHome.addEventListener('touchstart', (e) => {
+        const target = e.target;
+        if (target.closest('#home-map') || target.closest('#home-news-track') || target.closest('input, textarea, select, button, .leaflet-container')) {
+          homeTouchStartX = 0;
+          return;
+        }
+        if (e.touches && e.touches.length === 1) {
+          homeTouchStartX = e.touches[0].clientX;
+          homeTouchStartY = e.touches[0].clientY;
+        }
+      }, { passive: true });
+
+      viewHome.addEventListener('touchend', (e) => {
+        if (!homeTouchStartX) return;
+        if (e.changedTouches && e.changedTouches.length === 1) {
+          const deltaX = e.changedTouches[0].clientX - homeTouchStartX;
+          const deltaY = e.changedTouches[0].clientY - homeTouchStartY;
+          if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+            const sections = ['overview', 'schedule', 'history'];
+            const curIdx = sections.indexOf(this.currentHomeSubSection || 'overview');
+            if (deltaX < 0 && curIdx < sections.length - 1) {
+              this.switchHomeSubSection(sections[curIdx + 1]);
+            } else if (deltaX > 0 && curIdx > 0) {
+              this.switchHomeSubSection(sections[curIdx - 1]);
+            }
+          }
+        }
+        homeTouchStartX = 0;
+      }, { passive: true });
+    }
+
     // Cek sesi login aktif di tab ini (sessionStorage). Jika tutup tab / buka baru / expired -> wajib login!
     const sessionUser = window.FMCUData.getSession();
     this.currentUser = sessionUser || null;
@@ -2542,14 +2578,15 @@ window.FMCUApp = {
       const btn = document.getElementById(`home-subtab-btn-${sec}`);
       if (btn) {
         if (sec === target) {
-          btn.className = 'flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-2 cursor-pointer bg-[#009944] text-white shadow-xs whitespace-nowrap';
+          btn.className = 'shrink-0 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer bg-[#009944] text-white shadow-xs whitespace-nowrap';
         } else {
-          btn.className = 'flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-2 cursor-pointer text-slate-600 hover:text-slate-900 hover:bg-slate-100 whitespace-nowrap';
+          btn.className = 'shrink-0 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer text-slate-600 hover:text-slate-900 hover:bg-slate-100 whitespace-nowrap';
         }
       }
     });
 
     this.updateHomeSubSectionPills();
+    this.scrollActiveHomeSubtabIntoView();
 
     if (target === 'overview') {
       this.renderHomeNewsSlider();
@@ -2564,6 +2601,97 @@ window.FMCUApp = {
 
     if (scrollTop) {
       document.getElementById('home-subsection-switcher-bar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  },
+
+  _subtabPeekTimer: null,
+  _subtabInterval: null,
+
+  // Auto-Slide & Peek Feature for Mobile Sub-section Buttons
+  initHomeSubtabAutoSlide() {
+    const track = document.getElementById('home-subtab-track');
+    if (!track) return;
+
+    const arrow = document.getElementById('home-subtab-peek-arrow');
+    const icon = document.getElementById('home-subtab-peek-icon');
+
+    const updateArrowState = () => {
+      if (!arrow) return;
+      const maxScroll = track.scrollWidth - track.clientWidth;
+      if (maxScroll <= 8) {
+        arrow.classList.add('hidden');
+        return;
+      }
+      arrow.classList.remove('hidden');
+      const isAtEnd = track.scrollLeft >= maxScroll - 15;
+      if (icon) {
+        icon.className = isAtEnd ? 'fa-solid fa-chevron-left' : 'fa-solid fa-chevron-right';
+      }
+    };
+
+    updateArrowState();
+
+    if (!track._scrollBound) {
+      track._scrollBound = true;
+      track.addEventListener('scroll', updateArrowState, { passive: true });
+    }
+
+    // Auto-slide peek on mobile:
+    // Saat user membuka halaman Home pada HP, track secara otomatis geser halus ke kanan
+    // untuk menampilkan tombol ke-3 (History & Arsip) sehingga user tahu ada lebih dari 2 button section!
+    if (this._subtabPeekTimer) clearTimeout(this._subtabPeekTimer);
+    this._subtabPeekTimer = setTimeout(() => {
+      if (this.currentView !== 'home') return;
+      const maxScroll = track.scrollWidth - track.clientWidth;
+      if (maxScroll > 15) {
+        // 1. Auto slide ke kanan (peek tombol ke-3)
+        track.scrollTo({ left: maxScroll, behavior: 'smooth' });
+
+        // 2. Tahan sebentar lalu auto slide kembali ke tab aktif
+        setTimeout(() => {
+          if (this.currentView !== 'home') return;
+          this.scrollActiveHomeSubtabIntoView();
+        }, 1300);
+      }
+    }, 650);
+
+    // Subtle auto-peek reminder berkala setiap 9 detik jika masih di section 1
+    if (this._subtabInterval) clearInterval(this._subtabInterval);
+    this._subtabInterval = setInterval(() => {
+      if (this.currentView !== 'home' || this.currentHomeSubSection !== 'overview') return;
+      const maxScroll = track.scrollWidth - track.clientWidth;
+      if (maxScroll > 15 && track.scrollLeft <= 5) {
+        track.scrollTo({ left: Math.min(80, maxScroll), behavior: 'smooth' });
+        setTimeout(() => {
+          if (this.currentHomeSubSection === 'overview') {
+            track.scrollTo({ left: 0, behavior: 'smooth' });
+          }
+        }, 1000);
+      }
+    }, 9000);
+  },
+
+  scrollActiveHomeSubtabIntoView() {
+    const track = document.getElementById('home-subtab-track');
+    const activeBtn = document.getElementById(`home-subtab-btn-${this.currentHomeSubSection || 'overview'}`);
+    if (track && activeBtn) {
+      const trackRect = track.getBoundingClientRect();
+      const btnRect = activeBtn.getBoundingClientRect();
+      const offset = (btnRect.left - trackRect.left) + track.scrollLeft - (track.clientWidth / 2) + (btnRect.width / 2);
+      track.scrollTo({ left: Math.max(0, offset), behavior: 'smooth' });
+    }
+  },
+
+  peekNextHomeSubtab() {
+    this.triggerHaptic('light');
+    const track = document.getElementById('home-subtab-track');
+    if (!track) return;
+    const maxScroll = track.scrollWidth - track.clientWidth;
+    const isAtEnd = track.scrollLeft >= maxScroll - 15;
+    if (isAtEnd) {
+      track.scrollTo({ left: 0, behavior: 'smooth' });
+    } else {
+      track.scrollTo({ left: maxScroll, behavior: 'smooth' });
     }
   },
 
@@ -2606,6 +2734,7 @@ window.FMCUApp = {
     this.renderHomeHistory();
     this.initOrUpdateHomeMap();
     this.updateHomeSubSectionPills();
+    this.initHomeSubtabAutoSlide();
   },
 
   renderAnalyticsView() {

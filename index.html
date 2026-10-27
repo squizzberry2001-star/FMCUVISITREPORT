@@ -595,30 +595,38 @@
            ================================================================== -->
       <main id="view-home" class="view-section p-4 sm:p-6 max-w-7xl w-full mx-auto space-y-6">
 
-        <!-- Home Sub-Section Navigation Switcher Bar -->
-        <div id="home-subsection-switcher-bar" class="fm-card p-2 sm:p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-gradient-to-r from-emerald-50/60 via-white to-teal-50/60 border border-slate-200 shadow-2xs">
-          <div class="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto p-0.5">
+        <!-- Home Sub-Section Navigation Switcher Bar with Mobile Auto-Slide & Peek -->
+        <div id="home-subsection-switcher-bar" class="fm-card p-1.5 sm:p-2.5 flex items-center justify-between gap-1.5 sm:gap-2.5 bg-gradient-to-r from-emerald-50/60 via-white to-teal-50/60 border border-slate-200 shadow-2xs relative">
+          <!-- Scrollable Track with Auto-Slide support -->
+          <div id="home-subtab-track" class="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto p-0.5 no-scrollbar scroll-smooth">
             <!-- Sub-tab 1: News & Maps Page -->
-            <button type="button" id="home-subtab-btn-overview" onclick="FMCUApp.switchHomeSubSection('overview')" class="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-2 cursor-pointer bg-[#009944] text-white shadow-xs whitespace-nowrap">
+            <button type="button" id="home-subtab-btn-overview" onclick="FMCUApp.switchHomeSubSection('overview')" class="shrink-0 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer bg-[#009944] text-white shadow-xs whitespace-nowrap">
               <i class="fa-solid fa-newspaper text-white"></i>
               <span>1. News & Maps</span>
             </button>
             <!-- Sub-tab 2: Jadwal Visit -->
-            <button type="button" id="home-subtab-btn-schedule" onclick="FMCUApp.switchHomeSubSection('schedule')" class="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-2 cursor-pointer text-slate-600 hover:text-slate-900 hover:bg-slate-100 whitespace-nowrap">
+            <button type="button" id="home-subtab-btn-schedule" onclick="FMCUApp.switchHomeSubSection('schedule')" class="shrink-0 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer text-slate-600 hover:text-slate-900 hover:bg-slate-100 whitespace-nowrap">
               <i class="fa-solid fa-calendar-days text-[#009944]"></i>
               <span>2. Jadwal Visit</span>
               <span id="home-schedule-count-pill" class="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-extrabold">0</span>
             </button>
             <!-- Sub-tab 3: History & Arsip Visit -->
-            <button type="button" id="home-subtab-btn-history" onclick="FMCUApp.switchHomeSubSection('history')" class="flex-1 sm:flex-initial px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer text-slate-600 hover:text-slate-900 hover:bg-slate-100 whitespace-nowrap">
+            <button type="button" id="home-subtab-btn-history" onclick="FMCUApp.switchHomeSubSection('history')" class="shrink-0 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer text-slate-600 hover:text-slate-900 hover:bg-slate-100 whitespace-nowrap">
               <i class="fa-solid fa-clock-rotate-left text-[#0099A6]"></i>
               <span>3. History & Arsip</span>
               <span id="home-history-count-pill" class="px-1.5 py-0.5 rounded-full text-[10px] bg-teal-100 text-teal-800 font-extrabold">0</span>
             </button>
           </div>
 
-          <div class="hidden sm:flex items-center gap-2 text-xs font-bold text-slate-500 pr-2">
-            <span class="w-2 h-2 rounded-full bg-emerald-500 gps-pulse"></span>
+          <!-- Mobile Peek & Arrow Hint: Memberitahu user bahwa ada lebih dari 2 button section -->
+          <div class="sm:hidden flex items-center shrink-0 pl-0.5">
+            <button type="button" id="home-subtab-peek-arrow" onclick="FMCUApp.peekNextHomeSubtab()" class="w-8 h-8 rounded-xl bg-emerald-100/90 text-emerald-800 hover:bg-emerald-200 flex items-center justify-center text-xs transition animate-pulse cursor-pointer shadow-2xs" title="Lihat tab section lainnya">
+              <i id="home-subtab-peek-icon" class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
+
+          <div class="hidden sm:flex items-center gap-2 text-xs font-bold text-slate-500 pr-2 shrink-0">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 gps-pulse"></span>
             <span>Navigasi Home FMCU</span>
           </div>
         </div>

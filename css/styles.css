@@ -352,3 +352,12 @@ body.has-hud .flex-1.lg\:pl-72 {
     -webkit-overflow-scrolling: touch;
   }
 }
+
+/* Hide scrollbar for clean horizontal tab sliding */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
