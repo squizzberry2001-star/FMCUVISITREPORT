@@ -453,4 +453,121 @@ body.has-hud .flex-1.lg\:pl-72 {
   background: #94a3b8;
 }
 
+/* ==========================================================================
+   T.A.R.O (Trainer Asyik Rekan Operasional) AI Bot Animations & Components
+   ========================================================================== */
+@keyframes taroFloat {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-4px) rotate(1deg);
+  }
+}
+
+@keyframes taroGlowPulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.65;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes taroEyeBlink {
+  0%, 46%, 54%, 100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.12);
+  }
+}
+
+@keyframes taroAntennaPulse {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.25);
+    box-shadow: 0 0 8px #34d399;
+  }
+}
+
+@keyframes taroSoundWave {
+  0%, 100% {
+    height: 3px;
+  }
+  50% {
+    height: 11px;
+  }
+}
+
+.taro-bot-floating {
+  animation: taroFloat 3.2s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+.taro-bot-glow {
+  animation: taroGlowPulse 2.6s ease-in-out infinite;
+}
+
+.taro-robot-eye {
+  animation: taroEyeBlink 4.2s infinite;
+  display: inline-block;
+  transform-origin: center center;
+}
+
+.taro-antenna-pulse {
+  animation: taroAntennaPulse 1.8s ease-in-out infinite;
+}
+
+.taro-sound-bar {
+  width: 2.5px;
+  background-color: currentColor;
+  border-radius: 9999px;
+  display: inline-block;
+  animation: taroSoundWave 0.85s ease-in-out infinite alternate;
+}
+.taro-sound-bar.bar-1 { animation-delay: 0.0s; }
+.taro-sound-bar.bar-2 { animation-delay: 0.28s; }
+.taro-sound-bar.bar-3 { animation-delay: 0.56s; }
+
+.taro-dot-btn {
+  height: 6px;
+  border-radius: 9999px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+.taro-dot-active {
+  width: 20px;
+  background-color: #009944;
+}
+.taro-dot-inactive {
+  width: 6px;
+  background-color: #cbd5e1;
+}
+.taro-dot-inactive:hover {
+  background-color: #94a3b8;
+}
+
+/* Custom mini scrollbar for TARO minimized slide body */
+#taro-slide-body::-webkit-scrollbar {
+  width: 4px;
+}
+#taro-slide-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+#taro-slide-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+#taro-slide-body::-webkit-scrollbar-thumb:hover {
+  background: #009944;
+}
+
+
 

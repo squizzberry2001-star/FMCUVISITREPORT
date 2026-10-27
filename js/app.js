@@ -3235,6 +3235,7 @@ window.FMCUApp = {
 
     this.renderAnalyticsCharts();
     this.renderUserPerformanceTable();
+    this.checkAndRunSilentAiSummary();
   },
 
   deleteReportById(reportId) {
@@ -3441,61 +3442,72 @@ window.FMCUApp = {
 
 
   // ==========================================================================
-  // AI EXECUTIVE SUMMARY OVERVIEW (GEMINI AI AUDIT REKAPITULASI ALL VISITOR)
-  // Persona: Observer, Senior Audit QC, & Corporate Leadership FamilyMart
+  // T.A.R.O (Trainer Asyik Rekan Operasional) AI
+  // Persona: Observer, Senior Audit QC, & Corporate Leadership Retail FamilyMart
   // ==========================================================================
   _isAiSummaryGenerating: false,
+  _taroSections: [],
+  _taroActiveSlide: 0,
+  _taroSlideInterval: null,
+  _isTaroExpanded: false,
+  _lastAiSummaryFetchTime: 0,
+  _taroFullText: '',
 
   async checkAndRunSilentAiSummary(force = false) {
     const reports = window.FMCUData.getReports();
     const completedReports = (reports || []).filter((r) => r.visitDate && (r.storeCode || r.storeName));
-    
-    const countBadge = document.getElementById('ai-summary-badge-reports');
-    if (countBadge) {
-      countBadge.textContent = `${completedReports.length} Laporan Selesai`;
-    }
 
     const emptyEl = document.getElementById('ai-summary-empty');
     const loadingEl = document.getElementById('ai-summary-loading');
-    const contentEl = document.getElementById('ai-summary-content');
-    const timeEl = document.getElementById('ai-summary-timestamp');
+    const containerEl = document.getElementById('taro-summary-container');
 
     if (completedReports.length === 0) {
       if (emptyEl) emptyEl.classList.remove('hidden');
       if (loadingEl) loadingEl.classList.add('hidden');
-      if (contentEl) contentEl.innerHTML = '';
+      if (containerEl) containerEl.classList.add('hidden');
       return;
     }
 
     if (emptyEl) emptyEl.classList.add('hidden');
 
-    // Generate fingerprint based on report IDs and finding counts
-    const fingerprint = `${completedReports.length}_${completedReports.map((r) => `${r.id || ''}:${(r.observations || []).length}`).join('|')}`;
+    // Strict fingerprint based on report IDs, findings count, and timestamps
+    const fingerprint = `${completedReports.length}_${completedReports.map((r) => `${r.id || ''}:${(r.observations || []).length}:${r.updatedAt || r.visitDate || ''}`).join('|')}`;
     
     // Check localStorage cache
     let cached = null;
     try {
-      const raw = localStorage.getItem('fmcu_ai_summary_cache_v1');
+      const raw = localStorage.getItem('fmcu_taro_ai_cache_v2');
       if (raw) cached = JSON.parse(raw);
     } catch (e) {}
 
-    if (!force && cached && cached.fingerprint === fingerprint && cached.content) {
-      // Immediate instant render from cache!
-      if (contentEl) contentEl.innerHTML = cached.renderedHtml || this.formatAiMarkdown(cached.content);
-      if (timeEl && cached.timestamp) {
-        timeEl.textContent = `Terakhir: ${cached.timestamp}`;
-      }
+    const now = Date.now();
+    const TTL_MS = 60 * 60 * 1000; // 1 hour TTL
+    const isCacheFresh = cached && (now - (cached.timestampMs || 0) < TTL_MS);
+    const isFingerprintMatch = cached && cached.fingerprint === fingerprint;
+
+    if (!force && isCacheFresh && isFingerprintMatch && cached.content) {
+      // Instant cache hit: zero wait, zero API quota usage!
+      if (loadingEl) loadingEl.classList.add('hidden');
+      if (containerEl) containerEl.classList.remove('hidden');
+      this.renderTaroAnalysis(cached);
       return;
     }
 
-    // If cache exists with previous content, show it while updating in background
-    if (cached && cached.content && contentEl) {
-      contentEl.innerHTML = cached.renderedHtml || this.formatAiMarkdown(cached.content);
-      if (timeEl) timeEl.textContent = 'Memperbarui di latar belakang...';
+    // If cache exists from prior analysis, render it immediately so the user sees content
+    // while we refresh quietly in the background
+    if (cached && cached.content) {
+      if (loadingEl) loadingEl.classList.add('hidden');
+      if (containerEl) containerEl.classList.remove('hidden');
+      this.renderTaroAnalysis(cached);
     } else {
-      // No cache, show loading skeleton
+      // First time generation: show TARO thinking loading skeleton
       if (loadingEl) loadingEl.classList.remove('hidden');
-      if (contentEl) contentEl.innerHTML = '';
+      if (containerEl) containerEl.classList.add('hidden');
+    }
+
+    // Rate-limiting / debounce: avoid spamming Gemini API if called repeatedly within 60s
+    if (!force && (now - this._lastAiSummaryFetchTime < 60000)) {
+      return;
     }
 
     // Perform silent background generation
@@ -3513,15 +3525,10 @@ window.FMCUApp = {
   async fetchGeminiAiSummary(reports, fingerprint, isUserClick = false) {
     if (this._isAiSummaryGenerating) return;
     this._isAiSummaryGenerating = true;
+    this._lastAiSummaryFetchTime = Date.now();
 
-    const refreshIcon = document.getElementById('ai-summary-refresh-icon');
-    const refreshBtn = document.getElementById('ai-summary-refresh-btn');
     const loadingEl = document.getElementById('ai-summary-loading');
-    const contentEl = document.getElementById('ai-summary-content');
-    const timeEl = document.getElementById('ai-summary-timestamp');
-
-    if (refreshIcon) refreshIcon.classList.add('fa-spin');
-    if (refreshBtn) refreshBtn.disabled = true;
+    const containerEl = document.getElementById('taro-summary-container');
 
     try {
       const apiKey = window.FMCUData?.GEMINI_CONFIG?.getApiKey?.() || (typeof atob !== 'undefined' ? atob('QVEuQWI4Uk42S1M2TlhBVEFXTU9lRXVFZWNMU3NEUUlXWG5uUEpqT2FfVEtKbVVNNHMyYVE=') : '');
@@ -3530,23 +3537,29 @@ window.FMCUApp = {
       // Format report data
       const dataSummaryText = this.buildReportDataForGemini(reports);
 
-      const promptText = `Anda adalah Senior Audit QC, Operational Observer, dan Corporate Leadership FamilyMart Indonesia (FMCU).
-Tugas Anda: Menyusun AI Executive Summary & Overview Analisa Rekapitulasi Temuan Observasi Toko dari seluruh visitor.
-
-PANDUAN KETAT:
-1. TIDAK BERHALUSINASI: Analisis HANYA data nyata yang tercantum di bawah. Jangan mengarang temuan yang tidak ada.
-2. TO THE POINT: Gunakan gaya bahasa lugas, profesional, tegas, dan berwibawa khas audit QC retail modern. Hindari basa-basi.
-3. RELATED DENGAN FAMILYMART F&B RETAIL: Fokus pada pilar QSC (Quality, Service, Cleanliness), Food Safety & Hygiene (suhu chiller, expired date/FEFO, mesin kopi Famima Cafe, display hot snack), Standar Grooming/SOP Crew, dan Efisiensi Operasional Toko.
-4. TONE LEADERSHIP & ACTION-ORIENTED: Berikan diagnosa akar masalah tajam dan rekomendasi strategis konkret (tindakan korektif 1x24 jam & pencegahan sistemik).
+      const promptText = `Anda adalah "T.A.R.O (Trainer Asyik Rekan Operasional) AI" di FamilyMart Indonesia (FMCU).
+Peran & Karakter Anda:
+- Anda adalah sosok Trainer Operasional yang asyik, edukatif, dan solutif bagi crew toko, sekaligus bertindak tegas, teliti, dan berwibawa layaknya Senior Audit QC & Corporate Leadership Retail F&B FamilyMart.
+- Berbicaralah langsung, to the point, tanpa basa-basi berlebihan, namun tetap ramah dan memotivasi tim operasional.
+- TIDAK BERHALUSINASI: Analisis HANYA data observasi toko nyata di bawah ini. Jangan mengarang toko atau temuan yang tidak ada.
+- HIGHLY RELEVANT FAMILYMART F&B RETAIL: Fokus pada pilar QSC (Quality, Service, Cleanliness), Food Safety & Hygiene (suhu chiller/freezer, expired date/FEFO, mesin kopi Famima Cafe, hot snack display, oil quality/tester), Standar Grooming/SOP Crew, kelengkapan POS/kasir, dan kepatuhan kunjungan.
+- ACTION-ORIENTED: Tentukan akar masalah operasional yang nyata dan berikan langkah konkret 1x24 jam serta perbaikan jangka panjang.
 
 DATA OBSERVASI TOKO SELURUH VISITOR:
 ${dataSummaryText}
 
-FORMAT OUTPUT (Gunakan Heading Markdown berikut):
+FORMAT STRUKTUR OUTPUT WAJIB:
 ### 1. Ringkasan Eksekutif Operasional
+(Berikan ringkasan performa toko, skor rata-rata, tingkat kepatuhan SOP, dan apresiasi area yang sudah prima)
+
 ### 2. Rekapitulasi & Pola Temuan Kritis (Trend Masalah)
-### 3. Analisa Akar Masalah (Root Cause Analysis - Senior QC Perspective)
-### 4. Rekomendasi Strategis & Action Plan Leadership`;
+(Sebutkan pola temuan paling sering muncul dari seluruh visitor, kategori QSC yang paling banyak bermasalah, dan toko yang perlu atensi khusus)
+
+### 3. Analisa Akar Masalah (Root Cause - Senior QC Perspective)
+(Identifikasi mengapa temuan tersebut berulang: apakah masalah habit/kedisiplinan crew, kelemahan sistem checklist harian, atau kendala fasilitas)
+
+### 4. Rekomendasi Strategis & Action Plan Leadership
+(Berikan tindakan korektif cepat 1x24 jam untuk toko dan rekomendasi pelatihan/supervisi terpadu dari Trainer/Leadership)`;
 
       let aiResultText = '';
       let fetchError = null;
@@ -3577,11 +3590,38 @@ FORMAT OUTPUT (Gunakan Heading Markdown berikut):
         }
       }
 
-      if (!aiResultText) {
-        throw new Error(fetchError || 'Gagal memperoleh respon dari Gemini API');
+      // Fallback: If Gemini fails, attempt TokenPlus fallback if key is available
+      if (!aiResultText && window.FMCUData?.FALLBACK_AI_CONFIG?.apiKey) {
+        try {
+          const fbKey = window.FMCUData.FALLBACK_AI_CONFIG.apiKey;
+          const fbRes = await fetch('https://api.tokenplus.net/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${fbKey}`
+            },
+            body: JSON.stringify({
+              model: 'gpt-4o-mini',
+              messages: [{ role: 'user', content: promptText }]
+            })
+          });
+          if (fbRes.ok) {
+            const fbData = await fbRes.json();
+            if (fbData.choices && fbData.choices[0]?.message?.content) {
+              aiResultText = fbData.choices[0].message.content;
+            }
+          }
+        } catch (fbErr) {
+          console.warn('Fallback AI error:', fbErr);
+        }
       }
 
-      // Format markdown to HTML
+      if (!aiResultText) {
+        throw new Error(fetchError || 'Gagal memperoleh respon dari AI Service');
+      }
+
+      // Parse structured sections for uniform slide carousel
+      const sections = this.parseTaroSections(aiResultText);
       const renderedHtml = this.formatAiMarkdown(aiResultText);
       const nowStr = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
 
@@ -3589,47 +3629,233 @@ FORMAT OUTPUT (Gunakan Heading Markdown berikut):
       const cacheObj = {
         fingerprint,
         content: aiResultText,
+        sections,
         renderedHtml,
         timestamp: nowStr,
+        timestampMs: Date.now(),
         reportCount: reports.length
       };
       try {
-        localStorage.setItem('fmcu_ai_summary_cache_v1', JSON.stringify(cacheObj));
+        localStorage.setItem('fmcu_taro_ai_cache_v2', JSON.stringify(cacheObj));
       } catch (e) {}
 
       if (loadingEl) loadingEl.classList.add('hidden');
-      if (contentEl) {
-        contentEl.innerHTML = renderedHtml;
-      }
-      if (timeEl) {
-        timeEl.textContent = `Terakhir: ${nowStr}`;
-      }
+      if (containerEl) containerEl.classList.remove('hidden');
+
+      this.renderTaroAnalysis(cacheObj);
 
       if (isUserClick) {
-        this.showToast('AI Executive Summary berhasil diperbarui.', 'success');
+        this.showToast('Analisa T.A.R.O AI berhasil diperbarui.', 'success');
       }
     } catch (err) {
-      console.error('Gemini AI Summary Error:', err);
+      console.error('TARO AI Summary Error:', err);
       if (loadingEl) loadingEl.classList.add('hidden');
-      if (contentEl && !contentEl.innerHTML.trim()) {
-        contentEl.innerHTML = `
-          <div class="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-1">
-            <div class="font-bold flex items-center gap-1.5">
-              <i class="fa-solid fa-triangle-exclamation text-amber-600"></i>
-              <span>Gagal memuat analisa AI Gemini</span>
-            </div>
-            <p>${err.message || 'Periksa koneksi internet atau kunci API.'}</p>
+      if (containerEl) containerEl.classList.remove('hidden');
+
+      const expandedContent = document.getElementById('taro-expanded-content');
+      const slideBody = document.getElementById('taro-slide-body');
+      const errHtml = `
+        <div class="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-1">
+          <div class="font-bold flex items-center gap-1.5">
+            <i class="fa-solid fa-triangle-exclamation text-amber-600"></i>
+            <span>T.A.R.O AI sedang menunggu koneksi stabil</span>
           </div>
-        `;
+          <p>${err.message || 'Periksa koneksi internet untuk memperbarui analisa temuan terbaru.'}</p>
+        </div>
+      `;
+      if (slideBody && !slideBody.innerHTML.trim()) {
+        slideBody.innerHTML = errHtml;
+      }
+      if (expandedContent && !expandedContent.innerHTML.trim()) {
+        expandedContent.innerHTML = errHtml;
       }
       if (isUserClick) {
-        this.showToast(`Gagal memperbarui AI Summary: ${err.message}`, 'error');
+        this.showToast(`Gagal memperbarui analisa: ${err.message}`, 'error');
       }
     } finally {
       this._isAiSummaryGenerating = false;
-      if (refreshIcon) refreshIcon.classList.remove('fa-spin');
-      if (refreshBtn) refreshBtn.disabled = false;
     }
+  },
+
+  parseTaroSections(rawText) {
+    if (!rawText) return [];
+    const metaList = [
+      { defaultTitle: '1. Ringkasan Eksekutif Operasional', icon: 'fa-chart-pie', color: 'emerald' },
+      { defaultTitle: '2. Rekapitulasi & Pola Temuan Kritis', icon: 'fa-triangle-exclamation', color: 'amber' },
+      { defaultTitle: '3. Analisa Akar Masalah (Senior QC)', icon: 'fa-magnifying-glass-chart', color: 'rose' },
+      { defaultTitle: '4. Rekomendasi & Action Plan Leadership', icon: 'fa-rocket', color: 'teal' }
+    ];
+
+    // Split markdown by headings "### "
+    const chunks = rawText.split(/^###\s+/m).filter((c) => c && c.trim());
+    const sections = [];
+
+    chunks.forEach((chunk, idx) => {
+      const lines = chunk.split('\n');
+      let titleLine = (lines[0] || '').trim();
+      const bodyLines = lines.slice(1).join('\n').trim();
+      const meta = metaList[idx] || { defaultTitle: `Poin ${idx + 1}`, icon: 'fa-clipboard-check', color: 'emerald' };
+
+      const displayTitle = titleLine || meta.defaultTitle;
+      const formattedHtml = this.formatAiMarkdown(bodyLines);
+
+      sections.push({
+        title: displayTitle,
+        icon: meta.icon,
+        color: meta.color,
+        rawText: bodyLines,
+        html: formattedHtml
+      });
+    });
+
+    if (sections.length === 0) {
+      sections.push({
+        title: 'Ringkasan Analisa T.A.R.O',
+        icon: 'fa-robot',
+        color: 'emerald',
+        rawText: rawText,
+        html: this.formatAiMarkdown(rawText)
+      });
+    }
+
+    return sections;
+  },
+
+  renderTaroAnalysis(data) {
+    if (!data) return;
+    this._taroFullText = data.content || '';
+    this._taroSections = data.sections || this.parseTaroSections(data.content);
+
+    // Render Full Content for Expanded View
+    const expandedContent = document.getElementById('taro-expanded-content');
+    if (expandedContent) {
+      expandedContent.innerHTML = data.renderedHtml || this.formatAiMarkdown(data.content);
+    }
+
+    // Render Dots Navigation for Minimized View
+    const dotsContainer = document.getElementById('taro-carousel-dots');
+    if (dotsContainer) {
+      dotsContainer.innerHTML = this._taroSections
+        .map(
+          (_, idx) =>
+            `<button type="button" onclick="FMCUApp.showTaroSlide(${idx})" class="taro-dot-btn ${
+              idx === 0 ? 'taro-dot-active' : 'taro-dot-inactive'
+            }" title="Buka Poin ${idx + 1}" aria-label="Slide ${idx + 1}"></button>`
+        )
+        .join('');
+    }
+
+    // Show initial slide (Slide 0)
+    this.showTaroSlide(0);
+
+    // Start auto alternating slides
+    this.startTaroCarousel();
+  },
+
+  showTaroSlide(index) {
+    if (!this._taroSections || this._taroSections.length === 0) return;
+    if (index < 0) index = 0;
+    if (index >= this._taroSections.length) index = this._taroSections.length - 1;
+    this._taroActiveSlide = index;
+
+    const sec = this._taroSections[index];
+    const titleEl = document.getElementById('taro-slide-title');
+    const iconEl = document.getElementById('taro-slide-icon');
+    const bodyEl = document.getElementById('taro-slide-body');
+    const counterEl = document.getElementById('taro-carousel-counter');
+
+    if (titleEl) titleEl.textContent = sec.title;
+    if (iconEl) iconEl.className = `fa-solid ${sec.icon} text-${sec.color}-600`;
+    if (bodyEl) {
+      bodyEl.innerHTML = sec.html;
+      bodyEl.scrollTop = 0; // reset scroll to top on each slide
+    }
+    if (counterEl) {
+      counterEl.textContent = `Poin ${index + 1} dari ${this._taroSections.length} • Bergantian`;
+    }
+
+    // Update Dots
+    const dotsContainer = document.getElementById('taro-carousel-dots');
+    if (dotsContainer) {
+      const dots = dotsContainer.querySelectorAll('.taro-dot-btn');
+      dots.forEach((dot, dIdx) => {
+        if (dIdx === index) {
+          dot.className = 'taro-dot-btn taro-dot-active';
+        } else {
+          dot.className = 'taro-dot-btn taro-dot-inactive';
+        }
+      });
+    }
+  },
+
+  nextTaroSlide() {
+    if (!this._taroSections || this._taroSections.length === 0) return;
+    const nextIdx = (this._taroActiveSlide + 1) % this._taroSections.length;
+    this.showTaroSlide(nextIdx);
+  },
+
+  prevTaroSlide() {
+    if (!this._taroSections || this._taroSections.length === 0) return;
+    const prevIdx = (this._taroActiveSlide - 1 + this._taroSections.length) % this._taroSections.length;
+    this.showTaroSlide(prevIdx);
+  },
+
+  startTaroCarousel() {
+    this.pauseTaroCarousel();
+    if (this._isTaroExpanded) return; // Don't cycle if expanded
+    if (!this._taroSections || this._taroSections.length <= 1) return;
+
+    this._taroSlideInterval = setInterval(() => {
+      this.nextTaroSlide();
+    }, 7000); // 7 seconds per slide
+  },
+
+  pauseTaroCarousel() {
+    if (this._taroSlideInterval) {
+      clearInterval(this._taroSlideInterval);
+      this._taroSlideInterval = null;
+    }
+  },
+
+  resumeTaroCarousel() {
+    if (!this._isTaroExpanded) {
+      this.startTaroCarousel();
+    }
+  },
+
+  toggleTaroExpand() {
+    this.triggerHaptic('light');
+    this._isTaroExpanded = !this._isTaroExpanded;
+
+    const minView = document.getElementById('taro-minimized-view');
+    const expView = document.getElementById('taro-expanded-view');
+    const expandLabel = document.getElementById('taro-expand-label');
+    const expandIcon = document.getElementById('taro-expand-icon');
+
+    if (this._isTaroExpanded) {
+      if (minView) minView.classList.add('hidden');
+      if (expView) expView.classList.remove('hidden');
+      if (expandLabel) expandLabel.textContent = 'Perkecil';
+      if (expandIcon) expandIcon.className = 'fa-solid fa-compress';
+      this.pauseTaroCarousel();
+    } else {
+      if (minView) minView.classList.remove('hidden');
+      if (expView) expView.classList.add('hidden');
+      if (expandLabel) expandLabel.textContent = 'Perbesar';
+      if (expandIcon) expandIcon.className = 'fa-solid fa-expand';
+      this.startTaroCarousel();
+    }
+  },
+
+  taroBotGreeting() {
+    this.triggerHaptic('medium');
+    const greetings = [
+      'Halo Rekan Ops! T.A.R.O siap mendampingi peningkatan standar QSC toko kita!',
+      'T.A.R.O memantau seluruh temuan visit untuk memastikan Food Safety & Service prima!',
+      'Mari terus disiplin jalankan SOP & FEFO setiap hari bersama T.A.R.O!'
+    ];
+    const randomGreet = greetings[Math.floor(Math.random() * greetings.length)];
+    this.showToast(`🤖 ${randomGreet}`, 'info');
   },
 
   buildReportDataForGemini(reports) {
@@ -3676,22 +3902,22 @@ FORMAT OUTPUT (Gunakan Heading Markdown berikut):
       .replace(/>/g, '&gt;');
 
     // Headings
-    html = html.replace(/^### (.*$)/gim, '<div class="flex items-center gap-2 mt-5 mb-2.5 pt-3 border-t border-emerald-100 first:border-t-0 first:pt-0"><span class="w-2 h-4 rounded-full bg-[#009944]"></span><h4 class="text-sm sm:text-base font-extrabold text-slate-900">$1</h4></div>');
-    html = html.replace(/^## (.*$)/gim, '<h3 class="text-base sm:text-lg font-black text-slate-900 mt-6 mb-3 pb-1 border-b border-slate-200">$1</h3>');
-    html = html.replace(/^#### (.*$)/gim, '<h5 class="text-xs sm:text-sm font-bold text-slate-800 mt-3 mb-1.5 uppercase tracking-wider text-emerald-800">$1</h5>');
+    html = html.replace(/^### (.*$)/gim, '<div class="flex items-center gap-2 mt-4 mb-2 pt-2.5 border-t border-emerald-100 first:border-t-0 first:pt-0"><span class="w-2 h-4 rounded-full bg-[#009944]"></span><h4 class="text-xs sm:text-sm font-extrabold text-slate-900">$1</h4></div>');
+    html = html.replace(/^## (.*$)/gim, '<h3 class="text-sm sm:text-base font-black text-slate-900 mt-5 mb-2 pb-1 border-b border-slate-200">$1</h3>');
+    html = html.replace(/^#### (.*$)/gim, '<h5 class="text-xs font-bold text-slate-800 mt-2.5 mb-1 uppercase tracking-wider text-emerald-800">$1</h5>');
 
     // Horizontal rule
-    html = html.replace(/^---$/gim, '<hr class="my-4 border-slate-200/80" />');
+    html = html.replace(/^---$/gim, '<hr class="my-3 border-slate-200/80" />');
 
     // Bold & Italic
     html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-extrabold text-slate-900">$1</strong>');
     html = html.replace(/\*(.*?)\*/g, '<em class="italic text-slate-700">$1</em>');
 
     // Numbered list items
-    html = html.replace(/^(\d+)\.\s+(.*$)/gim, '<li class="ml-4 list-decimal text-xs sm:text-sm text-slate-700 my-1 leading-relaxed pl-1">$2</li>');
+    html = html.replace(/^(\d+)\.\s+(.*$)/gim, '<li class="ml-4 list-decimal text-xs sm:text-[13px] text-slate-700 my-0.5 leading-relaxed pl-1">$2</li>');
 
     // Bullet list items
-    html = html.replace(/^[\*\-]\s+(.*$)/gim, '<li class="ml-4 list-disc text-xs sm:text-sm text-slate-700 my-1 leading-relaxed pl-1">$2</li>');
+    html = html.replace(/^[\*\-]\s+(.*$)/gim, '<li class="ml-4 list-disc text-xs sm:text-[13px] text-slate-700 my-0.5 leading-relaxed pl-1">$2</li>');
 
     // Wrap paragraphs
     html = html.split('\n\n').map(p => {
@@ -3700,7 +3926,7 @@ FORMAT OUTPUT (Gunakan Heading Markdown berikut):
       if (p.startsWith('<div') || p.startsWith('<h') || p.startsWith('<li') || p.startsWith('<hr')) {
         return p;
       }
-      return '<p class="text-xs sm:text-sm text-slate-700 leading-relaxed my-2">' + p + '</p>';
+      return '<p class="text-xs sm:text-[13px] text-slate-700 leading-relaxed my-1.5">' + p + '</p>';
     }).join('\n');
 
     return html;
@@ -3708,33 +3934,38 @@ FORMAT OUTPUT (Gunakan Heading Markdown berikut):
 
   copyAiSummaryText() {
     this.triggerHaptic('light');
-    let textToCopy = '';
-    try {
-      const raw = localStorage.getItem('fmcu_ai_summary_cache_v1');
-      if (raw) {
-        const obj = JSON.parse(raw);
-        textToCopy = obj.content;
-      }
-    } catch (e) {}
+    let textToCopy = this._taroFullText;
+    if (!textToCopy) {
+      try {
+        const raw = localStorage.getItem('fmcu_taro_ai_cache_v2');
+        if (raw) {
+          const obj = JSON.parse(raw);
+          textToCopy = obj.content;
+        }
+      } catch (e) {}
+    }
 
     if (!textToCopy) {
-      const contentEl = document.getElementById('ai-summary-content');
-      textToCopy = contentEl ? contentEl.innerText : '';
+      const expEl = document.getElementById('taro-expanded-content');
+      textToCopy = expEl ? expEl.innerText : '';
     }
 
     if (!textToCopy || textToCopy.trim() === '') {
-      this.showToast('Belum ada teks analisa AI untuk disalin.', 'warning');
+      this.showToast('Belum ada teks analisa T.A.R.O untuk disalin.', 'warning');
       return;
     }
 
+    const header = `*T.A.R.O (Trainer Asyik Rekan Operasional) AI*\n_Rekapitulasi Analisa Temuan All Visitor FamilyMart Indonesia_\n========================================\n\n`;
+    const fullMessage = header + textToCopy.trim();
+
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(textToCopy).then(() => {
-        this.showToast('Narasi AI Summary berhasil disalin ke clipboard!', 'success');
+      navigator.clipboard.writeText(fullMessage).then(() => {
+        this.showToast('Narasi analisa T.A.R.O AI berhasil disalin!', 'success');
       }).catch(() => {
-        this.fallbackCopyText(textToCopy);
+        this.fallbackCopyText(fullMessage);
       });
     } else {
-      this.fallbackCopyText(textToCopy);
+      this.fallbackCopyText(fullMessage);
     }
   },
 
@@ -3747,7 +3978,7 @@ FORMAT OUTPUT (Gunakan Heading Markdown berikut):
     ta.select();
     try {
       document.execCommand('copy');
-      this.showToast('Narasi AI Summary berhasil disalin ke clipboard!', 'success');
+      this.showToast('Narasi analisa T.A.R.O AI berhasil disalin!', 'success');
     } catch (e) {
       this.showToast('Gagal menyalin teks.', 'error');
     }
@@ -4808,6 +5039,7 @@ FORMAT OUTPUT (Gunakan Heading Markdown berikut):
     window.FMCUData.setActiveCheckIn(null);
     this.hasActiveStoreForm = false;
     this.updateActiveCheckInUI();
+    this.checkAndRunSilentAiSummary();
 
     return reportObj;
   },
