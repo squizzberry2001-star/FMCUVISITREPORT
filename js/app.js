@@ -3814,23 +3814,10 @@ FORMAT STRUKTUR OUTPUT WAJIB:
       expandedContent.innerHTML = data.renderedHtml || this.formatAiMarkdown(data.content);
     }
 
-    // Render Dots Navigation for Minimized View
-    const dotsContainer = document.getElementById('taro-carousel-dots');
-    if (dotsContainer) {
-      dotsContainer.innerHTML = this._taroSections
-        .map(
-          (_, idx) =>
-            `<button type="button" onclick="FMCUApp.showTaroSlide(${idx})" class="taro-dot-btn ${
-              idx === 0 ? 'taro-dot-active' : 'taro-dot-inactive'
-            }" title="Buka Poin ${idx + 1}" aria-label="Slide ${idx + 1}"></button>`
-        )
-        .join('');
-    }
-
     // Show initial slide (Slide 0)
     this.showTaroSlide(0);
 
-    // Start auto alternating slides
+    // Start auto alternating slides (no manual toggles)
     this.startTaroCarousel();
   },
 
@@ -3845,28 +3832,26 @@ FORMAT STRUKTUR OUTPUT WAJIB:
     const iconEl = document.getElementById('taro-slide-icon');
     const bodyEl = document.getElementById('taro-slide-body');
     const counterEl = document.getElementById('taro-carousel-counter');
+    const progressEl = document.getElementById('taro-progress-indicator');
 
     if (titleEl) titleEl.textContent = sec.title;
     if (iconEl) iconEl.className = `fa-solid ${sec.icon} text-${sec.color}-600`;
     if (bodyEl) {
+      bodyEl.classList.remove('taro-slide-fade-in');
+      void bodyEl.offsetWidth; // Reflow to re-trigger smooth fade
       bodyEl.innerHTML = sec.html;
-      bodyEl.scrollTop = 0; // reset scroll to top on each slide
+      bodyEl.scrollTop = 0;
+      bodyEl.classList.add('taro-slide-fade-in');
     }
     if (counterEl) {
-      counterEl.textContent = `Poin ${index + 1} dari ${this._taroSections.length} • Bergantian`;
+      counterEl.textContent = `Poin ${index + 1} dari ${this._taroSections.length}`;
     }
 
-    // Update Dots
-    const dotsContainer = document.getElementById('taro-carousel-dots');
-    if (dotsContainer) {
-      const dots = dotsContainer.querySelectorAll('.taro-dot-btn');
-      dots.forEach((dot, dIdx) => {
-        if (dIdx === index) {
-          dot.className = 'taro-dot-btn taro-dot-active';
-        } else {
-          dot.className = 'taro-dot-btn taro-dot-inactive';
-        }
-      });
+    // Restart smooth auto-progress bar animation
+    if (progressEl) {
+      progressEl.classList.remove('taro-progress-active');
+      void progressEl.offsetWidth;
+      progressEl.classList.add('taro-progress-active');
     }
   },
 
@@ -3889,7 +3874,7 @@ FORMAT STRUKTUR OUTPUT WAJIB:
 
     this._taroSlideInterval = setInterval(() => {
       this.nextTaroSlide();
-    }, 7000); // 7 seconds per slide
+    }, 7500); // 7.5 seconds per slide
   },
 
   pauseTaroCarousel() {
@@ -3931,10 +3916,21 @@ FORMAT STRUKTUR OUTPUT WAJIB:
 
   taroBotGreeting() {
     this.triggerHaptic('medium');
+    const floatBox = document.getElementById('taro-mascot-float-box');
+    if (floatBox) {
+      floatBox.classList.remove('taro-mascot-jump-anim');
+      void floatBox.offsetWidth;
+      floatBox.classList.add('taro-mascot-jump-anim');
+      setTimeout(() => {
+        if (floatBox) floatBox.classList.remove('taro-mascot-jump-anim');
+      }, 700);
+    }
+
     const greetings = [
-      'Halo Rekan Ops! T.A.R.O siap mendampingi peningkatan standar QSC toko kita!',
-      'T.A.R.O memantau seluruh temuan visit untuk memastikan Food Safety & Service prima!',
-      'Mari terus disiplin jalankan SOP & FEFO setiap hari bersama T.A.R.O!'
+      'Halo Rekan Ops! T.A.R.O (Trainer Asyik Rekan Operasional) siap mendampingi peningkatan standar QSC toko kita!',
+      'T.A.R.O memantau temuan visit secara real-time untuk memastikan Food Safety & Service prima!',
+      'Disiplin checklist harian dan FEFO adalah kunci operasional retail kelas dunia. Semangat Rekan Ops!',
+      'Kualitas kopi Famima Cafe & display hot snack yang prima berawal dari komitmen kita bersama!'
     ];
     const randomGreet = greetings[Math.floor(Math.random() * greetings.length)];
     this.showToast(`🤖 ${randomGreet}`, 'info');

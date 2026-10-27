@@ -971,53 +971,21 @@
         <!-- ==============================================================
              T.A.R.O (Trainer Asyik Rekan Operasional) AI CARD
              ============================================================== -->
-        <div id="analytics-ai-summary-card" class="fm-card p-4 sm:p-6 bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/70 border border-emerald-200/90 shadow-sm relative overflow-hidden transition-all duration-300">
+        <div id="analytics-ai-summary-card" class="fm-card p-4 sm:p-6 bg-gradient-to-br from-emerald-50/50 via-white to-teal-50/40 border border-emerald-200/80 shadow-sm relative overflow-hidden transition-all duration-300">
           <!-- Background decorative glow -->
-          <div class="absolute -right-12 -top-12 w-48 h-48 bg-emerald-400/10 rounded-full blur-2xl pointer-events-none"></div>
-          <div class="absolute -left-12 -bottom-12 w-48 h-48 bg-teal-400/10 rounded-full blur-2xl pointer-events-none"></div>
+          <div class="absolute -right-16 -top-16 w-56 h-56 bg-emerald-400/10 rounded-full blur-3xl pointer-events-none"></div>
+          <div class="absolute -left-16 -bottom-16 w-56 h-56 bg-teal-400/10 rounded-full blur-3xl pointer-events-none"></div>
 
-          <!-- Header TARO AI: Clean, 1 single title, interactive bot, expand & copy controls -->
-          <div class="relative z-10 flex items-center justify-between gap-3 border-b border-emerald-100/90 pb-3.5 mb-3.5">
-            <!-- Left: Animated Bot Avatar & 1 Clean Title -->
-            <div class="flex items-center gap-3 min-w-0">
-              <!-- Animated TARO Bot Avatar -->
-              <div class="taro-bot-avatar-container relative shrink-0 cursor-pointer" onclick="FMCUApp.taroBotGreeting()" title="Halo! Saya T.A.R.O AI">
-                <!-- Glowing ambient halo -->
-                <div class="taro-bot-glow absolute -inset-1 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 opacity-40 blur-xs pointer-events-none"></div>
-                
-                <!-- Robot Box -->
-                <div class="taro-bot-floating relative w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-slate-900 via-emerald-950 to-teal-900 border-2 border-emerald-400/60 text-white flex items-center justify-center shadow-md shadow-emerald-900/20">
-                  <!-- Antenna with glowing pulsing tip -->
-                  <div class="absolute -top-2 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400 taro-antenna-pulse shadow-sm shadow-emerald-400"></span>
-                    <span class="w-0.5 h-1.5 bg-emerald-400/80"></span>
-                  </div>
-                  
-                  <!-- Visor Screen with blinking eyes -->
-                  <div class="w-7 h-5 sm:w-8 sm:h-5.5 rounded-lg bg-emerald-950/95 border border-emerald-400/40 flex items-center justify-center gap-1.5 px-1 relative overflow-hidden">
-                    <div class="absolute inset-0 bg-gradient-to-b from-emerald-400/15 to-transparent pointer-events-none"></div>
-                    <span class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-400 taro-robot-eye shadow-xs shadow-emerald-300"></span>
-                    <span class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-400 taro-robot-eye shadow-xs shadow-emerald-300"></span>
-                  </div>
-                </div>
-
-                <!-- Talking soundwave speech badge -->
-                <div class="taro-speech-badge absolute -bottom-1 -right-1 px-1 py-0.5 rounded-full bg-[#009944] border-2 border-white text-white flex items-center gap-0.5 shadow-xs" title="T.A.R.O sedang aktif">
-                  <span class="taro-sound-bar bar-1"></span>
-                  <span class="taro-sound-bar bar-2"></span>
-                  <span class="taro-sound-bar bar-3"></span>
-                </div>
-              </div>
-
-              <!-- Only 1 Title: T.A.R.O (Trainer Asyik Rekan Operasional) AI -->
-              <div class="min-w-0">
-                <h3 class="text-sm sm:text-base md:text-lg font-black text-slate-900 tracking-tight truncate">
-                  T.A.R.O (Trainer Asyik Rekan Operasional) AI
-                </h3>
-              </div>
+          <!-- Header TARO AI: Clean single title, status, action controls -->
+          <div class="relative z-10 flex items-center justify-between gap-3 border-b border-emerald-100 pb-3 mb-3">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+              <h3 class="text-sm sm:text-base md:text-lg font-black text-slate-900 tracking-tight truncate">
+                T.A.R.O (Trainer Asyik Rekan Operasional) AI
+              </h3>
             </div>
 
-            <!-- Right: Action Controls (Perbesar/Perkecil & Salin) -->
+            <!-- Right Action Controls: Perbesar / Perkecil & Salin -->
             <div class="flex items-center gap-2 shrink-0">
               <button
                 type="button"
@@ -1042,9 +1010,9 @@
             </div>
           </div>
 
-          <!-- Loading State (T.A.R.O Bot Thinking Animation) -->
-          <div id="ai-summary-loading" class="hidden py-7 px-4 text-center space-y-3 relative z-10">
-            <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 text-xl animate-bounce">
+          <!-- Loading State (T.A.R.O Thinking Animation) -->
+          <div id="ai-summary-loading" class="hidden py-8 px-4 text-center space-y-3 relative z-10">
+            <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-100/80 text-emerald-600 text-2xl animate-bounce">
               <i class="fa-solid fa-robot"></i>
             </div>
             <div class="font-extrabold text-xs sm:text-sm text-slate-800">
@@ -1056,8 +1024,8 @@
           </div>
 
           <!-- Empty State (When no completed reports yet) -->
-          <div id="ai-summary-empty" class="hidden py-7 px-4 text-center space-y-2 relative z-10 bg-white/70 rounded-2xl border border-dashed border-emerald-200">
-            <div class="w-11 h-11 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center text-lg mx-auto">
+          <div id="ai-summary-empty" class="hidden py-8 px-4 text-center space-y-2 relative z-10 bg-white/60 rounded-2xl border border-dashed border-emerald-200">
+            <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center text-xl mx-auto">
               <i class="fa-solid fa-clipboard-list"></i>
             </div>
             <div class="text-xs sm:text-sm font-bold text-slate-700">Belum Ada Laporan Observasi yang Selesai</div>
@@ -1068,79 +1036,77 @@
 
           <!-- Main Content Wrapper for TARO AI -->
           <div id="taro-summary-container" class="relative z-10">
-            <!-- 1. MINIMIZED VIEW: Fixed-height uniform container with auto-alternating slide carousel -->
+            <!-- 1. MINIMIZED VIEW: Open, unstacked layout with lively 3D Mascot on the left, spacious auto-cycling text on the right -->
             <div
               id="taro-minimized-view"
-              class="relative w-full h-[185px] sm:h-[165px] rounded-2xl bg-white/90 border border-emerald-100 p-3.5 sm:p-4 flex flex-col justify-between shadow-xs transition-all duration-300 select-none"
+              class="flex flex-col md:flex-row items-center md:items-start gap-4 sm:gap-6 pt-1 select-none"
               onmouseenter="FMCUApp.pauseTaroCarousel()"
               onmouseleave="FMCUApp.resumeTaroCarousel()"
             >
-              <!-- Top: Slide Title Tag & Bot Speech Activity Indicator -->
-              <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
-                <div id="taro-slide-badge" class="flex items-center gap-2 min-w-0">
-                  <span id="taro-slide-tag" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-50 text-emerald-800 border border-emerald-200 truncate">
-                    <i class="fa-solid fa-chart-pie text-emerald-600" id="taro-slide-icon"></i>
-                    <span id="taro-slide-title">1. Ringkasan Eksekutif Operasional</span>
-                  </span>
-                </div>
-                <div class="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 shrink-0">
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-                  <span class="hidden xs:inline">T.A.R.O Memaparkan</span>
-                  <div class="flex items-center gap-0.5 h-3 text-emerald-600">
-                    <span class="taro-sound-bar bar-1"></span>
-                    <span class="taro-sound-bar bar-2"></span>
-                    <span class="taro-sound-bar bar-3"></span>
+              <!-- Left: Lively 3D T.A.R.O Mascot Character -->
+              <div class="taro-mascot-wrapper relative shrink-0 flex flex-col items-center justify-center cursor-pointer group" onclick="FMCUApp.taroBotGreeting()" title="Halo! Saya T.A.R.O (Klik untuk menyapa)">
+                <!-- Cyan/Emerald Aura Halo -->
+                <div class="taro-mascot-aura-anim absolute w-28 h-28 sm:w-36 sm:h-36 rounded-full bg-gradient-to-tr from-cyan-400/25 to-emerald-400/20 blur-xl pointer-events-none -z-10"></div>
+                
+                <!-- Floating Mascot Image Box -->
+                <div id="taro-mascot-float-box" class="taro-mascot-floating relative transition-transform duration-300 group-hover:scale-105">
+                  <img
+                    src="assets/taro-mascot.jpg"
+                    alt="T.A.R.O Mascot FamilyMart"
+                    class="taro-mascot-img w-24 h-32 sm:w-28 sm:h-36 md:w-32 md:h-40 object-contain drop-shadow-md pointer-events-none"
+                    loading="eager"
+                  />
+                  <!-- Floating Coach Badge with Animated Sound Waves -->
+                  <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 md:translate-x-0 md:left-auto md:-right-2 px-2.5 py-0.5 rounded-full bg-slate-900/90 text-white text-[10px] font-extrabold flex items-center gap-1.5 shadow-md border border-emerald-400/50 whitespace-nowrap">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                    <span>COACH T.A.R.O</span>
+                    <div class="flex items-center gap-0.5 h-2.5 text-emerald-400">
+                      <span class="taro-sound-bar bar-1"></span>
+                      <span class="taro-sound-bar bar-2"></span>
+                      <span class="taro-sound-bar bar-3"></span>
+                    </div>
                   </div>
                 </div>
+
+                <!-- Dynamic floor shadow -->
+                <div class="taro-mascot-shadow-anim w-20 sm:w-24 h-2.5 bg-slate-400/25 rounded-full blur-xs mt-1 pointer-events-none"></div>
               </div>
 
-              <!-- Middle: Active Slide Text (Scrollable or Fitted without changing container height) -->
-              <div id="taro-slide-body" class="relative flex-1 overflow-y-auto my-2 pr-1 text-xs sm:text-[13px] text-slate-700 leading-relaxed space-y-1.5">
-                <!-- Injected slide HTML -->
-              </div>
-
-              <!-- Bottom: Carousel Pager Controls & Dot Indicators -->
-              <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] text-slate-500">
-                <!-- Dots navigation -->
-                <div id="taro-carousel-dots" class="flex items-center gap-1.5">
-                  <!-- Injected dots -->
+              <!-- Right: Spacious Open Text Area (Direct flow, NO stacked background cards, NO narrow margins!) -->
+              <div class="flex-1 min-w-0 w-full flex flex-col justify-between min-h-[140px] sm:min-h-[155px]">
+                <!-- Slide Header: Section Title Tag & Clean auto-cycle info -->
+                <div class="flex items-center justify-between gap-2 pb-2 border-b border-emerald-100/70">
+                  <div id="taro-slide-badge" class="flex items-center gap-2 min-w-0">
+                    <span id="taro-slide-tag" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-100/90 text-emerald-900 border border-emerald-300/80 truncate shadow-xs">
+                      <i class="fa-solid fa-chart-pie text-emerald-600" id="taro-slide-icon"></i>
+                      <span id="taro-slide-title">1. Ringkasan Eksekutif Operasional</span>
+                    </span>
+                  </div>
+                  <!-- Minimal auto-cycle text indicator (NO manual toggle buttons!) -->
+                  <div class="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 shrink-0">
+                    <span id="taro-carousel-counter">Poin 1 dari 4</span>
+                    <span class="hidden sm:inline">• Bergantian Otomatis</span>
+                  </div>
                 </div>
 
-                <!-- Center text: Poin X dari Y -->
-                <div class="flex items-center gap-2">
-                  <span id="taro-carousel-counter" class="font-bold text-slate-600 text-[10px] sm:text-[11px]">
-                    Poin 1 dari 4 • Bergantian
-                  </span>
+                <!-- Slide Body: Wide, spacious text area with full horizontal breathing room -->
+                <div id="taro-slide-body" class="relative flex-1 overflow-y-auto py-2 pr-1 text-xs sm:text-[13.5px] text-slate-700 leading-relaxed space-y-1.5 taro-slide-fade-in">
+                  <!-- Injected slide HTML directly -->
                 </div>
 
-                <!-- Mini Prev / Next Controls -->
-                <div class="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onclick="FMCUApp.prevTaroSlide()"
-                    title="Poin Sebelumnya"
-                    class="w-6 h-6 rounded-lg bg-slate-50 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 flex items-center justify-center transition border border-slate-200 cursor-pointer active:scale-95"
-                  >
-                    <i class="fa-solid fa-chevron-left text-[10px]"></i>
-                  </button>
-                  <button
-                    type="button"
-                    onclick="FMCUApp.nextTaroSlide()"
-                    title="Poin Selanjutnya"
-                    class="w-6 h-6 rounded-lg bg-slate-50 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 flex items-center justify-center transition border border-slate-200 cursor-pointer active:scale-95"
-                  >
-                    <i class="fa-solid fa-chevron-right text-[10px]"></i>
-                  </button>
+                <!-- Subtle Auto-Progress Bar Indicator -->
+                <div class="w-full bg-slate-100 h-1 rounded-full overflow-hidden mt-1.5">
+                  <div id="taro-progress-indicator" class="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full taro-progress-active"></div>
                 </div>
               </div>
             </div>
 
             <!-- 2. EXPANDED VIEW: Full Comprehensive Overview (Shown on Perbesar) -->
-            <div id="taro-expanded-view" class="hidden relative w-full space-y-4 pt-1 transition-all duration-300">
-              <div id="taro-expanded-content" class="text-slate-800 text-xs sm:text-sm leading-relaxed space-y-3 bg-white/95 rounded-2xl border border-emerald-100 p-4 sm:p-6 shadow-xs">
-                <!-- Injected full markdown HTML -->
+            <div id="taro-expanded-view" class="hidden relative w-full space-y-4 pt-2 transition-all duration-300">
+              <div id="taro-expanded-content" class="text-slate-800 text-xs sm:text-sm leading-relaxed space-y-3 p-1">
+                <!-- Injected full markdown HTML directly, no cramped double borders -->
               </div>
-              <div class="flex justify-center pt-1">
+              <div class="flex justify-center pt-2">
                 <button
                   type="button"
                   onclick="FMCUApp.toggleTaroExpand()"
