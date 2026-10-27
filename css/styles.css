@@ -490,15 +490,6 @@ body {
   }
 }
 
-@keyframes taroProgressBar {
-  from {
-    width: 0%;
-  }
-  to {
-    width: 100%;
-  }
-}
-
 .taro-mascot-floating {
   animation: taroMascotFloat 3.6s ease-in-out infinite;
   transform-origin: center bottom;
@@ -558,10 +549,6 @@ body {
 
 .taro-slide-fade-in {
   animation: taroSlideFadeIn 0.35s ease-out forwards;
-}
-
-.taro-progress-active {
-  animation: taroProgressBar 8.5s linear infinite;
 }
 
 /* Custom mini scrollbar for TARO slide body */

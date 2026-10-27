@@ -3920,7 +3920,6 @@ FORMAT STRUKTUR OUTPUT WAJIB:
     const titleEl = document.getElementById('taro-slide-title');
     const iconEl = document.getElementById('taro-slide-icon');
     const bodyEl = document.getElementById('taro-slide-body');
-    const progressEl = document.getElementById('taro-progress-indicator');
 
     if (titleEl) titleEl.textContent = sec.title;
     if (iconEl) iconEl.className = `fa-solid ${sec.icon} text-${sec.color}-600`;
@@ -3933,12 +3932,7 @@ FORMAT STRUKTUR OUTPUT WAJIB:
       this.typewriterElement(bodyEl, sec.html);
     }
 
-    // Restart smooth auto-progress bar animation
-    if (progressEl) {
-      progressEl.classList.remove('taro-progress-active');
-      void progressEl.offsetWidth;
-      progressEl.classList.add('taro-progress-active');
-    }
+
   },
 
   nextTaroSlide() {
