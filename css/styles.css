@@ -312,35 +312,6 @@ body {
   transform-origin: 50% 50%;
 }
 
-/* Dynamic Island Floating Capsule */
-#dynamic-island-hud {
-  filter: drop-shadow(0 12px 28px rgba(15, 23, 42, 0.25));
-  z-index: 50;
-}
-
-@media (min-width: 1024px) {
-  #dynamic-island-hud {
-    /* Offset by sidebar width / 2 to center perfectly within the main content area */
-    left: calc(50% + 9rem);
-  }
-}
-
-/* Ensure Dynamic Island never overlaps header or page content */
-body.has-hud header {
-  top: 52px !important;
-  transition: top 0.25s ease-in-out;
-}
-
-body.has-hud .flex-1.lg\:pl-72 {
-  padding-top: 48px;
-  transition: padding-top 0.25s ease-in-out;
-}
-
-/* Backdrop for HUD Drawer */
-#hud-backdrop {
-  z-index: 45;
-}
-
 @media (max-width: 640px) {
   .pdf-slide-wrapper {
     border-radius: 0.5rem;

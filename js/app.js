@@ -50,6 +50,7 @@ window.FMCUApp = {
   newsItems: [],
 
   init() {
+    document.body.classList.remove('has-hud');
     window.FMCUData.init();
 
     // Setup Login Form Listener
@@ -2588,8 +2589,6 @@ window.FMCUApp = {
     const outDot = document.getElementById('form-auto-out-status');
 
     if (!radarPill) return;
-    this.updateDynamicIslandUI();
-
     if (state === 'INSIDE_WAITING_OUT') {
       radarPill.className = 'w-full bg-emerald-500/20 border border-emerald-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center gap-2';
       if (titleEl) titleEl.textContent = '✓ Di Titik Pinpoint Toko (Radius ≤ 15m)';
@@ -2657,8 +2656,7 @@ window.FMCUApp = {
       }
     }
     this.updateFormGuardVisibility();
-    this.updateDynamicIslandUI();
-  },
+    },
 
   isAuditorUser(user = this.currentUser) {
     if (!user) return false;
@@ -9040,83 +9038,9 @@ function getOrCreateSubFolder_(parent, name) {
   },
 
   // Point 1: Dynamic Island Floating HUD Controller
-  toggleDynamicIsland(force = null) {
-    this.triggerHaptic('light');
-    const drawer = document.getElementById('hud-expanded-drawer');
-    const chevron = document.getElementById('hud-chevron');
-    const backdrop = document.getElementById('hud-backdrop');
-    if (!drawer) return;
-    const shouldOpen = force !== null ? force : drawer.classList.contains('hidden');
-    drawer.classList.toggle('hidden', !shouldOpen);
-    if (backdrop) {
-      backdrop.classList.toggle('hidden', !shouldOpen);
-    }
-    if (chevron) {
-      chevron.style.transform = shouldOpen ? 'rotate(180deg)' : 'rotate(0deg)';
-    }
-  },
+  toggleDynamicIsland() {},
 
-  updateDynamicIslandUI() {
-    const hud = document.getElementById('dynamic-island-hud');
-    if (!hud) return;
-    const active = window.FMCUData.getActiveCheckIn();
-    if (!active || !active.storeCode) {
-      hud.classList.add('hidden');
-      document.body.classList.remove('has-hud');
-      const backdrop = document.getElementById('hud-backdrop');
-      if (backdrop) backdrop.classList.add('hidden');
-      return;
-    }
-
-    hud.classList.remove('hidden');
-    document.body.classList.add('has-hud');
-    const nameEl = document.getElementById('hud-store-name');
-    const expTitle = document.getElementById('hud-expanded-title');
-    const storeLabel = active.storeName || active.storeCode;
-    if (nameEl) nameEl.textContent = storeLabel;
-    if (expTitle) expTitle.textContent = `${active.storeName} (${active.storeCode})`;
-
-    // Distance calculation
-    const distPill = document.getElementById('hud-distance-pill');
-    const expDist = document.getElementById('hud-exp-distance');
-    let distVal = '--';
-    if (active.storeLat && active.storeLng && this.liveGps.lat && this.liveGps.lng) {
-      const d = Math.round(this.calculateHaversineDistance(this.liveGps.lat, this.liveGps.lng, active.storeLat, active.storeLng));
-      distVal = d <= 15 ? `${d}m (Dalam Radius)` : `${d}m`;
-      if (distPill) {
-        distPill.textContent = `📍 ${d}m`;
-        distPill.className =
-          d <= 15
-            ? 'text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/25 text-emerald-300 font-extrabold shrink-0 border border-emerald-400/40'
-            : 'text-[10px] font-mono px-2 py-0.5 rounded-full bg-rose-500/25 text-rose-300 font-extrabold shrink-0 border border-rose-400/40';
-      }
-    } else if (distPill) {
-      distPill.textContent = '📍 GPS Aktif';
-    }
-    if (expDist) expDist.textContent = distVal;
-
-    // Time calculation (time elapsed since actualIn)
-    const timerEl = document.getElementById('hud-timer');
-    const expTimer = document.getElementById('hud-exp-timer');
-    if (active.actualIn) {
-      const parts = String(active.actualIn).split(':').map(Number);
-      if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-        const inDate = new Date();
-        inDate.setHours(parts[0], parts[1], 0, 0);
-        let diffMs = Date.now() - inDate.getTime();
-        if (diffMs < 0) diffMs = 0;
-        const diffHrs = Math.floor(diffMs / 3600000);
-        const diffMins = Math.floor((diffMs % 3600000) / 60000);
-        const diffSecs = Math.floor((diffMs % 60000) / 1000);
-        if (timerEl) {
-          timerEl.textContent = `⏱️ ${String(diffHrs).padStart(2, '0')}:${String(diffMins).padStart(2, '0')}:${String(diffSecs).padStart(2, '0')}`;
-        }
-        if (expTimer) expTimer.textContent = `${diffHrs}j ${diffMins}m`;
-      }
-    }
-
-    this.updateFormProgress();
-  },
+  updateDynamicIslandUI() {},
 
   openActiveStoreInGoogleMaps() {
     this.triggerHaptic('light');
@@ -9230,11 +9154,6 @@ function getOrCreateSubFolder_(parent, name) {
     if (progress >= 75) {
       progress = 100;
     }
-
-    const miniProg = document.getElementById('hud-mini-progress');
-    const expProg = document.getElementById('hud-exp-progress');
-    if (miniProg) miniProg.textContent = `${progress}%`;
-    if (expProg) expProg.textContent = `${progress}% Selesai`;
 
     const circle = document.getElementById('form-progress-ring-circle');
     const text = document.getElementById('form-progress-ring-text');
