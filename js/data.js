@@ -88,7 +88,8 @@ const STORAGE_KEYS = {
   DRAFT_REPORT: 'fmcu_draft_report_v2',
   SETTINGS: 'fmcu_settings_v2',
   ATTENDANCE_LOGS: 'fmcu_attendance_logs_v2',
-  NEWS: 'fmcu_news_v2'
+  NEWS: 'fmcu_news_v2',
+  HOLDING_TIME_STANDARDS: 'fmcu_holding_time_standards_v1'
 };
 
 // Generic Standard SOP Templates (Tanpa data/tanggal dummy)
@@ -1023,6 +1024,27 @@ window.FMCUData = {
         (err) => handleSnapshotError('settings', err)
       );
     this.unsubscribers.push(unsubSettings);
+
+    // 6. REAL-TIME LISTENER: STANDAR HOLDING TIME RESMI (QC)
+    const unsubHoldingTime = this.db
+      .collection('settings')
+      .doc('holding_time_standards')
+      .onSnapshot(
+        (doc) => {
+          this.setCloudStatus('ONLINE');
+          if (doc.exists) {
+            const data = doc.data();
+            if (data && data.version && Array.isArray(data.categories)) {
+              localStorage.setItem(STORAGE_KEYS.HOLDING_TIME_STANDARDS, JSON.stringify(data));
+              if (window.FMCUApp && typeof window.FMCUApp.onHoldingTimeStandardsUpdated === 'function') {
+                window.FMCUApp.onHoldingTimeStandardsUpdated(data);
+              }
+            }
+          }
+        },
+        (err) => handleSnapshotError('holding_time_standards', err)
+      );
+    this.unsubscribers.push(unsubHoldingTime);
   },
 
   async saveStoresCatalogToCloud(stores, syncIndividualCollection = false) {
@@ -1699,11 +1721,55 @@ window.FMCUData = {
     const raw = localStorage.getItem(STORAGE_KEYS.ACTIVE_CHECKIN);
     return raw ? JSON.parse(raw) : null;
   },
-  setActiveCheckIn(checkInData) {
+    setActiveCheckIn(checkInData) {
     if (!checkInData) {
       localStorage.removeItem(STORAGE_KEYS.ACTIVE_CHECKIN);
     } else {
       localStorage.setItem(STORAGE_KEYS.ACTIVE_CHECKIN, JSON.stringify(checkInData));
     }
+  },
+
+  getHoldingTimeStandards() {
+    const raw = localStorage.getItem(STORAGE_KEYS.HOLDING_TIME_STANDARDS);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.categories) && parsed.categories.length > 0) {
+          return parsed;
+        }
+      } catch (e) {}
+    }
+    return window.FMCU_HOLDING_TIME_R23 || null;
+  },
+
+  saveHoldingTimeStandards(standardsData) {
+    if (!standardsData) return;
+    localStorage.setItem(STORAGE_KEYS.HOLDING_TIME_STANDARDS, JSON.stringify(standardsData));
+    if (this.db) {
+      this.db
+        .collection('settings')
+        .doc('holding_time_standards')
+        .set(sanitizeForFirestore(standardsData), { merge: true })
+        .catch((e) => console.warn('Firestore holding time standards save warning:', e));
+    }
+    if (window.FMCUApp && typeof window.FMCUApp.onHoldingTimeStandardsUpdated === 'function') {
+      window.FMCUApp.onHoldingTimeStandardsUpdated(standardsData);
+    }
+  },
+
+  resetHoldingTimeStandards() {
+    localStorage.removeItem(STORAGE_KEYS.HOLDING_TIME_STANDARDS);
+    const defaultData = window.FMCU_HOLDING_TIME_R23 || null;
+    if (defaultData && this.db) {
+      this.db
+        .collection('settings')
+        .doc('holding_time_standards')
+        .set(sanitizeForFirestore(defaultData), { merge: true })
+        .catch((e) => console.warn('Firestore reset holding time warning:', e));
+    }
+    if (window.FMCUApp && typeof window.FMCUApp.onHoldingTimeStandardsUpdated === 'function') {
+      window.FMCUApp.onHoldingTimeStandardsUpdated(defaultData);
+    }
+    return defaultData;
   }
 };

@@ -48,6 +48,8 @@ window.FMCUApp = {
   newsCurrentIndex: 0,
   newsTimer: null,
   newsItems: [],
+  holdingTimeActiveCategory: 'ALL',
+  adminHoldingDraft: null,
 
   init() {
     document.body.classList.remove('has-hud');
@@ -392,7 +394,8 @@ window.FMCUApp = {
         .then((permStatus) => {
           permStatus.onchange = () => {
             if (permStatus.state === 'granted') {
-              this.requestMandatoryGps();
+              this.updateHoldingTimeBadges();
+    this.requestMandatoryGps();
             } else if (permStatus.state === 'denied') {
               this.lockWebForGps('Izin lokasi GPS diblokir di pengaturan browser Anda.');
             }
@@ -1387,6 +1390,21 @@ window.FMCUApp = {
     this.triggerHaptic('light');
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Toggle Tombol Standar Holding Time di Header (HANYA tampil saat di Form Visit)
+    const holdingBtn = document.getElementById('header-holding-time-btn');
+    if (holdingBtn) {
+      if (viewName === 'form') {
+        holdingBtn.classList.remove('hidden');
+        holdingBtn.classList.add('inline-flex');
+        const st = window.FMCUData?.getHoldingTimeStandards?.() || window.FMCU_HOLDING_TIME_R23;
+        const badge = document.getElementById('header-holding-badge');
+        if (badge && st?.revision) badge.textContent = st.revision;
+      } else {
+        holdingBtn.classList.add('hidden');
+        holdingBtn.classList.remove('inline-flex');
+      }
+    }
 
     if (viewName === 'home') {
       this.renderHomeView();
@@ -3555,6 +3573,7 @@ ATURAN UTAMA (SANGAT PENTING - BUKAN STORYTELLING):
 - Setiap bullet point WAJIB diawali KATA KUNCI TEBAL (bold), contoh: "- **Food Safety & Expired**: Penjelasan ringkas...".
 - Gaya bahasa tetap santai, asyik, dan akrab khas teman kerja di Famima Cafe, tapi informasinya harus cepat dan mudah dibaca sekilas (scannable).
 - TIDAK BERHALUSINASI: Analisis HANYA data observasi toko nyata di bawah (Quality, Service, Cleanliness, Suhu Chiller, Hot Snack, FEFO, Grooming, dll).
+- ACUAN RESMI STANDAR HOLDING TIME: Jadikan data Standar Holding Time Resmi FamilyMart di atas sebagai tolok ukur utama pengawasan Food Safety, Thawing, Suhu Chiller, dan Display Hot Snack. Jika ada temuan display melewati holding time (misal Chicken Parting > 4 jam, Sosis > 4 jam, Oden > 10 jam, Biang Teh disimpan saat closing, Fresh Milk sisa closing > 24 jam di chiller, thawing suhu ruang tanpa timer digital, dll), sebutkan secara spesifik deviasi holding timenya terhadap standar resmi!
 
 DATA OBSERVASI TOKO SELURUH VISITOR:
 ${dataSummaryText}
@@ -4083,6 +4102,29 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         out += `  Catatan Kesimpulan Visitor: "${r.summary || r.notes}"\n`;
       }
     });
+
+    // Sertakan Metadata Standar Holding Time Resmi (QC) yang sedang aktif
+    const standards = window.FMCUData?.getHoldingTimeStandards?.() || window.FMCU_HOLDING_TIME_R23;
+    if (standards) {
+      out += `\n========================================\n`;
+      out += `ACUAN RESMI STANDAR HOLDING TIME & FOOD SAFETY TOKO (${standards.version || 'R23'}):\n`;
+      out += `Dokumen QA: ${standards.department || 'QA & Product Improvement'} | Efektif: ${standards.effectiveDateFormatted || standards.effectiveDate || '-'}\n`;
+      if (standards.generalRules && standards.generalRules.length > 0) {
+        out += `Ketentuan Umum QA:\n`;
+        standards.generalRules.forEach((rule, rIdx) => {
+          out += `  ${rIdx + 1}. ${rule}\n`;
+        });
+      }
+      out += `Batas Holding Time Kritis Per Kategori:\n`;
+      (standards.categories || []).forEach((cat) => {
+        out += `* [${cat.name}] (Suhu Alat: ${cat.machineTemp || '-'})
+`;
+        (cat.items || []).forEach((it) => {
+          out += `  - ${it.name}: Holding ${it.holding} | Thawing: ${it.thawing} | Umur Chiller: ${it.shelfLife} | Pemanasan: ${it.cooking}\n`;
+        });
+      });
+      out += `========================================\n`;
+    }
 
     return out;
   },
@@ -9271,7 +9313,769 @@ function getOrCreateSubFolder_(parent, name) {
       .join('');
   },
 
-    closeModal(id) {
+
+  // ==========================================================================
+  // STANDAR HOLDING TIME RESMI (QC) - USER MODAL & SUPER ADMIN CONTROLLER
+  // ==========================================================================
+  updateHoldingTimeBadges() {
+    const st = window.FMCUData?.getHoldingTimeStandards?.() || window.FMCU_HOLDING_TIME_R23;
+    if (!st) return;
+    const rev = st.revision || 'R23';
+    const headerBadge = document.getElementById('header-holding-badge');
+    if (headerBadge) headerBadge.textContent = rev;
+    const adminBadge = document.getElementById('admin-holding-version-badge');
+    if (adminBadge) adminBadge.textContent = rev;
+    const docBadge = document.getElementById('adm-holding-doc-badge');
+    if (docBadge) docBadge.textContent = st.version || ('STD/FMI/PD-QC/001/' + rev);
+    const modalPill = document.getElementById('modal-holding-version-pill');
+    if (modalPill) modalPill.textContent = rev;
+    const modalMeta = document.getElementById('modal-holding-meta-text');
+    if (modalMeta) modalMeta.textContent = `${st.version || 'STD/FMI/PD-QC/001/' + rev} • Efektif: ${st.effectiveDateFormatted || st.effectiveDate || '-'}`;
+  },
+
+  onHoldingTimeStandardsUpdated(data) {
+    this.updateHoldingTimeBadges();
+    if (!document.getElementById('modal-holding-time')?.classList.contains('hidden')) {
+      this.renderHoldingTimeModal();
+    }
+    if (this.currentView === 'admin' && this.currentAdminTab === 'holding-time') {
+      this.renderAdminHoldingTimeView();
+    }
+  },
+
+  // --------------------------------------------------------------------------
+  // USER PANDUAN MODAL (Hanya Tampil Saat Form Visit Store Aktif)
+  // --------------------------------------------------------------------------
+  openHoldingTimeModal() {
+    this.holdingTimeActiveCategory = 'ALL';
+    const searchInput = document.getElementById('holding-user-search');
+    if (searchInput) searchInput.value = '';
+    this.renderHoldingTimeModal();
+    const modal = document.getElementById('modal-holding-time');
+    if (modal) modal.classList.remove('hidden');
+    this.triggerHaptic('light');
+  },
+
+  closeHoldingTimeModal() {
+    const modal = document.getElementById('modal-holding-time');
+    if (modal) modal.classList.add('hidden');
+  },
+
+  toggleHoldingRulesAccordion() {
+    const body = document.getElementById('holding-rules-body');
+    const chevron = document.getElementById('holding-rules-chevron');
+    if (body) {
+      body.classList.toggle('hidden');
+      if (chevron) {
+        chevron.classList.toggle('rotate-180', !body.classList.contains('hidden'));
+      }
+    }
+  },
+
+  renderHoldingTimeModal() {
+    const standards = window.FMCUData?.getHoldingTimeStandards?.() || window.FMCU_HOLDING_TIME_R23;
+    if (!standards) return;
+
+    // Update Header Text
+    const versionPill = document.getElementById('modal-holding-version-pill');
+    if (versionPill) versionPill.textContent = standards.revision || 'R23';
+    const metaText = document.getElementById('modal-holding-meta-text');
+    if (metaText) {
+      metaText.textContent = `${standards.version || 'STD/FMI/PD-QC/001/R23'} • Efektif: ${standards.effectiveDateFormatted || standards.effectiveDate || '-'}`;
+    }
+
+    // Populate Rules Body
+    const rulesBody = document.getElementById('holding-rules-body');
+    if (rulesBody && standards.generalRules) {
+      rulesBody.innerHTML = standards.generalRules.map((r, i) => `
+        <div class="flex items-start gap-2">
+          <span class="w-4 h-4 rounded-full bg-amber-200 text-amber-900 font-extrabold flex items-center justify-center text-[9px] shrink-0 mt-0.5">${i + 1}</span>
+          <p class="flex-1">${r}</p>
+        </div>
+      `).join('');
+    }
+
+    // Populate Category Filter Chips
+    const chipsTrack = document.getElementById('holding-category-chips');
+    if (chipsTrack) {
+      const totalItems = (standards.categories || []).reduce((acc, c) => acc + (c.items ? c.items.length : 0), 0);
+      let chipsHtml = `
+        <button type="button" onclick="FMCUApp.selectHoldingCategory('ALL')" class="shrink-0 px-3 py-1.5 rounded-full text-xs font-extrabold transition cursor-pointer ${this.holdingTimeActiveCategory === 'ALL' ? 'bg-[#009944] text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'}">
+          Semua (${totalItems})
+        </button>
+      `;
+
+      (standards.categories || []).forEach((cat) => {
+        const count = (cat.items || []).length;
+        const isActive = this.holdingTimeActiveCategory === cat.id;
+        const icon = cat.icon || 'fa-utensils';
+        chipsHtml += `
+          <button type="button" onclick="FMCUApp.selectHoldingCategory('${cat.id}')" class="shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${isActive ? 'bg-amber-600 text-white shadow-xs font-extrabold' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'}">
+            <i class="fa-solid ${icon} text-[11px] ${isActive ? 'text-amber-200' : 'text-amber-500'}"></i>
+            <span>${cat.name} (${count})</span>
+          </button>
+        `;
+      });
+      chipsTrack.innerHTML = chipsHtml;
+    }
+
+    this.filterHoldingTimeModal();
+  },
+
+  selectHoldingCategory(catId) {
+    this.holdingTimeActiveCategory = catId;
+    this.renderHoldingTimeModal();
+  },
+
+  filterHoldingTimeModal() {
+    const standards = window.FMCUData?.getHoldingTimeStandards?.() || window.FMCU_HOLDING_TIME_R23;
+    if (!standards) return;
+
+    const query = (document.getElementById('holding-user-search')?.value || '').trim().toLowerCase();
+    const body = document.getElementById('holding-modal-body');
+    if (!body) return;
+
+    let matchedProducts = [];
+
+    (standards.categories || []).forEach((cat) => {
+      if (this.holdingTimeActiveCategory !== 'ALL' && this.holdingTimeActiveCategory !== cat.id) {
+        return;
+      }
+      (cat.items || []).forEach((item) => {
+        if (!query || item.name.toLowerCase().includes(query) || cat.name.toLowerCase().includes(query) || (item.storage && item.storage.toLowerCase().includes(query))) {
+          matchedProducts.push({
+            ...item,
+            categoryName: cat.name,
+            categoryId: cat.id,
+            machineTemp: cat.machineTemp,
+            icon: cat.icon || 'fa-utensils'
+          });
+        }
+      });
+    });
+
+    if (matchedProducts.length === 0) {
+      body.innerHTML = `
+        <div class="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+          <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-xl mx-auto">
+            <i class="fa-solid fa-magnifying-glass"></i>
+          </div>
+          <div class="font-bold text-slate-800 text-sm">Produk Tidak Ditemukan</div>
+          <p class="text-xs text-slate-500 max-w-sm mx-auto">Tidak ada standar produk yang cocok dengan kata kunci "${query}".</p>
+        </div>
+      `;
+      return;
+    }
+
+    body.innerHTML = `
+      <div class="text-[11px] font-bold text-slate-500 mb-1 flex items-center justify-between">
+        <span>Menampilkan ${matchedProducts.length} produk standar holding time:</span>
+        <span class="text-amber-700 font-mono">STD/FMI/PD-QC/001/${standards.revision || 'R23'}</span>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        ${matchedProducts.map((p) => `
+          <div class="p-3.5 sm:p-4 rounded-2xl border border-slate-200 bg-white hover:border-amber-300 hover:shadow-sm transition space-y-2.5">
+            <div class="flex items-start justify-between gap-2 border-b border-slate-100 pb-2">
+              <div>
+                <span class="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 mb-1">
+                  <i class="fa-solid ${p.icon}"></i>
+                  <span>${p.categoryName}</span>
+                  ${p.machineTemp ? `<span class="text-amber-600 font-mono">(${p.machineTemp})</span>` : ''}
+                </span>
+                <h4 class="font-extrabold text-sm text-slate-900 leading-snug">${p.name}</h4>
+              </div>
+            </div>
+
+            <!-- Holding Time Highlight Badge -->
+            <div class="p-2 sm:p-2.5 rounded-xl bg-amber-500/10 border border-amber-300/80 flex items-center justify-between gap-2">
+              <div class="flex items-center gap-1.5 text-xs text-amber-900 font-extrabold">
+                <i class="fa-solid fa-stopwatch text-amber-600"></i>
+                <span>Holding Time:</span>
+              </div>
+              <div class="text-xs font-black text-amber-800 text-right">
+                ${p.holding}
+              </div>
+            </div>
+
+            <!-- 4 Grid Specs -->
+            <div class="grid grid-cols-2 gap-2 text-[11px]">
+              <div class="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                <div class="text-slate-400 font-bold uppercase text-[9px]">Thawing</div>
+                <div class="font-semibold text-slate-800 mt-0.5">${p.thawing || '-'}</div>
+              </div>
+              <div class="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                <div class="text-slate-400 font-bold uppercase text-[9px]">Umur Chiller</div>
+                <div class="font-semibold text-slate-800 mt-0.5">${p.shelfLife || '-'}</div>
+              </div>
+              <div class="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                <div class="text-slate-400 font-bold uppercase text-[9px]">Pemanasan</div>
+                <div class="font-semibold text-slate-800 mt-0.5">${p.cooking || '-'}</div>
+              </div>
+              <div class="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                <div class="text-slate-400 font-bold uppercase text-[9px]">Wadah / Tempat</div>
+                <div class="font-semibold text-slate-800 mt-0.5 truncate" title="${p.storage || '-'}">${p.storage || '-'}</div>
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  },
+
+  // --------------------------------------------------------------------------
+  // SUPER ADMIN STANDAR HOLDING TIME VIEW & METADATA EXTRACTOR
+  // --------------------------------------------------------------------------
+  renderAdminHoldingTimeView() {
+    const standards = window.FMCUData?.getHoldingTimeStandards?.() || window.FMCU_HOLDING_TIME_R23;
+    if (!standards) return;
+
+    this.adminHoldingDraft = JSON.parse(JSON.stringify(standards));
+
+    // Update Doc Badge & Subtitle
+    const badge = document.getElementById('adm-holding-doc-badge');
+    if (badge) badge.textContent = this.adminHoldingDraft.version || 'STD/FMI/PD-QC/001/' + (this.adminHoldingDraft.revision || 'R23');
+    const sub = document.getElementById('adm-holding-doc-sub');
+    if (sub) {
+      sub.textContent = `Acuan observasi food safety resmi PT FamilyMart Indonesia • Efektif: ${this.adminHoldingDraft.effectiveDateFormatted || this.adminHoldingDraft.effectiveDate || '-'} • Terhubung langsung ke AI T.A.R.O`;
+    }
+
+    // Fill Input Fields
+    const inVersion = document.getElementById('adm-holding-input-version');
+    if (inVersion) inVersion.value = this.adminHoldingDraft.version || '';
+    const inRev = document.getElementById('adm-holding-input-rev');
+    if (inRev) inRev.value = this.adminHoldingDraft.revision || '';
+    const inDate = document.getElementById('adm-holding-input-date');
+    if (inDate) inDate.value = this.adminHoldingDraft.effectiveDateFormatted || this.adminHoldingDraft.effectiveDate || '';
+    const inApproved = document.getElementById('adm-holding-input-approved');
+    if (inApproved) inApproved.value = this.adminHoldingDraft.approvedBy || '';
+    const inCreated = document.getElementById('adm-holding-input-created');
+    if (inCreated) inCreated.value = this.adminHoldingDraft.createdBy || '';
+
+    // Update Stats
+    const totalCategories = (this.adminHoldingDraft.categories || []).length;
+    const totalProducts = (this.adminHoldingDraft.categories || []).reduce((acc, c) => acc + (c.items ? c.items.length : 0), 0);
+    const totalRules = (this.adminHoldingDraft.generalRules || []).length;
+
+    const elCatStat = document.getElementById('adm-stat-categories-count');
+    if (elCatStat) elCatStat.textContent = totalCategories;
+    const elProdStat = document.getElementById('adm-stat-products-count');
+    if (elProdStat) elProdStat.textContent = totalProducts;
+    const elRuleStat = document.getElementById('adm-stat-rules-count');
+    if (elRuleStat) elRuleStat.textContent = totalRules;
+    const elRevStat = document.getElementById('adm-stat-rev-code');
+    if (elRevStat) elRevStat.textContent = this.adminHoldingDraft.revision || 'R23';
+
+    // Render General Rules Editor List
+    this.renderAdminHoldingRulesList();
+
+    // Render Product Table
+    this.renderAdminHoldingProductsTable();
+  },
+
+  renderAdminHoldingRulesList() {
+    const listEl = document.getElementById('adm-holding-rules-list');
+    if (!listEl || !this.adminHoldingDraft) return;
+
+    if (!Array.isArray(this.adminHoldingDraft.generalRules) || this.adminHoldingDraft.generalRules.length === 0) {
+      listEl.innerHTML = '<div class="text-slate-400 text-xs italic">Belum ada aturan umum QA.</div>';
+      return;
+    }
+
+    listEl.innerHTML = this.adminHoldingDraft.generalRules.map((rule, idx) => `
+      <div class="flex items-center gap-2">
+        <span class="w-5 h-5 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center text-[10px] shrink-0">${idx + 1}</span>
+        <input type="text" value="${rule.replace(/"/g, '&quot;')}" onchange="FMCUApp.updateAdminHoldingRule(${idx}, this.value)" class="fm-input text-xs py-1.5 flex-1" />
+        <button type="button" onclick="FMCUApp.deleteAdminHoldingRule(${idx})" class="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 transition cursor-pointer" title="Hapus aturan">
+          <i class="fa-solid fa-trash-can"></i>
+        </button>
+      </div>
+    `).join('');
+  },
+
+  updateAdminHoldingRule(idx, val) {
+    if (this.adminHoldingDraft && this.adminHoldingDraft.generalRules && this.adminHoldingDraft.generalRules[idx] !== undefined) {
+      this.adminHoldingDraft.generalRules[idx] = val.trim();
+    }
+  },
+
+  addAdminHoldingRule() {
+    if (!this.adminHoldingDraft) return;
+    if (!Array.isArray(this.adminHoldingDraft.generalRules)) this.adminHoldingDraft.generalRules = [];
+    this.adminHoldingDraft.generalRules.push('Ketentuan QA baru...');
+    this.renderAdminHoldingRulesList();
+  },
+
+  deleteAdminHoldingRule(idx) {
+    if (!this.adminHoldingDraft || !Array.isArray(this.adminHoldingDraft.generalRules)) return;
+    this.adminHoldingDraft.generalRules.splice(idx, 1);
+    this.renderAdminHoldingRulesList();
+  },
+
+  renderAdminHoldingProductsTable() {
+    const tbody = document.getElementById('adm-holding-table-body');
+    if (!tbody || !this.adminHoldingDraft) return;
+
+    const query = (document.getElementById('adm-holding-search')?.value || '').trim().toLowerCase();
+    const filterCat = document.getElementById('adm-holding-category-filter')?.value || 'ALL';
+
+    let rowsHtml = '';
+    let totalCount = 0;
+
+    (this.adminHoldingDraft.categories || []).forEach((cat) => {
+      if (filterCat !== 'ALL' && filterCat !== cat.id) return;
+
+      (cat.items || []).forEach((item, itemIdx) => {
+        if (query && !item.name.toLowerCase().includes(query) && !cat.name.toLowerCase().includes(query) && !(item.storage && item.storage.toLowerCase().includes(query))) {
+          return;
+        }
+
+        totalCount++;
+        rowsHtml += `
+          <tr class="hover:bg-slate-50/80 transition">
+            <td class="py-2.5 px-3">
+              <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 whitespace-nowrap">
+                <i class="fa-solid ${cat.icon || 'fa-utensils'} text-amber-600"></i>
+                <span>${cat.name}</span>
+              </span>
+            </td>
+            <td class="py-2.5 px-3 font-bold text-slate-900">${item.name}</td>
+            <td class="py-2.5 px-3 text-slate-600">${item.thawing || '-'}</td>
+            <td class="py-2.5 px-3 text-slate-600">${item.shelfLife || '-'}</td>
+            <td class="py-2.5 px-3 text-slate-600">${item.cooking || '-'}</td>
+            <td class="py-2.5 px-3 font-extrabold text-amber-700 whitespace-nowrap">${item.holding}</td>
+            <td class="py-2.5 px-3 text-slate-500 max-w-xs truncate" title="${item.storage || '-'}">${item.storage || '-'}</td>
+            <td class="py-2.5 px-3 text-center whitespace-nowrap">
+              <button type="button" onclick="FMCUApp.openEditHoldingProductModal('${cat.id}', ${itemIdx})" class="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition cursor-pointer" title="Edit Produk">
+                <i class="fa-solid fa-pen-to-square"></i>
+              </button>
+              <button type="button" onclick="FMCUApp.deleteHoldingProduct('${cat.id}', ${itemIdx})" class="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 transition cursor-pointer" title="Hapus Produk">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+    });
+
+    if (totalCount === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="8" class="text-center py-8 text-slate-400 italic">Tidak ada produk yang sesuai dengan filter atau kata kunci pencarian.</td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = rowsHtml;
+  },
+
+  openAddHoldingProductModal() {
+    document.getElementById('modal-holding-edit-title').textContent = 'Tambah Produk Standar Holding Time';
+    document.getElementById('edit-holding-item-idx').value = '-1';
+    document.getElementById('edit-holding-name').value = '';
+    document.getElementById('edit-holding-thawing').value = '';
+    document.getElementById('edit-holding-shelflife').value = '';
+    document.getElementById('edit-holding-cooking').value = '';
+    document.getElementById('edit-holding-holding').value = '';
+    document.getElementById('edit-holding-storage').value = '';
+    document.getElementById('modal-holding-edit-product').classList.remove('hidden');
+  },
+
+  openEditHoldingProductModal(catId, itemIdx) {
+    if (!this.adminHoldingDraft) return;
+    const cat = (this.adminHoldingDraft.categories || []).find((c) => c.id === catId);
+    if (!cat || !cat.items || !cat.items[itemIdx]) return;
+
+    const it = cat.items[itemIdx];
+    document.getElementById('modal-holding-edit-title').textContent = 'Edit Produk Standar Holding Time';
+    document.getElementById('edit-holding-item-idx').value = `${catId}:::${itemIdx}`;
+    document.getElementById('edit-holding-category').value = catId;
+    document.getElementById('edit-holding-name').value = it.name || '';
+    document.getElementById('edit-holding-thawing').value = it.thawing || '';
+    document.getElementById('edit-holding-shelflife').value = it.shelfLife || '';
+    document.getElementById('edit-holding-cooking').value = it.cooking || '';
+    document.getElementById('edit-holding-holding').value = it.holding || '';
+    document.getElementById('edit-holding-storage').value = it.storage || '';
+    document.getElementById('modal-holding-edit-product').classList.remove('hidden');
+  },
+
+  saveHoldingProductFromModal(event) {
+    if (event) event.preventDefault();
+    if (!this.adminHoldingDraft) return;
+
+    const rawIdx = document.getElementById('edit-holding-item-idx').value;
+    const catId = document.getElementById('edit-holding-category').value;
+    const name = document.getElementById('edit-holding-name').value.trim();
+    const thawing = document.getElementById('edit-holding-thawing').value.trim();
+    const shelfLife = document.getElementById('edit-holding-shelflife').value.trim();
+    const cooking = document.getElementById('edit-holding-cooking').value.trim();
+    const holding = document.getElementById('edit-holding-holding').value.trim();
+    const storage = document.getElementById('edit-holding-storage').value.trim();
+
+    if (!name || !holding) {
+      this.showToast('Nama Produk dan Batas Holding Time wajib diisi!', 'warning');
+      return;
+    }
+
+    const itemObj = { name, thawing, shelfLife, cooking, holding, storage };
+
+    let targetCat = (this.adminHoldingDraft.categories || []).find((c) => c.id === catId);
+    if (!targetCat) {
+      targetCat = { id: catId, name: catId, items: [] };
+      this.adminHoldingDraft.categories.push(targetCat);
+    }
+
+    if (rawIdx === '-1') {
+      // Add new
+      if (!Array.isArray(targetCat.items)) targetCat.items = [];
+      targetCat.items.push(itemObj);
+      this.showToast(`Produk "${name}" berhasil ditambahkan!`, 'success');
+    } else {
+      // Edit existing
+      const [oldCatId, oldIdxStr] = rawIdx.split(':::');
+      const oldIdx = parseInt(oldIdxStr, 10);
+      if (oldCatId === catId) {
+        targetCat.items[oldIdx] = itemObj;
+      } else {
+        const oldCat = (this.adminHoldingDraft.categories || []).find((c) => c.id === oldCatId);
+        if (oldCat && oldCat.items) oldCat.items.splice(oldIdx, 1);
+        if (!Array.isArray(targetCat.items)) targetCat.items = [];
+        targetCat.items.push(itemObj);
+      }
+      this.showToast(`Perubahan produk "${name}" berhasil disimpan!`, 'success');
+    }
+
+    this.closeModal('modal-holding-edit-product');
+    this.renderAdminHoldingProductsTable();
+  },
+
+  deleteHoldingProduct(catId, itemIdx) {
+    if (!this.adminHoldingDraft) return;
+    const cat = (this.adminHoldingDraft.categories || []).find((c) => c.id === catId);
+    if (!cat || !cat.items || !cat.items[itemIdx]) return;
+
+    const pName = cat.items[itemIdx].name;
+    if (!confirm(`Apakah Anda yakin ingin menghapus "${pName}" dari standar holding time?`)) {
+      return;
+    }
+
+    cat.items.splice(itemIdx, 1);
+    this.renderAdminHoldingProductsTable();
+    this.showToast(`Produk "${pName}" berhasil dihapus.`, 'info');
+  },
+
+  saveHoldingTimeFromAdmin() {
+    if (!this.adminHoldingDraft) return;
+
+    // Read metadata inputs
+    this.adminHoldingDraft.version = (document.getElementById('adm-holding-input-version')?.value || '').trim() || this.adminHoldingDraft.version;
+    this.adminHoldingDraft.revision = (document.getElementById('adm-holding-input-rev')?.value || '').trim() || this.adminHoldingDraft.revision;
+    this.adminHoldingDraft.effectiveDateFormatted = (document.getElementById('adm-holding-input-date')?.value || '').trim() || this.adminHoldingDraft.effectiveDateFormatted;
+    this.adminHoldingDraft.approvedBy = (document.getElementById('adm-holding-input-approved')?.value || '').trim() || this.adminHoldingDraft.approvedBy;
+    this.adminHoldingDraft.createdBy = (document.getElementById('adm-holding-input-created')?.value || '').trim() || this.adminHoldingDraft.createdBy;
+
+    // Save to FMCUData (local storage + Firestore real-time sync)
+    window.FMCUData.saveHoldingTimeStandards(this.adminHoldingDraft);
+    this.updateHoldingTimeBadges();
+
+    this.showToast(`Standar Holding Time ${this.adminHoldingDraft.revision} berhasil disimpan & disinkronkan ke AI T.A.R.O!`, 'success');
+  },
+
+  resetHoldingTimeToDefault() {
+    if (!confirm('Kembalikan Standar Holding Time ke versi awal resmi R23 (STD/FMI/PD-QC/001/R23)? Seluruh perubahan kustom akan direset.')) {
+      return;
+    }
+    const defaultData = window.FMCUData.resetHoldingTimeStandards();
+    this.adminHoldingDraft = JSON.parse(JSON.stringify(defaultData));
+    this.renderAdminHoldingTimeView();
+    this.updateHoldingTimeBadges();
+    this.showToast('Standar Holding Time berhasil direset ke R23 Resmi!', 'success');
+  },
+
+  exportHoldingTimeJSON() {
+    const dataToExport = this.adminHoldingDraft || window.FMCUData.getHoldingTimeStandards() || window.FMCU_HOLDING_TIME_R23;
+    const rev = dataToExport.revision || 'R23';
+    const jsonStr = JSON.stringify(dataToExport, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Standar_Holding_Time_${rev}_${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    this.showToast('File JSON Standar Holding Time berhasil diunduh.', 'success');
+  },
+
+  async handleHoldingFileUpload(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const statusBox = document.getElementById('holding-extract-status-box');
+    if (statusBox) {
+      statusBox.classList.remove('hidden', 'bg-rose-50', 'border-rose-200', 'text-rose-800', 'bg-emerald-50', 'border-emerald-200', 'text-emerald-800');
+      statusBox.classList.add('bg-amber-50', 'border-amber-200', 'text-amber-800');
+      statusBox.innerHTML = `
+        <div class="flex items-center gap-2.5">
+          <i class="fa-solid fa-spinner fa-spin text-amber-600 text-lg"></i>
+          <div>
+            <div class="font-extrabold text-xs text-amber-900">Membaca & Memproses File: ${file.name}...</div>
+            <div class="text-[11px] text-amber-700/90 mt-0.5">Sistem sedang memeriksa format dokumen dan mengekstrak tabel holding time...</div>
+          </div>
+        </div>
+      `;
+    }
+
+    try {
+      if (file.name.endsWith('.json')) {
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        if (!parsed.categories || !Array.isArray(parsed.categories)) {
+          throw new Error('File JSON tidak memiliki struktur kategori standar holding time yang valid.');
+        }
+
+        this.adminHoldingDraft = parsed;
+        window.FMCUData.saveHoldingTimeStandards(parsed);
+        this.renderAdminHoldingTimeView();
+        this.updateHoldingTimeBadges();
+
+        if (statusBox) {
+          statusBox.classList.remove('bg-amber-50', 'border-amber-200', 'text-amber-800');
+          statusBox.classList.add('bg-emerald-50', 'border-emerald-200', 'text-emerald-800');
+          statusBox.innerHTML = `
+            <div class="flex items-center gap-2.5">
+              <i class="fa-solid fa-circle-check text-emerald-600 text-lg"></i>
+              <div>
+                <div class="font-extrabold text-xs text-emerald-900">Berhasil Mengimpor JSON Metadata!</div>
+                <div class="text-[11px] text-emerald-700 mt-0.5">Standar holding time versi ${parsed.revision || 'baru'} (${parsed.version || ''}) telah diterapkan ke sistem & observasi AI T.A.R.O.</div>
+              </div>
+            </div>
+          `;
+        }
+        this.showToast(`Metadata Standar Holding Time ${parsed.revision || ''} berhasil dimuat!`, 'success');
+      } else if (file.name.endsWith('.pdf')) {
+        if (statusBox) {
+          statusBox.innerHTML = `
+            <div class="flex items-center gap-2.5">
+              <i class="fa-solid fa-spinner fa-spin text-amber-600 text-lg"></i>
+              <div>
+                <div class="font-extrabold text-xs text-amber-900">Membaca Konten Dokumen PDF: ${file.name}...</div>
+                <div class="text-[11px] text-amber-700/90 mt-0.5">Mengekstrak teks halaman & tabel menggunakan PDF.js & OCR engine...</div>
+              </div>
+            </div>
+          `;
+        }
+
+        const extractedText = await this.extractPdfTextWithPdfJs(file);
+        if (!extractedText || extractedText.length < 50) {
+          throw new Error('Teks dari dokumen PDF tidak dapat dibaca atau file kosong.');
+        }
+
+        if (statusBox) {
+          statusBox.innerHTML = `
+            <div class="flex items-center gap-2.5">
+              <i class="fa-solid fa-robot text-teal-600 text-lg animate-pulse"></i>
+              <div>
+                <div class="font-extrabold text-xs text-teal-900">AI T.A.R.O Sedang Mengekstrak Metadata & Tabel Produk...</div>
+                <div class="text-[11px] text-teal-700/90 mt-0.5">Memetakan 9 kategori, suhu mesin, thawing, umur chiller, pemanasan, dan batas holding time...</div>
+              </div>
+            </div>
+          `;
+        }
+
+        const parsedResult = await this.extractHoldingMetadataViaAI(extractedText);
+        if (parsedResult && parsedResult.categories && parsedResult.categories.length > 0) {
+          this.adminHoldingDraft = parsedResult;
+          this.renderAdminHoldingTimeView();
+          this.updateHoldingTimeBadges();
+
+          const prodCount = parsedResult.categories.reduce((acc, c) => acc + (c.items ? c.items.length : 0), 0);
+
+          if (statusBox) {
+            statusBox.classList.remove('bg-amber-50', 'border-amber-200', 'text-amber-800');
+            statusBox.classList.add('bg-emerald-50', 'border-emerald-200', 'text-emerald-800');
+            statusBox.innerHTML = `
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                  <i class="fa-solid fa-circle-check text-emerald-600 text-lg"></i>
+                  <div>
+                    <div class="font-extrabold text-xs text-emerald-900">Ekstraksi Dokumen PDF Berhasil!</div>
+                    <div class="text-[11px] text-emerald-700 mt-0.5">Ditemukan <strong>${prodCount} produk</strong> dalam <strong>${parsedResult.categories.length} kategori</strong> (${parsedResult.version || ''}). Silakan tinjau tabel di bawah dan klik <strong>Simpan Perubahan</strong>.</div>
+                  </div>
+                </div>
+                <button type="button" onclick="FMCUApp.saveHoldingTimeFromAdmin()" class="px-3.5 py-1.5 rounded-xl bg-[#009944] text-white font-bold text-xs hover:bg-emerald-700 transition cursor-pointer shrink-0">
+                  Simpan Standar Sekarang
+                </button>
+              </div>
+            `;
+          }
+          this.showToast(`Ekstraksi PDF berhasil: ${prodCount} produk terdeteksi!`, 'success');
+        } else {
+          throw new Error('AI tidak dapat mengonversi teks PDF ke format metadata holding time yang sesuai.');
+        }
+      } else {
+        throw new Error('Format file tidak didukung. Harap unggah file berekstensi .pdf atau .json.');
+      }
+    } catch (err) {
+      console.error('Error handling holding file upload:', err);
+      if (statusBox) {
+        statusBox.classList.remove('bg-amber-50', 'border-amber-200', 'text-amber-800', 'bg-emerald-50', 'border-emerald-200', 'text-emerald-800');
+        statusBox.classList.add('bg-rose-50', 'border-rose-200', 'text-rose-800');
+        statusBox.innerHTML = `
+          <div class="flex items-center gap-2.5">
+            <i class="fa-solid fa-circle-exclamation text-rose-600 text-lg"></i>
+            <div>
+              <div class="font-extrabold text-xs text-rose-900">Gagal Memproses Dokumen:</div>
+              <div class="text-[11px] text-rose-700 mt-0.5">${err.message || 'Terjadi kesalahan saat membaca file.'}</div>
+            </div>
+          </div>
+        `;
+      }
+      this.showToast(err.message || 'Gagal memproses file dokumen.', 'error');
+    } finally {
+      event.target.value = '';
+    }
+  },
+
+  async extractPdfTextWithPdfJs(file) {
+    if (!window.pdfjsLib) {
+      throw new Error('Library PDF.js belum siap di browser. Harap periksa koneksi internet.');
+    }
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let fullText = '';
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map((item) => item.str).join(' ');
+      fullText += `--- HALAMAN ${pageNum} ---\n` + pageText + '\n\n';
+    }
+    return fullText;
+  },
+
+  async extractHoldingMetadataViaAI(extractedPdfText) {
+    const promptText = `Anda adalah sistem ekstraksi dokumen Quality Assurance (QA) FamilyMart Indonesia.
+Ekstrak seluruh teks dokumen Standar Holding Time berikut menjadi JSON murni yang terstruktur persis sesuai skema di bawah.
+
+SKEMA JSON WAJIB:
+{
+  "version": "STD/FMI/PD-QC/001/R23",
+  "revision": "R23",
+  "effectiveDate": "2026-09-23",
+  "effectiveDateFormatted": "23 September 2026",
+  "title": "STANDAR HOLDING TIME",
+  "department": "QA & Product Improvement Division",
+  "approvedBy": "Nama Approval & Jabatan",
+  "createdBy": "Nama Pembuat & Jabatan",
+  "generalRules": [
+    "1 hari = 24 jam.",
+    "Thawing pada suhu ruang HARUS menggunakan timer digital.",
+    "Holding time setelah thawing / setelah kemasan dibuka / exp date pada label ROX, TIDAK BOLEH melebihi exp date pada kemasan asli.",
+    "Pengisian stiker label ROX dan tabel Holding Time HARUS berdasarkan ketentuan resmi ini.",
+    "DILARANG KERAS menyimpan produk yang telah melewati Holding Time ke dalam chiller/freezer untuk dijual lagi esok harinya!",
+    "Sisa biang teh (Black Tea / Jasmine Tea) saat closing toko HARUS DIBUANG.",
+    "Fresh Milk, Oatside, dan Liquid Ice: holding time 24 jam di chiller berlaku jika ada sisa saat closing saja.",
+    "PASTIKAN PENYIMPANAN dalam kemasan asli, box wadah, atau plastik klip SELALU TERTUTUP!"
+  ],
+  "categories": [
+    {
+      "id": "fryer",
+      "name": "Dimasak di Fryer",
+      "machineTemp": "165°C",
+      "icon": "fa-fire-burner",
+      "items": [
+        {
+          "name": "Chicken Parting",
+          "thawing": "1 hari (Chiller)",
+          "shelfLife": "36 jam (Chiller)",
+          "cooking": "12 menit (165°C)",
+          "holding": "4 jam atau closing dibuang (mana yang tercapai lebih dulu)",
+          "storage": "Showcase Warmer"
+        }
+      ]
+    }
+  ]
+}
+
+ATURAN PENTING:
+1. Pastikan setiap baris produk tidak ada yang terlewat.
+2. Identifikasi kategori produk dengan tepat (fryer, steamer, sosis, rice_com, oden, microwave_rte, lainnya_cake, dry_condiments, beverages).
+3. Kolom holding time harus diekstrak dengan akurat (misal: "4 jam atau closing dibuang", "10 jam", "24 jam di chiller", dll).
+4. Kembalikan HANYA JSON murni (boleh diapit \`\`\`json ... \`\`\`), tanpa teks pengantar atau penutup.
+
+TEKS DOKUMEN PDF:
+${extractedPdfText}`;
+
+    // 1. Coba Gemini
+    try {
+      const apiKey = window.FMCUData?.GEMINI_CONFIG?.getApiKey?.();
+      const models = ['models/gemini-3.5-flash', 'models/gemini-3-flash-preview'];
+      if (apiKey) {
+        for (const model of models) {
+          try {
+            const url = `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${apiKey}`;
+            const res = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: promptText }] }]
+              })
+            });
+            if (res.ok) {
+              const data = await res.json();
+              const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (text) {
+                const cleaned = text.replace(/^```json/m, '').replace(/^```/m, '').replace(/```$/m, '').trim();
+                const parsed = JSON.parse(cleaned);
+                if (parsed && Array.isArray(parsed.categories)) return parsed;
+              }
+            }
+          } catch (e) {
+            console.warn('Gemini extract attempt error:', e);
+          }
+        }
+      }
+    } catch (e) {}
+
+    // 2. Coba Groq Fallback
+    try {
+      const groqKey = window.FMCUData?.GROQ_CONFIG?.getApiKey?.();
+      const groqEndpoint = window.FMCUData?.GROQ_CONFIG?.endpoint || 'https://api.groq.com/openai/v1/chat/completions';
+      if (groqKey) {
+        const gRes = await fetch(groqEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${groqKey}`
+          },
+          body: JSON.stringify({
+            model: 'openai/gpt-oss-120b',
+            messages: [
+              { role: 'system', content: 'Anda adalah asisten ekstraksi data JSON murni untuk FamilyMart Indonesia.' },
+              { role: 'user', content: promptText }
+            ],
+            temperature: 0.1
+          })
+        });
+        if (gRes.ok) {
+          const gData = await gRes.json();
+          const text = gData.choices?.[0]?.message?.content;
+          if (text) {
+            const cleaned = text.replace(/^```json/m, '').replace(/^```/m, '').replace(/```$/m, '').trim();
+            const parsed = JSON.parse(cleaned);
+            if (parsed && Array.isArray(parsed.categories)) return parsed;
+          }
+        }
+      }
+    } catch (e) {}
+
+    // Fallback default R23 jika offline
+    return window.FMCU_HOLDING_TIME_R23 || null;
+  },
+
+      closeModal(id) {
     const el = document.getElementById(id);
     if (el) el.classList.add('hidden');
   }

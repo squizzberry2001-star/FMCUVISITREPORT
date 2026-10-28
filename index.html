@@ -587,6 +587,14 @@
             <span id="header-gps-text">GPS Aktif</span>
           </button>
 
+          <!-- Standar Holding Time Guide Button (HANYA tampil saat user berada di dalam Form Visit) -->
+          <button id="header-holding-time-btn" type="button" onclick="FMCUApp.openHoldingTimeModal()" class="hidden items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 border border-amber-300 font-bold text-xs transition cursor-pointer shadow-2xs" title="Panduan Standar Holding Time Resmi (QC)">
+            <i class="fa-solid fa-clock-rotate-left text-amber-600"></i>
+            <span class="hidden md:inline">Standar Holding Time</span>
+            <span class="inline md:hidden">Holding Time</span>
+            <span id="header-holding-badge" class="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-600 text-white font-extrabold leading-none">R23</span>
+          </button>
+
           <!-- Profile Button -->
           <button onclick="FMCUApp.openProfileModal()" class="flex items-center gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition cursor-pointer">
             <div id="header-user-avatar" class="w-7 h-7 rounded-full bg-[#0099A6] text-white font-bold text-xs flex items-center justify-center">
@@ -1684,6 +1692,10 @@
               <button type="button" onclick="FMCUApp.switchAdminTab('integrations')" id="admin-tab-btn-integrations" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer">
                 <i class="fa-brands fa-google-drive mr-1.5"></i>Integrasi Email & GDrive
               </button>
+              <button type="button" onclick="FMCUApp.switchAdminTab('holding-time')" id="admin-tab-btn-holding-time" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer flex items-center gap-1.5">
+                <i class="fa-solid fa-clock-rotate-left mr-1 text-amber-500"></i>Standar Holding Time (QC)
+                <span id="admin-holding-version-badge" class="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-500 text-white font-extrabold leading-none">R23</span>
+              </button>
             </div>
           </div>
 
@@ -2512,6 +2524,222 @@ service cloud.firestore {
             </div>
           </div>
 
+          <!-- TAB 6: STANDAR HOLDING TIME RESMI (QC) & METADATA AI T.A.R.O -->
+          <div id="admin-tab-holding-time" class="hidden space-y-6">
+            <!-- Header Summary Card -->
+            <div class="fm-card p-5 sm:p-6 bg-gradient-to-r from-amber-50/80 via-white to-emerald-50/80 border border-amber-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div class="flex items-start sm:items-center gap-3.5">
+                <div class="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center text-xl shrink-0 shadow-sm">
+                  <i class="fa-solid fa-clock-rotate-left"></i>
+                </div>
+                <div>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <h3 class="font-black text-base sm:text-lg text-slate-900">Manajemen Standar Holding Time Resmi (QC)</h3>
+                    <span id="adm-holding-doc-badge" class="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-amber-500 text-white shadow-2xs">STD/FMI/PD-QC/001/R23</span>
+                  </div>
+                  <p id="adm-holding-doc-sub" class="text-xs text-slate-600 mt-0.5">
+                    Acuan observasi food safety resmi PT FamilyMart Indonesia • Efektif: 23 September 2026 • Terhubung langsung ke AI T.A.R.O
+                  </p>
+                </div>
+              </div>
+
+              <!-- Top Action Buttons -->
+              <div class="flex flex-wrap items-center gap-2">
+                <input type="file" id="holding-file-uploader" accept=".pdf,.json" class="hidden" onchange="FMCUApp.handleHoldingFileUpload(event)" />
+                <button type="button" onclick="document.getElementById('holding-file-uploader').click()" class="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                  <i class="fa-solid fa-file-arrow-up"></i>
+                  <span>Upload PDF / JSON Standar Baru</span>
+                </button>
+                <button type="button" onclick="FMCUApp.exportHoldingTimeJSON()" class="px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold text-xs shadow-2xs transition flex items-center gap-1.5 cursor-pointer" title="Download metadata JSON versi aktif">
+                  <i class="fa-solid fa-download"></i>
+                  <span>Export JSON</span>
+                </button>
+                <button type="button" onclick="FMCUApp.resetHoldingTimeToDefault()" class="px-3 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer" title="Kembalikan ke standar resmi awal R23">
+                  <i class="fa-solid fa-rotate-left"></i>
+                  <span>Reset ke R23</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Upload & Extraction Status Alert (Hidden by default) -->
+            <div id="holding-extract-status-box" class="hidden p-4 rounded-2xl border transition-all">
+              <!-- Dynamically populated -->
+            </div>
+
+            <!-- Metadata Dokumen & Ketentuan Umum QA Editor -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              <!-- Left: Detail Dokumen & 8 Ketentuan QA -->
+              <div class="lg:col-span-5 fm-card p-5 space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <h4 class="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-file-shield text-amber-600"></i>
+                    <span>Metadata Dokumen QA</span>
+                  </h4>
+                  <span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">Revisi Standar</span>
+                </div>
+
+                <div class="space-y-3 text-xs">
+                  <div>
+                    <label class="block font-bold text-slate-700 mb-1">Nomor Dokumen QA</label>
+                    <input type="text" id="adm-holding-input-version" class="fm-input text-xs font-mono" placeholder="STD/FMI/PD-QC/001/R23" />
+                  </div>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                      <label class="block font-bold text-slate-700 mb-1">Kode Revisi</label>
+                      <input type="text" id="adm-holding-input-rev" class="fm-input text-xs font-bold" placeholder="R23" />
+                    </div>
+                    <div>
+                      <label class="block font-bold text-slate-700 mb-1">Tanggal Efektif</label>
+                      <input type="text" id="adm-holding-input-date" class="fm-input text-xs" placeholder="23 September 2026" />
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block font-bold text-slate-700 mb-1">Disetujui Oleh</label>
+                    <input type="text" id="adm-holding-input-approved" class="fm-input text-xs" placeholder="Nama Approval & Jabatan" />
+                  </div>
+                  <div>
+                    <label class="block font-bold text-slate-700 mb-1">Dibuat Oleh</label>
+                    <input type="text" id="adm-holding-input-created" class="fm-input text-xs" placeholder="Nama Pembuat & Jabatan" />
+                  </div>
+                </div>
+
+                <!-- 8 Aturan Umum QA -->
+                <div class="pt-2 border-t border-slate-100 space-y-2">
+                  <div class="flex items-center justify-between">
+                    <label class="font-extrabold text-xs text-slate-800 flex items-center gap-1.5">
+                      <i class="fa-solid fa-list-check text-[#009944]"></i>
+                      <span>Ketentuan Umum QA (Acuan AI)</span>
+                    </label>
+                    <button type="button" onclick="FMCUApp.addAdminHoldingRule()" class="text-[11px] text-[#009944] hover:underline font-bold cursor-pointer">
+                      + Tambah Aturan
+                    </button>
+                  </div>
+                  <div id="adm-holding-rules-list" class="space-y-2 max-h-56 overflow-y-auto pr-1">
+                    <!-- Populated dynamically -->
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right: Info Ringkasan Ekstraksi & Observasi AI TARO -->
+              <div class="lg:col-span-7 fm-card p-5 space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <h4 class="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-robot text-[#009944]"></i>
+                    <span>Integrasi Observasi AI T.A.R.O</span>
+                  </h4>
+                  <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-[#009944] animate-pulse"></span>
+                    Aktif
+                  </span>
+                </div>
+
+                <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-2">
+                  <div class="font-bold text-slate-900 flex items-center gap-1.5">
+                    <i class="fa-solid fa-circle-check text-[#009944]"></i>
+                    <span>Bagaimana AI T.A.R.O Menggunakan Standar Ini?</span>
+                  </div>
+                  <p class="leading-relaxed text-[11px] text-slate-600">
+                    Setiap kali visitor mengisi temuan pada kategori <strong>Food Safety</strong>, <strong>Suhu Chiller</strong>, <strong>Hot Snack</strong>, atau <strong>FEFO</strong>, AI T.A.R.O secara otomatis membandingkan temuan dengan batas holding time resmi di bawah ini (contoh: Chicken Parting maksimal 4 jam di Showcase Warmer, Oden 10 jam di 60°C, Biang Teh wajib dibuang saat closing, sisa Fresh Milk closing maks 24 jam di chiller).
+                  </p>
+                </div>
+
+                <!-- Stats Grid -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
+                  <div class="p-3 rounded-xl bg-amber-50 border border-amber-200">
+                    <div id="adm-stat-categories-count" class="text-xl font-black text-amber-700">9</div>
+                    <div class="text-[10px] font-bold text-amber-800 uppercase mt-0.5">Kategori Mesin</div>
+                  </div>
+                  <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-200">
+                    <div id="adm-stat-products-count" class="text-xl font-black text-emerald-700">70</div>
+                    <div class="text-[10px] font-bold text-emerald-800 uppercase mt-0.5">Total Produk</div>
+                  </div>
+                  <div class="p-3 rounded-xl bg-teal-50 border border-teal-200">
+                    <div id="adm-stat-rules-count" class="text-xl font-black text-teal-700">8</div>
+                    <div class="text-[10px] font-bold text-teal-800 uppercase mt-0.5">Ketentuan QA</div>
+                  </div>
+                  <div class="p-3 rounded-xl bg-indigo-50 border border-indigo-200">
+                    <div id="adm-stat-rev-code" class="text-xl font-black text-indigo-700">R23</div>
+                    <div class="text-[10px] font-bold text-indigo-800 uppercase mt-0.5">Versi Aktif</div>
+                  </div>
+                </div>
+
+                <!-- Save Action Button -->
+                <div class="pt-2">
+                  <button type="button" onclick="FMCUApp.saveHoldingTimeFromAdmin()" class="w-full fm-gradient hover:opacity-95 text-white font-extrabold py-3 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer">
+                    <i class="fa-solid fa-floppy-disk"></i>
+                    <span>Simpan & Terapkan Perubahan Standar ke Cloud & AI TARO</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Product Master Table Editor -->
+            <div class="fm-card p-5 space-y-4">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-2">
+                  <div class="w-8 h-8 rounded-lg bg-emerald-100 text-[#009944] flex items-center justify-center text-sm">
+                    <i class="fa-solid fa-utensils"></i>
+                  </div>
+                  <div>
+                    <h4 class="font-extrabold text-sm text-slate-900">Daftar Produk & Batas Holding Time</h4>
+                    <p class="text-[11px] text-slate-500">Edit, tambah, atau hapus produk untuk menyesuaikan standar revisi baru</p>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <button type="button" onclick="FMCUApp.openAddHoldingProductModal()" class="px-3 py-1.5 rounded-xl bg-[#009944] hover:bg-emerald-700 text-white font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Tambah Produk</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Search & Category Filters -->
+              <div class="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between">
+                <div class="relative flex-1 max-w-md">
+                  <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                  <input type="text" id="adm-holding-search" oninput="FMCUApp.renderAdminHoldingProductsTable()" placeholder="Cari nama produk (misal: Chicken, Siomay, Fresh Milk)..." class="fm-input text-xs pl-8 py-2 w-full" />
+                </div>
+                <div class="flex items-center gap-2">
+                  <label class="text-xs font-bold text-slate-600 shrink-0">Kategori:</label>
+                  <select id="adm-holding-category-filter" onchange="FMCUApp.renderAdminHoldingProductsTable()" class="fm-select text-xs py-1.5">
+                    <option value="ALL">Semua Kategori (9)</option>
+                    <option value="fryer">Dimasak di Fryer (165°C)</option>
+                    <option value="steamer">Dimasak di Steamer (60°C)</option>
+                    <option value="sosis">Dimasak di Mesin Sosis (200°C)</option>
+                    <option value="rice_com">Dimasak di Rice Com</option>
+                    <option value="oden">Dimasak di Mesin Oden (60°C)</option>
+                    <option value="microwave_rte">Ready to Eat (Microwave)</option>
+                    <option value="lainnya_cake">Item Lainnya & Cake</option>
+                    <option value="dry_condiments">Dry Items & Condiments</option>
+                    <option value="beverages">Bahan Baku Beverages</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Table View -->
+              <div class="overflow-x-auto rounded-xl border border-slate-200 max-h-[500px]">
+                <table class="w-full text-left text-xs text-slate-700">
+                  <thead class="bg-slate-50 text-[11px] font-extrabold uppercase text-slate-500 sticky top-0 z-10 border-b border-slate-200">
+                    <tr>
+                      <th class="py-2.5 px-3">Kategori</th>
+                      <th class="py-2.5 px-3">Nama Produk</th>
+                      <th class="py-2.5 px-3">Thawing</th>
+                      <th class="py-2.5 px-3">Umur Chiller</th>
+                      <th class="py-2.5 px-3">Pemanasan</th>
+                      <th class="py-2.5 px-3">Holding Time (Batas)</th>
+                      <th class="py-2.5 px-3">Wadah / Keterangan</th>
+                      <th class="py-2.5 px-3 text-center">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="adm-holding-table-body" class="divide-y divide-slate-100">
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
         </div>
       </main>
 
@@ -2989,12 +3217,158 @@ service cloud.firestore {
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js"></script>
 
   <!-- Application Scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="js/holding-time-standards.js"></script>
   <script src="js/pdf-assets.js"></script>
   <script src="js/master-stores-seed.js"></script>
   <script src="js/data.js"></script>
   <script src="js/pdf-generator.js"></script>
   <script src="js/app.js"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
+    
+  <!-- ====================================================================
+       MODAL: STANDAR HOLDING TIME RESMI (QC) - PANDUAN CEPAT USER
+       (Hanya dapat diakses saat user berada di dalam Form Visit Store)
+       ==================================================================== -->
+  <div id="modal-holding-time" class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 hidden">
+    <div class="bg-white rounded-2xl sm:rounded-3xl max-w-4xl w-full h-[90vh] sm:h-[85vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden view-section">
+      <!-- Modal Header -->
+      <div class="p-3.5 sm:p-5 border-b border-slate-100 flex items-center justify-between gap-3 bg-gradient-to-r from-amber-500/10 via-white to-emerald-500/10 shrink-0">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center text-lg shrink-0 shadow-xs">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <h3 class="font-black text-sm sm:text-base text-slate-900 truncate">Standar Holding Time Resmi</h3>
+              <span id="modal-holding-version-pill" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500 text-white leading-none">R23</span>
+            </div>
+            <p id="modal-holding-meta-text" class="text-[11px] text-slate-500 truncate">STD/FMI/PD-QC/001/R23 • Efektif: 23 September 2026</p>
+          </div>
+        </div>
+        <button type="button" onclick="FMCUApp.closeHoldingTimeModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition cursor-pointer shrink-0">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+
+      <!-- Search & Category Filters -->
+      <div class="p-3 sm:p-4 border-b border-slate-100 bg-slate-50/70 space-y-2.5 shrink-0">
+        <div class="relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+          <input type="text" id="holding-user-search" oninput="FMCUApp.filterHoldingTimeModal()" placeholder="Cari nama produk (contoh: Chicken Parting, Siomay, Fresh Milk, Oden, Boba, Rice)..." class="w-full pl-9 pr-8 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-amber-500 shadow-2xs" />
+          <button type="button" onclick="document.getElementById('holding-user-search').value = ''; FMCUApp.filterHoldingTimeModal();" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs">
+            <i class="fa-solid fa-circle-xmark"></i>
+          </button>
+        </div>
+
+        <!-- Category Chip Track -->
+        <div id="holding-category-chips" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth py-0.5">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- QA Rules Accordion -->
+      <div class="px-3 sm:px-4 py-2 bg-amber-50/90 border-b border-amber-200/80 shrink-0">
+        <div class="flex items-center justify-between cursor-pointer" onclick="FMCUApp.toggleHoldingRulesAccordion()">
+          <div class="flex items-center gap-2 text-xs font-bold text-amber-900">
+            <i class="fa-solid fa-shield-halved text-amber-600"></i>
+            <span>8 Ketentuan QA & Food Safety Wajib (Klik untuk baca)</span>
+          </div>
+          <i id="holding-rules-chevron" class="fa-solid fa-chevron-down text-amber-700 text-xs transition-transform duration-200"></i>
+        </div>
+        <div id="holding-rules-body" class="hidden mt-2 pt-2 border-t border-amber-200/60 text-[11px] text-amber-900 space-y-1 leading-relaxed max-h-36 overflow-y-auto pr-1">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Modal Body (Cards Grid) -->
+      <div id="holding-modal-body" class="flex-1 overflow-y-auto p-3 sm:p-5 space-y-3.5">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-3 sm:p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between text-xs shrink-0">
+        <span class="text-slate-500 text-[11px]">
+          <i class="fa-solid fa-circle-info mr-1 text-amber-500"></i>Acuan resmi QA & Product Improvement FamilyMart
+        </span>
+        <button type="button" onclick="FMCUApp.closeHoldingTimeModal()" class="px-4 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition cursor-pointer">
+          Tutup Panduan
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Edit / Tambah Produk Holding Time (Super Admin) -->
+  <div id="modal-holding-edit-product" class="hidden fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 id="modal-holding-edit-title" class="font-extrabold text-slate-900 text-sm sm:text-base">Edit Produk Standar Holding Time</h3>
+        <button type="button" onclick="FMCUApp.closeModal('modal-holding-edit-product')" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <form onsubmit="FMCUApp.saveHoldingProductFromModal(event)" class="space-y-3.5 text-xs">
+        <input type="hidden" id="edit-holding-item-idx" value="-1" />
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Kategori Mesin / Produk *</label>
+          <select id="edit-holding-category" class="fm-select text-xs w-full" required>
+            <option value="fryer">Dimasak di Fryer (165°C)</option>
+            <option value="steamer">Dimasak di Steamer (60°C)</option>
+            <option value="sosis">Dimasak di Mesin Sosis (200°C)</option>
+            <option value="rice_com">Dimasak di Rice Com</option>
+            <option value="oden">Dimasak di Mesin Oden (60°C)</option>
+            <option value="microwave_rte">Ready to Eat (Microwave)</option>
+            <option value="lainnya_cake">Item Lainnya & Cake</option>
+            <option value="dry_condiments">Dry Items & Condiments</option>
+            <option value="beverages">Bahan Baku Beverages</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Nama Produk *</label>
+          <input type="text" id="edit-holding-name" required placeholder="Contoh: Chicken Parting" class="fm-input text-xs" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Waktu Thawing</label>
+            <input type="text" id="edit-holding-thawing" placeholder="Contoh: 1 hari (Chiller)" class="fm-input text-xs" />
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Umur Simpan Chiller</label>
+            <input type="text" id="edit-holding-shelflife" placeholder="Contoh: 36 jam (Chiller)" class="fm-input text-xs" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Suhu & Pemanasan</label>
+            <input type="text" id="edit-holding-cooking" placeholder="Contoh: 12 menit (165°C)" class="fm-input text-xs" />
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Holding Time (Batas) *</label>
+            <input type="text" id="edit-holding-holding" required placeholder="Contoh: 4 jam atau closing dibuang" class="fm-input text-xs font-bold text-amber-700" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Wadah Penyimpanan / Keterangan</label>
+          <input type="text" id="edit-holding-storage" placeholder="Contoh: Showcase Warmer • Plastik Klip" class="fm-input text-xs" />
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="FMCUApp.closeModal('modal-holding-edit-product')" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs cursor-pointer">
+            Batal
+          </button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-[#009944] text-white font-bold text-xs hover:bg-emerald-700 transition cursor-pointer">
+            Simpan Produk
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
     <div id="modal-news-editor" class="hidden fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 space-y-4 shadow-2xl">
         <div class="flex items-center justify-between border-b border-slate-100 pb-3">
