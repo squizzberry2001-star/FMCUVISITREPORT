@@ -1398,16 +1398,10 @@ window.FMCUApp = {
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    // Toggle Tombol Home di Header (Tampil saat bukan di Home)
+    // Toggle Tombol Home di Header (HANYA tampil saat di Form Visit)
     const headerHomeBtn = document.getElementById('header-home-btn');
     if (headerHomeBtn) {
-      if (viewName !== 'home') {
-        headerHomeBtn.classList.remove('hidden');
-        headerHomeBtn.classList.add('inline-flex');
-      } else {
-        headerHomeBtn.classList.add('hidden');
-        headerHomeBtn.classList.remove('inline-flex');
-      }
+      headerHomeBtn.classList.toggle('hidden', viewName !== 'form');
     }
 
     // Toggle Tombol Standar Holding Time di Header (HANYA tampil saat di Form Visit)
@@ -1531,19 +1525,16 @@ window.FMCUApp = {
     }
 
     // Floating action button bar for Observation (HANYA tampil di Section 2: Observation)
+    // Floating action button bar for Observation (HANYA tampil di Section 2: Observation)
     const fabObs = document.getElementById('floating-obs-actions');
     if (fabObs) {
       fabObs.classList.toggle('hidden', targetSec !== 2);
-      const menu = document.getElementById('obs-fab-menu');
-      if (menu && targetSec !== 2) menu.classList.add('hidden');
     }
 
     // Floating action button bar for Evidence (HANYA tampil di Section 3: Evidence)
     const fabEvidence = document.getElementById('floating-evidence-actions');
     if (fabEvidence) {
       fabEvidence.classList.toggle('hidden', targetSec !== 3);
-      const menu = document.getElementById('evidence-fab-speed-menu');
-      if (menu && targetSec !== 3) menu.classList.add('hidden');
     }
 
     [1, 2, 3, 4].forEach((n) => {
@@ -4686,7 +4677,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     document.getElementById('form-area-manager').value = '';
     document.getElementById('form-regional-manager').value = '';
     document.getElementById('form-store-email').value = '';
-    document.getElementById('form-ca-link').value = 'https://tinyurl.com/store-caassignment';
+    const caEl1 = document.getElementById('form-ca-link'); if (caEl1) caEl1.value = 'https://tinyurl.com/store-caassignment';
     document.getElementById('form-actual-in').value = '';
     document.getElementById('form-actual-out').value = '';
 
@@ -4751,7 +4742,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     document.getElementById('form-area-manager').value = rep.areaManager || '';
     document.getElementById('form-regional-manager').value = rep.regionalManager || '';
     document.getElementById('form-store-email').value = rep.storeEmail || '';
-    document.getElementById('form-ca-link').value = rep.caLink || 'https://tinyurl.com/store-caassignment';
+    const caEl2 = document.getElementById('form-ca-link'); if (caEl2) caEl2.value = rep.caLink || 'https://tinyurl.com/store-caassignment';
     document.getElementById('form-actual-in').value = rep.actualIn || '';
     document.getElementById('form-actual-out').value = rep.actualOut || '';
 
@@ -4804,107 +4795,73 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     this.renderCaPhotosGrid();
   },
 
-  // --- Floating Action Button Handlers (Section 2 & Section 3) ---
-  toggleObsFabMenu() {
-    const menu = document.getElementById('obs-fab-menu');
-    const icon = document.getElementById('icon-fab-obs-plus');
-    if (!menu) return;
-    const isHidden = menu.classList.contains('hidden');
-    if (isHidden) {
-      if (this.enableOpi && !this.enableQsc) {
-        this.addObservationFromFab('opi');
-        return;
-      }
-      if (!this.enableOpi && this.enableQsc) {
-        this.addObservationFromFab('qsc');
-        return;
-      }
-      menu.classList.remove('hidden');
-      if (icon) icon.classList.add('rotate-45');
-    } else {
-      menu.classList.add('hidden');
-      if (icon) icon.classList.remove('rotate-45');
-    }
+  // --- Sub-section Switchers for Section 2 (Observation) and Section 3 (Evidence) ---
+  currentObsSubTab: 'qsc',
+  currentEvidenceSubTab: 'finding',
+
+  switchObsSubSection(tab) {
+    this.currentObsSubTab = tab;
+    const isQsc = tab === 'qsc';
+
+    const tabQsc = document.getElementById('tab-btn-obs-qsc');
+    const tabOpi = document.getElementById('tab-btn-obs-opi');
+    const secQsc = document.getElementById('sub-sec-obs-qsc');
+    const secOpi = document.getElementById('sub-sec-obs-opi');
+
+    if (tabQsc) tabQsc.classList.toggle('active', isQsc);
+    if (tabOpi) tabOpi.classList.toggle('active', !isQsc);
+    if (secQsc) secQsc.classList.toggle('hidden', !isQsc);
+    if (secOpi) secOpi.classList.toggle('hidden', isQsc);
+
+    this.triggerHaptic('light');
   },
 
-  addObservationFromFab(type) {
-    const menu = document.getElementById('obs-fab-menu');
-    const icon = document.getElementById('icon-fab-obs-plus');
-    if (menu) menu.classList.add('hidden');
-    if (icon) icon.classList.remove('rotate-45');
+  switchEvidenceSubSection(tab) {
+    this.currentEvidenceSubTab = tab;
+    this.floatingEvidenceTarget = tab;
+    const isFinding = tab === 'finding';
 
-    if (type === 'opi') {
+    const tabFinding = document.getElementById('tab-btn-ev-finding');
+    const tabCa = document.getElementById('tab-btn-ev-ca');
+    const secFinding = document.getElementById('sub-sec-ev-finding');
+    const secCa = document.getElementById('sub-sec-ev-ca');
+
+    if (tabFinding) tabFinding.classList.toggle('active', isFinding);
+    if (tabCa) tabCa.classList.toggle('active', !isFinding);
+    if (secFinding) secFinding.classList.toggle('hidden', !isFinding);
+    if (secCa) secCa.classList.toggle('hidden', isFinding);
+
+    this.triggerHaptic('light');
+  },
+
+  addActiveObservation() {
+    this.triggerHaptic('medium');
+    if (this.currentObsSubTab === 'opi') {
       if (!this.enableOpi) {
         this.toggleObservationSubSection('opi', true);
       }
       this.addOpiObservationCard();
-      setTimeout(() => {
-        const list = document.getElementById('form-opi-observations-list');
-        if (list && list.lastElementChild) {
-          list.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }, 100);
     } else {
       if (!this.enableQsc) {
         this.toggleObservationSubSection('qsc', true);
       }
       this.addObservationCard();
-      setTimeout(() => {
-        const list = document.getElementById('form-observations-list');
-        if (list && list.lastElementChild) {
-          list.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }, 100);
     }
   },
 
   handleFloatingCameraClick() {
-    if (this.enableEvidence && this.enableCa) {
-      const menu = document.getElementById('evidence-fab-speed-menu');
-      if (menu) {
-        menu.classList.toggle('hidden');
-      }
-      return;
+    const input = document.getElementById('fab-camera-input');
+    if (input) {
+      input.value = '';
+      input.click();
     }
-    if (this.enableCa && !this.enableEvidence) {
-      this.triggerEvidenceFabAction('ca', 'camera');
-      return;
-    }
-    this.triggerEvidenceFabAction('finding', 'camera');
   },
 
   handleFloatingGalleryClick() {
-    if (this.enableEvidence && this.enableCa) {
-      const menu = document.getElementById('evidence-fab-speed-menu');
-      if (menu) {
-        menu.classList.toggle('hidden');
-      }
-      return;
-    }
-    if (this.enableCa && !this.enableEvidence) {
-      this.triggerEvidenceFabAction('ca', 'gallery');
-      return;
-    }
-    this.triggerEvidenceFabAction('finding', 'gallery');
-  },
-
-  triggerEvidenceFabAction(target, source) {
-    this.floatingEvidenceTarget = target;
-    const menu = document.getElementById('evidence-fab-speed-menu');
-    if (menu) menu.classList.add('hidden');
-
-    if (source === 'camera') {
-      const input = document.getElementById('fab-camera-input');
-      if (input) {
-        input.value = '';
-        input.click();
-      }
-    } else {
-      const input = document.getElementById('fab-gallery-input');
-      if (input) {
-        input.value = '';
-        input.click();
-      }
+    const input = document.getElementById('fab-gallery-input');
+    if (input) {
+      input.value = '';
+      input.click();
     }
   },
 
@@ -4984,125 +4941,143 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
   async handleFloatingCameraUpload(event) {
     const file = event.target.files?.[0];
     if (!file) return;
-    const isCa = this.floatingEvidenceTarget === 'ca';
-    const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
-    const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
-    const settings = window.FMCUData.getSettings();
-    const applyWm = settings.autoWatermarkGps !== false;
-
-    this.showToast('Memproses foto kamera & membubuhkan watermark...', 'info');
-    const dataUrl = await window.FMCUPdf.processAndStampImage(file, {
-      storeName,
-      gpsLat: this.liveGps.lat,
-      gpsLng: this.liveGps.lng,
-      applyWatermark: applyWm
-    });
-
-    if (isCa) {
-      if (!this.formCaPhotos) this.formCaPhotos = [];
-      const caObj = {
-        id: 'ca-' + Date.now(),
-        description: '',
-        dataUrl,
-        driveFileId: '',
-        driveUrl: '',
-        _uploading: true
-      };
-      window.FMCUData.cachePhotoInMemory(caObj.id, null, dataUrl);
-      this.formCaPhotos.push(caObj);
-      this.renderCaPhotosGrid();
-      await window.FMCUData.uploadPhotoToGDrive(caObj, {
-        storeCode,
-        storeName,
-        photoType: 'CORRECTIVE_ACTION'
-      });
-      caObj._uploading = false;
-      this.renderCaPhotosGrid();
-      this.showToast('Foto perbaikan (CA) berhasil ditambahkan!', 'success');
-    } else {
-      if (!this.formEvidencePhotos) this.formEvidencePhotos = [];
-      const evObj = {
-        id: 'ev-' + Date.now(),
-        description: '',
-        dataUrl,
-        driveFileId: '',
-        driveUrl: '',
-        _uploading: true
-      };
-      window.FMCUData.cachePhotoInMemory(evObj.id, null, dataUrl);
-      this.formEvidencePhotos.push(evObj);
-      this.renderEvidenceGrid();
-      await window.FMCUData.uploadPhotoToGDrive(evObj, {
-        storeCode,
-        storeName,
-        photoType: 'EVIDENCE'
-      });
-      evObj._uploading = false;
-      this.renderEvidenceGrid();
-      this.showToast('Foto bukti temuan berhasil ditambahkan!', 'success');
-    }
     event.target.value = '';
-    this.updateFormProgress();
-  },
+    const isCa = this.currentEvidenceSubTab === 'ca' || this.floatingEvidenceTarget === 'ca';
+    this.promptPhotoEdit(file, async (editedDataUrl) => {
+      const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
+      const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
+      const settings = window.FMCUData.getSettings();
+      const applyWm = settings.autoWatermarkGps !== false;
 
-  async handleFloatingGalleryUpload(event) {
-    const files = Array.from(event.target.files || []);
-    if (files.length === 0) return;
-    const isCa = this.floatingEvidenceTarget === 'ca';
-    const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
-    const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
-    const settings = window.FMCUData.getSettings();
-    const applyWm = settings.autoWatermarkGps !== false;
-
-    this.showToast(`Memproses ${files.length} foto dari galeri...`, 'info');
-    const newCards = [];
-    for (const file of files) {
-      const dataUrl = await window.FMCUPdf.processAndStampImage(file, {
+      this.showToast('Membubuhkan timestamp & koordinat GPS...', 'info');
+      const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
         storeName,
         gpsLat: this.liveGps.lat,
         gpsLng: this.liveGps.lng,
         applyWatermark: applyWm
       });
-      const photoObj = {
-        id: (isCa ? 'ca-' : 'ev-') + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
-        description: '',
-        dataUrl,
-        driveFileId: '',
-        driveUrl: '',
-        _uploading: true
-      };
-      window.FMCUData.cachePhotoInMemory(photoObj.id, null, dataUrl);
+
       if (isCa) {
         if (!this.formCaPhotos) this.formCaPhotos = [];
-        this.formCaPhotos.push(photoObj);
-      } else {
-        if (!this.formEvidencePhotos) this.formEvidencePhotos = [];
-        this.formEvidencePhotos.push(photoObj);
-      }
-      newCards.push(photoObj);
-    }
-
-    if (isCa) this.renderCaPhotosGrid();
-    else this.renderEvidenceGrid();
-
-    await Promise.all(
-      newCards.map((c) =>
-        window.FMCUData.uploadPhotoToGDrive(c, {
+        const caObj = {
+          id: 'ca-' + Date.now(),
+          description: '',
+          dataUrl,
+          driveFileId: '',
+          driveUrl: '',
+          _uploading: true
+        };
+        window.FMCUData.cachePhotoInMemory(caObj.id, null, dataUrl);
+        this.formCaPhotos.push(caObj);
+        this.renderCaPhotosGrid();
+        await window.FMCUData.uploadPhotoToGDrive(caObj, {
           storeCode,
           storeName,
-          photoType: isCa ? 'CORRECTIVE_ACTION' : 'EVIDENCE'
-        }).finally(() => {
-          c._uploading = false;
-        })
-      )
-    );
+          photoType: 'CORRECTIVE_ACTION'
+        });
+        caObj._uploading = false;
+        this.renderCaPhotosGrid();
+        this.showToast('Foto perbaikan (CA) berhasil ditambahkan!', 'success');
+      } else {
+        if (!this.formEvidencePhotos) this.formEvidencePhotos = [];
+        const evObj = {
+          id: 'ev-' + Date.now(),
+          description: '',
+          dataUrl,
+          driveFileId: '',
+          driveUrl: '',
+          _uploading: true
+        };
+        window.FMCUData.cachePhotoInMemory(evObj.id, null, dataUrl);
+        this.formEvidencePhotos.push(evObj);
+        this.renderEvidenceGrid();
+        await window.FMCUData.uploadPhotoToGDrive(evObj, {
+          storeCode,
+          storeName,
+          photoType: 'EVIDENCE'
+        });
+        evObj._uploading = false;
+        this.renderEvidenceGrid();
+        this.showToast('Foto bukti temuan berhasil ditambahkan!', 'success');
+      }
+      this.updateFormProgress();
+    });
+  },
 
-    if (isCa) this.renderCaPhotosGrid();
-    else this.renderEvidenceGrid();
-
+  async handleFloatingGalleryUpload(event) {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
     event.target.value = '';
-    this.updateFormProgress();
-    this.showToast(`${files.length} foto ${isCa ? 'perbaikan (CA)' : 'temuan'} berhasil ditambahkan!`, 'success');
+    const isCa = this.currentEvidenceSubTab === 'ca' || this.floatingEvidenceTarget === 'ca';
+
+    const processFile = (file) => {
+      return new Promise((resolve) => {
+        this.promptPhotoEdit(file, async (editedDataUrl) => {
+          const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
+          const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
+          const settings = window.FMCUData.getSettings();
+          const applyWm = settings.autoWatermarkGps !== false;
+
+          const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
+            storeName,
+            gpsLat: this.liveGps.lat,
+            gpsLng: this.liveGps.lng,
+            applyWatermark: applyWm
+          });
+
+          if (isCa) {
+            if (!this.formCaPhotos) this.formCaPhotos = [];
+            const caObj = {
+              id: 'ca-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+              description: '',
+              dataUrl,
+              driveFileId: '',
+              driveUrl: '',
+              _uploading: true
+            };
+            window.FMCUData.cachePhotoInMemory(caObj.id, null, dataUrl);
+            this.formCaPhotos.push(caObj);
+            this.renderCaPhotosGrid();
+            window.FMCUData.uploadPhotoToGDrive(caObj, {
+              storeCode,
+              storeName,
+              photoType: 'CORRECTIVE_ACTION'
+            }).then(() => {
+              caObj._uploading = false;
+              this.renderCaPhotosGrid();
+            });
+          } else {
+            if (!this.formEvidencePhotos) this.formEvidencePhotos = [];
+            const evObj = {
+              id: 'ev-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+              description: '',
+              dataUrl,
+              driveFileId: '',
+              driveUrl: '',
+              _uploading: true
+            };
+            window.FMCUData.cachePhotoInMemory(evObj.id, null, dataUrl);
+            this.formEvidencePhotos.push(evObj);
+            this.renderEvidenceGrid();
+            window.FMCUData.uploadPhotoToGDrive(evObj, {
+              storeCode,
+              storeName,
+              photoType: 'EVIDENCE'
+            }).then(() => {
+              evObj._uploading = false;
+              this.renderEvidenceGrid();
+            });
+          }
+          this.updateFormProgress();
+          resolve();
+        }, () => resolve());
+      });
+    };
+
+    for (const f of files) {
+      await processFile(f);
+    }
+    this.showToast(`${files.length} foto berhasil diproses!`, 'success');
   },
 
   // --- Section 1B: Crew Table ---
@@ -5298,37 +5273,40 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
   async handleQscPhotoUpload(event, idx) {
     const file = event.target.files?.[0];
     if (!file) return;
-    const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
-    const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
-    const settings = window.FMCUData.getSettings();
-    const applyWm = settings.autoWatermarkGps !== false;
-    const dataUrl = await window.FMCUPdf.processAndStampImage(file, {
-      storeName,
-      gpsLat: this.liveGps.lat,
-      gpsLng: this.liveGps.lng,
-      applyWatermark: applyWm
-    });
-    const photoObj = this.formQscPhotos[idx];
-    photoObj.dataUrl = dataUrl;
-    photoObj.driveFileId = '';
-    photoObj.driveUrl = '';
-    photoObj._uploading = true;
-    window.FMCUData.cachePhotoInMemory(photoObj.id, null, dataUrl);
-    this.renderQscPhotosGrid();
+    event.target.value = '';
+    this.promptPhotoEdit(file, async (editedDataUrl) => {
+      const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
+      const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
+      const settings = window.FMCUData.getSettings();
+      const applyWm = settings.autoWatermarkGps !== false;
+      const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
+        storeName,
+        gpsLat: this.liveGps.lat,
+        gpsLng: this.liveGps.lng,
+        applyWatermark: applyWm
+      });
+      const photoObj = this.formQscPhotos[idx];
+      photoObj.dataUrl = dataUrl;
+      photoObj.driveFileId = '';
+      photoObj.driveUrl = '';
+      photoObj._uploading = true;
+      window.FMCUData.cachePhotoInMemory(photoObj.id, null, dataUrl);
+      this.renderQscPhotosGrid();
 
-    await window.FMCUData.uploadPhotoToGDrive(photoObj, {
-      storeCode,
-      storeName,
-      photoType: 'QSC'
+      await window.FMCUData.uploadPhotoToGDrive(photoObj, {
+        storeCode,
+        storeName,
+        photoType: 'QSC'
+      });
+      photoObj._uploading = false;
+      this.renderQscPhotosGrid();
+      this.showToast(
+        photoObj.driveFileId
+          ? `Foto lembar QSC #${idx + 1} berhasil disimpan ke Google Drive!`
+          : `Foto lembar QSC #${idx + 1} berhasil disesuaikan & diproses`,
+        'success'
+      );
     });
-    photoObj._uploading = false;
-    this.renderQscPhotosGrid();
-    this.showToast(
-      photoObj.driveFileId
-        ? `Foto lembar QSC #${idx + 1} berhasil disimpan ke Google Drive!`
-        : `Foto lembar QSC #${idx + 1} berhasil diproses`,
-      'success'
-    );
   },
 
   // --- Section 2: OPI Project Observation Findings ---
@@ -5595,6 +5573,58 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     container.querySelectorAll('textarea').forEach((ta) => this.autoExpandTextarea(ta));
   },
 
+    addObservationCard() {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (!this.formObservations) this.formObservations = [];
+    this.formObservations.push({
+      id: 'obs-' + Date.now(),
+      category: 'Food Safety & Expired',
+      temuan: '',
+      kondisiIdeal: '',
+      penyebab: '',
+      dampak: '',
+      tindakanPerbaikan: '',
+      hasil: '',
+      deadline: todayStr,
+      deadlineFormatted: window.FMCUPdf.formatIndonesianDate(todayStr, false),
+      status: 'OPEN'
+    });
+    this.renderObservationsList();
+    this.updateFormProgress();
+    setTimeout(() => {
+      const list = document.getElementById('form-observations-list');
+      if (list && list.lastElementChild) {
+        list.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 50);
+  },
+
+  removeObservationCard(idx) {
+    if (!this.formObservations) return;
+    this.formObservations.splice(idx, 1);
+    this.renderObservationsList();
+    this.updateFormProgress();
+    this.showToast('Temuan QSC berhasil dihapus.', 'info');
+  },
+
+  applyFindingPreset(obsIdx, presetId) {
+    if (!presetId) return;
+    const preset = (window.FMCUData.FINDING_PRESETS || []).find((p) => p.id === presetId);
+    if (!preset) return;
+    this.formObservations[obsIdx] = {
+      ...this.formObservations[obsIdx],
+      category: preset.category,
+      kondisiIdeal: preset.kondisiIdeal,
+      penyebab: preset.rootCause || preset.penyebab || '',
+      tindakanPerbaikan: preset.actionPlan || preset.tindakanPerbaikan || '',
+      dampak: preset.dampak || '',
+      hasil: preset.hasil || ''
+    };
+    this.renderObservationsList();
+    this.updateFormProgress();
+    this.showToast(`Template "${preset.label}" diterapkan ke temuan #${obsIdx + 1}`, 'success');
+  },
+
   renderEvidenceGrid() {
     const grid = document.getElementById('form-evidence-grid');
     if (!grid) return;
@@ -5690,38 +5720,41 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
   async handleSingleEvidenceUpload(event, idx) {
     const file = event.target.files?.[0];
     if (!file) return;
-    const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
-    const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
-    const settings = window.FMCUData.getSettings();
-    const applyWm = settings.autoWatermarkGps !== false;
-    const dataUrl = await window.FMCUPdf.processAndStampImage(file, {
-      storeName,
-      gpsLat: this.liveGps.lat,
-      gpsLng: this.liveGps.lng,
-      applyWatermark: applyWm
-    });
-    const evObj = this.formEvidencePhotos[idx];
-    evObj.id = evObj.id || 'ev-' + Date.now();
-    evObj.dataUrl = dataUrl;
-    evObj.driveFileId = '';
-    evObj.driveUrl = '';
-    evObj._uploading = true;
-    window.FMCUData.cachePhotoInMemory(evObj.id, null, dataUrl);
-    this.renderEvidenceGrid();
+    event.target.value = '';
+    this.promptPhotoEdit(file, async (editedDataUrl) => {
+      const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
+      const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
+      const settings = window.FMCUData.getSettings();
+      const applyWm = settings.autoWatermarkGps !== false;
+      const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
+        storeName,
+        gpsLat: this.liveGps.lat,
+        gpsLng: this.liveGps.lng,
+        applyWatermark: applyWm
+      });
+      const evObj = this.formEvidencePhotos[idx];
+      evObj.id = evObj.id || 'ev-' + Date.now();
+      evObj.dataUrl = dataUrl;
+      evObj.driveFileId = '';
+      evObj.driveUrl = '';
+      evObj._uploading = true;
+      window.FMCUData.cachePhotoInMemory(evObj.id, null, dataUrl);
+      this.renderEvidenceGrid();
 
-    await window.FMCUData.uploadPhotoToGDrive(evObj, {
-      storeCode,
-      storeName,
-      photoType: 'EVIDENCE'
+      await window.FMCUData.uploadPhotoToGDrive(evObj, {
+        storeCode,
+        storeName,
+        photoType: 'EVIDENCE'
+      });
+      evObj._uploading = false;
+      this.renderEvidenceGrid();
+      this.showToast(
+        evObj.driveFileId
+          ? `Foto bukti #${idx + 1} berhasil disimpan ke Google Drive!`
+          : `Foto bukti #${idx + 1} berhasil disesuaikan & diproses`,
+        'success'
+      );
     });
-    evObj._uploading = false;
-    this.renderEvidenceGrid();
-    this.showToast(
-      evObj.driveFileId
-        ? `Foto bukti #${idx + 1} berhasil disimpan ke Google Drive!`
-        : `Foto bukti #${idx + 1} berhasil diproses`,
-      'success'
-    );
   },
 
   async handleBulkEvidenceUpload(event) {
@@ -5873,40 +5906,43 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
   async handleSingleCaUpload(event, idx) {
     const file = event.target.files?.[0];
     if (!file) return;
-    const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
-    const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
-    const settings = window.FMCUData.getSettings();
-    const applyWm = settings.autoWatermarkGps !== false;
-    const dataUrl = await window.FMCUPdf.processAndStampImage(file, {
-      storeName,
-      gpsLat: this.liveGps.lat,
-      gpsLng: this.liveGps.lng,
-      applyWatermark: applyWm
-    });
-    if (!this.formCaPhotos) this.formCaPhotos = [];
-    const caObj = this.formCaPhotos[idx];
-    if (!caObj) return;
-    caObj.id = caObj.id || 'ca-' + Date.now();
-    caObj.dataUrl = dataUrl;
-    caObj.driveFileId = '';
-    caObj.driveUrl = '';
-    caObj._uploading = true;
-    window.FMCUData.cachePhotoInMemory(caObj.id, null, dataUrl);
-    this.renderCaPhotosGrid();
+    event.target.value = '';
+    this.promptPhotoEdit(file, async (editedDataUrl) => {
+      const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
+      const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
+      const settings = window.FMCUData.getSettings();
+      const applyWm = settings.autoWatermarkGps !== false;
+      const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
+        storeName,
+        gpsLat: this.liveGps.lat,
+        gpsLng: this.liveGps.lng,
+        applyWatermark: applyWm
+      });
+      if (!this.formCaPhotos) this.formCaPhotos = [];
+      const caObj = this.formCaPhotos[idx];
+      if (!caObj) return;
+      caObj.id = caObj.id || 'ca-' + Date.now();
+      caObj.dataUrl = dataUrl;
+      caObj.driveFileId = '';
+      caObj.driveUrl = '';
+      caObj._uploading = true;
+      window.FMCUData.cachePhotoInMemory(caObj.id, null, dataUrl);
+      this.renderCaPhotosGrid();
 
-    await window.FMCUData.uploadPhotoToGDrive(caObj, {
-      storeCode,
-      storeName,
-      photoType: 'CORRECTIVE_ACTION'
+      await window.FMCUData.uploadPhotoToGDrive(caObj, {
+        storeCode,
+        storeName,
+        photoType: 'CORRECTIVE_ACTION'
+      });
+      caObj._uploading = false;
+      this.renderCaPhotosGrid();
+      this.showToast(
+        caObj.driveFileId
+          ? `Foto perbaikan #${idx + 1} berhasil disimpan ke Google Drive!`
+          : `Foto perbaikan #${idx + 1} berhasil disesuaikan & diproses`,
+        'success'
+      );
     });
-    caObj._uploading = false;
-    this.renderCaPhotosGrid();
-    this.showToast(
-      caObj.driveFileId
-        ? `Foto perbaikan #${idx + 1} berhasil disimpan ke Google Drive!`
-        : `Foto perbaikan #${idx + 1} berhasil diproses`,
-      'success'
-    );
   },
 
   async handleBulkCaUpload(event) {
@@ -6006,7 +6042,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       evidencePhotos: JSON.parse(JSON.stringify(this.formEvidencePhotos)),
       caPhotos: JSON.parse(JSON.stringify(this.formCaPhotos || [])),
       correctiveActionPhotos: JSON.parse(JSON.stringify(this.formCaPhotos || [])),
-      caLink: document.getElementById('form-ca-link')?.value.trim() || 'https://tinyurl.com/store-caassignment',
+      caLink: document.getElementById('form-ca-link')?.value?.trim() || 'https://tinyurl.com/store-caassignment',
       createdAt: new Date().toISOString()
     };
   },
@@ -10853,7 +10889,385 @@ ${extractedPdfText}`;
     return window.FMCU_HOLDING_TIME_R23 || null;
   },
 
-      closeModal(id) {
+        // --- Photo Editor Modal (Crop & Marker Temuan) for Section 1 & 3 ---
+  photoEditorState: {
+    isOpen: false,
+    img: null,
+    rotation: 0,
+    mode: 'crop',
+    cropRect: { x: 0.05, y: 0.05, w: 0.9, h: 0.9 },
+    markers: [],
+    isDragging: false,
+    dragAction: null,
+    dragStart: { x: 0, y: 0 },
+    currentMarker: null,
+    onComplete: null,
+    onCancel: null
+  },
+
+  promptPhotoEdit(fileOrDataUrl, onApproved, onCancel) {
+    if (!fileOrDataUrl) return;
+
+    const modal = document.getElementById('modal-photo-editor');
+    if (!modal) {
+      if (typeof fileOrDataUrl === 'string') onApproved(fileOrDataUrl);
+      else {
+        const reader = new FileReader();
+        reader.onload = (e) => onApproved(e.target.result);
+        reader.readAsDataURL(fileOrDataUrl);
+      }
+      return;
+    }
+
+    const loadImg = (src) => {
+      const img = new Image();
+      img.onload = () => {
+        this.photoEditorState = {
+          isOpen: true,
+          img,
+          rotation: 0,
+          mode: 'crop',
+          cropRect: { x: 0.05, y: 0.05, w: 0.9, h: 0.9 },
+          markers: [],
+          isDragging: false,
+          dragAction: null,
+          dragStart: { x: 0, y: 0 },
+          currentMarker: null,
+          onComplete: onApproved,
+          onCancel: onCancel
+        };
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        this.setPhotoEditorMode('crop');
+        this.setupPhotoEditorCanvasEvents();
+        setTimeout(() => this.drawPhotoEditorCanvas(), 50);
+      };
+      img.src = src;
+    };
+
+    if (typeof fileOrDataUrl === 'string') {
+      loadImg(fileOrDataUrl);
+    } else {
+      const reader = new FileReader();
+      reader.onload = (e) => loadImg(e.target.result);
+      reader.readAsDataURL(fileOrDataUrl);
+    }
+  },
+
+  setPhotoEditorMode(mode) {
+    this.photoEditorState.mode = mode;
+    const btnCrop = document.getElementById('btn-editor-mode-crop');
+    const btnMarker = document.getElementById('btn-editor-mode-marker');
+
+    if (btnCrop) {
+      btnCrop.className = mode === 'crop'
+        ? 'px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 cursor-pointer bg-[#009944] text-white shadow-xs'
+        : 'px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white hover:bg-slate-700';
+    }
+    if (btnMarker) {
+      btnMarker.className = mode === 'marker'
+        ? 'px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 cursor-pointer bg-rose-600 text-white shadow-xs'
+        : 'px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white hover:bg-slate-700';
+    }
+    this.drawPhotoEditorCanvas();
+  },
+
+  rotatePhotoEditor(deg = 90) {
+    this.photoEditorState.rotation = (this.photoEditorState.rotation + deg) % 360;
+    this.photoEditorState.cropRect = { x: 0.05, y: 0.05, w: 0.9, h: 0.9 };
+    this.photoEditorState.markers = [];
+    this.drawPhotoEditorCanvas();
+  },
+
+  undoPhotoEditorMarker() {
+    if (this.photoEditorState.markers.length > 0) {
+      this.photoEditorState.markers.pop();
+      this.drawPhotoEditorCanvas();
+    }
+  },
+
+  resetPhotoEditor() {
+    this.photoEditorState.rotation = 0;
+    this.photoEditorState.mode = 'crop';
+    this.photoEditorState.cropRect = { x: 0.05, y: 0.05, w: 0.9, h: 0.9 };
+    this.photoEditorState.markers = [];
+    this.setPhotoEditorMode('crop');
+    this.drawPhotoEditorCanvas();
+  },
+
+  closePhotoEditor(applied = false) {
+    const modal = document.getElementById('modal-photo-editor');
+    if (modal) modal.classList.add('hidden');
+    document.body.style.overflow = '';
+    const wasOpen = this.photoEditorState.isOpen;
+    this.photoEditorState.isOpen = false;
+    if (!applied && wasOpen && typeof this.photoEditorState.onCancel === 'function') {
+      this.photoEditorState.onCancel();
+    }
+  },
+
+  drawPhotoEditorCanvas() {
+    const canvas = document.getElementById('photo-editor-canvas');
+    if (!canvas || !this.photoEditorState.img) return;
+
+    const ctx = canvas.getContext('2d');
+    const img = this.photoEditorState.img;
+    const rot = this.photoEditorState.rotation;
+
+    const isRot90or270 = rot === 90 || rot === 270;
+    const srcW = isRot90or270 ? img.height : img.width;
+    const srcH = isRot90or270 ? img.width : img.height;
+
+    const maxW = Math.min(window.innerWidth - 32, 900);
+    const maxH = Math.min(window.innerHeight - 230, 600);
+    const scale = Math.min(maxW / srcW, maxH / srcH, 1);
+
+    const dispW = Math.round(srcW * scale);
+    const dispH = Math.round(srcH * scale);
+
+    canvas.width = dispW;
+    canvas.height = dispH;
+    canvas.style.width = dispW + 'px';
+    canvas.style.height = dispH + 'px';
+
+    ctx.save();
+    ctx.clearRect(0, 0, dispW, dispH);
+
+    ctx.translate(dispW / 2, dispH / 2);
+    ctx.rotate((rot * Math.PI) / 180);
+    if (isRot90or270) {
+      ctx.drawImage(img, -dispH / 2, -dispW / 2, dispH, dispW);
+    } else {
+      ctx.drawImage(img, -dispW / 2, -dispH / 2, dispW, dispH);
+    }
+    ctx.restore();
+
+    const cr = this.photoEditorState.cropRect;
+    const cropX = cr.x * dispW;
+    const cropY = cr.y * dispH;
+    const cropW = cr.w * dispW;
+    const cropH = cr.h * dispH;
+
+    if (this.photoEditorState.mode === 'crop') {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+      ctx.fillRect(0, 0, dispW, cropY);
+      ctx.fillRect(0, cropY + cropH, dispW, dispH - (cropY + cropH));
+      ctx.fillRect(0, cropY, cropX, cropH);
+      ctx.fillRect(cropX + cropW, cropY, dispW - (cropX + cropW), cropH);
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(cropX, cropY, cropW, cropH);
+
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cropX + cropW / 3, cropY);
+      ctx.lineTo(cropX + cropW / 3, cropY + cropH);
+      ctx.moveTo(cropX + (cropW * 2) / 3, cropY);
+      ctx.lineTo(cropX + (cropW * 2) / 3, cropY + cropH);
+      ctx.moveTo(cropX, cropY + cropH / 3);
+      ctx.lineTo(cropX + cropW, cropY + cropH / 3);
+      ctx.moveTo(cropX, cropY + (cropH * 2) / 3);
+      ctx.lineTo(cropX + cropW, cropY + (cropH * 2) / 3);
+      ctx.stroke();
+
+      const handleSize = 14;
+      ctx.fillStyle = '#009944';
+      ctx.fillRect(cropX - 2, cropY - 2, handleSize, 4);
+      ctx.fillRect(cropX - 2, cropY - 2, 4, handleSize);
+      ctx.fillRect(cropX + cropW - handleSize + 2, cropY - 2, handleSize, 4);
+      ctx.fillRect(cropX + cropW - 2, cropY - 2, 4, handleSize);
+      ctx.fillRect(cropX - 2, cropY + cropH - 2, handleSize, 4);
+      ctx.fillRect(cropX - 2, cropY + cropH - handleSize + 2, 4, handleSize);
+      ctx.fillRect(cropX + cropW - handleSize + 2, cropY + cropH - 2, handleSize, 4);
+      ctx.fillRect(cropX + cropW - 2, cropY + cropH - handleSize + 2, 4, handleSize);
+    } else {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.setLineDash([4, 4]);
+      ctx.strokeRect(cropX, cropY, cropW, cropH);
+      ctx.setLineDash([]);
+    }
+
+    const allMarkers = [...this.photoEditorState.markers];
+    if (this.photoEditorState.currentMarker) {
+      allMarkers.push(this.photoEditorState.currentMarker);
+    }
+
+    allMarkers.forEach((m) => {
+      ctx.save();
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 4;
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
+      ctx.shadowBlur = 6;
+
+      const mx = m.x * dispW;
+      const my = m.y * dispH;
+      const mw = m.w * dispW;
+      const mh = m.h * dispH;
+
+      ctx.beginPath();
+      ctx.ellipse(mx + mw / 2, my + mh / 2, Math.abs(mw / 2), Math.abs(mh / 2), 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.arc(mx + mw / 2, my + mh / 2 - Math.abs(mh / 2), 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
+  },
+
+  setupPhotoEditorCanvasEvents() {
+    const canvas = document.getElementById('photo-editor-canvas');
+    if (!canvas || canvas._eventsBound) return;
+    canvas._eventsBound = true;
+
+    const getCanvasPos = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
+      const clientY = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
+      return {
+        x: (clientX - rect.left) / canvas.width,
+        y: (clientY - rect.top) / canvas.height
+      };
+    };
+
+    const onStart = (e) => {
+      e.preventDefault();
+      const pos = getCanvasPos(e);
+      this.photoEditorState.isDragging = true;
+      this.photoEditorState.dragStart = pos;
+
+      if (this.photoEditorState.mode === 'crop') {
+        this.photoEditorState.dragAction = 'move-crop';
+      } else {
+        this.photoEditorState.dragAction = 'draw-marker';
+        this.photoEditorState.currentMarker = {
+          x: pos.x,
+          y: pos.y,
+          w: 0.01,
+          h: 0.01
+        };
+      }
+    };
+
+    const onMove = (e) => {
+      if (!this.photoEditorState.isDragging) return;
+      e.preventDefault();
+      const pos = getCanvasPos(e);
+
+      if (this.photoEditorState.dragAction === 'move-crop') {
+        const dx = pos.x - this.photoEditorState.dragStart.x;
+        const dy = pos.y - this.photoEditorState.dragStart.y;
+        this.photoEditorState.dragStart = pos;
+
+        const cr = this.photoEditorState.cropRect;
+        cr.x = Math.max(0, Math.min(1 - cr.w, cr.x + dx));
+        cr.y = Math.max(0, Math.min(1 - cr.h, cr.y + dy));
+        this.drawPhotoEditorCanvas();
+      } else if (this.photoEditorState.dragAction === 'draw-marker') {
+        const start = this.photoEditorState.dragStart;
+        const minX = Math.min(start.x, pos.x);
+        const minY = Math.min(start.y, pos.y);
+        const w = Math.max(0.02, Math.abs(pos.x - start.x));
+        const h = Math.max(0.02, Math.abs(pos.y - start.y));
+
+        this.photoEditorState.currentMarker = { x: minX, y: minY, w, h };
+        this.drawPhotoEditorCanvas();
+      }
+    };
+
+    const onEnd = (e) => {
+      if (!this.photoEditorState.isDragging) return;
+      this.photoEditorState.isDragging = false;
+
+      if (this.photoEditorState.dragAction === 'draw-marker' && this.photoEditorState.currentMarker) {
+        if (this.photoEditorState.currentMarker.w > 0.03 || this.photoEditorState.currentMarker.h > 0.03) {
+          this.photoEditorState.markers.push(this.photoEditorState.currentMarker);
+        }
+        this.photoEditorState.currentMarker = null;
+        this.drawPhotoEditorCanvas();
+      }
+      this.photoEditorState.dragAction = null;
+    };
+
+    canvas.addEventListener('pointerdown', onStart);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onEnd);
+    window.addEventListener('pointercancel', onEnd);
+  },
+
+  applyPhotoEditor() {
+    if (!this.photoEditorState.img) {
+      this.closePhotoEditor(false);
+      return;
+    }
+
+    const img = this.photoEditorState.img;
+    const rot = this.photoEditorState.rotation;
+    const cr = this.photoEditorState.cropRect;
+    const markers = this.photoEditorState.markers;
+
+    const isRot90or270 = rot === 90 || rot === 270;
+    const fullW = isRot90or270 ? img.height : img.width;
+    const fullH = isRot90or270 ? img.width : img.height;
+
+    const cropX = Math.round(cr.x * fullW);
+    const cropY = Math.round(cr.y * fullH);
+    const cropW = Math.max(100, Math.round(cr.w * fullW));
+    const cropH = Math.max(100, Math.round(cr.h * fullH));
+
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = cropW;
+    exportCanvas.height = cropH;
+    const ctx = exportCanvas.getContext('2d');
+
+    ctx.save();
+    ctx.translate(-cropX, -cropY);
+
+    ctx.translate(fullW / 2, fullH / 2);
+    ctx.rotate((rot * Math.PI) / 180);
+    if (isRot90or270) {
+      ctx.drawImage(img, -fullH / 2, -fullW / 2, fullH, fullW);
+    } else {
+      ctx.drawImage(img, -fullW / 2, -fullH / 2, fullW, fullH);
+    }
+    ctx.restore();
+
+    markers.forEach((m) => {
+      const mx = m.x * fullW - cropX;
+      const my = m.y * fullH - cropY;
+      const mw = m.w * fullW;
+      const mh = m.h * fullH;
+
+      ctx.save();
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = Math.max(5, Math.round(cropW * 0.008));
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+      ctx.shadowBlur = 8;
+
+      ctx.beginPath();
+      ctx.ellipse(mx + mw / 2, my + mh / 2, Math.abs(mw / 2), Math.abs(mh / 2), 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.arc(mx + mw / 2, my + mh / 2 - Math.abs(mh / 2), Math.max(8, Math.round(cropW * 0.012)), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
+
+    const finalDataUrl = exportCanvas.toDataURL('image/jpeg', 0.88);
+    const onComplete = this.photoEditorState.onComplete;
+    this.closePhotoEditor(true);
+
+    if (typeof onComplete === 'function') {
+      onComplete(finalDataUrl);
+    }
+  },
+
+  closeModal(id) {
     const el = document.getElementById(id);
     if (el) el.classList.add('hidden');
   }
