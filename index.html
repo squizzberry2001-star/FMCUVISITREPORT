@@ -1158,7 +1158,7 @@
            HALAMAN 2: FORM VISIT STORE
            (Hanya terbuka jika user sudah masuk ke form toko masing-masing)
            ================================================================== -->
-      <main id="view-form" class="view-section p-4 sm:p-6 max-w-6xl w-full mx-auto space-y-6 hidden">
+      <main id="view-form" class="view-section p-4 sm:p-6 max-w-6xl w-full mx-auto space-y-6 pb-28 sm:pb-16 hidden">
 
         <!-- Guard Screen if no store is currently active -->
         <div id="form-no-store-guard" class="fm-card p-8 max-w-lg mx-auto my-8 text-center space-y-4 hidden">
@@ -1397,36 +1397,36 @@
               </div>
 
               <!-- Sub-section Switcher Tabs: QSC vs OPI (Horizontal Segment Button) -->
-              <div class="flex items-center gap-2 p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200">
+              <div class="grid grid-cols-2 gap-2 p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200">
                 <!-- Tab QSC -->
-                <div class="flex-1 flex items-center justify-between px-3 sm:px-4 py-2.5 rounded-xl cursor-pointer transition form-subtab-pill active" id="tab-btn-obs-qsc" onclick="FMCUApp.switchObsSubSection('qsc')">
-                  <div class="flex items-center gap-2 min-w-0 truncate">
-                    <i class="fa-solid fa-chart-simple text-sm shrink-0"></i>
-                    <span class="text-xs sm:text-sm font-black tracking-tight truncate">QSC Observation</span>
+                <button type="button" id="tab-btn-obs-qsc" onclick="FMCUApp.switchObsSubSection('qsc')" class="form-subtab-pill active flex items-center justify-between px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl cursor-pointer transition select-none min-w-0 border">
+                  <div class="flex items-center gap-1.5 sm:gap-2 min-w-0 truncate">
+                    <i class="fa-solid fa-chart-simple text-xs sm:text-sm shrink-0"></i>
+                    <span class="text-xs sm:text-sm font-extrabold tracking-tight truncate">QSC<span class="hidden sm:inline"> Observation</span></span>
                   </div>
-                  <div class="flex items-center gap-2 ml-2 shrink-0" onclick="event.stopPropagation()">
-                    <label class="fm-toggle-switch" title="Aktifkan/Nonaktifkan QSC di PDF">
+                  <div class="flex items-center gap-1 sm:gap-2 ml-1.5 shrink-0" onclick="event.stopPropagation()">
+                    <label class="fm-toggle-switch fm-toggle-sm" title="Aktifkan/Nonaktifkan QSC di PDF">
                       <input type="checkbox" id="form-toggle-qsc" checked onchange="FMCUApp.toggleObservationSubSection('qsc', this.checked)" />
                       <span class="fm-toggle-track"><span class="fm-toggle-knob"></span></span>
                     </label>
-                    <span id="badge-status-qsc" class="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-white text-emerald-800 shadow-2xs">ON</span>
+                    <span id="badge-status-qsc" class="hidden sm:inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white text-emerald-800 shadow-2xs leading-none">ON</span>
                   </div>
-                </div>
+                </button>
 
                 <!-- Tab OPI -->
-                <div class="flex-1 flex items-center justify-between px-3 sm:px-4 py-2.5 rounded-xl cursor-pointer transition form-subtab-pill" id="tab-btn-obs-opi" onclick="FMCUApp.switchObsSubSection('opi')">
-                  <div class="flex items-center gap-2 min-w-0 truncate">
-                    <i class="fa-solid fa-lightbulb text-sm shrink-0"></i>
-                    <span class="text-xs sm:text-sm font-black tracking-tight truncate">OPI Project</span>
+                <button type="button" id="tab-btn-obs-opi" onclick="FMCUApp.switchObsSubSection('opi')" class="form-subtab-pill flex items-center justify-between px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl cursor-pointer transition select-none min-w-0 border">
+                  <div class="flex items-center gap-1.5 sm:gap-2 min-w-0 truncate">
+                    <i class="fa-solid fa-lightbulb text-xs sm:text-sm shrink-0"></i>
+                    <span class="text-xs sm:text-sm font-extrabold tracking-tight truncate">OPI<span class="hidden sm:inline"> Project</span></span>
                   </div>
-                  <div class="flex items-center gap-2 ml-2 shrink-0" onclick="event.stopPropagation()">
-                    <label class="fm-toggle-switch" title="Aktifkan/Nonaktifkan OPI di PDF">
+                  <div class="flex items-center gap-1 sm:gap-2 ml-1.5 shrink-0" onclick="event.stopPropagation()">
+                    <label class="fm-toggle-switch fm-toggle-sm" title="Aktifkan/Nonaktifkan OPI di PDF">
                       <input type="checkbox" id="form-toggle-opi" checked onchange="FMCUApp.toggleObservationSubSection('opi', this.checked)" />
                       <span class="fm-toggle-track"><span class="fm-toggle-knob"></span></span>
                     </label>
-                    <span id="badge-status-opi" class="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-700 shadow-2xs">ON</span>
+                    <span id="badge-status-opi" class="hidden sm:inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-700 shadow-2xs leading-none">ON</span>
                   </div>
-                </div>
+                </button>
               </div>
 
               <!-- Sub-Section Container: QSC Observation -->
@@ -1463,36 +1463,36 @@
               </div>
 
               <!-- Sub-section Switcher Tabs: Bukti Temuan vs Hasil Perbaikan -->
-              <div class="flex items-center gap-2 p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200">
-                <!-- Tab Finding Evidence -->
-                <div class="flex-1 flex items-center justify-between px-3 sm:px-4 py-2.5 rounded-xl cursor-pointer transition form-subtab-pill active" id="tab-btn-ev-finding" onclick="FMCUApp.switchEvidenceSubSection('finding')">
-                  <div class="flex items-center gap-2 min-w-0 truncate">
-                    <i class="fa-solid fa-camera text-sm shrink-0"></i>
-                    <span class="text-xs sm:text-sm font-black tracking-tight truncate">Bukti Temuan</span>
+              <div class="grid grid-cols-2 gap-2 p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200">
+                <!-- Tab Bukti Temuan -->
+                <button type="button" id="tab-btn-ev-finding" onclick="FMCUApp.switchEvidenceSubSection('finding')" class="form-subtab-pill active flex items-center justify-between px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl cursor-pointer transition select-none min-w-0 border">
+                  <div class="flex items-center gap-1.5 sm:gap-2 min-w-0 truncate">
+                    <i class="fa-solid fa-camera text-xs sm:text-sm shrink-0"></i>
+                    <span class="text-xs sm:text-sm font-extrabold tracking-tight truncate">Bukti<span class="hidden sm:inline"> Temuan</span></span>
                   </div>
-                  <div class="flex items-center gap-2 ml-2 shrink-0" onclick="event.stopPropagation()">
-                    <label class="fm-toggle-switch" title="Aktifkan/Nonaktifkan Bukti Temuan di PDF">
+                  <div class="flex items-center gap-1 sm:gap-2 ml-1.5 shrink-0" onclick="event.stopPropagation()">
+                    <label class="fm-toggle-switch fm-toggle-sm" title="Aktifkan/Nonaktifkan Bukti Temuan di PDF">
                       <input type="checkbox" id="form-toggle-evidence" checked onchange="FMCUApp.toggleEvidenceSubSection('evidence', this.checked)" />
                       <span class="fm-toggle-track"><span class="fm-toggle-knob"></span></span>
                     </label>
-                    <span id="badge-status-evidence" class="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-white text-emerald-800 shadow-2xs">ON</span>
+                    <span id="badge-status-evidence" class="hidden sm:inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white text-emerald-800 shadow-2xs leading-none">ON</span>
                   </div>
-                </div>
+                </button>
 
                 <!-- Tab Hasil Perbaikan (CA) -->
-                <div class="flex-1 flex items-center justify-between px-3 sm:px-4 py-2.5 rounded-xl cursor-pointer transition form-subtab-pill" id="tab-btn-ev-ca" onclick="FMCUApp.switchEvidenceSubSection('ca')">
-                  <div class="flex items-center gap-2 min-w-0 truncate">
-                    <i class="fa-solid fa-wrench text-sm shrink-0"></i>
-                    <span class="text-xs sm:text-sm font-black tracking-tight truncate">Hasil Perbaikan</span>
+                <button type="button" id="tab-btn-ev-ca" onclick="FMCUApp.switchEvidenceSubSection('ca')" class="form-subtab-pill flex items-center justify-between px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl cursor-pointer transition select-none min-w-0 border">
+                  <div class="flex items-center gap-1.5 sm:gap-2 min-w-0 truncate">
+                    <i class="fa-solid fa-wrench text-xs sm:text-sm shrink-0"></i>
+                    <span class="text-xs sm:text-sm font-extrabold tracking-tight truncate">Hasil<span class="hidden sm:inline"> Perbaikan</span></span>
                   </div>
-                  <div class="flex items-center gap-2 ml-2 shrink-0" onclick="event.stopPropagation()">
-                    <label class="fm-toggle-switch" title="Aktifkan/Nonaktifkan Perbaikan di PDF">
+                  <div class="flex items-center gap-1 sm:gap-2 ml-1.5 shrink-0" onclick="event.stopPropagation()">
+                    <label class="fm-toggle-switch fm-toggle-sm" title="Aktifkan/Nonaktifkan Perbaikan di PDF">
                       <input type="checkbox" id="form-toggle-ca" checked onchange="FMCUApp.toggleEvidenceSubSection('ca', this.checked)" />
                       <span class="fm-toggle-track"><span class="fm-toggle-knob"></span></span>
                     </label>
-                    <span id="badge-status-ca" class="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-700 shadow-2xs">ON</span>
+                    <span id="badge-status-ca" class="hidden sm:inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-700 shadow-2xs leading-none">ON</span>
                   </div>
-                </div>
+                </button>
               </div>
 
               <!-- Sub-Section Container: Bukti Temuan -->
@@ -1552,30 +1552,6 @@
               </div>
             </div>
           </form>
-
-          <!-- Floating Action Button for Section 2: Observation (Add Observation '+' with blur shadow & standby) -->
-          <div id="floating-obs-actions" class="hidden fixed bottom-20 sm:bottom-8 right-4 sm:right-8 z-40">
-            <button type="button" id="btn-fab-obs-main" onclick="FMCUApp.addActiveObservation()" class="floating-fab-glow w-14 h-14 rounded-full fm-gradient text-white flex items-center justify-center cursor-pointer text-2xl select-none" title="Tambah Temuan Baru">
-              <i class="fa-solid fa-plus"></i>
-            </button>
-          </div>
-
-          <!-- Floating Action Buttons for Section 3: Evidence (Camera & Gallery with blur shadow) -->
-          <div id="floating-evidence-actions" class="hidden fixed bottom-20 sm:bottom-8 right-4 sm:right-8 z-40 flex items-center gap-3">
-            <!-- Camera FAB -->
-            <button type="button" onclick="FMCUApp.handleFloatingCameraClick()" class="floating-fab-glow w-13 h-13 rounded-full fm-gradient text-white flex items-center justify-center cursor-pointer text-xl select-none" title="Ambil Foto Kamera">
-              <i class="fa-solid fa-camera"></i>
-            </button>
-
-            <!-- Gallery FAB -->
-            <button type="button" onclick="FMCUApp.handleFloatingGalleryClick()" class="floating-fab-glow-dark w-13 h-13 rounded-full bg-slate-900 hover:bg-black text-white flex items-center justify-center cursor-pointer text-xl select-none" title="Pilih dari Galeri">
-              <i class="fa-solid fa-images"></i>
-            </button>
-
-            <!-- Hidden file inputs triggered programmatically -->
-            <input type="file" id="fab-camera-input" accept="image/*" capture="environment" onchange="FMCUApp.handleFloatingCameraUpload(event)" class="hidden" />
-            <input type="file" id="fab-gallery-input" accept="image/*" multiple onchange="FMCUApp.handleFloatingGalleryUpload(event)" class="hidden" />
-          </div>
         </div>
       </main>
 
@@ -3509,6 +3485,30 @@ service cloud.firestore {
           </div>
         </form>
       </div>
+    </div>
+
+    <!-- Floating Action Button for Section 2: Observation (Add Observation '+' with blur shadow & standby) -->
+          <div id="floating-obs-actions" class="hidden fixed bottom-20 sm:bottom-8 right-4 sm:right-8 z-40">
+            <button type="button" id="btn-fab-obs-main" onclick="FMCUApp.addActiveObservation()" class="floating-fab-glow w-14 h-14 rounded-full fm-gradient text-white flex items-center justify-center cursor-pointer text-2xl select-none" title="Tambah Temuan Baru">
+              <i class="fa-solid fa-plus"></i>
+            </button>
+          </div>
+
+          <!-- Floating Action Buttons for Section 3: Evidence (Camera & Gallery with blur shadow) -->
+          <div id="floating-evidence-actions" class="hidden fixed bottom-20 sm:bottom-8 right-4 sm:right-8 z-40 flex items-center gap-3">
+            <!-- Camera FAB -->
+            <button type="button" onclick="FMCUApp.handleFloatingCameraClick()" class="floating-fab-glow w-13 h-13 rounded-full fm-gradient text-white flex items-center justify-center cursor-pointer text-xl select-none" title="Ambil Foto Kamera">
+              <i class="fa-solid fa-camera"></i>
+            </button>
+
+            <!-- Gallery FAB -->
+            <button type="button" onclick="FMCUApp.handleFloatingGalleryClick()" class="floating-fab-glow-dark w-13 h-13 rounded-full bg-slate-900 hover:bg-black text-white flex items-center justify-center cursor-pointer text-xl select-none" title="Pilih dari Galeri">
+              <i class="fa-solid fa-images"></i>
+            </button>
+
+            <!-- Hidden file inputs triggered programmatically -->
+            <input type="file" id="fab-camera-input" accept="image/*" capture="environment" onchange="FMCUApp.handleFloatingCameraUpload(event)" class="hidden" />
+            <input type="file" id="fab-gallery-input" accept="image/*" multiple onchange="FMCUApp.handleFloatingGalleryUpload(event)" class="hidden" />
     </div>
 
     <!-- ============================================================

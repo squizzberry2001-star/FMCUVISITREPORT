@@ -1419,6 +1419,14 @@ window.FMCUApp = {
       }
     }
 
+    // Toggle Floating Action Buttons di Form (Hanya tampil di Form Visit)
+    if (viewName !== 'form') {
+      const fabObs = document.getElementById('floating-obs-actions');
+      if (fabObs) fabObs.classList.add('hidden');
+      const fabEv = document.getElementById('floating-evidence-actions');
+      if (fabEv) fabEv.classList.add('hidden');
+    }
+
     if (viewName === 'home') {
       this.renderHomeView();
       setTimeout(() => {
@@ -4813,6 +4821,19 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     if (secQsc) secQsc.classList.toggle('hidden', !isQsc);
     if (secOpi) secOpi.classList.toggle('hidden', isQsc);
 
+    const bQsc = document.getElementById('badge-status-qsc');
+    if (bQsc && this.enableQsc) {
+      bQsc.className = isQsc 
+        ? 'hidden sm:inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white text-emerald-800 shadow-2xs leading-none'
+        : 'hidden sm:inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-700 shadow-2xs leading-none';
+    }
+    const bOpi = document.getElementById('badge-status-opi');
+    if (bOpi && this.enableOpi) {
+      bOpi.className = !isQsc 
+        ? 'hidden sm:inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white text-emerald-800 shadow-2xs leading-none'
+        : 'hidden sm:inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-700 shadow-2xs leading-none';
+    }
+
     this.triggerHaptic('light');
   },
 
@@ -4830,6 +4851,19 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     if (tabCa) tabCa.classList.toggle('active', !isFinding);
     if (secFinding) secFinding.classList.toggle('hidden', !isFinding);
     if (secCa) secCa.classList.toggle('hidden', isFinding);
+
+    const bFinding = document.getElementById('badge-status-evidence');
+    if (bFinding && this.enableEvidence) {
+      bFinding.className = isFinding
+        ? 'hidden sm:inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white text-emerald-800 shadow-2xs leading-none'
+        : 'hidden sm:inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-700 shadow-2xs leading-none';
+    }
+    const bCa = document.getElementById('badge-status-ca');
+    if (bCa && this.enableCa) {
+      bCa.className = !isFinding
+        ? 'hidden sm:inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white text-emerald-800 shadow-2xs leading-none'
+        : 'hidden sm:inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-700 shadow-2xs leading-none';
+    }
 
     this.triggerHaptic('light');
   },
@@ -4873,8 +4907,8 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       if (badge) {
         badge.textContent = isChecked ? 'ON' : 'OFF';
         badge.className = isChecked
-          ? 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 border border-teal-200'
-          : 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 border border-slate-300';
+          ? (this.currentObsSubTab === 'opi' ? 'hidden sm:inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white text-emerald-800 shadow-2xs leading-none' : 'hidden sm:inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-700 shadow-2xs leading-none')
+          : 'hidden sm:inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-500 shadow-2xs leading-none';
       }
       const btn = document.getElementById('btn-add-opi');
       if (btn) btn.classList.toggle('hidden', !isChecked);
@@ -4886,8 +4920,8 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       if (badge) {
         badge.textContent = isChecked ? 'ON' : 'OFF';
         badge.className = isChecked
-          ? 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200'
-          : 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 border border-slate-300';
+          ? (this.currentObsSubTab === 'qsc' ? 'hidden sm:inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white text-emerald-800 shadow-2xs leading-none' : 'hidden sm:inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-700 shadow-2xs leading-none')
+          : 'hidden sm:inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-500 shadow-2xs leading-none';
       }
       const btn = document.getElementById('btn-add-qsc');
       if (btn) btn.classList.toggle('hidden', !isChecked);
@@ -4903,8 +4937,8 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       if (badge) {
         badge.textContent = isChecked ? 'ON' : 'OFF';
         badge.className = isChecked
-          ? 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200'
-          : 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 border border-slate-300';
+          ? (this.currentEvidenceSubTab === 'finding' ? 'hidden sm:inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white text-emerald-800 shadow-2xs leading-none' : 'hidden sm:inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-700 shadow-2xs leading-none')
+          : 'hidden sm:inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-500 shadow-2xs leading-none';
       }
       this.renderEvidenceGrid();
       this.showToast(isChecked ? 'Section Foto Bukti Temuan diaktifkan (ON)' : 'Section Foto Bukti Temuan dinonaktifkan (OFF - tidak muncul di PDF)', isChecked ? 'info' : 'warning');
@@ -4914,8 +4948,8 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       if (badge) {
         badge.textContent = isChecked ? 'ON' : 'OFF';
         badge.className = isChecked
-          ? 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200'
-          : 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 border border-slate-300';
+          ? (this.currentEvidenceSubTab === 'ca' ? 'hidden sm:inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white text-emerald-800 shadow-2xs leading-none' : 'hidden sm:inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-700 shadow-2xs leading-none')
+          : 'hidden sm:inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-500 shadow-2xs leading-none';
       }
       this.renderCaPhotosGrid();
       this.showToast(isChecked ? 'Section Foto Perbaikan (CA) diaktifkan (ON)' : 'Section Foto Perbaikan (CA) dinonaktifkan (OFF - tidak muncul di PDF)', isChecked ? 'info' : 'warning');

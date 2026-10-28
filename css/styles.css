@@ -45,7 +45,7 @@ body {
   }
   100% {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
@@ -733,3 +733,30 @@ input[type="date"]::-webkit-date-and-time-value {
 
 
 
+
+/* Compact Toggle Switch for Sub-Tabs */
+.fm-toggle-sm .fm-toggle-track {
+  width: 34px;
+  height: 20px;
+}
+.fm-toggle-sm .fm-toggle-knob {
+  width: 14px;
+  height: 14px;
+  top: 3px;
+  left: 3px;
+}
+.fm-toggle-sm input:checked + .fm-toggle-track .fm-toggle-knob {
+  transform: translateX(14px);
+}
+
+/* High Contrast Toggle Switch inside Active Green Sub-Tab Pill */
+.form-subtab-pill.active .fm-toggle-track {
+  background-color: rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+.form-subtab-pill.active .fm-toggle-switch input:checked + .fm-toggle-track {
+  background-color: #ffffff;
+}
+.form-subtab-pill.active .fm-toggle-switch input:checked + .fm-toggle-track .fm-toggle-knob {
+  background-color: #009944;
+}
