@@ -480,11 +480,11 @@
 
           <div class="px-3 pt-1 pb-1.5 flex items-center justify-between">
             <span class="text-[10px] font-extrabold uppercase tracking-wider text-[#0099A6]">Section Form Visit</span>
-            <span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">6 Section</span>
+            <span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">4 Section</span>
           </div>
 
           <!-- SECTION 1 (General Info + Tim Store + Foto Form QSC/FamiTrack) -->
-          <button type="button" onclick="FMCUApp.switchFormSection(1)" id="fnav-sec-1" class="nav-item active w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
+          <button type="button" onclick="FMCUApp.switchFormSection(1)" id="fnav-sec-1" class="nav-item active w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
             <span class="w-5 h-5 rounded-md bg-[#009944] text-white font-extrabold text-[11px] flex items-center justify-center shrink-0">1</span>
             <div class="flex-1 overflow-hidden">
               <div class="leading-tight font-bold text-xs sm:text-sm truncate">General Info & QSC</div>
@@ -492,45 +492,27 @@
             </div>
           </button>
 
-          <!-- SECTION 2 (OPI Project Observation - CONDET 2) -->
-          <button type="button" onclick="FMCUApp.switchFormSection(2)" id="fnav-sec-2" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
-            <span class="w-5 h-5 rounded-md bg-teal-600 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0">2</span>
+          <!-- SECTION 2 (Observation: OPI Project & QSC Observation) -->
+          <button type="button" onclick="FMCUApp.switchFormSection(2)" id="fnav-sec-2" class="nav-item w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
+            <span class="w-5 h-5 rounded-md bg-[#0099A6] text-white font-extrabold text-[11px] flex items-center justify-center shrink-0">2</span>
             <div class="flex-1 overflow-hidden">
-              <div class="leading-tight font-bold text-xs sm:text-sm truncate">OPI Project Obs</div>
-              <div class="text-[9.5px] font-normal text-slate-400 truncate">Temuan Proyek OPI & Root Cause</div>
+              <div class="leading-tight font-bold text-xs sm:text-sm truncate">Observation</div>
+              <div class="text-[9.5px] font-normal text-slate-400 truncate">Temuan OPI & Temuan QSC</div>
             </div>
           </button>
 
-          <!-- SECTION 3 (QSC Observation) -->
-          <button type="button" onclick="FMCUApp.switchFormSection(3)" id="fnav-sec-3" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
-            <span class="w-5 h-5 rounded-md bg-[#0099A6] text-white font-extrabold text-[11px] flex items-center justify-center shrink-0">3</span>
+          <!-- SECTION 3 (Evidence: Finding & Corrective Action Photos) -->
+          <button type="button" onclick="FMCUApp.switchFormSection(3)" id="fnav-sec-3" class="nav-item w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
+            <span class="w-5 h-5 rounded-md bg-amber-500 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0">3</span>
             <div class="flex-1 overflow-hidden">
-              <div class="leading-tight font-bold text-xs sm:text-sm truncate">QSC Observation</div>
-              <div class="text-[9.5px] font-normal text-slate-400 truncate">Temuan QSC, Akar Masalah & Deadline</div>
+              <div class="leading-tight font-bold text-xs sm:text-sm truncate">Evidence</div>
+              <div class="text-[9.5px] font-normal text-slate-400 truncate">Foto Temuan & Foto Perbaikan</div>
             </div>
           </button>
 
-          <!-- SECTION 4 (Finding Evidence Photos) -->
-          <button type="button" onclick="FMCUApp.switchFormSection(4)" id="fnav-sec-4" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
-            <span class="w-5 h-5 rounded-md bg-amber-500 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0">4</span>
-            <div class="flex-1 overflow-hidden">
-              <div class="leading-tight font-bold text-xs sm:text-sm truncate">Finding Evidence</div>
-              <div class="text-[9.5px] font-normal text-slate-400 truncate">Foto Bukti Temuan & Watermark GPS</div>
-            </div>
-          </button>
-
-          <!-- SECTION 5 (Corrective Action Evidence & Result - CONDET 2) -->
-          <button type="button" onclick="FMCUApp.switchFormSection(5)" id="fnav-sec-5" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
-            <span class="w-5 h-5 rounded-md bg-indigo-600 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0">5</span>
-            <div class="flex-1 overflow-hidden">
-              <div class="leading-tight font-bold text-xs sm:text-sm truncate">CA Evidence & Result</div>
-              <div class="text-[9.5px] font-normal text-slate-400 truncate">Foto Bukti Perbaikan & Hasil Langsung</div>
-            </div>
-          </button>
-
-          <!-- SECTION 6 (Store Assignment & Integrasi Pengiriman) -->
-          <button type="button" onclick="FMCUApp.switchFormSection(6)" id="fnav-sec-6" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
-            <span class="w-5 h-5 rounded-md bg-emerald-700 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0">6</span>
+          <!-- SECTION 4 (Store Assignment & Integrasi Pengiriman) -->
+          <button type="button" onclick="FMCUApp.switchFormSection(4)" id="fnav-sec-4" class="nav-item w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
+            <span class="w-5 h-5 rounded-md bg-slate-900 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0">4</span>
             <div class="flex-1 overflow-hidden">
               <div class="leading-tight font-bold text-xs sm:text-sm truncate">Store Assignment & Kirim</div>
               <div class="text-[9.5px] font-normal text-slate-400 truncate">Link CA, Preview PDF & Submit</div>
@@ -605,12 +587,15 @@
             <span id="header-gps-text">GPS Aktif</span>
           </button>
 
-          <!-- Standar Holding Time Guide Button (HANYA tampil saat user berada di dalam Form Visit) -->
-          <button id="header-holding-time-btn" type="button" onclick="FMCUApp.openHoldingTimeModal()" class="hidden items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 border border-amber-300 font-bold text-xs transition cursor-pointer shadow-2xs" title="Panduan Standar Holding Time Resmi (QC)">
-            <i class="fa-solid fa-clock-rotate-left text-amber-600"></i>
-            <span class="hidden md:inline">Standar Holding Time</span>
-            <span class="inline md:hidden">Holding Time</span>
-            <span id="header-holding-badge" class="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-600 text-white font-extrabold leading-none">R23</span>
+          <!-- Home Navigation Button (Tampil di Form & sub-halaman lain) -->
+          <button id="header-home-btn" type="button" onclick="FMCUApp.navigate('home')" class="hidden items-center justify-center p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition cursor-pointer shadow-2xs" title="Kembali ke Beranda (Home)">
+            <i class="fa-solid fa-house text-xs sm:text-sm"></i>
+          </button>
+
+          <!-- Standar Holding Time Guide Button (HANYA tampil saat user berada di dalam Form Visit - Diperingkas Cukup Icon & Badge Saja) -->
+          <button id="header-holding-time-btn" type="button" onclick="FMCUApp.openHoldingTimeModal()" class="hidden items-center gap-1 p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 border border-amber-300 font-bold text-xs transition cursor-pointer shadow-2xs" title="Panduan Standar Holding Time Resmi (QC)">
+            <i class="fa-solid fa-clock-rotate-left text-xs sm:text-sm text-amber-600"></i>
+            <span id="header-holding-badge" class="px-1.5 py-0.5 rounded-full text-[9px] bg-amber-600 text-white font-extrabold leading-none">R23</span>
           </button>
 
           <!-- Profile Button -->
@@ -1122,8 +1107,8 @@
             <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
               <div>
                 <h3 class="font-extrabold text-sm sm:text-base text-slate-900 flex items-center gap-2">
-                  <i class="fa-solid fa-store text-[#009944]"></i>
-                  <span>Trend Toko (Jumlah Temuan vs Skor QSC)</span>
+                  <i class="fa-solid fa-chart-column text-[#009944]"></i>
+                  <span>Komparasi Temuan: OPI vs QSC per Toko</span>
                 </h3>
                 
               </div>
@@ -1356,8 +1341,12 @@
                   </button>
                 </div>
 
-                <div class="overflow-x-auto border border-slate-200 rounded-xl shadow-2xs">
-                  <table class="w-full min-w-[500px] text-left border-collapse text-xs sm:text-sm">
+                <!-- Mobile Responsive Cards (Tanpa Geser Kiri-Kanan di HP) -->
+                <div id="form-crew-mobile-list" class="space-y-2.5 md:hidden"></div>
+
+                <!-- Desktop Table View -->
+                <div class="hidden md:block overflow-x-auto border border-slate-200 rounded-xl shadow-2xs">
+                  <table class="w-full text-left border-collapse text-xs sm:text-sm">
                     <thead>
                       <tr class="bg-[#0099A6] text-white">
                         <th class="py-2.5 px-3 font-bold w-36 whitespace-nowrap">Role Jabatan (Fix)</th>
@@ -1390,30 +1379,95 @@
               <!-- Navigasi Section Footer -->
               <div class="pt-4 border-t border-slate-100 flex items-center justify-end">
                 <button type="button" onclick="FMCUApp.switchFormSection(2)" class="w-full sm:w-auto text-center justify-center fm-gradient hover:opacity-95 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm shadow-sm transition flex items-center gap-2 cursor-pointer">
-                  <span>Lanjut ke Section 2: OPI Project Observation</span>
+                  <span>Lanjut ke Section 2: Observation (OPI & QSC)</span>
                   <i class="fa-solid fa-arrow-right"></i>
                 </button>
               </div>
             </div>
 
             <!-- ============================================================
-                 SECTION 2: OPI PROJECT OBSERVATION (FINDINGS & ROOT CAUSE ANALYSIS)
+                 SECTION 2: OBSERVATION (OPI PROJECT & QSC OBSERVATION)
                  ============================================================ -->
-            <div id="form-sec-2" class="form-step-section fm-card p-5 sm:p-6 space-y-4 hidden">
+            <div id="form-sec-2" class="form-step-section fm-card p-5 sm:p-6 space-y-6 hidden">
+              <!-- Header Section 2 -->
               <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
                 <div class="flex items-center gap-3">
-                  <div class="w-8 h-8 rounded-xl bg-teal-600 text-white font-extrabold text-sm flex items-center justify-center">2</div>
+                  <div class="w-8 h-8 rounded-xl fm-gradient text-white font-extrabold text-sm flex items-center justify-center">2</div>
                   <div>
-                    <h3 class="font-extrabold text-base sm:text-lg text-slate-900">Section 2: OPI Project Observation (Findings & Root Cause Analysis)</h3>
-                    <p class="text-xs text-slate-500">Observasi Proyek OPI: Temuan, Kondisi Ideal, Penyebab, Dampak, Tindakan & Hasil</p>
+                    <h3 class="font-extrabold text-base sm:text-lg text-slate-900">Section 2: Observation (Findings & Root Cause Analysis)</h3>
+                    <p class="text-xs text-slate-500">Observasi Temuan Toko: Proyek OPI & Temuan Standar QSC (Food Safety, Sanitasi & SOP)</p>
                   </div>
                 </div>
-                <button type="button" onclick="FMCUApp.addOpiObservationCard()" class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-sm transition cursor-pointer self-start sm:self-auto">
-                  <i class="fa-solid fa-plus-circle mr-1"></i>Tambah Temuan OPI
-                </button>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold text-teal-700 bg-teal-50 px-3 py-1 rounded-full border border-teal-200">Slide 4 - 9 PDF</span>
+                </div>
               </div>
 
-              <div id="form-opi-observations-list" class="space-y-4"></div>
+              <!-- SUB-BLOCK A: OPI PROJECT OBSERVATION (DENGAN SWITCH ON/OFF) -->
+              <div class="border border-teal-200 rounded-2xl p-4 sm:p-5 bg-gradient-to-b from-teal-50/40 via-white to-white space-y-4 shadow-2xs">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-teal-100 pb-3">
+                  <div class="flex items-center gap-2.5">
+                    <span class="w-7 h-7 rounded-lg bg-teal-600 text-white font-extrabold text-xs flex items-center justify-center shadow-xs">A</span>
+                    <div>
+                      <div class="flex items-center gap-2">
+                        <h4 class="font-extrabold text-sm sm:text-base text-teal-950">OPI Project Observation</h4>
+                        <span id="badge-status-opi" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 border border-teal-200">ON</span>
+                      </div>
+                      <p class="text-xs text-slate-500">Observasi proyek OPI (Operational Performance Improvement): Temuan, Akar Masalah & Hasil</p>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-3 self-end sm:self-auto">
+                    <!-- Toggle Switch ON/OFF OPI -->
+                    <label class="relative inline-flex items-center cursor-pointer select-none" title="Aktifkan atau nonaktifkan section OPI di laporan">
+                      <span class="text-xs font-bold text-slate-600 mr-2">OPI Status:</span>
+                      <input type="checkbox" id="form-toggle-opi" checked onchange="FMCUApp.toggleObservationSubSection('opi', this.checked)" class="sr-only peer" />
+                      <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"></div>
+                    </label>
+
+                    <button type="button" id="btn-add-opi" onclick="FMCUApp.addOpiObservationCard()" class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5">
+                      <i class="fa-solid fa-plus-circle"></i>
+                      <span>Tambah Temuan OPI</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Container Kartu Temuan OPI -->
+                <div id="form-opi-observations-list" class="space-y-4"></div>
+              </div>
+
+              <!-- SUB-BLOCK B: QSC OBSERVATION (DENGAN SWITCH ON/OFF) -->
+              <div class="border border-emerald-200 rounded-2xl p-4 sm:p-5 bg-gradient-to-b from-emerald-50/40 via-white to-white space-y-4 shadow-2xs">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-100 pb-3">
+                  <div class="flex items-center gap-2.5">
+                    <span class="w-7 h-7 rounded-lg bg-[#0099A6] text-white font-extrabold text-xs flex items-center justify-center shadow-xs">B</span>
+                    <div>
+                      <div class="flex items-center gap-2">
+                        <h4 class="font-extrabold text-sm sm:text-base text-slate-900">QSC Observation</h4>
+                        <span id="badge-status-qsc" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">ON</span>
+                      </div>
+                      <p class="text-xs text-slate-500">Observasi reguler QSC (Quality, Service, Cleanliness): Food Safety, Kebersihan, SOP & Merchandising</p>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-3 self-end sm:self-auto">
+                    <!-- Toggle Switch ON/OFF QSC -->
+                    <label class="relative inline-flex items-center cursor-pointer select-none" title="Aktifkan atau nonaktifkan section QSC di laporan">
+                      <span class="text-xs font-bold text-slate-600 mr-2">QSC Status:</span>
+                      <input type="checkbox" id="form-toggle-qsc" checked onchange="FMCUApp.toggleObservationSubSection('qsc', this.checked)" class="sr-only peer" />
+                      <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0099A6]"></div>
+                    </label>
+
+                    <button type="button" id="btn-add-qsc" onclick="FMCUApp.addObservationCard()" class="fm-gradient hover:opacity-95 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5">
+                      <i class="fa-solid fa-plus-circle"></i>
+                      <span>Tambah Temuan QSC</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Container Kartu Temuan QSC -->
+                <div id="form-observations-list" class="space-y-4"></div>
+              </div>
 
               <!-- Navigasi Section Footer -->
               <div class="pt-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
@@ -1421,30 +1475,97 @@
                   <i class="fa-solid fa-arrow-left mr-1.5"></i>Kembali ke Section 1
                 </button>
                 <button type="button" onclick="FMCUApp.switchFormSection(3)" class="w-full sm:w-auto text-center justify-center fm-gradient hover:opacity-95 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm shadow-sm transition flex items-center gap-2 cursor-pointer">
-                  <span>Lanjut ke Section 3: QSC Observation</span>
+                  <span>Lanjut ke Section 3: Evidence</span>
                   <i class="fa-solid fa-arrow-right"></i>
                 </button>
               </div>
             </div>
 
             <!-- ============================================================
-                 SECTION 3: QSC OBSERVATION (FINDINGS & ROOT CAUSE ANALYSIS)
+                 SECTION 3: EVIDENCE (FINDING & CORRECTIVE ACTION PHOTOS)
                  ============================================================ -->
-            <div id="form-sec-3" class="form-step-section fm-card p-5 sm:p-6 space-y-4 hidden">
+            <div id="form-sec-3" class="form-step-section fm-card p-5 sm:p-6 space-y-6 hidden">
+              <!-- Header Section 3 -->
               <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
                 <div class="flex items-center gap-3">
-                  <div class="w-8 h-8 rounded-xl fm-gradient text-white font-extrabold text-sm flex items-center justify-center">3</div>
+                  <div class="w-8 h-8 rounded-xl bg-amber-500 text-white font-extrabold text-sm flex items-center justify-center">3</div>
                   <div>
-                    <h3 class="font-extrabold text-base sm:text-lg text-slate-900">Section 3: QSC Observation (Findings & Root Cause Analysis)</h3>
-                    <p class="text-xs text-slate-500">Observasi QSC: Temuan, Kondisi Ideal, Penyebab, Dampak, Tindakan & Hasil</p>
+                    <h3 class="font-extrabold text-base sm:text-lg text-slate-900">Section 3: Evidence (Evidence Photos & Result)</h3>
+                    <p class="text-xs text-slate-500">Dokumentasi Foto Bukti Temuan & Tindakan Perbaikan (CA) di Toko (Maks. 6 foto per slide PDF)</p>
                   </div>
                 </div>
-                <button type="button" onclick="FMCUApp.addObservationCard()" class="fm-gradient hover:opacity-95 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-sm transition cursor-pointer self-start sm:self-auto">
-                  <i class="fa-solid fa-plus-circle mr-1"></i>Tambah Temuan Observasi
-                </button>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold text-amber-700 bg-amber-50 px-3 py-1 rounded-full border border-amber-200">Slide 10 - 19 PDF</span>
+                </div>
               </div>
 
-              <div id="form-observations-list" class="space-y-4"></div>
+              <!-- SUB-BLOCK A: FINDING EVIDENCE PHOTOS (DENGAN SWITCH ON/OFF) -->
+              <div class="border border-amber-200 rounded-2xl p-4 sm:p-5 bg-gradient-to-b from-amber-50/30 via-white to-white space-y-4 shadow-2xs">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-amber-100 pb-3">
+                  <div class="flex items-center gap-2.5">
+                    <span class="w-7 h-7 rounded-lg bg-amber-500 text-white font-extrabold text-xs flex items-center justify-center shadow-xs">A</span>
+                    <div>
+                      <div class="flex items-center gap-2">
+                        <h4 class="font-extrabold text-sm sm:text-base text-amber-950">Finding Evidence Photos</h4>
+                        <span id="badge-status-evidence" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">ON</span>
+                      </div>
+                      <p class="text-xs text-slate-500">Dokumentasi foto temuan observasi di toko sebelum dilakukan perbaikan</p>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-3 self-end sm:self-auto">
+                    <!-- Toggle Switch ON/OFF Finding Evidence -->
+                    <label class="relative inline-flex items-center cursor-pointer select-none" title="Aktifkan atau nonaktifkan section Foto Bukti Temuan di laporan">
+                      <span class="text-xs font-bold text-slate-600 mr-2">Status:</span>
+                      <input type="checkbox" id="form-toggle-evidence" checked onchange="FMCUApp.toggleEvidenceSubSection('evidence', this.checked)" class="sr-only peer" />
+                      <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                    </label>
+
+                    <label class="bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs px-3 py-1.5 rounded-xl transition cursor-pointer inline-flex items-center gap-1.5 border border-amber-200">
+                      <i class="fa-solid fa-images"></i>
+                      <span>Upload Foto</span>
+                      <input type="file" accept="image/*" multiple onchange="FMCUApp.handleBulkEvidenceUpload(event)" class="hidden" />
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Container Grid Foto Bukti Temuan -->
+                <div id="form-evidence-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+              </div>
+
+              <!-- SUB-BLOCK B: CORRECTIVE ACTION EVIDENCE & RESULT (DENGAN SWITCH ON/OFF) -->
+              <div class="border border-purple-200 rounded-2xl p-4 sm:p-5 bg-gradient-to-b from-purple-50/30 via-white to-white space-y-4 shadow-2xs">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-purple-100 pb-3">
+                  <div class="flex items-center gap-2.5">
+                    <span class="w-7 h-7 rounded-lg bg-purple-600 text-white font-extrabold text-xs flex items-center justify-center shadow-xs">B</span>
+                    <div>
+                      <div class="flex items-center gap-2">
+                        <h4 class="font-extrabold text-sm sm:text-base text-purple-950">Corrective Action Evidence & Result</h4>
+                        <span id="badge-status-ca" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200">ON</span>
+                      </div>
+                      <p class="text-xs text-slate-500">Foto bukti tindakan perbaikan langsung di toko & hasil perbaikan (oleh Regional Bestie)</p>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-3 self-end sm:self-auto">
+                    <!-- Toggle Switch ON/OFF CA -->
+                    <label class="relative inline-flex items-center cursor-pointer select-none" title="Aktifkan atau nonaktifkan section Foto Tindakan Perbaikan di laporan">
+                      <span class="text-xs font-bold text-slate-600 mr-2">Status:</span>
+                      <input type="checkbox" id="form-toggle-ca" checked onchange="FMCUApp.toggleEvidenceSubSection('ca', this.checked)" class="sr-only peer" />
+                      <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                    </label>
+
+                    <label class="bg-purple-50 hover:bg-purple-100 text-purple-800 font-bold text-xs px-3 py-1.5 rounded-xl transition cursor-pointer inline-flex items-center gap-1.5 border border-purple-200">
+                      <i class="fa-solid fa-images"></i>
+                      <span>Upload Foto</span>
+                      <input type="file" accept="image/*" multiple onchange="FMCUApp.handleBulkCaUpload(event)" class="hidden" />
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Container Grid Foto Bukti Perbaikan CA -->
+                <div id="form-ca-photos-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+              </div>
 
               <!-- Navigasi Section Footer -->
               <div class="pt-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
@@ -1452,105 +1573,21 @@
                   <i class="fa-solid fa-arrow-left mr-1.5"></i>Kembali ke Section 2
                 </button>
                 <button type="button" onclick="FMCUApp.switchFormSection(4)" class="w-full sm:w-auto text-center justify-center fm-gradient hover:opacity-95 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm shadow-sm transition flex items-center gap-2 cursor-pointer">
-                  <span>Lanjut ke Section 4: Finding Evidence</span>
+                  <span>Lanjut ke Section 4: Store Assignment & Submit</span>
                   <i class="fa-solid fa-arrow-right"></i>
                 </button>
               </div>
             </div>
 
             <!-- ============================================================
-                 SECTION 4: FINDING EVIDENCE PHOTOS (SLIDE 10-17 PDF)
+                 SECTION 4: STORE ASSIGNMENT, EMAIL & GOOGLE DRIVE INTEGRATION
                  ============================================================ -->
             <div id="form-sec-4" class="form-step-section fm-card p-5 sm:p-6 space-y-4 hidden">
-              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                <div class="flex items-center gap-3">
-                  <div class="w-8 h-8 rounded-xl bg-amber-500 text-white font-extrabold text-sm flex items-center justify-center">4</div>
-                  <div>
-                    <h3 class="font-extrabold text-base sm:text-lg text-slate-900">Section 4: Finding Evidence - Evidence Photos</h3>
-                    <p class="text-xs text-slate-500">Dokumentasi foto temuan observasi di toko (maksimal 6 foto per slide PDF)</p>
-                  </div>
-                </div>
-                <div class="flex flex-wrap items-center gap-2">
-                  <label class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-slate-100 px-3 py-2 rounded-xl cursor-pointer">
-                    <input type="checkbox" id="form-watermark-toggle" checked class="rounded text-emerald-600" />
-                    <span>Auto-Watermark Toko & GPS</span>
-                  </label>
-                  <label class="bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs px-3.5 py-2 rounded-xl transition cursor-pointer inline-flex items-center gap-1.5">
-                    <i class="fa-solid fa-images"></i>
-                    <span>Upload Banyak Sekaligus</span>
-                    <input type="file" accept="image/*" multiple onchange="FMCUApp.handleBulkEvidenceUpload(event)" class="hidden" />
-                  </label>
-                  <button type="button" onclick="FMCUApp.addEvidencePhotoCard()" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs px-3.5 py-2 rounded-xl transition cursor-pointer">
-                    <i class="fa-solid fa-plus mr-1"></i>+ 1 Kartu Bukti
-                  </button>
-                </div>
-              </div>
-
-              <div id="form-evidence-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
-
-              <!-- Navigasi Section Footer -->
-              <div class="pt-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-                <button type="button" onclick="FMCUApp.switchFormSection(3)" class="w-full sm:w-auto text-center justify-center px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs sm:text-sm hover:bg-slate-50 transition cursor-pointer">
-                  <i class="fa-solid fa-arrow-left mr-1.5"></i>Kembali ke Section 3
-                </button>
-                <button type="button" onclick="FMCUApp.switchFormSection(5)" class="w-full sm:w-auto text-center justify-center fm-gradient hover:opacity-95 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm shadow-sm transition flex items-center gap-2 cursor-pointer">
-                  <span>Lanjut ke Section 5: Corrective Action</span>
-                  <i class="fa-solid fa-arrow-right"></i>
-                </button>
-              </div>
-            </div>
-
-            <!-- ============================================================
-                 SECTION 5: CORRECTIVE ACTION EVIDENCE & RESULT (SLIDE 18-19 PDF)
-                 ============================================================ -->
-            <div id="form-sec-5" class="form-step-section fm-card p-5 sm:p-6 space-y-4 hidden">
-              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                <div class="flex items-center gap-3">
-                  <div class="w-8 h-8 rounded-xl bg-purple-600 text-white font-extrabold text-sm flex items-center justify-center">5</div>
-                  <div>
-                    <h3 class="font-extrabold text-base sm:text-lg text-slate-900">Section 5: Corrective Action Evidence & Result</h3>
-                    <p class="text-xs text-slate-500">Foto bukti tindakan perbaikan langsung di toko & hasil perbaikan (oleh Regional Bestie)</p>
-                  </div>
-                </div>
-                <div class="flex flex-wrap items-center gap-2">
-                  <label class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-slate-100 px-3 py-2 rounded-xl cursor-pointer">
-                    <input type="checkbox" id="form-ca-watermark-toggle" checked class="rounded text-purple-600" />
-                    <span>Auto-Watermark GPS</span>
-                  </label>
-                  <label class="bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold text-xs px-3.5 py-2 rounded-xl transition cursor-pointer inline-flex items-center gap-1.5">
-                    <i class="fa-solid fa-images"></i>
-                    <span>Upload Banyak Sekaligus</span>
-                    <input type="file" accept="image/*" multiple onchange="FMCUApp.handleBulkCaUpload(event)" class="hidden" />
-                  </label>
-                  <button type="button" onclick="FMCUApp.addCaPhotoCard()" class="bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold text-xs px-3.5 py-2 rounded-xl transition cursor-pointer">
-                    <i class="fa-solid fa-plus mr-1"></i>+ 1 Foto Perbaikan
-                  </button>
-                </div>
-              </div>
-
-              <div id="form-ca-photos-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
-
-              <!-- Navigasi Section Footer -->
-              <div class="pt-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-                <button type="button" onclick="FMCUApp.switchFormSection(4)" class="w-full sm:w-auto text-center justify-center px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs sm:text-sm hover:bg-slate-50 transition cursor-pointer">
-                  <i class="fa-solid fa-arrow-left mr-1.5"></i>Kembali ke Section 4
-                </button>
-                <button type="button" onclick="FMCUApp.switchFormSection(6)" class="w-full sm:w-auto text-center justify-center fm-gradient hover:opacity-95 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm shadow-sm transition flex items-center gap-2 cursor-pointer">
-                  <span>Lanjut ke Section 6: Store Assignment & Kirim</span>
-                  <i class="fa-solid fa-arrow-right"></i>
-                </button>
-              </div>
-            </div>
-
-            <!-- ============================================================
-                 SECTION 6: STORE ASSIGNMENT, EMAIL & GOOGLE DRIVE INTEGRATION
-                 ============================================================ -->
-            <div id="form-sec-6" class="form-step-section fm-card p-5 sm:p-6 space-y-4 hidden">
               <div class="flex items-center justify-between border-b border-slate-100 pb-4">
                 <div class="flex items-center gap-3">
-                  <div class="w-8 h-8 rounded-xl bg-slate-900 text-white font-extrabold text-sm flex items-center justify-center">6</div>
+                  <div class="w-8 h-8 rounded-xl bg-slate-900 text-white font-extrabold text-sm flex items-center justify-center">4</div>
                   <div>
-                    <h3 class="font-extrabold text-base sm:text-lg text-slate-900">Section 6: Store Assignment & Integrasi Pengiriman</h3>
+                    <h3 class="font-extrabold text-base sm:text-lg text-slate-900">Section 4: Store Assignment & Integrasi Pengiriman</h3>
                     <p class="text-xs text-slate-500">Tautan form Corrective Action toko serta pengiriman otomatis ke Email & Folder Rekap PDF Google Drive</p>
                   </div>
                 </div>
@@ -1570,8 +1607,8 @@
 
               <!-- Action Buttons Bar -->
               <div class="pt-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                <button type="button" onclick="FMCUApp.switchFormSection(5)" class="w-full sm:w-auto text-center justify-center px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs sm:text-sm hover:bg-slate-50 transition cursor-pointer">
-                  <i class="fa-solid fa-arrow-left mr-1.5"></i>Kembali ke Section 5
+                <button type="button" onclick="FMCUApp.switchFormSection(3)" class="w-full sm:w-auto text-center justify-center px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs sm:text-sm hover:bg-slate-50 transition cursor-pointer">
+                  <i class="fa-solid fa-arrow-left mr-1.5"></i>Kembali ke Section 3
                 </button>
 
                 <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
@@ -1588,6 +1625,31 @@
               </div>
             </div>
           </form>
+
+          <!-- Floating Action Buttons for Section 3: Evidence (Camera & Gallery) -->
+          <div id="floating-evidence-actions" class="hidden fixed bottom-16 sm:bottom-6 right-4 sm:right-8 z-40 flex items-center gap-2">
+            <!-- Target pill indicator: Temuan vs Perbaikan -->
+            <div class="bg-slate-900/95 backdrop-blur-md text-white p-1 rounded-2xl flex items-center shadow-xl border border-slate-700/80 text-[11px] font-bold">
+              <button type="button" id="btn-fab-target-finding" onclick="FMCUApp.setFloatingEvidenceTarget('finding')" class="px-2.5 py-1.5 rounded-xl bg-teal-600 text-white shadow-xs transition cursor-pointer">
+                <i class="fa-solid fa-camera mr-1 text-[10px]"></i>Temuan
+              </button>
+              <button type="button" id="btn-fab-target-ca" onclick="FMCUApp.setFloatingEvidenceTarget('ca')" class="px-2.5 py-1.5 rounded-xl text-slate-300 hover:text-white transition cursor-pointer">
+                <i class="fa-solid fa-wrench mr-1 text-[10px]"></i>Perbaikan
+              </button>
+            </div>
+
+            <!-- Camera FAB -->
+            <label class="floating-fab-btn w-12 h-12 rounded-full fm-gradient hover:opacity-95 text-white flex items-center justify-center cursor-pointer shadow-xl text-lg select-none" title="Ambil Foto Kamera Langsung">
+              <i class="fa-solid fa-camera"></i>
+              <input type="file" accept="image/*" capture="environment" onchange="FMCUApp.handleFloatingCameraUpload(event)" class="hidden" />
+            </label>
+
+            <!-- Gallery FAB -->
+            <label class="floating-fab-btn w-12 h-12 rounded-full bg-slate-900 hover:bg-slate-800 text-teal-400 flex items-center justify-center cursor-pointer shadow-xl text-lg select-none" title="Pilih Banyak Foto dari Galeri">
+              <i class="fa-solid fa-images"></i>
+              <input type="file" accept="image/*" multiple onchange="FMCUApp.handleFloatingGalleryUpload(event)" class="hidden" />
+            </label>
+          </div>
         </div>
       </main>
 
@@ -2580,6 +2642,20 @@ service cloud.firestore {
                   <p class="text-[11px] text-emerald-700 font-semibold mt-1">URL ini digunakan untuk menyimpan foto langsung ke Google Drive (sehingga Cloud Firestore hanya menyimpan teks & link foto).</p>
                 </div>
 
+                <!-- Toggle Auto-Watermark GPS Setting (Super Admin Only) -->
+                <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                  <div class="flex items-center justify-between gap-3">
+                    <div>
+                      <label class="block text-xs font-bold text-slate-800 uppercase">Auto-Watermark GPS pada Foto Bukti</label>
+                      <p class="text-[11px] text-slate-500">Otomatis membubuhkan nama toko, tanggal, jam, dan koordinat GPS aktual pada foto Evidence & CA.</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input type="checkbox" id="set-auto-watermark-gps" checked class="sr-only peer" />
+                      <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                    </label>
+                  </div>
+                </div>
+
                 <button type="submit" class="w-full fm-gradient text-white font-bold py-3 rounded-xl shadow-md hover:opacity-95 transition text-xs sm:text-sm cursor-pointer">
                   <i class="fa-solid fa-floppy-disk mr-1.5"></i>Simpan Pengaturan Integrasi & Database Foto GDrive
                 </button>
@@ -3111,35 +3187,23 @@ service cloud.firestore {
       </button>
     </div>
 
-    <!-- B. MENU SECTION FORM VISIT MOBILE (Dengan Icon FontAwesome Lengkap & Center) -->
-    <div id="mobile-form-nav" class="hidden flex items-center justify-around w-full max-w-md mx-auto overflow-x-auto no-scrollbar py-0.5">
-      <button type="button" onclick="FMCUApp.navigate('home')" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-0.5 text-slate-600 hover:text-slate-900 cursor-pointer text-center shrink-0">
-        <i class="fa-solid fa-arrow-left text-xs"></i>
-        <span class="text-[8px] font-bold mt-0.5">Home</span>
+    <!-- B. MENU SECTION FORM VISIT MOBILE (Dengan 4 Section Lengkap & Center) -->
+    <div id="mobile-form-nav" class="hidden flex items-center justify-around w-full max-w-md mx-auto py-1">
+      <button type="button" onclick="FMCUApp.switchFormSection(1)" id="mfnav-sec-1" class="mobile-nav-item active flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-500 cursor-pointer text-center">
+        <i class="fa-solid fa-clipboard-list text-sm"></i>
+        <span class="text-[9px] font-bold mt-0.5">1. Info</span>
       </button>
-      <button type="button" onclick="FMCUApp.switchFormSection(1)" id="mfnav-sec-1" class="mobile-nav-item active flex-1 flex flex-col items-center justify-center py-1 px-0.5 text-slate-500 cursor-pointer text-center shrink-0">
-        <i class="fa-solid fa-clipboard-list text-xs"></i>
-        <span class="text-[8px] font-bold mt-0.5">1. Info</span>
+      <button type="button" onclick="FMCUApp.switchFormSection(2)" id="mfnav-sec-2" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-500 cursor-pointer text-center">
+        <i class="fa-solid fa-magnifying-glass-chart text-sm"></i>
+        <span class="text-[9px] font-bold mt-0.5">2. Observasi</span>
       </button>
-      <button type="button" onclick="FMCUApp.switchFormSection(2)" id="mfnav-sec-2" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-0.5 text-slate-500 cursor-pointer text-center shrink-0">
-        <i class="fa-solid fa-diagram-project text-xs"></i>
-        <span class="text-[8px] font-bold mt-0.5">2. OPI</span>
+      <button type="button" onclick="FMCUApp.switchFormSection(3)" id="mfnav-sec-3" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-500 cursor-pointer text-center">
+        <i class="fa-solid fa-camera-retro text-sm"></i>
+        <span class="text-[9px] font-bold mt-0.5">3. Bukti</span>
       </button>
-      <button type="button" onclick="FMCUApp.switchFormSection(3)" id="mfnav-sec-3" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-0.5 text-slate-500 cursor-pointer text-center shrink-0">
-        <i class="fa-solid fa-triangle-exclamation text-xs"></i>
-        <span class="text-[8px] font-bold mt-0.5">3. QSC</span>
-      </button>
-      <button type="button" onclick="FMCUApp.switchFormSection(4)" id="mfnav-sec-4" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-0.5 text-slate-500 cursor-pointer text-center shrink-0">
-        <i class="fa-solid fa-camera text-xs"></i>
-        <span class="text-[8px] font-bold mt-0.5">4. Bukti</span>
-      </button>
-      <button type="button" onclick="FMCUApp.switchFormSection(5)" id="mfnav-sec-5" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-0.5 text-slate-500 cursor-pointer text-center shrink-0">
-        <i class="fa-solid fa-clipboard-check text-xs"></i>
-        <span class="text-[8px] font-bold mt-0.5">5. CA&Res</span>
-      </button>
-      <button type="button" onclick="FMCUApp.switchFormSection(6)" id="mfnav-sec-6" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-0.5 text-slate-500 cursor-pointer text-center shrink-0">
-        <i class="fa-solid fa-paper-plane text-xs"></i>
-        <span class="text-[8px] font-bold mt-0.5">6. Kirim</span>
+      <button type="button" onclick="FMCUApp.switchFormSection(4)" id="mfnav-sec-4" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-500 cursor-pointer text-center">
+        <i class="fa-solid fa-paper-plane text-sm"></i>
+        <span class="text-[9px] font-bold mt-0.5">4. Kirim</span>
       </button>
     </div>
   </nav>

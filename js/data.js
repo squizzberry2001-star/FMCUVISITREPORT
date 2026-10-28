@@ -197,6 +197,7 @@ const DEFAULT_SETTINGS = {
   gdriveFolderUrl: '',
   defaultCcEmails: '',
   autoWatermarkPhoto: true,
+  autoWatermarkGps: true,
   autoSyncGDrive: true
 };
 

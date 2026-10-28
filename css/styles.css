@@ -580,3 +580,40 @@ body {
   text-align: justify;
   text-justify: inter-word;
 }
+
+/* Auto-expand Textareas in Observation Cards */
+.fm-auto-textarea {
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+  overflow: hidden;
+  resize: none;
+  transition: height 0.1s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Mobile Date Input normalization & alignment */
+input[type="date"].fm-input,
+input[type="date"] {
+  max-width: 100%;
+  min-height: 42px;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  display: flex;
+  align-items: center;
+  line-height: 1.25;
+}
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+}
+
+/* Floating Evidence Action Buttons */
+.floating-fab-btn {
+  box-shadow: 0 4px 14px 0 rgba(0, 0, 0, 0.2), 0 2px 6px 0 rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+}
+.floating-fab-btn:active {
+  transform: scale(0.92);
+}
+

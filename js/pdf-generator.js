@@ -592,11 +592,12 @@ window.FMCUPdf = {
     // ========================================================================
     // SECTION A: OPI PROJECT OBSERVATION (CONDET 2 STANDARD)
     // ========================================================================
-    const opiObservations = (report.opiObservations && report.opiObservations.length > 0)
-      ? report.opiObservations
+    const opiEnabled = report.enableOpi !== false;
+    const opiObservations = (opiEnabled && report.opiObservations && report.opiObservations.length > 0)
+      ? report.opiObservations.filter((o) => o && o.temuan && o.temuan.trim() !== '')
       : [];
 
-    if (opiObservations.length > 0) {
+    if (opiEnabled && opiObservations.length > 0) {
       doc.addPage([320, 180], 'landscape');
       doc.setFillColor(255, 255, 255);
       doc.rect(0, 0, 320, 180, 'F');
@@ -615,80 +616,60 @@ window.FMCUPdf = {
     // ========================================================================
     // SECTION B: QSC OBSERVATION
     // ========================================================================
-    doc.addPage([320, 180], 'landscape');
-    doc.setFillColor(255, 255, 255);
-    doc.rect(0, 0, 320, 180, 'F');
-    if (PA.dividerQscObservation) {
-      try {
-        doc.addImage(PA.dividerQscObservation, 'JPEG', 0, 0, 320, 180);
-      } catch (e) {
-        console.warn('Divider QSC image error:', e);
-      }
-    }
-    this.drawPageFooter(doc, footerText);
-
-    const qscObservations = (report.qscObservations && report.qscObservations.length > 0)
+    const qscEnabled = report.enableQsc !== false;
+    const rawQscObs = (report.qscObservations && report.qscObservations.length > 0)
       ? report.qscObservations
-      : (report.observations && report.observations.length > 0 ? report.observations : [
-          {
-            temuan: 'Tidak ada temuan kritis pada saat kunjungan berlangsung',
-            kondisiIdeal: 'Operasional berjalan sesuai standar QSC FamilyMart',
-            penyebab: '-',
-            dampak: '-',
-            tindakanPerbaikan: 'Pertahankan konsistensi standar QSC harian',
-            hasil: 'Sesuai standar',
-            deadlineFormatted: '-'
-          }
-        ]);
+      : (report.observations && report.observations.length > 0 ? report.observations : []);
+    const qscObservations = qscEnabled ? rawQscObs.filter((o) => o && o.temuan && o.temuan.trim() !== '') : [];
 
-    drawObservationPages(qscObservations, 'QSC Observation');
+    if (qscEnabled && qscObservations.length > 0) {
+      doc.addPage([320, 180], 'landscape');
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, 320, 180, 'F');
+      if (PA.dividerQscObservation) {
+        try {
+          doc.addImage(PA.dividerQscObservation, 'JPEG', 0, 0, 320, 180);
+        } catch (e) {
+          console.warn('Divider QSC image error:', e);
+        }
+      }
+      this.drawPageFooter(doc, footerText);
+      drawObservationPages(qscObservations, 'QSC Observation');
+    }
 
     // ========================================================================
     // SECTION C: FINDING EVIDENCE PHOTOS
     // ========================================================================
-    doc.addPage([320, 180], 'landscape');
-    doc.setFillColor(255, 255, 255);
-    doc.rect(0, 0, 320, 180, 'F');
-    if (PA.dividerFindingEvidence) {
-      try {
-        doc.addImage(PA.dividerFindingEvidence, 'JPEG', 0, 0, 320, 180);
-      } catch (e) {
-        console.warn('Divider Finding Evidence image error:', e);
-      }
-    }
-    this.drawPageFooter(doc, footerText);
-
-    const evPhotos = (report.evidencePhotos && report.evidencePhotos.length > 0)
+    const evEnabled = report.enableEvidence !== false;
+    const evPhotos = (evEnabled && report.evidencePhotos && report.evidencePhotos.length > 0)
       ? report.evidencePhotos
       : [];
 
-    if (evPhotos.length === 0) {
+    if (evEnabled && evPhotos.length > 0) {
       doc.addPage([320, 180], 'landscape');
       doc.setFillColor(255, 255, 255);
       doc.rect(0, 0, 320, 180, 'F');
-      doc.setFillColor(0, 153, 166);
-      doc.rect(0, 0, 320, 18, 'F');
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(12.5);
-      doc.setTextColor(255, 255, 255);
-      doc.text('Finding Evidence - Evidence Photos', 12, 11.8);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(11);
-      doc.setTextColor(100, 116, 139);
-      doc.text('Tidak ada foto bukti temuan pada kunjungan ini.', 160, 95, { align: 'center' });
+      if (PA.dividerFindingEvidence) {
+        try {
+          doc.addImage(PA.dividerFindingEvidence, 'JPEG', 0, 0, 320, 180);
+        } catch (e) {
+          console.warn('Divider Finding Evidence image error:', e);
+        }
+      }
       this.drawPageFooter(doc, footerText);
-    } else {
       drawEvidencePhotoPages(evPhotos, 'Finding Evidence - Evidence Photos');
     }
 
     // ========================================================================
     // SECTION D: CORRECTIVE ACTION EVIDENCE & RESULT (CONDET 2 STANDARD)
     // ========================================================================
-    const caPhotos = (report.caPhotos && report.caPhotos.length > 0)
+    const caEnabled = report.enableCa !== false;
+    const rawCaPhotos = (report.caPhotos && report.caPhotos.length > 0)
       ? report.caPhotos
       : (report.correctiveActionPhotos && report.correctiveActionPhotos.length > 0 ? report.correctiveActionPhotos : []);
+    const caPhotos = caEnabled ? rawCaPhotos : [];
 
-    if (caPhotos.length > 0) {
+    if (caEnabled && caPhotos.length > 0) {
       doc.addPage([320, 180], 'landscape');
       doc.setFillColor(255, 255, 255);
       doc.rect(0, 0, 320, 180, 'F');
@@ -1004,8 +985,12 @@ window.FMCUPdf = {
     `;
 
     // 4. OPI Project Observation Slides (CONDET 2 Standard)
-    const opiList = report.opiObservations && report.opiObservations.length > 0 ? report.opiObservations : [];
-    if (opiList.length > 0) {
+    const opiEnabled = report.enableOpi !== false;
+    const opiList = (opiEnabled && report.opiObservations && report.opiObservations.length > 0)
+      ? report.opiObservations.filter((o) => o && o.temuan && o.temuan.trim() !== '')
+      : [];
+
+    if (opiEnabled && opiList.length > 0) {
       slides.push({
         title: 'Divider - OPI Project Observation',
         html: `
@@ -1025,57 +1010,67 @@ window.FMCUPdf = {
       }
     }
 
-    // 5. Divider: QSC Observation
-    slides.push({
-      title: 'Divider - QSC Observation',
-      html: `
-        <div class="w-full h-full bg-white relative overflow-hidden">
-          <img src="${PA.dividerQscObservation || ''}" class="w-full h-full object-cover" alt="QSC Observation" />
-          <div class="absolute bottom-[1.8%] inset-x-0 text-center text-[clamp(7px,0.75cqw,10px)] font-bold tracking-widest text-slate-400 uppercase">${footerText}</div>
-        </div>
-      `
-    });
-
-    // 6. QSC Observation Findings (2 per page)
-    const qscList = (report.qscObservations && report.qscObservations.length > 0)
+    // 5. QSC Observation (Divider & Content ONLY if enabled and has findings)
+    const qscEnabled = report.enableQsc !== false;
+    const rawQscList = (report.qscObservations && report.qscObservations.length > 0)
       ? report.qscObservations
       : (report.observations && report.observations.length > 0 ? report.observations : []);
+    const qscList = qscEnabled ? rawQscList.filter((o) => o && o.temuan && o.temuan.trim() !== '') : [];
 
-    for (let i = 0; i < qscList.length; i += 2) {
-      const pair = qscList.slice(i, i + 2);
+    if (qscEnabled && qscList.length > 0) {
       slides.push({
-        title: `QSC Observation (Temuan ${i + 1}-${Math.min(i + 2, qscList.length)})`,
-        html: buildObsSlideHtml('QSC Observation', pair, i, qscList.length)
+        title: 'Divider - QSC Observation',
+        html: `
+          <div class="w-full h-full bg-white relative overflow-hidden">
+            <img src="${PA.dividerQscObservation || ''}" class="w-full h-full object-cover" alt="QSC Observation" />
+            <div class="absolute bottom-[1.8%] inset-x-0 text-center text-[clamp(7px,0.75cqw,10px)] font-bold tracking-widest text-slate-400 uppercase">${footerText}</div>
+          </div>
+        `
       });
+
+      for (let i = 0; i < qscList.length; i += 2) {
+        const pair = qscList.slice(i, i + 2);
+        slides.push({
+          title: `QSC Observation (Temuan ${i + 1}-${Math.min(i + 2, qscList.length)})`,
+          html: buildObsSlideHtml('QSC Observation', pair, i, qscList.length)
+        });
+      }
     }
 
-    // 7. Divider: Finding Evidence
-    slides.push({
-      title: 'Divider - Finding Evidence',
-      html: `
-        <div class="w-full h-full bg-white relative overflow-hidden">
-          <img src="${PA.dividerFindingEvidence || ''}" class="w-full h-full object-cover" alt="Finding Evidence" />
-          <div class="absolute bottom-[1.8%] inset-x-0 text-center text-[clamp(7px,0.75cqw,10px)] font-bold tracking-widest text-slate-400 uppercase">${footerText}</div>
-        </div>
-      `
-    });
+    // 6. Finding Evidence (Divider & Content ONLY if enabled and has photos)
+    const evEnabled = report.enableEvidence !== false;
+    const evList = (evEnabled && report.evidencePhotos && report.evidencePhotos.length > 0)
+      ? report.evidencePhotos
+      : [];
 
-    // 8. Finding Evidence Photos (6 per page)
-    const evList = report.evidencePhotos && report.evidencePhotos.length > 0 ? report.evidencePhotos : [];
-    for (let i = 0; i < Math.max(1, evList.length); i += 6) {
-      const chunk = evList.slice(i, i + 6);
+    if (evEnabled && evList.length > 0) {
       slides.push({
-        title: `Finding Evidence Photos (${i + 1}-${Math.min(i + 6, evList.length)})`,
-        html: buildPhotoGridSlideHtml('Finding Evidence - Evidence Photos', chunk)
+        title: 'Divider - Finding Evidence',
+        html: `
+          <div class="w-full h-full bg-white relative overflow-hidden">
+            <img src="${PA.dividerFindingEvidence || ''}" class="w-full h-full object-cover" alt="Finding Evidence" />
+            <div class="absolute bottom-[1.8%] inset-x-0 text-center text-[clamp(7px,0.75cqw,10px)] font-bold tracking-widest text-slate-400 uppercase">${footerText}</div>
+          </div>
+        `
       });
+
+      for (let i = 0; i < evList.length; i += 6) {
+        const chunk = evList.slice(i, i + 6);
+        slides.push({
+          title: `Finding Evidence Photos (${i + 1}-${Math.min(i + 6, evList.length)})`,
+          html: buildPhotoGridSlideHtml('Finding Evidence - Evidence Photos', chunk)
+        });
+      }
     }
 
-    // 9. Corrective Action Evidence & Result (CONDET 2 Standard)
-    const caList = (report.caPhotos && report.caPhotos.length > 0)
+    // 7. Corrective Action Evidence & Result (Divider & Content ONLY if enabled and has photos)
+    const caEnabled = report.enableCa !== false;
+    const rawCaList = (report.caPhotos && report.caPhotos.length > 0)
       ? report.caPhotos
       : (report.correctiveActionPhotos && report.correctiveActionPhotos.length > 0 ? report.correctiveActionPhotos : []);
+    const caList = caEnabled ? rawCaList : [];
 
-    if (caList.length > 0) {
+    if (caEnabled && caList.length > 0) {
       slides.push({
         title: 'Divider - Corrective Action Evidence & Result',
         html: `
