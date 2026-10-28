@@ -37,8 +37,10 @@ window.FMCUApp = {
   currentFormSection: 1,
   formCrew: [],
   formQscPhotos: [],
+  formOpiObservations: [],
   formObservations: [],
   formEvidencePhotos: [],
+  formCaPhotos: [],
 
   // PDF Preview State
   activePreviewReportId: '__LIVE_FORM__',
@@ -1499,13 +1501,13 @@ window.FMCUApp = {
     const targetSec = Number(secNum) || 1;
     this.currentFormSection = targetSec;
 
-    // Tampilkan top banner Geofence Radar HANYA di Section 1 dan Section 4
+    // Tampilkan top banner Geofence Radar HANYA di Section 1 dan Section 6
     const topBanner = document.getElementById('form-top-geofence-banner');
     if (topBanner) {
-      topBanner.classList.toggle('hidden', !(targetSec === 1 || targetSec === 4));
+      topBanner.classList.toggle('hidden', !(targetSec === 1 || targetSec === 6));
     }
 
-    [1, 2, 3, 4].forEach((n) => {
+    [1, 2, 3, 4, 5, 6].forEach((n) => {
       const secEl = document.getElementById(`form-sec-${n}`);
       if (secEl) secEl.classList.toggle('hidden', n !== targetSec);
 
@@ -4085,6 +4087,17 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       out += `\n[Toko ${idx + 1}] FamilyMart ${storeTitle} ${code}\n`;
       out += `  Visitor: ${visitor} | Tanggal: ${date} | Skor QSC: ${score} | Durasi: ${r.durationMinutes || '-'} menit\n`;
       
+      const opiObs = r.opiObservations || [];
+      if (opiObs.length > 0) {
+        out += `  Daftar Temuan Proyek OPI (${opiObs.length} item):\n`;
+        opiObs.forEach((o, oIdx) => {
+          const temuan = o.temuan || 'Temuan OPI';
+          const ideal = o.kondisiIdeal ? ` (Kondisi Ideal: ${o.kondisiIdeal})` : '';
+          const penyebab = o.penyebab ? ` (Penyebab: ${o.penyebab})` : '';
+          out += `    ${oIdx + 1}. [OPI] ${temuan}${ideal}${penyebab}\n`;
+        });
+      }
+
       if (obs.length === 0) {
         out += `  Temuan: Tidak ada temuan negatif (Area operasional bersih & sesuai SOP).\n`;
       } else {
@@ -4653,7 +4666,9 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       }
     ];
 
+    this.formOpiObservations = [];
     this.formEvidencePhotos = [];
+    this.formCaPhotos = [];
 
     this.renderFormDynamicSections();
     this.switchFormSection(1, false);
@@ -4692,8 +4707,10 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
 
     this.formCrew = JSON.parse(JSON.stringify(rep.crewList || []));
     this.formQscPhotos = JSON.parse(JSON.stringify(rep.qscPhotos || []));
+    this.formOpiObservations = JSON.parse(JSON.stringify(rep.opiObservations || []));
     this.formObservations = JSON.parse(JSON.stringify(rep.observations || []));
     this.formEvidencePhotos = JSON.parse(JSON.stringify(rep.evidencePhotos || []));
+    this.formCaPhotos = JSON.parse(JSON.stringify(rep.caPhotos || rep.correctiveActionPhotos || []));
 
     this.renderFormDynamicSections();
     this.switchFormSection(1, false);
@@ -4702,8 +4719,10 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
   renderFormDynamicSections() {
     this.renderCrewTable();
     this.renderQscPhotosGrid();
+    this.renderOpiObservationsList();
     this.renderObservationsList();
     this.renderEvidenceGrid();
+    this.renderCaPhotosGrid();
   },
 
   // --- Section 1B: Crew Table ---
@@ -4876,6 +4895,114 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         : `Foto QSC #${idx + 1} berhasil diproses`,
       'success'
     );
+  },
+
+  // --- Section 2: OPI Project Observation Findings ---
+  renderOpiObservationsList() {
+    const container = document.getElementById('form-opi-observations-list');
+    if (!container) return;
+    if (!this.formOpiObservations || this.formOpiObservations.length === 0) {
+      container.innerHTML = `
+        <div class="border-2 border-dashed border-teal-200 rounded-2xl p-6 text-center text-slate-500 bg-teal-50/30">
+          <p class="font-bold text-xs text-teal-800 mb-1">Belum ada temuan observasi proyek OPI.</p>
+          <p class="text-[11px] text-slate-500 mb-3">Klik tombol di bawah jika terdapat temuan khusus Proyek OPI (Operational Performance Improvement).</p>
+          <button type="button" onclick="FMCUApp.addOpiObservationCard()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer shadow-sm">
+            <i class="fa-solid fa-plus-circle mr-1"></i>+ Tambah Temuan Proyek OPI
+          </button>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = this.formOpiObservations
+      .map(
+        (obs, idx) => `
+        <div class="border border-teal-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+          <!-- Card Header -->
+          <div class="bg-teal-700 text-white px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span class="font-extrabold text-sm">Temuan Proyek OPI ${idx + 1}/${this.formOpiObservations.length}</span>
+              <span class="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-bold">OPI Project</span>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <div class="flex items-center gap-1.5 bg-white text-slate-800 px-2.5 py-1 rounded-full text-xs font-bold">
+                <span class="text-rose-700">Deadline:</span>
+                <input type="date" value="${obs.deadline || ''}" onchange="FMCUApp.formOpiObservations[${idx}].deadline = this.value; FMCUApp.formOpiObservations[${idx}].deadlineFormatted = window.FMCUPdf.formatIndonesianDate(this.value, false);" class="text-xs font-bold text-rose-700 focus:outline-none bg-transparent" />
+              </div>
+              <button type="button" onclick="FMCUApp.removeOpiObservationCard(${idx})" class="text-white/80 hover:text-white p-1 cursor-pointer" title="Hapus Temuan OPI">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- 2x3 Grid matching PDF layout -->
+          <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+            <div class="bg-[#FEFCE8] border border-amber-300 rounded-xl p-3 space-y-1.5">
+              <div class="flex items-center justify-between">
+                <label class="font-extrabold text-amber-800 uppercase">Temuan (Finding) *</label>
+                <button type="button" onclick="FMCUApp.startVoiceInput('obs-opi-temuan-${idx}', this)" class="text-[10px] font-bold text-teal-800 bg-white hover:bg-teal-50 px-2 py-0.5 rounded border border-teal-200 flex items-center gap-1 transition cursor-pointer shadow-2xs" title="Diktekan temuan dengan suara">
+                  <i class="fa-solid fa-microphone text-rose-500"></i>
+                  <span>Dikte Suara</span>
+                </button>
+              </div>
+              <textarea id="obs-opi-temuan-${idx}" rows="2" oninput="FMCUApp.formOpiObservations[${idx}].temuan = this.value; FMCUApp.updateFormProgress();" placeholder="Tuliskan detail temuan observasi proyek OPI..." class="w-full bg-white/90 border border-amber-200 rounded-lg p-2 font-bold text-slate-900 focus:outline-none">${obs.temuan || ''}</textarea>
+            </div>
+
+            <div class="bg-slate-50/70 border border-slate-200 rounded-xl p-3 space-y-1.5">
+              <label class="font-extrabold text-[#008291] uppercase block">Dampak (Impact)</label>
+              <textarea rows="2" oninput="FMCUApp.formOpiObservations[${idx}].dampak = this.value" placeholder="Tuliskan dampak terhadap kualitas / operasional proyek OPI..." class="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:outline-none">${obs.dampak || ''}</textarea>
+            </div>
+
+            <div class="bg-slate-50/70 border border-slate-200 rounded-xl p-3 space-y-1.5">
+              <label class="font-extrabold text-[#008291] uppercase block">Kondisi Ideal</label>
+              <textarea rows="2" oninput="FMCUApp.formOpiObservations[${idx}].kondisiIdeal = this.value" placeholder="Tuliskan standar kondisi ideal..." class="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:outline-none">${obs.kondisiIdeal || ''}</textarea>
+            </div>
+
+            <div class="bg-slate-50/70 border border-slate-200 rounded-xl p-3 space-y-1.5">
+              <label class="font-extrabold text-[#008291] uppercase block">Tindakan Perbaikan (Corrective Action)</label>
+              <textarea rows="2" oninput="FMCUApp.formOpiObservations[${idx}].tindakanPerbaikan = this.value" placeholder="Tuliskan tindakan perbaikan yang harus dilakukan..." class="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:outline-none">${obs.tindakanPerbaikan || ''}</textarea>
+            </div>
+
+            <div class="bg-slate-50/70 border border-slate-200 rounded-xl p-3 space-y-1.5">
+              <label class="font-extrabold text-[#008291] uppercase block">Penyebab (Root Cause)</label>
+              <textarea rows="2" oninput="FMCUApp.formOpiObservations[${idx}].penyebab = this.value" placeholder="Tuliskan akar penyebab temuan..." class="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:outline-none">${obs.penyebab || ''}</textarea>
+            </div>
+
+            <div class="bg-slate-50/70 border border-slate-200 rounded-xl p-3 space-y-1.5">
+              <label class="font-extrabold text-[#008291] uppercase block">Hasil (Result / Follow-Up)</label>
+              <textarea rows="2" oninput="FMCUApp.formOpiObservations[${idx}].hasil = this.value" placeholder="Tuliskan hasil tindak lanjut..." class="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:outline-none">${obs.hasil || ''}</textarea>
+            </div>
+          </div>
+        </div>
+      `
+      )
+      .join('');
+  },
+
+  addOpiObservationCard() {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (!this.formOpiObservations) this.formOpiObservations = [];
+    this.formOpiObservations.push({
+      id: 'opi-obs-' + Date.now(),
+      category: 'OPI Project',
+      temuan: '',
+      kondisiIdeal: '',
+      penyebab: '',
+      dampak: '',
+      tindakanPerbaikan: '',
+      hasil: '',
+      deadline: todayStr,
+      deadlineFormatted: window.FMCUPdf.formatIndonesianDate(todayStr, false),
+      status: 'OPEN'
+    });
+    this.renderOpiObservationsList();
+  },
+
+  removeOpiObservationCard(idx) {
+    if (!this.formOpiObservations) return;
+    this.formOpiObservations.splice(idx, 1);
+    this.renderOpiObservationsList();
   },
 
   // --- Section 3: QSC Observation Findings ---
@@ -5196,6 +5323,177 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     );
   },
 
+  // --- Section 5: Corrective Action Evidence & Result Photos ---
+  renderCaPhotosGrid() {
+    const grid = document.getElementById('form-ca-photos-grid');
+    if (!grid) return;
+
+    if (!this.formCaPhotos || this.formCaPhotos.length === 0) {
+      grid.innerHTML = `
+        <div class="col-span-full border-2 border-dashed border-purple-200 bg-purple-50/20 rounded-2xl p-8 text-center text-slate-400 text-xs">
+          Belum ada foto bukti tindakan perbaikan (Corrective Action). Klik <strong>"+ 1 Foto Perbaikan"</strong> atau <strong>"Upload Banyak Sekaligus"</strong>.
+        </div>
+      `;
+      return;
+    }
+
+    grid.innerHTML = this.formCaPhotos
+      .map((ca, idx) => {
+        const displaySrc = window.FMCUPdf.getPhotoDisplaySrc(ca);
+        const driveBadge = ca._uploading
+          ? `<div class="mt-1 text-[10px] font-bold text-amber-700 flex items-center gap-1"><i class="fa-solid fa-spinner fa-spin"></i><span>Mengunggah ke Google Drive...</span></div>`
+          : ca.driveFileId
+          ? `<a href="${ca.driveViewUrl || ca.driveUrl || '#'}" target="_blank" class="mt-1 text-[10px] font-bold text-emerald-700 hover:underline inline-flex items-center gap-1"><i class="fa-brands fa-google-drive"></i><span>Tersimpan di Google Drive</span></a>`
+          : displaySrc
+          ? `<div class="mt-1 text-[10px] font-semibold text-purple-700 flex items-center gap-1"><i class="fa-solid fa-cloud-arrow-up"></i><span>Siap Sync ke Google Drive</span></div>`
+          : '';
+
+        return `
+        <div class="border border-purple-200 rounded-2xl p-3 bg-white grid grid-cols-12 gap-3 relative shadow-sm">
+          <button type="button" onclick="FMCUApp.removeCaPhotoCard(${idx})" class="absolute top-2 right-2 w-6 h-6 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center text-xs cursor-pointer" title="Hapus Foto">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+
+          <div class="col-span-5 h-36 bg-slate-100 rounded-xl overflow-hidden relative flex items-center justify-center border border-slate-200 group">
+            ${
+              displaySrc
+                ? `<img src="${displaySrc}" class="w-full h-full object-cover" alt="Corrective Action" />`
+                : `<div class="text-center p-2"><i class="fa-solid fa-camera text-purple-300 text-xl block mb-1"></i><span class="text-[9px] text-purple-500 font-bold block leading-tight">Foto Bukti Perbaikan</span></div>`
+            }
+            <div class="absolute inset-0 viewfinder-grid pointer-events-none opacity-20 group-hover:opacity-40 transition"></div>
+            <label class="absolute bottom-1.5 inset-x-1.5 bg-purple-900/85 hover:bg-purple-900 text-white text-[10px] font-bold py-1 rounded text-center cursor-pointer flex items-center justify-center gap-1 shadow-sm">
+              <i class="fa-solid fa-camera text-[10px]"></i>
+              <span>Pilih / Foto</span>
+              <input type="file" accept="image/*" capture="environment" onchange="FMCUApp.handleSingleCaUpload(event, ${idx})" class="hidden" />
+            </label>
+          </div>
+
+          <div class="col-span-7 flex flex-col justify-between pr-4">
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-[10px] font-extrabold text-purple-700 uppercase">Bukti Perbaikan #${idx + 1}</label>
+                <button type="button" onclick="FMCUApp.startVoiceInput('ca-desc-${idx}', this)" class="text-[9.5px] font-bold text-purple-800 bg-purple-50 hover:bg-purple-100 px-1.5 py-0.5 rounded border border-purple-200 flex items-center gap-1 cursor-pointer transition shadow-2xs" title="Diktekan dengan Suara">
+                  <i class="fa-solid fa-microphone text-rose-500"></i>
+                  <span>Dikte</span>
+                </button>
+              </div>
+              <textarea id="ca-desc-${idx}" rows="3" oninput="FMCUApp.formCaPhotos[${idx}].description = this.value; FMCUApp.updateFormProgress();" placeholder="Tuliskan deskripsi tindakan perbaikan / hasil..." class="w-full border border-slate-200 rounded-lg p-2 text-xs text-slate-800 focus:outline-none focus:border-purple-500">${ca.description || ''}</textarea>
+              ${driveBadge}
+            </div>
+          </div>
+        </div>
+      `;
+      })
+      .join('');
+  },
+
+  addCaPhotoCard() {
+    if (!this.formCaPhotos) this.formCaPhotos = [];
+    this.formCaPhotos.push({
+      id: 'ca-' + Date.now(),
+      description: '',
+      dataUrl: '',
+      driveFileId: '',
+      driveUrl: ''
+    });
+    this.renderCaPhotosGrid();
+  },
+
+  removeCaPhotoCard(idx) {
+    if (!this.formCaPhotos) return;
+    this.formCaPhotos.splice(idx, 1);
+    this.renderCaPhotosGrid();
+  },
+
+  async handleSingleCaUpload(event, idx) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
+    const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
+    const applyWm = document.getElementById('form-ca-watermark-toggle')?.checked ?? true;
+    const dataUrl = await window.FMCUPdf.processAndStampImage(file, {
+      storeName,
+      gpsLat: this.liveGps.lat,
+      gpsLng: this.liveGps.lng,
+      applyWatermark: applyWm
+    });
+    if (!this.formCaPhotos) this.formCaPhotos = [];
+    const caObj = this.formCaPhotos[idx];
+    if (!caObj) return;
+    caObj.id = caObj.id || 'ca-' + Date.now();
+    caObj.dataUrl = dataUrl;
+    caObj.driveFileId = '';
+    caObj.driveUrl = '';
+    caObj._uploading = true;
+    window.FMCUData.cachePhotoInMemory(caObj.id, null, dataUrl);
+    this.renderCaPhotosGrid();
+
+    await window.FMCUData.uploadPhotoToGDrive(caObj, {
+      storeCode,
+      storeName,
+      photoType: 'CORRECTIVE_ACTION'
+    });
+    caObj._uploading = false;
+    this.renderCaPhotosGrid();
+    this.showToast(
+      caObj.driveFileId
+        ? `Foto perbaikan #${idx + 1} berhasil disimpan ke Google Drive!`
+        : `Foto perbaikan #${idx + 1} berhasil diproses`,
+      'success'
+    );
+  },
+
+  async handleBulkCaUpload(event) {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+    const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
+    const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
+    const applyWm = document.getElementById('form-ca-watermark-toggle')?.checked ?? true;
+
+    if (!this.formCaPhotos) this.formCaPhotos = [];
+    const newCards = [];
+    for (const file of files) {
+      const dataUrl = await window.FMCUPdf.processAndStampImage(file, {
+        storeName,
+        gpsLat: this.liveGps.lat,
+        gpsLng: this.liveGps.lng,
+        applyWatermark: applyWm
+      });
+      const caObj = {
+        id: 'ca-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+        description: '',
+        dataUrl,
+        driveFileId: '',
+        driveUrl: '',
+        _uploading: true
+      };
+      window.FMCUData.cachePhotoInMemory(caObj.id, null, dataUrl);
+      this.formCaPhotos.push(caObj);
+      newCards.push(caObj);
+    }
+    this.renderCaPhotosGrid();
+
+    await Promise.all(
+      newCards.map((caObj) =>
+        window.FMCUData.uploadPhotoToGDrive(caObj, {
+          storeCode,
+          storeName,
+          photoType: 'CORRECTIVE_ACTION'
+        }).finally(() => {
+          caObj._uploading = false;
+        })
+      )
+    );
+    this.renderCaPhotosGrid();
+    const uploadedCount = newCards.filter((c) => Boolean(c.driveFileId)).length;
+    this.showToast(
+      uploadedCount > 0
+        ? `${files.length} foto perbaikan berhasil diunggah & disimpan ke Google Drive!`
+        : `${files.length} foto perbaikan berhasil diunggah!`,
+      'success'
+    );
+  },
+
   buildCurrentFormReportObject() {
     const existingId = document.getElementById('form-report-id')?.value || '';
     const scheduleId = document.getElementById('form-schedule-id')?.value || '';
@@ -5226,11 +5524,17 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       qscScore: Number(document.getElementById('form-qsc-score')?.value || 0),
       crewList: JSON.parse(JSON.stringify(this.formCrew)),
       qscPhotos: JSON.parse(JSON.stringify(this.formQscPhotos)),
+      opiObservations: (this.formOpiObservations || []).map((o) => ({
+        ...o,
+        deadlineFormatted: o.deadlineFormatted || window.FMCUPdf.formatIndonesianDate(o.deadline, false)
+      })),
       observations: this.formObservations.map((o) => ({
         ...o,
         deadlineFormatted: o.deadlineFormatted || window.FMCUPdf.formatIndonesianDate(o.deadline, false)
       })),
       evidencePhotos: JSON.parse(JSON.stringify(this.formEvidencePhotos)),
+      caPhotos: JSON.parse(JSON.stringify(this.formCaPhotos || [])),
+      correctiveActionPhotos: JSON.parse(JSON.stringify(this.formCaPhotos || [])),
       caLink: document.getElementById('form-ca-link')?.value.trim() || 'https://tinyurl.com/store-caassignment',
       createdAt: new Date().toISOString()
     };

@@ -133,7 +133,7 @@ window.FMCUPdf = {
       return report;
     }
     const driveIdsToFetch = [];
-    const allPhotos = [...(report.qscPhotos || []), ...(report.evidencePhotos || [])];
+    const allPhotos = [...(report.qscPhotos || []), ...(report.evidencePhotos || []), ...(report.caPhotos || report.correctiveActionPhotos || [])];
     allPhotos.forEach((p) => {
       if (p && p.driveFileId && !this.getPhotoBase64ForPdf(p)) {
         driveIdsToFetch.push(p.driveFileId);
@@ -375,225 +375,161 @@ window.FMCUPdf = {
 
     this.drawPageFooter(doc, footerText);
 
-    // ========================================================================
-    // PAGE 4: SECTION DIVIDER - QSC OBSERVATION
-    // ========================================================================
-    doc.addPage([320, 180], 'landscape');
-    doc.setFillColor(255, 255, 255);
-    doc.rect(0, 0, 320, 180, 'F');
-    if (PA.dividerQscObservation) {
-      try {
-        doc.addImage(PA.dividerQscObservation, 'JPEG', 0, 0, 320, 180);
-      } catch (e) {
-        console.warn('Divider QSC image error:', e);
-      }
-    }
-    this.drawPageFooter(doc, footerText);
-
-    // ========================================================================
-    // PAGE 5, 6...: QSC OBSERVATION FINDINGS (2 findings per page)
-    // ========================================================================
-    const observations = (report.observations && report.observations.length > 0)
-      ? report.observations
-      : [
-          {
-            temuan: 'Tidak ada temuan kritis pada saat kunjungan berlangsung',
-            kondisiIdeal: 'Operasional berjalan sesuai standar QSC FamilyMart',
-            penyebab: '-',
-            dampak: '-',
-            tindakanPerbaikan: 'Pertahankan konsistensi standar QSC harian',
-            hasil: 'Sesuai standar',
-            deadlineFormatted: '-'
-          }
-        ];
-
-    const totalObs = observations.length;
-    for (let i = 0; i < totalObs; i += 2) {
-      doc.addPage([320, 180], 'landscape');
-      doc.setFillColor(255, 255, 255);
-      doc.rect(0, 0, 320, 180, 'F');
-
-      // Top Teal Header Bar
-      doc.setFillColor(0, 153, 166);
-      doc.rect(0, 0, 320, 18, 'F');
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(12.5);
-      doc.setTextColor(255, 255, 255);
-      doc.text('QSC Observation', 12, 11.8);
-
-      // Subtitle
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8.8);
-      doc.setTextColor(100, 116, 139);
-      doc.text('Ringkasan observasi - beberapa temuan per halaman', 12, 23.5);
-
-      const pair = observations.slice(i, i + 2);
-      pair.forEach((obs, idx) => {
-        const cardY = idx === 0 ? 27 : 98;
-        const cardH = 66;
-        const cardX = 8;
-        const cardW = 304;
-
-        // Outer Card
+    // Helper: Draw observation findings pages (2 findings per page)
+    const drawObservationPages = (obsList, sectionTitle) => {
+      const totalObs = obsList.length;
+      for (let i = 0; i < totalObs; i += 2) {
+        doc.addPage([320, 180], 'landscape');
         doc.setFillColor(255, 255, 255);
-        doc.setDrawColor(148, 163, 184);
-        doc.setLineWidth(0.3);
-        doc.roundedRect(cardX, cardY, cardW, cardH, 2.5, 2.5, 'FD');
+        doc.rect(0, 0, 320, 180, 'F');
 
-        // Card Top Header Strip (Teal)
+        // Top Teal Header Bar
         doc.setFillColor(0, 153, 166);
-        doc.roundedRect(cardX, cardY, cardW, 8.5, 2.5, 2.5, 'F');
-        doc.rect(cardX, cardY + 4, cardW, 4.5, 'F');
-
+        doc.rect(0, 0, 320, 18, 'F');
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(9.5);
+        doc.setFontSize(12.5);
         doc.setTextColor(255, 255, 255);
-        doc.text(`Temuan ${i + idx + 1}/${totalObs}`, cardX + 3.5, cardY + 5.8);
+        doc.text(sectionTitle, 12, 11.8);
 
-        // Deadline Pill Badge on Right
-        const dlText = obs.deadlineFormatted || this.formatIndonesianDate(obs.deadline, false);
-        doc.setFillColor(255, 255, 255);
-        doc.roundedRect(cardX + cardW - 62, cardY + 1.4, 58, 5.6, 2.8, 2.8, 'F');
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(7.2);
-        doc.setTextColor(185, 28, 28);
-        doc.text(`Deadline Perbaikan: ${dlText}`, cardX + cardW - 33, cardY + 5.2, { align: 'center' });
-
-        // 2x3 Grid of Sub-boxes inside Card
-        const leftColX = cardX + 2.5;
-        const rightColX = cardX + 153;
-        const boxW = 148.5;
-
-        const row1Y = cardY + 10.5;
-        const row1H = 19.5;
-        const row2Y = cardY + 31.5;
-        const row2H = 16;
-        const row3Y = cardY + 49;
-        const row3H = 15;
-
-        // Left Row 1: Temuan (Yellow Highlight Box)
-        doc.setFillColor(254, 252, 232);
-        doc.setDrawColor(148, 163, 184);
-        doc.setLineWidth(0.25);
-        doc.roundedRect(leftColX, row1Y, boxW, row1H, 1.2, 1.2, 'FD');
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(7.8);
-        doc.setTextColor(180, 83, 9);
-        doc.text('Temuan', leftColX + 2.2, row1Y + 4.2);
-        doc.setFont('helvetica', 'bold');
+        // Subtitle
+        doc.setFont('helvetica', 'normal');
         doc.setFontSize(8.8);
-        doc.setTextColor(24, 24, 27);
-        const temuanLines = doc.splitTextToSize(String(obs.temuan || '-'), boxW - 4.5);
-        doc.text(temuanLines.slice(0, 3), leftColX + 2.2, row1Y + 8.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text('Ringkasan observasi - beberapa temuan per halaman', 12, 23.5);
 
-        // Right Row 1: Dampak
-        doc.setFillColor(255, 255, 255);
-        doc.roundedRect(rightColX, row1Y, boxW, row1H, 1.2, 1.2, 'FD');
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(7.8);
-        doc.setTextColor(0, 130, 145);
-        doc.text('Dampak', rightColX + 2.2, row1Y + 4.2);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.8);
-        doc.setTextColor(24, 24, 27);
-        const dampakLines = doc.splitTextToSize(String(obs.dampak || '-'), boxW - 4.5);
-        doc.text(dampakLines.slice(0, 4), rightColX + 2.2, row1Y + 8.2);
+        const pair = obsList.slice(i, i + 2);
+        pair.forEach((obs, idx) => {
+          const cardY = idx === 0 ? 27 : 98;
+          const cardH = 66;
+          const cardX = 8;
+          const cardW = 304;
 
-        // Left Row 2: Kondisi Ideal
-        doc.setFillColor(255, 255, 255);
-        doc.roundedRect(leftColX, row2Y, boxW, row2H, 1.2, 1.2, 'FD');
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(7.8);
-        doc.setTextColor(0, 130, 145);
-        doc.text('Kondisi Ideal', leftColX + 2.2, row2Y + 4.2);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.8);
-        doc.setTextColor(24, 24, 27);
-        const idealLines = doc.splitTextToSize(String(obs.kondisiIdeal || '-'), boxW - 4.5);
-        doc.text(idealLines.slice(0, 3), leftColX + 2.2, row2Y + 8.2);
+          // Outer Card
+          doc.setFillColor(255, 255, 255);
+          doc.setDrawColor(148, 163, 184);
+          doc.setLineWidth(0.3);
+          doc.roundedRect(cardX, cardY, cardW, cardH, 2.5, 2.5, 'FD');
 
-        // Right Row 2: Tindakan Perbaikan
-        doc.setFillColor(255, 255, 255);
-        doc.roundedRect(rightColX, row2Y, boxW, row2H, 1.2, 1.2, 'FD');
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(7.8);
-        doc.setTextColor(0, 130, 145);
-        doc.text('Tindakan Perbaikan', rightColX + 2.2, row2Y + 4.2);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.8);
-        doc.setTextColor(24, 24, 27);
-        const tindakanLines = doc.splitTextToSize(String(obs.tindakanPerbaikan || '-'), boxW - 4.5);
-        doc.text(tindakanLines.slice(0, 3), rightColX + 2.2, row2Y + 8.2);
+          // Card Top Header Strip (Teal)
+          doc.setFillColor(0, 153, 166);
+          doc.roundedRect(cardX, cardY, cardW, 8.5, 2.5, 2.5, 'F');
+          doc.rect(cardX, cardY + 4, cardW, 4.5, 'F');
 
-        // Left Row 3: Penyebab
-        doc.setFillColor(255, 255, 255);
-        doc.roundedRect(leftColX, row3Y, boxW, row3H, 1.2, 1.2, 'FD');
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(7.8);
-        doc.setTextColor(0, 130, 145);
-        doc.text('Penyebab', leftColX + 2.2, row3Y + 4.2);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.8);
-        doc.setTextColor(24, 24, 27);
-        const penyebabLines = doc.splitTextToSize(String(obs.penyebab || '-'), boxW - 4.5);
-        doc.text(penyebabLines.slice(0, 3), leftColX + 2.2, row3Y + 8.2);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(9.5);
+          doc.setTextColor(255, 255, 255);
+          doc.text(`Temuan ${i + idx + 1}/${totalObs}`, cardX + 3.5, cardY + 5.8);
 
-        // Right Row 3: Hasil
-        doc.setFillColor(255, 255, 255);
-        doc.roundedRect(rightColX, row3Y, boxW, row3H, 1.2, 1.2, 'FD');
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(7.8);
-        doc.setTextColor(0, 130, 145);
-        doc.text('Hasil', rightColX + 2.2, row3Y + 4.2);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.8);
-        doc.setTextColor(24, 24, 27);
-        const hasilLines = doc.splitTextToSize(String(obs.hasil || '-'), boxW - 4.5);
-        doc.text(hasilLines.slice(0, 3), rightColX + 2.2, row3Y + 8.2);
-      });
+          // Deadline Pill Badge on Right
+          const dlText = obs.deadlineFormatted || this.formatIndonesianDate(obs.deadline, false);
+          doc.setFillColor(255, 255, 255);
+          doc.roundedRect(cardX + cardW - 62, cardY + 1.4, 58, 5.6, 2.8, 2.8, 'F');
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(7.2);
+          doc.setTextColor(185, 28, 28);
+          doc.text(`Deadline Perbaikan: ${dlText}`, cardX + cardW - 33, cardY + 5.2, { align: 'center' });
 
-      this.drawPageFooter(doc, footerText);
-    }
+          // 2x3 Grid of Sub-boxes inside Card
+          const leftColX = cardX + 2.5;
+          const rightColX = cardX + 153;
+          const boxW = 148.5;
 
-    // ========================================================================
-    // PAGE 7: SECTION DIVIDER - FINDING EVIDENCE
-    // ========================================================================
-    doc.addPage([320, 180], 'landscape');
-    doc.setFillColor(255, 255, 255);
-    doc.rect(0, 0, 320, 180, 'F');
-    if (PA.dividerFindingEvidence) {
-      try {
-        doc.addImage(PA.dividerFindingEvidence, 'JPEG', 0, 0, 320, 180);
-      } catch (e) {
-        console.warn('Divider Finding Evidence image error:', e);
+          const row1Y = cardY + 10.5;
+          const row1H = 19.5;
+          const row2Y = cardY + 31.5;
+          const row2H = 16;
+          const row3Y = cardY + 49;
+          const row3H = 15;
+
+          // Left Row 1: Temuan (Yellow Highlight Box)
+          doc.setFillColor(254, 252, 232);
+          doc.setDrawColor(148, 163, 184);
+          doc.setLineWidth(0.25);
+          doc.roundedRect(leftColX, row1Y, boxW, row1H, 1.2, 1.2, 'FD');
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(7.8);
+          doc.setTextColor(180, 83, 9);
+          doc.text('Temuan', leftColX + 2.2, row1Y + 4.2);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8.8);
+          doc.setTextColor(24, 24, 27);
+          const temuanLines = doc.splitTextToSize(String(obs.temuan || '-'), boxW - 4.5);
+          doc.text(temuanLines.slice(0, 3), leftColX + 2.2, row1Y + 8.5);
+
+          // Right Row 1: Dampak
+          doc.setFillColor(255, 255, 255);
+          doc.roundedRect(rightColX, row1Y, boxW, row1H, 1.2, 1.2, 'FD');
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(7.8);
+          doc.setTextColor(0, 130, 145);
+          doc.text('Dampak', rightColX + 2.2, row1Y + 4.2);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(7.8);
+          doc.setTextColor(24, 24, 27);
+          const dampakLines = doc.splitTextToSize(String(obs.dampak || '-'), boxW - 4.5);
+          doc.text(dampakLines.slice(0, 4), rightColX + 2.2, row1Y + 8.2);
+
+          // Left Row 2: Kondisi Ideal
+          doc.setFillColor(255, 255, 255);
+          doc.roundedRect(leftColX, row2Y, boxW, row2H, 1.2, 1.2, 'FD');
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(7.8);
+          doc.setTextColor(0, 130, 145);
+          doc.text('Kondisi Ideal', leftColX + 2.2, row2Y + 4.2);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(7.8);
+          doc.setTextColor(24, 24, 27);
+          const idealLines = doc.splitTextToSize(String(obs.kondisiIdeal || '-'), boxW - 4.5);
+          doc.text(idealLines.slice(0, 3), leftColX + 2.2, row2Y + 8.2);
+
+          // Right Row 2: Tindakan Perbaikan
+          doc.setFillColor(255, 255, 255);
+          doc.roundedRect(rightColX, row2Y, boxW, row2H, 1.2, 1.2, 'FD');
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(7.8);
+          doc.setTextColor(0, 130, 145);
+          doc.text('Tindakan Perbaikan', rightColX + 2.2, row2Y + 4.2);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(7.8);
+          doc.setTextColor(24, 24, 27);
+          const tindakanLines = doc.splitTextToSize(String(obs.tindakanPerbaikan || '-'), boxW - 4.5);
+          doc.text(tindakanLines.slice(0, 3), rightColX + 2.2, row2Y + 8.2);
+
+          // Left Row 3: Penyebab
+          doc.setFillColor(255, 255, 255);
+          doc.roundedRect(leftColX, row3Y, boxW, row3H, 1.2, 1.2, 'FD');
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(7.8);
+          doc.setTextColor(0, 130, 145);
+          doc.text('Penyebab', leftColX + 2.2, row3Y + 4.2);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(7.8);
+          doc.setTextColor(24, 24, 27);
+          const penyebabLines = doc.splitTextToSize(String(obs.penyebab || '-'), boxW - 4.5);
+          doc.text(penyebabLines.slice(0, 3), leftColX + 2.2, row3Y + 8.2);
+
+          // Right Row 3: Hasil
+          doc.setFillColor(255, 255, 255);
+          doc.roundedRect(rightColX, row3Y, boxW, row3H, 1.2, 1.2, 'FD');
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(7.8);
+          doc.setTextColor(0, 130, 145);
+          doc.text('Hasil', rightColX + 2.2, row3Y + 4.2);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(7.8);
+          doc.setTextColor(24, 24, 27);
+          const hasilLines = doc.splitTextToSize(String(obs.hasil || '-'), boxW - 4.5);
+          doc.text(hasilLines.slice(0, 3), rightColX + 2.2, row3Y + 8.2);
+        });
+
+        this.drawPageFooter(doc, footerText);
       }
-    }
-    this.drawPageFooter(doc, footerText);
+    };
 
-    // ========================================================================
-    // PAGE 8, 9...: FINDING EVIDENCE PHOTOS (6 per page in 3x2 grid)
-    // ========================================================================
-    const evPhotos = (report.evidencePhotos && report.evidencePhotos.length > 0)
-      ? report.evidencePhotos
-      : [];
-
-    if (evPhotos.length === 0) {
-      doc.addPage([320, 180], 'landscape');
-      doc.setFillColor(255, 255, 255);
-      doc.rect(0, 0, 320, 180, 'F');
-      doc.setFillColor(0, 153, 166);
-      doc.rect(0, 0, 320, 18, 'F');
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(12.5);
-      doc.setTextColor(255, 255, 255);
-      doc.text('Finding Evidence - Evidence Photos', 12, 11.8);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(11);
-      doc.setTextColor(100, 116, 139);
-      doc.text('Tidak ada foto bukti temuan pada kunjungan ini.', 160, 95, { align: 'center' });
-      this.drawPageFooter(doc, footerText);
-    } else {
-      for (let i = 0; i < evPhotos.length; i += 6) {
+    // Helper: Draw evidence photos pages (6 photos per page in 3x2 grid)
+    const drawEvidencePhotoPages = (photosList, sectionTitle) => {
+      if (!photosList || photosList.length === 0) return;
+      for (let i = 0; i < photosList.length; i += 6) {
         doc.addPage([320, 180], 'landscape');
         doc.setFillColor(255, 255, 255);
         doc.rect(0, 0, 320, 180, 'F');
@@ -604,9 +540,9 @@ window.FMCUPdf = {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(12.5);
         doc.setTextColor(255, 255, 255);
-        doc.text('Finding Evidence - Evidence Photos', 12, 11.8);
+        doc.text(sectionTitle, 12, 11.8);
 
-        const chunk = evPhotos.slice(i, i + 6);
+        const chunk = photosList.slice(i, i + 6);
         const colXs = [10, 111.2, 212.4];
         const rowYs = [22, 97.5];
         const cardW = 97.6;
@@ -637,7 +573,7 @@ window.FMCUPdf = {
             try {
               doc.addImage(evImgBase64, 'JPEG', imgX, imgY, imgW, imgH);
             } catch (e) {
-              console.warn('Evidence image error:', e);
+              console.warn('Photo draw error:', e);
             }
           }
 
@@ -651,6 +587,121 @@ window.FMCUPdf = {
 
         this.drawPageFooter(doc, footerText);
       }
+    };
+
+    // ========================================================================
+    // SECTION A: OPI PROJECT OBSERVATION (CONDET 2 STANDARD)
+    // ========================================================================
+    const opiObservations = (report.opiObservations && report.opiObservations.length > 0)
+      ? report.opiObservations
+      : [];
+
+    if (opiObservations.length > 0) {
+      doc.addPage([320, 180], 'landscape');
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, 320, 180, 'F');
+      if (PA.dividerOpiProjectObservation) {
+        try {
+          doc.addImage(PA.dividerOpiProjectObservation, 'JPEG', 0, 0, 320, 180);
+        } catch (e) {
+          console.warn('Divider OPI image error:', e);
+        }
+      }
+      this.drawPageFooter(doc, footerText);
+
+      drawObservationPages(opiObservations, 'OPI Project Observation');
+    }
+
+    // ========================================================================
+    // SECTION B: QSC OBSERVATION
+    // ========================================================================
+    doc.addPage([320, 180], 'landscape');
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, 320, 180, 'F');
+    if (PA.dividerQscObservation) {
+      try {
+        doc.addImage(PA.dividerQscObservation, 'JPEG', 0, 0, 320, 180);
+      } catch (e) {
+        console.warn('Divider QSC image error:', e);
+      }
+    }
+    this.drawPageFooter(doc, footerText);
+
+    const qscObservations = (report.qscObservations && report.qscObservations.length > 0)
+      ? report.qscObservations
+      : (report.observations && report.observations.length > 0 ? report.observations : [
+          {
+            temuan: 'Tidak ada temuan kritis pada saat kunjungan berlangsung',
+            kondisiIdeal: 'Operasional berjalan sesuai standar QSC FamilyMart',
+            penyebab: '-',
+            dampak: '-',
+            tindakanPerbaikan: 'Pertahankan konsistensi standar QSC harian',
+            hasil: 'Sesuai standar',
+            deadlineFormatted: '-'
+          }
+        ]);
+
+    drawObservationPages(qscObservations, 'QSC Observation');
+
+    // ========================================================================
+    // SECTION C: FINDING EVIDENCE PHOTOS
+    // ========================================================================
+    doc.addPage([320, 180], 'landscape');
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, 320, 180, 'F');
+    if (PA.dividerFindingEvidence) {
+      try {
+        doc.addImage(PA.dividerFindingEvidence, 'JPEG', 0, 0, 320, 180);
+      } catch (e) {
+        console.warn('Divider Finding Evidence image error:', e);
+      }
+    }
+    this.drawPageFooter(doc, footerText);
+
+    const evPhotos = (report.evidencePhotos && report.evidencePhotos.length > 0)
+      ? report.evidencePhotos
+      : [];
+
+    if (evPhotos.length === 0) {
+      doc.addPage([320, 180], 'landscape');
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, 320, 180, 'F');
+      doc.setFillColor(0, 153, 166);
+      doc.rect(0, 0, 320, 18, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12.5);
+      doc.setTextColor(255, 255, 255);
+      doc.text('Finding Evidence - Evidence Photos', 12, 11.8);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
+      doc.setTextColor(100, 116, 139);
+      doc.text('Tidak ada foto bukti temuan pada kunjungan ini.', 160, 95, { align: 'center' });
+      this.drawPageFooter(doc, footerText);
+    } else {
+      drawEvidencePhotoPages(evPhotos, 'Finding Evidence - Evidence Photos');
+    }
+
+    // ========================================================================
+    // SECTION D: CORRECTIVE ACTION EVIDENCE & RESULT (CONDET 2 STANDARD)
+    // ========================================================================
+    const caPhotos = (report.caPhotos && report.caPhotos.length > 0)
+      ? report.caPhotos
+      : (report.correctiveActionPhotos && report.correctiveActionPhotos.length > 0 ? report.correctiveActionPhotos : []);
+
+    if (caPhotos.length > 0) {
+      doc.addPage([320, 180], 'landscape');
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, 320, 180, 'F');
+      if (PA.dividerCorrectiveAction) {
+        try {
+          doc.addImage(PA.dividerCorrectiveAction, 'JPEG', 0, 0, 320, 180);
+        } catch (e) {
+          console.warn('Divider Corrective Action image error:', e);
+        }
+      }
+      this.drawPageFooter(doc, footerText);
+
+      drawEvidencePhotoPages(caPhotos, 'Corrective Action Evidence & Result - Evidence Photos');
     }
 
     // ========================================================================
@@ -875,7 +926,106 @@ window.FMCUPdf = {
       `
     });
 
-    // 4. Divider: QSC Observation
+    // Helper for HTML Observation Slide
+    const buildObsSlideHtml = (titleText, pair, startIdx, totalCount) => `
+      <div class="w-full h-full bg-white flex flex-col justify-between">
+        <div class="bg-[#0099A6] text-white px-[3.5%] py-[0.8cqw] font-bold text-[clamp(8px,1.2cqw,15px)]">
+          ${titleText}
+        </div>
+        <div class="px-[2.6%] pt-[0.5cqw] pb-[0.5cqw] flex-1 flex flex-col justify-start gap-[1.1cqw]">
+          <div class="text-[clamp(6px,0.85cqw,11px)] text-slate-500">Ringkasan observasi - beberapa temuan per halaman</div>
+          ${pair.map((obs, idx) => {
+            const dl = obs.deadlineFormatted || this.formatIndonesianDate(obs.deadline, false);
+            return `
+              <div class="border border-slate-400 rounded-lg overflow-hidden bg-white shadow-sm">
+                <div class="bg-[#0099A6] text-white px-3 py-[0.35cqw] flex items-center justify-between">
+                  <span class="font-bold text-[clamp(6.5px,0.95cqw,12px)]">Temuan ${startIdx + idx + 1}/${totalCount}</span>
+                  <span class="bg-white text-red-700 font-bold text-[clamp(5.5px,0.72cqw,9px)] px-2 py-0.5 rounded-full">
+                    Deadline Perbaikan: ${dl}
+                  </span>
+                </div>
+                <div class="p-[0.6cqw] grid grid-cols-2 gap-[0.55cqw] text-[clamp(5.5px,0.78cqw,10px)] leading-tight">
+                  <div class="bg-[#FEFCE8] border border-slate-300 rounded p-[0.5cqw]">
+                    <div class="font-bold text-amber-700">Temuan</div>
+                    <div class="font-bold text-slate-900 mt-0.5 whitespace-pre-line">${obs.temuan || '-'}</div>
+                  </div>
+                  <div class="bg-white border border-slate-300 rounded p-[0.5cqw]">
+                    <div class="font-bold text-[#008291]">Dampak</div>
+                    <div class="text-slate-800 mt-0.5 whitespace-pre-line">${obs.dampak || '-'}</div>
+                  </div>
+                  <div class="bg-white border border-slate-300 rounded p-[0.5cqw]">
+                    <div class="font-bold text-[#008291]">Kondisi Ideal</div>
+                    <div class="text-slate-800 mt-0.5 whitespace-pre-line">${obs.kondisiIdeal || '-'}</div>
+                  </div>
+                  <div class="bg-white border border-slate-300 rounded p-[0.5cqw]">
+                    <div class="font-bold text-[#008291]">Tindakan Perbaikan</div>
+                    <div class="text-slate-800 mt-0.5 whitespace-pre-line">${obs.tindakanPerbaikan || '-'}</div>
+                  </div>
+                  <div class="bg-white border border-slate-300 rounded p-[0.5cqw]">
+                    <div class="font-bold text-[#008291]">Penyebab</div>
+                    <div class="text-slate-800 mt-0.5 whitespace-pre-line">${obs.penyebab || '-'}</div>
+                  </div>
+                  <div class="bg-white border border-slate-300 rounded p-[0.5cqw]">
+                    <div class="font-bold text-[#008291]">Hasil</div>
+                    <div class="text-slate-800 mt-0.5 whitespace-pre-line">${obs.hasil || '-'}</div>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+        <div class="pb-[1%] text-center text-[clamp(7px,0.75cqw,10px)] font-bold tracking-widest text-slate-400 uppercase">${footerText}</div>
+      </div>
+    `;
+
+    // Helper for HTML Photo Grid Slide
+    const buildPhotoGridSlideHtml = (titleText, chunk) => `
+      <div class="w-full h-full bg-white flex flex-col justify-between">
+        <div class="bg-[#0099A6] text-white px-[3.5%] py-[1cqw] font-bold text-[clamp(10px,1.2cqw,16px)]">
+          ${titleText}
+        </div>
+        <div class="px-[3%] py-[1.2cqw] flex-1 grid grid-cols-3 grid-rows-2 gap-[1.2cqw]">
+          ${chunk.map((ev) => {
+            const src = this.getPhotoDisplaySrc(ev);
+            return `
+            <div class="border border-slate-400 rounded-xl p-[0.7cqw] grid grid-cols-12 gap-[0.8cqw] bg-white overflow-hidden">
+              <div class="col-span-6 bg-slate-100 rounded-lg overflow-hidden h-full">
+                ${src ? `<img src="${src}" class="w-full h-full object-cover" alt="Evidence" />` : ''}
+              </div>
+              <div class="col-span-6 text-[clamp(6px,0.82cqw,11px)] text-slate-900 pt-1 leading-snug overflow-hidden">
+                ${ev.description || '-'}
+              </div>
+            </div>
+          `;
+          }).join('')}
+        </div>
+        <div class="pb-[1%] text-center text-[clamp(7px,0.75cqw,10px)] font-bold tracking-widest text-slate-400 uppercase">${footerText}</div>
+      </div>
+    `;
+
+    // 4. OPI Project Observation Slides (CONDET 2 Standard)
+    const opiList = report.opiObservations && report.opiObservations.length > 0 ? report.opiObservations : [];
+    if (opiList.length > 0) {
+      slides.push({
+        title: 'Divider - OPI Project Observation',
+        html: `
+          <div class="w-full h-full bg-white relative overflow-hidden">
+            <img src="${PA.dividerOpiProjectObservation || ''}" class="w-full h-full object-cover" alt="OPI Project Observation" />
+            <div class="absolute bottom-[1.8%] inset-x-0 text-center text-[clamp(7px,0.75cqw,10px)] font-bold tracking-widest text-slate-400 uppercase">${footerText}</div>
+          </div>
+        `
+      });
+
+      for (let i = 0; i < opiList.length; i += 2) {
+        const pair = opiList.slice(i, i + 2);
+        slides.push({
+          title: `OPI Project Obs (Temuan ${i + 1}-${Math.min(i + 2, opiList.length)})`,
+          html: buildObsSlideHtml('OPI Project Observation', pair, i, opiList.length)
+        });
+      }
+    }
+
+    // 5. Divider: QSC Observation
     slides.push({
       title: 'Divider - QSC Observation',
       html: `
@@ -886,62 +1036,16 @@ window.FMCUPdf = {
       `
     });
 
-    // 5. QSC Observation Findings (2 per page)
-    const obsList = report.observations && report.observations.length > 0 ? report.observations : [];
-    for (let i = 0; i < obsList.length; i += 2) {
-      const pair = obsList.slice(i, i + 2);
+    // 6. QSC Observation Findings (2 per page)
+    const qscList = (report.qscObservations && report.qscObservations.length > 0)
+      ? report.qscObservations
+      : (report.observations && report.observations.length > 0 ? report.observations : []);
+
+    for (let i = 0; i < qscList.length; i += 2) {
+      const pair = qscList.slice(i, i + 2);
       slides.push({
-        title: `QSC Observation (Temuan ${i + 1}-${Math.min(i + 2, obsList.length)})`,
-        html: `
-          <div class="w-full h-full bg-white flex flex-col justify-between">
-            <div class="bg-[#0099A6] text-white px-[3.5%] py-[0.8cqw] font-bold text-[clamp(8px,1.2cqw,15px)]">
-              QSC Observation
-            </div>
-            <div class="px-[2.6%] pt-[0.5cqw] pb-[0.5cqw] flex-1 flex flex-col justify-start gap-[1.1cqw]">
-              <div class="text-[clamp(6px,0.85cqw,11px)] text-slate-500">Ringkasan observasi - beberapa temuan per halaman</div>
-              ${pair.map((obs, idx) => {
-                const dl = obs.deadlineFormatted || this.formatIndonesianDate(obs.deadline, false);
-                return `
-                  <div class="border border-slate-400 rounded-lg overflow-hidden bg-white shadow-sm">
-                    <div class="bg-[#0099A6] text-white px-3 py-[0.35cqw] flex items-center justify-between">
-                      <span class="font-bold text-[clamp(6.5px,0.95cqw,12px)]">Temuan ${i + idx + 1}/${obsList.length}</span>
-                      <span class="bg-white text-red-700 font-bold text-[clamp(5.5px,0.72cqw,9px)] px-2 py-0.5 rounded-full">
-                        Deadline Perbaikan: ${dl}
-                      </span>
-                    </div>
-                    <div class="p-[0.6cqw] grid grid-cols-2 gap-[0.55cqw] text-[clamp(5.5px,0.78cqw,10px)] leading-tight">
-                      <div class="bg-[#FEFCE8] border border-slate-300 rounded p-[0.5cqw]">
-                        <div class="font-bold text-amber-700">Temuan</div>
-                        <div class="font-bold text-slate-900 mt-0.5 whitespace-pre-line">${obs.temuan || '-'}</div>
-                      </div>
-                      <div class="bg-white border border-slate-300 rounded p-[0.5cqw]">
-                        <div class="font-bold text-[#008291]">Dampak</div>
-                        <div class="text-slate-800 mt-0.5 whitespace-pre-line">${obs.dampak || '-'}</div>
-                      </div>
-                      <div class="bg-white border border-slate-300 rounded p-[0.5cqw]">
-                        <div class="font-bold text-[#008291]">Kondisi Ideal</div>
-                        <div class="text-slate-800 mt-0.5 whitespace-pre-line">${obs.kondisiIdeal || '-'}</div>
-                      </div>
-                      <div class="bg-white border border-slate-300 rounded p-[0.5cqw]">
-                        <div class="font-bold text-[#008291]">Tindakan Perbaikan</div>
-                        <div class="text-slate-800 mt-0.5 whitespace-pre-line">${obs.tindakanPerbaikan || '-'}</div>
-                      </div>
-                      <div class="bg-white border border-slate-300 rounded p-[0.5cqw]">
-                        <div class="font-bold text-[#008291]">Penyebab</div>
-                        <div class="text-slate-800 mt-0.5 whitespace-pre-line">${obs.penyebab || '-'}</div>
-                      </div>
-                      <div class="bg-white border border-slate-300 rounded p-[0.5cqw]">
-                        <div class="font-bold text-[#008291]">Hasil</div>
-                        <div class="text-slate-800 mt-0.5 whitespace-pre-line">${obs.hasil || '-'}</div>
-                      </div>
-                    </div>
-                  </div>
-                `;
-              }).join('')}
-            </div>
-            <div class="pb-[1%] text-center text-[clamp(7px,0.75cqw,10px)] font-bold tracking-widest text-slate-400 uppercase">${footerText}</div>
-          </div>
-        `
+        title: `QSC Observation (Temuan ${i + 1}-${Math.min(i + 2, qscList.length)})`,
+        html: buildObsSlideHtml('QSC Observation', pair, i, qscList.length)
       });
     }
 
@@ -962,30 +1066,33 @@ window.FMCUPdf = {
       const chunk = evList.slice(i, i + 6);
       slides.push({
         title: `Finding Evidence Photos (${i + 1}-${Math.min(i + 6, evList.length)})`,
+        html: buildPhotoGridSlideHtml('Finding Evidence - Evidence Photos', chunk)
+      });
+    }
+
+    // 9. Corrective Action Evidence & Result (CONDET 2 Standard)
+    const caList = (report.caPhotos && report.caPhotos.length > 0)
+      ? report.caPhotos
+      : (report.correctiveActionPhotos && report.correctiveActionPhotos.length > 0 ? report.correctiveActionPhotos : []);
+
+    if (caList.length > 0) {
+      slides.push({
+        title: 'Divider - Corrective Action Evidence & Result',
         html: `
-          <div class="w-full h-full bg-white flex flex-col justify-between">
-            <div class="bg-[#0099A6] text-white px-[3.5%] py-[1cqw] font-bold text-[clamp(10px,1.2cqw,16px)]">
-              Finding Evidence - Evidence Photos
-            </div>
-            <div class="px-[3%] py-[1.2cqw] flex-1 grid grid-cols-3 grid-rows-2 gap-[1.2cqw]">
-              ${chunk.map((ev) => {
-                const src = this.getPhotoDisplaySrc(ev);
-                return `
-                <div class="border border-slate-400 rounded-xl p-[0.7cqw] grid grid-cols-12 gap-[0.8cqw] bg-white overflow-hidden">
-                  <div class="col-span-6 bg-slate-100 rounded-lg overflow-hidden h-full">
-                    ${src ? `<img src="${src}" class="w-full h-full object-cover" alt="Evidence" />` : ''}
-                  </div>
-                  <div class="col-span-6 text-[clamp(6px,0.82cqw,11px)] text-slate-900 pt-1 leading-snug overflow-hidden">
-                    ${ev.description || '-'}
-                  </div>
-                </div>
-              `;
-              }).join('')}
-            </div>
-            <div class="pb-[1%] text-center text-[clamp(7px,0.75cqw,10px)] font-bold tracking-widest text-slate-400 uppercase">${footerText}</div>
+          <div class="w-full h-full bg-white relative overflow-hidden">
+            <img src="${PA.dividerCorrectiveAction || ''}" class="w-full h-full object-cover" alt="Corrective Action Evidence & Result" />
+            <div class="absolute bottom-[1.8%] inset-x-0 text-center text-[clamp(7px,0.75cqw,10px)] font-bold tracking-widest text-slate-400 uppercase">${footerText}</div>
           </div>
         `
       });
+
+      for (let i = 0; i < caList.length; i += 6) {
+        const chunk = caList.slice(i, i + 6);
+        slides.push({
+          title: `CA Evidence & Result (${i + 1}-${Math.min(i + 6, caList.length)})`,
+          html: buildPhotoGridSlideHtml('Corrective Action Evidence & Result - Evidence Photos', chunk)
+        });
+      }
     }
 
     // 10. Divider: Store Assignment

@@ -1413,6 +1413,11 @@ window.FMCUData = {
         this.cachePhotoInMemory(p.id, p.driveFileId, p.dataUrl);
       }
     });
+    (report.caPhotos || report.correctiveActionPhotos || []).forEach((p) => {
+      if (p && p.dataUrl && p.dataUrl.startsWith('data:image')) {
+        this.cachePhotoInMemory(p.id, p.driveFileId, p.dataUrl);
+      }
+    });
   },
 
   async uploadPhotoToGDrive(photoObj, meta = {}) {
@@ -1497,6 +1502,11 @@ window.FMCUData = {
     (report.evidencePhotos || []).forEach((p) => {
       if (p && !p.driveFileId && (p.dataUrl?.startsWith('data:image') || this.getPhotoFromMemory(p.id, null))) {
         tasks.push(this.uploadPhotoToGDrive(p, { storeCode, storeName, photoType: 'EVIDENCE' }));
+      }
+    });
+    (report.caPhotos || report.correctiveActionPhotos || []).forEach((p) => {
+      if (p && !p.driveFileId && (p.dataUrl?.startsWith('data:image') || this.getPhotoFromMemory(p.id, null))) {
+        tasks.push(this.uploadPhotoToGDrive(p, { storeCode, storeName, photoType: 'CORRECTIVE_ACTION' }));
       }
     });
 
