@@ -1530,10 +1530,20 @@ window.FMCUApp = {
       topBanner.classList.toggle('hidden', !(targetSec === 1 || targetSec === 4));
     }
 
+    // Floating action button bar for Observation (HANYA tampil di Section 2: Observation)
+    const fabObs = document.getElementById('floating-obs-actions');
+    if (fabObs) {
+      fabObs.classList.toggle('hidden', targetSec !== 2);
+      const menu = document.getElementById('obs-fab-menu');
+      if (menu && targetSec !== 2) menu.classList.add('hidden');
+    }
+
     // Floating action button bar for Evidence (HANYA tampil di Section 3: Evidence)
     const fabEvidence = document.getElementById('floating-evidence-actions');
     if (fabEvidence) {
       fabEvidence.classList.toggle('hidden', targetSec !== 3);
+      const menu = document.getElementById('evidence-fab-speed-menu');
+      if (menu && targetSec !== 3) menu.classList.add('hidden');
     }
 
     [1, 2, 3, 4].forEach((n) => {
@@ -4794,6 +4804,110 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     this.renderCaPhotosGrid();
   },
 
+  // --- Floating Action Button Handlers (Section 2 & Section 3) ---
+  toggleObsFabMenu() {
+    const menu = document.getElementById('obs-fab-menu');
+    const icon = document.getElementById('icon-fab-obs-plus');
+    if (!menu) return;
+    const isHidden = menu.classList.contains('hidden');
+    if (isHidden) {
+      if (this.enableOpi && !this.enableQsc) {
+        this.addObservationFromFab('opi');
+        return;
+      }
+      if (!this.enableOpi && this.enableQsc) {
+        this.addObservationFromFab('qsc');
+        return;
+      }
+      menu.classList.remove('hidden');
+      if (icon) icon.classList.add('rotate-45');
+    } else {
+      menu.classList.add('hidden');
+      if (icon) icon.classList.remove('rotate-45');
+    }
+  },
+
+  addObservationFromFab(type) {
+    const menu = document.getElementById('obs-fab-menu');
+    const icon = document.getElementById('icon-fab-obs-plus');
+    if (menu) menu.classList.add('hidden');
+    if (icon) icon.classList.remove('rotate-45');
+
+    if (type === 'opi') {
+      if (!this.enableOpi) {
+        this.toggleObservationSubSection('opi', true);
+      }
+      this.addOpiObservationCard();
+      setTimeout(() => {
+        const list = document.getElementById('form-opi-observations-list');
+        if (list && list.lastElementChild) {
+          list.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+    } else {
+      if (!this.enableQsc) {
+        this.toggleObservationSubSection('qsc', true);
+      }
+      this.addObservationCard();
+      setTimeout(() => {
+        const list = document.getElementById('form-observations-list');
+        if (list && list.lastElementChild) {
+          list.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+    }
+  },
+
+  handleFloatingCameraClick() {
+    if (this.enableEvidence && this.enableCa) {
+      const menu = document.getElementById('evidence-fab-speed-menu');
+      if (menu) {
+        menu.classList.toggle('hidden');
+      }
+      return;
+    }
+    if (this.enableCa && !this.enableEvidence) {
+      this.triggerEvidenceFabAction('ca', 'camera');
+      return;
+    }
+    this.triggerEvidenceFabAction('finding', 'camera');
+  },
+
+  handleFloatingGalleryClick() {
+    if (this.enableEvidence && this.enableCa) {
+      const menu = document.getElementById('evidence-fab-speed-menu');
+      if (menu) {
+        menu.classList.toggle('hidden');
+      }
+      return;
+    }
+    if (this.enableCa && !this.enableEvidence) {
+      this.triggerEvidenceFabAction('ca', 'gallery');
+      return;
+    }
+    this.triggerEvidenceFabAction('finding', 'gallery');
+  },
+
+  triggerEvidenceFabAction(target, source) {
+    this.floatingEvidenceTarget = target;
+    const menu = document.getElementById('evidence-fab-speed-menu');
+    if (menu) menu.classList.add('hidden');
+
+    if (source === 'camera') {
+      const input = document.getElementById('fab-camera-input');
+      if (input) {
+        input.value = '';
+        input.click();
+      }
+    } else {
+      const input = document.getElementById('fab-gallery-input');
+      if (input) {
+        input.value = '';
+        input.click();
+      }
+    }
+  },
+
   // Toggle Sub-sections Observation & Evidence
   toggleObservationSubSection(type, isChecked) {
     if (type === 'opi') {
@@ -5126,41 +5240,54 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     const grid = document.getElementById('form-qsc-photos-grid');
     if (!grid) return;
 
+    // Pastikan selalu fix tepat 2 slot (wajib 2)
+    if (!Array.isArray(this.formQscPhotos) || this.formQscPhotos.length !== 2) {
+      const p0 = this.formQscPhotos?.[0] || { id: 'qsc-1', caption: 'Lembar Form QSC / FamiTrack #1 (Wajib)', dataUrl: '' };
+      const p1 = this.formQscPhotos?.[1] || { id: 'qsc-2', caption: 'Lembar Form QSC / FamiTrack #2 (Wajib)', dataUrl: '' };
+      this.formQscPhotos = [p0, p1];
+    }
+
     grid.innerHTML = this.formQscPhotos
       .map((p, idx) => {
         const displaySrc = window.FMCUPdf.getPhotoDisplaySrc(p);
-        const driveBadge = p._uploading
-          ? `<div class="mt-1 text-[10px] font-bold text-amber-700 flex items-center gap-1"><i class="fa-solid fa-spinner fa-spin"></i><span>Mengunggah ke Google Drive...</span></div>`
+        const statusBadge = p._uploading
+          ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800"><i class="fa-solid fa-spinner fa-spin mr-1"></i>Upload ke Google Drive...</span>`
           : p.driveFileId
-          ? `<a href="${p.driveViewUrl || p.driveUrl || '#'}" target="_blank" class="mt-1 text-[10px] font-bold text-emerald-700 hover:underline inline-flex items-center gap-1"><i class="fa-brands fa-google-drive"></i><span>Tersimpan di Google Drive</span></a>`
+          ? `<a href="${p.driveViewUrl || p.driveUrl || '#'}" target="_blank" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 hover:underline"><i class="fa-brands fa-google-drive mr-1"></i>Tersimpan di Google Drive</a>`
           : displaySrc
-          ? `<div class="mt-1 text-[10px] font-semibold text-[#0099A6] flex items-center gap-1"><i class="fa-solid fa-cloud-arrow-up"></i><span>Siap Sync ke Google Drive</span></div>`
+          ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-[#0099A6]"><i class="fa-solid fa-cloud-arrow-up mr-1"></i>Siap Sync ke Google Drive</span>`
           : '';
 
+        const slotTitle = idx === 0 ? 'Lembar Form QSC / FamiTrack #1 (Wajib)' : 'Lembar Form QSC / FamiTrack #2 (Wajib)';
+
         return `
-        <div class="border border-slate-300 rounded-2xl p-3 bg-white grid grid-cols-12 gap-3 relative shadow-sm">
-          <div class="col-span-5 h-36 bg-slate-100 rounded-xl overflow-hidden relative flex items-center justify-center border border-slate-200 group">
+        <div class="border-2 ${displaySrc ? 'border-emerald-300 bg-white' : 'border-dashed border-slate-300 bg-slate-50/70'} rounded-2xl p-4 space-y-3 transition">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="w-6 h-6 rounded-lg ${displaySrc ? 'bg-[#009944]' : 'bg-slate-400'} text-white text-xs font-extrabold flex items-center justify-center shrink-0 shadow-2xs">${idx + 1}</span>
+              <span class="text-xs font-extrabold text-slate-800 truncate">${slotTitle}</span>
+            </div>
+            <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full shrink-0 ${displaySrc ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-50 text-rose-700 border border-rose-200'}">
+              ${displaySrc ? '✓ Foto Terunggah' : '* Wajib Diisi'}
+            </span>
+          </div>
+
+          <div class="w-full h-52 rounded-xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center relative group">
             ${
               displaySrc
-                ? `<img src="${displaySrc}" class="w-full h-full object-cover" alt="QSC Form" />`
-                : `<div class="text-center p-2"><i class="fa-solid fa-camera text-slate-300 text-xl block mb-1"></i><span class="text-[9px] text-slate-400 font-bold block leading-tight">Foto Lembar QSC #${idx + 1}</span></div>`
+                ? `<img src="${displaySrc}" class="w-full h-full object-cover" alt="QSC Form ${idx + 1}" />`
+                : `<div class="text-center text-slate-400 text-xs p-4">
+                    <i class="fa-solid fa-file-invoice text-3xl mb-1.5 text-slate-300 block"></i>
+                    <span class="font-bold text-slate-600 block">Foto Lembar QSC #${idx + 1}</span>
+                    <span class="text-[11px] text-slate-400">Ketuk tombol di bawah untuk mengambil foto / unggah</span>
+                   </div>`
             }
-            <div class="absolute inset-0 viewfinder-grid pointer-events-none opacity-20 group-hover:opacity-40 transition"></div>
-            <label class="absolute bottom-1.5 inset-x-1.5 bg-slate-900/85 hover:bg-slate-900 text-white text-[10px] font-bold py-1 rounded text-center cursor-pointer flex items-center justify-center gap-1 shadow-sm">
-              <i class="fa-solid fa-camera text-[10px]"></i>
-              <span>Pilih / Foto</span>
-              <input type="file" accept="image/*" capture="environment" onchange="FMCUApp.handleSingleQscUpload(event, ${idx})" class="hidden" />
+            ${statusBadge ? `<div class="absolute top-2 left-2 shadow-sm">${statusBadge}</div>` : ''}
+            <label class="absolute bottom-2.5 right-2.5 bg-slate-900/85 hover:bg-slate-950 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl cursor-pointer shadow-md transition flex items-center gap-1.5">
+              <i class="fa-solid fa-camera text-emerald-400"></i>
+              <span>${displaySrc ? 'Ganti Foto' : 'Pilih Foto / Kamera'}</span>
+              <input type="file" accept="image/*" onchange="FMCUApp.handleQscPhotoUpload(event, ${idx})" class="hidden" />
             </label>
-          </div>
-          <div class="col-span-7 flex flex-col justify-between pr-2">
-            <div>
-              <div class="flex items-center justify-between mb-1">
-                <label class="block text-[10px] font-extrabold text-slate-400 uppercase">Lembar QSC #${idx + 1} *</label>
-                <span class="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">Wajib</span>
-              </div>
-              <input type="text" value="${p.caption || ''}" oninput="FMCUApp.formQscPhotos[${idx}].caption = this.value" placeholder="Keterangan lembar form" class="fm-input py-1.5 text-xs font-semibold w-full" />
-              ${driveBadge}
-            </div>
           </div>
         </div>
       `;
@@ -5168,7 +5295,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       .join('');
   },
 
-  async handleSingleQscUpload(event, idx) {
+  async handleQscPhotoUpload(event, idx) {
     const file = event.target.files?.[0];
     if (!file) return;
     const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
@@ -5211,10 +5338,9 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
 
     if (!this.enableOpi) {
       container.innerHTML = `
-        <div class="border-2 border-dashed border-slate-300 rounded-2xl p-5 text-center text-slate-500 bg-slate-50/70">
-          <i class="fa-solid fa-power-off text-slate-400 text-lg mb-1 block"></i>
+        <div class="border border-dashed border-slate-300 rounded-2xl p-4 text-center text-slate-500 bg-slate-50/70">
           <p class="font-extrabold text-xs text-slate-700">Section OPI dinonaktifkan (OFF)</p>
-          <p class="text-[11px] text-slate-500 mt-0.5">Data temuan proyek OPI dan halaman dividernya tidak akan dimasukkan ke dalam laporan PDF.</p>
+          <p class="text-[11px] text-slate-400 mt-0.5">Temuan proyek OPI dan dividernya tidak akan dicetak ke laporan PDF.</p>
         </div>
       `;
       return;
@@ -5222,12 +5348,11 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
 
     if (!this.formOpiObservations || this.formOpiObservations.length === 0) {
       container.innerHTML = `
-        <div class="border-2 border-dashed border-teal-200 rounded-2xl p-6 text-center text-slate-500 bg-teal-50/20">
-          <p class="font-extrabold text-xs text-teal-800 mb-1">Belum ada temuan observasi proyek OPI (Default Kosong).</p>
-          <p class="text-[11px] text-slate-500 mb-3">Klik tombol di bawah jika terdapat temuan khusus Proyek OPI (Operational Performance Improvement).</p>
-          <button type="button" onclick="FMCUApp.addOpiObservationCard()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer shadow-sm inline-flex items-center gap-1.5">
-            <i class="fa-solid fa-plus-circle"></i>
-            <span>+ Tambah Temuan Proyek OPI</span>
+        <div class="py-8 px-4 text-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50">
+          <i class="fa-solid fa-clipboard-check text-slate-300 text-3xl mb-1.5 block"></i>
+          <p class="text-xs font-semibold text-slate-500">Belum ada temuan observasi proyek OPI (Default Kosong)</p>
+          <button type="button" onclick="FMCUApp.addOpiObservationCard()" class="mt-2 text-xs font-bold text-teal-700 hover:underline cursor-pointer">
+            + Tambah Temuan OPI
           </button>
         </div>
       `;
@@ -5237,61 +5362,69 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     container.innerHTML = this.formOpiObservations
       .map(
         (obs, idx) => `
-        <div class="border border-teal-200 rounded-2xl overflow-hidden bg-white shadow-sm">
-          <!-- Card Header -->
-          <div class="bg-teal-700 text-white px-3.5 sm:px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
+        <div class="relative bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 sm:p-5 shadow-xs transition space-y-4">
+          <!-- Top Right Corner Delete Button -->
+          <button type="button" onclick="FMCUApp.removeOpiObservationCard(${idx})" class="absolute top-3.5 right-3.5 w-8 h-8 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition cursor-pointer" title="Hapus Temuan OPI">
+            <i class="fa-solid fa-trash-can text-xs"></i>
+          </button>
+
+          <!-- Card Header Info -->
+          <div class="flex flex-wrap items-center justify-between gap-2 pr-10">
             <div class="flex items-center gap-2">
-              <span class="font-extrabold text-xs sm:text-sm">Temuan Proyek OPI ${idx + 1}/${this.formOpiObservations.length}</span>
-              <span class="text-[9.5px] bg-white/20 px-2 py-0.5 rounded-full font-bold">OPI Project</span>
+              <span class="px-2.5 py-1 rounded-lg bg-teal-50 text-teal-800 border border-teal-200 font-black text-xs">
+                Temuan #${idx + 1}
+              </span>
+              <span class="text-[10px] font-extrabold text-teal-700 bg-teal-50/80 px-2 py-0.5 rounded-full border border-teal-200">
+                OPI Project
+              </span>
             </div>
 
-            <div class="flex items-center gap-2">
-              <div class="flex items-center gap-1.5 bg-white text-slate-800 px-2.5 py-1 rounded-xl text-xs font-bold border border-teal-100 shadow-2xs">
-                <span class="text-rose-700 text-[11px] font-extrabold whitespace-nowrap"><i class="fa-regular fa-calendar-xmark mr-1"></i>Deadline:</span>
-                <input type="date" value="${obs.deadline || ''}" onchange="FMCUApp.formOpiObservations[${idx}].deadline = this.value; FMCUApp.formOpiObservations[${idx}].deadlineFormatted = window.FMCUPdf.formatIndonesianDate(this.value, false);" class="text-xs font-bold text-rose-700 focus:outline-none bg-transparent cursor-pointer" />
-              </div>
-              <button type="button" onclick="FMCUApp.removeOpiObservationCard(${idx})" class="w-7 h-7 rounded-lg bg-white/15 hover:bg-rose-500 text-white flex items-center justify-center text-xs transition cursor-pointer" title="Hapus Temuan OPI">
-                <i class="fa-solid fa-trash-can"></i>
-              </button>
+            <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-xl text-xs font-bold border border-slate-200">
+              <span class="text-rose-700 text-[11px] font-extrabold whitespace-nowrap"><i class="fa-regular fa-calendar-xmark mr-1"></i>Deadline:</span>
+              <input type="date" value="${obs.deadline || ''}" onchange="FMCUApp.formOpiObservations[${idx}].deadline = this.value; FMCUApp.formOpiObservations[${idx}].deadlineFormatted = window.FMCUPdf.formatIndonesianDate(this.value, false);" class="text-xs font-bold text-rose-700 focus:outline-none bg-transparent cursor-pointer" />
             </div>
           </div>
 
-          <!-- 2x3 Grid matching PDF layout -->
-          <div class="p-3.5 sm:p-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-            <div class="bg-[#FEFCE8] border border-amber-300 rounded-xl p-3 space-y-1.5">
+          <!-- Clean Form Groups -->
+          <div class="space-y-3">
+            <div class="space-y-1">
               <div class="flex items-center justify-between">
-                <label class="font-extrabold text-amber-800 uppercase">Temuan (Finding) *</label>
-                <button type="button" onclick="FMCUApp.startVoiceInput('obs-opi-temuan-${idx}', this)" class="text-[10px] font-bold text-teal-800 bg-white hover:bg-teal-50 px-2 py-0.5 rounded border border-teal-200 flex items-center gap-1 transition cursor-pointer shadow-2xs" title="Diktekan temuan dengan suara">
+                <label class="font-extrabold text-xs text-amber-800 uppercase flex items-center gap-1">
+                  <i class="fa-solid fa-triangle-exclamation text-amber-500"></i>Temuan (Finding) *
+                </label>
+                <button type="button" onclick="FMCUApp.startVoiceInput('obs-opi-temuan-${idx}', this)" class="text-[10px] font-bold text-teal-800 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded-lg border border-teal-200 flex items-center gap-1 transition cursor-pointer shadow-2xs" title="Diktekan temuan dengan suara">
                   <i class="fa-solid fa-microphone text-rose-500"></i>
-                  <span>Dikte Suara</span>
+                  <span>Dikte</span>
                 </button>
               </div>
-              <textarea id="obs-opi-temuan-${idx}" rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formOpiObservations[${idx}].temuan = this.value; FMCUApp.updateFormProgress();" placeholder="Tuliskan detail temuan observasi proyek OPI..." class="fm-auto-textarea bg-white/90 border border-amber-200 rounded-lg p-2 font-bold text-slate-900 focus:outline-none">${obs.temuan || ''}</textarea>
+              <textarea id="obs-opi-temuan-${idx}" rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formOpiObservations[${idx}].temuan = this.value; FMCUApp.updateFormProgress();" placeholder="Tuliskan detail temuan observasi proyek OPI..." class="fm-auto-textarea w-full bg-amber-50/30 border border-amber-300 rounded-xl p-2.5 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 transition">${obs.temuan || ''}</textarea>
             </div>
 
-            <div class="bg-slate-50/70 border border-slate-200 rounded-xl p-3 space-y-1.5">
-              <label class="font-extrabold text-[#008291] uppercase block">Dampak (Impact)</label>
-              <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formOpiObservations[${idx}].dampak = this.value" placeholder="Tuliskan dampak terhadap operasional..." class="fm-auto-textarea bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:outline-none">${obs.dampak || ''}</textarea>
-            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div class="space-y-1">
+                <label class="font-bold text-[11px] text-slate-600 uppercase tracking-wide block">Dampak (Impact)</label>
+                <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formOpiObservations[${idx}].dampak = this.value" placeholder="Tuliskan dampak terhadap operasional..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-teal-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.dampak || ''}</textarea>
+              </div>
 
-            <div class="bg-slate-50/70 border border-slate-200 rounded-xl p-3 space-y-1.5">
-              <label class="font-extrabold text-[#008291] uppercase block">Kondisi Ideal</label>
-              <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formOpiObservations[${idx}].kondisiIdeal = this.value" placeholder="Tuliskan standar kondisi ideal..." class="fm-auto-textarea bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:outline-none">${obs.kondisiIdeal || ''}</textarea>
-            </div>
+              <div class="space-y-1">
+                <label class="font-bold text-[11px] text-slate-600 uppercase tracking-wide block">Kondisi Ideal</label>
+                <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formOpiObservations[${idx}].kondisiIdeal = this.value" placeholder="Tuliskan standar kondisi ideal..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-teal-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.kondisiIdeal || ''}</textarea>
+              </div>
 
-            <div class="bg-slate-50/70 border border-slate-200 rounded-xl p-3 space-y-1.5">
-              <label class="font-extrabold text-[#008291] uppercase block">Tindakan Perbaikan (Corrective Action)</label>
-              <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formOpiObservations[${idx}].tindakanPerbaikan = this.value" placeholder="Tuliskan tindakan perbaikan..." class="fm-auto-textarea bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:outline-none">${obs.tindakanPerbaikan || ''}</textarea>
-            </div>
+              <div class="space-y-1">
+                <label class="font-bold text-[11px] text-slate-600 uppercase tracking-wide block">Tindakan Perbaikan (Corrective Action)</label>
+                <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formOpiObservations[${idx}].tindakanPerbaikan = this.value" placeholder="Tuliskan tindakan perbaikan..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-teal-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.tindakanPerbaikan || ''}</textarea>
+              </div>
 
-            <div class="bg-slate-50/70 border border-slate-200 rounded-xl p-3 space-y-1.5">
-              <label class="font-extrabold text-[#008291] uppercase block">Penyebab (Root Cause)</label>
-              <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formOpiObservations[${idx}].penyebab = this.value" placeholder="Tuliskan akar penyebab temuan..." class="fm-auto-textarea bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:outline-none">${obs.penyebab || ''}</textarea>
-            </div>
+              <div class="space-y-1">
+                <label class="font-bold text-[11px] text-slate-600 uppercase tracking-wide block">Penyebab (Root Cause)</label>
+                <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formOpiObservations[${idx}].penyebab = this.value" placeholder="Tuliskan akar penyebab temuan..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-teal-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.penyebab || ''}</textarea>
+              </div>
 
-            <div class="bg-slate-50/70 border border-slate-200 rounded-xl p-3 space-y-1.5">
-              <label class="font-extrabold text-[#008291] uppercase block">Hasil (Result / Follow-Up)</label>
-              <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formOpiObservations[${idx}].hasil = this.value" placeholder="Tuliskan hasil tindak lanjut..." class="fm-auto-textarea bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:outline-none">${obs.hasil || ''}</textarea>
+              <div class="space-y-1 md:col-span-2">
+                <label class="font-bold text-[11px] text-slate-600 uppercase tracking-wide block">Hasil (Result / Follow-Up)</label>
+                <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formOpiObservations[${idx}].hasil = this.value" placeholder="Tuliskan hasil tindak lanjut..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-teal-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.hasil || ''}</textarea>
+              </div>
             </div>
           </div>
         </div>
@@ -5325,6 +5458,8 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     if (!this.formOpiObservations) return;
     this.formOpiObservations.splice(idx, 1);
     this.renderOpiObservationsList();
+    this.updateFormProgress();
+    this.showToast('Temuan OPI berhasil dihapus.', 'info');
   },
 
   // --- Section 2: QSC Observation Findings ---
@@ -5335,10 +5470,9 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
 
     if (!this.enableQsc) {
       container.innerHTML = `
-        <div class="border-2 border-dashed border-slate-300 rounded-2xl p-5 text-center text-slate-500 bg-slate-50/70">
-          <i class="fa-solid fa-power-off text-slate-400 text-lg mb-1 block"></i>
+        <div class="border border-dashed border-slate-300 rounded-2xl p-4 text-center text-slate-500 bg-slate-50/70">
           <p class="font-extrabold text-xs text-slate-700">Section QSC dinonaktifkan (OFF)</p>
-          <p class="text-[11px] text-slate-500 mt-0.5">Data temuan observasi QSC dan halaman dividernya tidak akan dimasukkan ke dalam laporan PDF.</p>
+          <p class="text-[11px] text-slate-400 mt-0.5">Temuan observasi QSC dan dividernya tidak akan dicetak ke laporan PDF.</p>
         </div>
       `;
       return;
@@ -5346,12 +5480,11 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
 
     if (!this.formObservations || this.formObservations.length === 0) {
       container.innerHTML = `
-        <div class="border-2 border-dashed border-emerald-200 rounded-2xl p-6 text-center text-slate-500 bg-emerald-50/20">
-          <p class="font-extrabold text-xs text-emerald-800 mb-1">Belum ada temuan observasi QSC (Default Kosong).</p>
-          <p class="text-[11px] text-slate-500 mb-3">Klik tombol di bawah jika terdapat temuan QSC (Food Safety, Sanitasi, SOP, Expired).</p>
-          <button type="button" onclick="FMCUApp.addObservationCard()" class="fm-gradient hover:opacity-95 text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer shadow-sm inline-flex items-center gap-1.5">
-            <i class="fa-solid fa-plus-circle"></i>
-            <span>+ Tambah Temuan QSC</span>
+        <div class="py-8 px-4 text-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50">
+          <i class="fa-solid fa-clipboard-check text-slate-300 text-3xl mb-1.5 block"></i>
+          <p class="text-xs font-semibold text-slate-500">Belum ada temuan observasi QSC (Default Kosong)</p>
+          <button type="button" onclick="FMCUApp.addObservationCard()" class="mt-2 text-xs font-bold text-emerald-700 hover:underline cursor-pointer">
+            + Tambah Temuan QSC
           </button>
         </div>
       `;
@@ -5361,102 +5494,97 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     container.innerHTML = this.formObservations
       .map(
         (obs, idx) => `
-        <div class="border border-slate-300 rounded-2xl overflow-hidden bg-white shadow-sm">
-          <!-- Card Header (Responsive Flex with no overlapping) -->
-          <div class="bg-[#0099A6] text-white px-3.5 sm:px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-            <!-- Row 1: Temuan badge + Preset Template Selector -->
-            <div class="flex flex-wrap items-center gap-2 flex-1 min-w-0">
-              <span class="font-extrabold text-xs sm:text-sm bg-white/20 px-2.5 py-1 rounded-lg shrink-0">Temuan ${idx + 1}/${this.formObservations.length}</span>
-              <select onchange="FMCUApp.applyFindingPreset(${idx}, this.value)" class="text-xs bg-white/15 hover:bg-white/25 text-white border border-white/30 rounded-lg px-2.5 py-1 font-semibold focus:outline-none cursor-pointer flex-1 min-w-[170px] max-w-full sm:max-w-xs truncate">
-                <option value="" class="text-slate-900">⚡ Template Standar SOP (Opsional)...</option>
-                ${presets.map((pr) => `<option value="${pr.id}" class="text-slate-900">${pr.label}</option>`).join('')}
+        <div class="relative bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 sm:p-5 shadow-xs transition space-y-4">
+          <!-- Top Right Corner Delete Button -->
+          <button type="button" onclick="FMCUApp.removeObservationCard(${idx})" class="absolute top-3.5 right-3.5 w-8 h-8 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition cursor-pointer" title="Hapus Temuan">
+            <i class="fa-solid fa-trash-can text-xs"></i>
+          </button>
+
+          <!-- Card Header Info -->
+          <div class="flex flex-wrap items-center justify-between gap-2 pr-10">
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 font-black text-xs">
+                Temuan #${idx + 1}
+              </span>
+              <select onchange="FMCUApp.formObservations[${idx}].category = this.value; FMCUApp.renderObservationsList();" class="text-xs font-extrabold bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1 text-slate-700 cursor-pointer max-w-[170px] truncate">
+                ${[
+                  'Food Safety & Expired',
+                  'Standar SOP & Alat Takar',
+                  'Kebersihan & Sanitasi (QSC)',
+                  'Administrasi & Logbook',
+                  'Merchandising & Price Card'
+                ]
+                  .map(
+                    (cat) =>
+                      `<option value="${cat}" ${obs.category === cat ? 'selected' : ''}>${cat}</option>`
+                  )
+                  .join('')}
               </select>
             </div>
 
-            <!-- Row 2: Deadline Pill + Delete Button -->
-            <div class="flex items-center justify-between sm:justify-end gap-2 shrink-0">
-              <div class="flex items-center gap-1.5 bg-white text-slate-800 px-2.5 py-1 rounded-xl text-xs font-bold border border-teal-100 shadow-2xs">
-                <span class="text-rose-700 text-[11px] font-extrabold whitespace-nowrap"><i class="fa-regular fa-calendar-xmark mr-1"></i>Deadline:</span>
-                <input type="date" value="${obs.deadline || ''}" onchange="FMCUApp.formObservations[${idx}].deadline = this.value; FMCUApp.formObservations[${idx}].deadlineFormatted = window.FMCUPdf.formatIndonesianDate(this.value, false);" class="text-xs font-bold text-rose-700 focus:outline-none bg-transparent cursor-pointer" />
-              </div>
-              <button type="button" onclick="FMCUApp.removeObservationCard(${idx})" class="w-7 h-7 rounded-lg bg-white/15 hover:bg-rose-500 text-white flex items-center justify-center text-xs transition cursor-pointer" title="Hapus Temuan">
-                <i class="fa-solid fa-trash-can"></i>
-              </button>
+            <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-xl text-xs font-bold border border-slate-200">
+              <span class="text-rose-700 text-[11px] font-extrabold whitespace-nowrap"><i class="fa-regular fa-calendar-xmark mr-1"></i>Deadline:</span>
+              <input type="date" value="${obs.deadline || ''}" onchange="FMCUApp.formObservations[${idx}].deadline = this.value; FMCUApp.formObservations[${idx}].deadlineFormatted = window.FMCUPdf.formatIndonesianDate(this.value, false);" class="text-xs font-bold text-rose-700 focus:outline-none bg-transparent cursor-pointer" />
             </div>
           </div>
 
-          <!-- 2x3 Grid matching PDF layout -->
-          <div class="p-3.5 sm:p-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-            <div class="bg-[#FEFCE8] border border-amber-300 rounded-xl p-3 space-y-1.5">
-              <div class="flex flex-wrap items-center justify-between gap-1.5">
-                <div class="flex items-center gap-1.5">
-                  <label class="font-extrabold text-amber-800 uppercase">Temuan (Finding) *</label>
-                  <button type="button" onclick="FMCUApp.startVoiceInput('obs-temuan-${idx}', this)" class="text-[10px] font-bold text-teal-800 bg-white hover:bg-teal-50 px-2 py-0.5 rounded border border-teal-200 flex items-center gap-1 transition cursor-pointer shadow-2xs" title="Diktekan temuan dengan suara">
-                    <i class="fa-solid fa-microphone text-rose-500"></i>
-                    <span>Dikte</span>
-                  </button>
-                </div>
-                <select onchange="FMCUApp.formObservations[${idx}].category = this.value; FMCUApp.renderObservationsList();" class="text-[11px] bg-white border border-amber-200 rounded px-2 py-0.5 font-semibold text-slate-700 max-w-[170px] truncate">
-                  ${[
-                    'Food Safety & Expired',
-                    'Standar SOP & Alat Takar',
-                    'Kebersihan & Sanitasi (QSC)',
-                    'Administrasi & Logbook',
-                    'Merchandising & Price Card'
-                  ]
-                    .map(
-                      (cat) =>
-                        `<option value="${cat}" ${obs.category === cat ? 'selected' : ''}>${cat}</option>`
-                    )
-                    .join('')}
-                </select>
-              </div>
+          <!-- Template Preset Quick Selection -->
+          <div class="flex flex-wrap items-center gap-1.5 pt-0.5">
+            <select onchange="FMCUApp.applyFindingPreset(${idx}, this.value)" class="text-[11px] bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg px-2 py-1 font-semibold focus:outline-none cursor-pointer">
+              <option value="">⚡ Template Standar SOP (Opsional)...</option>
+              ${presets.map((pr) => `<option value="${pr.id}">${pr.label}</option>`).join('')}
+            </select>
+            <button type="button" onclick="FMCUApp.applyFindingPreset(${idx}, 'preset-food-safety')" class="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 border border-slate-200 transition cursor-pointer">
+              ⚡ Expired / FEFO
+            </button>
+            <button type="button" onclick="FMCUApp.applyFindingPreset(${idx}, 'preset-kebersihan')" class="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 border border-slate-200 transition cursor-pointer">
+              ⚡ Kebersihan Area
+            </button>
+            <button type="button" onclick="FMCUApp.applyFindingPreset(${idx}, 'preset-alat-takar')" class="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 border border-slate-200 transition cursor-pointer">
+              ⚡ Alat Takar SOP
+            </button>
+          </div>
 
-              <!-- Recommendation Chips -->
-              <div class="flex flex-wrap items-center gap-1 pt-0.5 pb-0.5">
-                <span class="text-[9px] font-bold text-amber-900/70 flex items-center gap-1 uppercase mr-0.5">
-                  <i class="fa-solid fa-wand-magic-sparkles text-amber-600"></i> Rekomendasi:
-                </span>
-                <button type="button" onclick="FMCUApp.applyFindingPreset(${idx}, 'preset-food-safety')" class="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 transition cursor-pointer">
-                  ⚡ Expired / FEFO
-                </button>
-                <button type="button" onclick="FMCUApp.applyFindingPreset(${idx}, 'preset-kebersihan')" class="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 transition cursor-pointer">
-                  ⚡ Kebersihan Area
-                </button>
-                <button type="button" onclick="FMCUApp.applyFindingPreset(${idx}, 'preset-alat-takar')" class="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 transition cursor-pointer">
-                  ⚡ Alat Takar SOP
-                </button>
-                <button type="button" onclick="FMCUApp.applyFindingPreset(${idx}, 'preset-price-card')" class="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 transition cursor-pointer">
-                  ⚡ Price Card
+          <!-- Clean Form Groups -->
+          <div class="space-y-3">
+            <div class="space-y-1">
+              <div class="flex items-center justify-between">
+                <label class="font-extrabold text-xs text-amber-800 uppercase flex items-center gap-1">
+                  <i class="fa-solid fa-triangle-exclamation text-amber-500"></i>Temuan (Finding) *
+                </label>
+                <button type="button" onclick="FMCUApp.startVoiceInput('obs-temuan-${idx}', this)" class="text-[10px] font-bold text-teal-800 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded-lg border border-teal-200 flex items-center gap-1 transition cursor-pointer shadow-2xs" title="Diktekan temuan dengan suara">
+                  <i class="fa-solid fa-microphone text-rose-500"></i>
+                  <span>Dikte</span>
                 </button>
               </div>
-
-              <textarea id="obs-temuan-${idx}" rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formObservations[${idx}].temuan = this.value; FMCUApp.updateFormProgress();" placeholder="Tuliskan detail temuan observasi..." class="fm-auto-textarea bg-white/90 border border-amber-200 rounded-lg p-2 font-bold text-slate-900 focus:outline-none">${obs.temuan || ''}</textarea>
+              <textarea id="obs-temuan-${idx}" rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formObservations[${idx}].temuan = this.value; FMCUApp.updateFormProgress();" placeholder="Tuliskan detail temuan observasi..." class="fm-auto-textarea w-full bg-amber-50/30 border border-amber-300 rounded-xl p-2.5 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 transition">${obs.temuan || ''}</textarea>
             </div>
 
-            <div class="bg-slate-50/70 border border-slate-200 rounded-xl p-3 space-y-1.5">
-              <label class="font-extrabold text-[#008291] uppercase block">Dampak (Impact)</label>
-              <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formObservations[${idx}].dampak = this.value" placeholder="Tuliskan dampak terhadap kualitas..." class="fm-auto-textarea bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:outline-none">${obs.dampak || ''}</textarea>
-            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div class="space-y-1">
+                <label class="font-bold text-[11px] text-slate-600 uppercase tracking-wide block">Dampak (Impact)</label>
+                <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formObservations[${idx}].dampak = this.value" placeholder="Tuliskan dampak terhadap kualitas..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.dampak || ''}</textarea>
+              </div>
 
-            <div class="bg-slate-50/70 border border-slate-200 rounded-xl p-3 space-y-1.5">
-              <label class="font-extrabold text-[#008291] uppercase block">Kondisi Ideal</label>
-              <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formObservations[${idx}].kondisiIdeal = this.value" placeholder="Tuliskan standar kondisi ideal..." class="fm-auto-textarea bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:outline-none">${obs.kondisiIdeal || ''}</textarea>
-            </div>
+              <div class="space-y-1">
+                <label class="font-bold text-[11px] text-slate-600 uppercase tracking-wide block">Kondisi Ideal</label>
+                <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formObservations[${idx}].kondisiIdeal = this.value" placeholder="Tuliskan standar kondisi ideal..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.kondisiIdeal || ''}</textarea>
+              </div>
 
-            <div class="bg-slate-50/70 border border-slate-200 rounded-xl p-3 space-y-1.5">
-              <label class="font-extrabold text-[#008291] uppercase block">Tindakan Perbaikan (Corrective Action)</label>
-              <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formObservations[${idx}].tindakanPerbaikan = this.value" placeholder="Tuliskan tindakan perbaikan..." class="fm-auto-textarea bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:outline-none">${obs.tindakanPerbaikan || ''}</textarea>
-            </div>
+              <div class="space-y-1">
+                <label class="font-bold text-[11px] text-slate-600 uppercase tracking-wide block">Tindakan Perbaikan (Corrective Action)</label>
+                <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formObservations[${idx}].tindakanPerbaikan = this.value" placeholder="Tuliskan tindakan perbaikan..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.tindakanPerbaikan || ''}</textarea>
+              </div>
 
-            <div class="bg-slate-50/70 border border-slate-200 rounded-xl p-3 space-y-1.5">
-              <label class="font-extrabold text-[#008291] uppercase block">Penyebab (Root Cause)</label>
-              <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formObservations[${idx}].penyebab = this.value" placeholder="Tuliskan akar penyebab temuan..." class="fm-auto-textarea bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:outline-none">${obs.penyebab || ''}</textarea>
-            </div>
+              <div class="space-y-1">
+                <label class="font-bold text-[11px] text-slate-600 uppercase tracking-wide block">Penyebab (Root Cause)</label>
+                <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formObservations[${idx}].penyebab = this.value" placeholder="Tuliskan akar penyebab temuan..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.penyebab || ''}</textarea>
+              </div>
 
-            <div class="bg-slate-50/70 border border-slate-200 rounded-xl p-3 space-y-1.5">
-              <label class="font-extrabold text-[#008291] uppercase block">Hasil (Result / Follow-Up)</label>
-              <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formObservations[${idx}].hasil = this.value" placeholder="Tuliskan hasil tindak lanjut..." class="fm-auto-textarea bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:outline-none">${obs.hasil || ''}</textarea>
+              <div class="space-y-1 md:col-span-2">
+                <label class="font-bold text-[11px] text-slate-600 uppercase tracking-wide block">Hasil (Result / Follow-Up)</label>
+                <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formObservations[${idx}].hasil = this.value" placeholder="Tuliskan hasil tindak lanjut..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.hasil || ''}</textarea>
+              </div>
             </div>
           </div>
         </div>
@@ -5467,47 +5595,6 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     container.querySelectorAll('textarea').forEach((ta) => this.autoExpandTextarea(ta));
   },
 
-  addObservationCard() {
-    const todayStr = new Date().toISOString().slice(0, 10);
-    this.formObservations.push({
-      id: 'obs-' + Date.now(),
-      category: 'Food Safety & Expired',
-      temuan: '',
-      kondisiIdeal: '',
-      penyebab: '',
-      dampak: '',
-      tindakanPerbaikan: '',
-      hasil: '',
-      deadline: todayStr,
-      deadlineFormatted: window.FMCUPdf.formatIndonesianDate(todayStr, false),
-      status: 'OPEN'
-    });
-    this.renderObservationsList();
-  },
-
-  removeObservationCard(idx) {
-    this.formObservations.splice(idx, 1);
-    this.renderObservationsList();
-  },
-
-  applyFindingPreset(obsIdx, presetId) {
-    if (!presetId) return;
-    const preset = (window.FMCUData.FINDING_PRESETS || []).find((p) => p.id === presetId);
-    if (!preset) return;
-    this.formObservations[obsIdx] = {
-      ...this.formObservations[obsIdx],
-      category: preset.category,
-      kondisiIdeal: preset.kondisiIdeal,
-      penyebab: preset.penyebab,
-      dampak: preset.dampak,
-      tindakanPerbaikan: preset.tindakanPerbaikan,
-      hasil: preset.hasil
-    };
-    this.renderObservationsList();
-    this.showToast(`Template "${preset.label}" diterapkan ke Temuan #${obsIdx + 1}`, 'info');
-  },
-
-  // --- Section 3: Finding Evidence Photos ---
   renderEvidenceGrid() {
     const grid = document.getElementById('form-evidence-grid');
     if (!grid) return;
@@ -5565,10 +5652,10 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
 
           <div class="col-span-7 flex flex-col justify-between pr-4">
             <div>
-              <div class="flex items-center justify-between mb-1">
-                <label class="block text-[10px] font-extrabold text-slate-400 uppercase">Bukti #${idx + 1} — Keterangan</label>
-                <button type="button" onclick="FMCUApp.startVoiceInput('ev-desc-${idx}', this)" class="text-[9.5px] font-bold text-teal-800 bg-teal-50 hover:bg-teal-100 px-1.5 py-0.5 rounded border border-teal-200 flex items-center gap-1 cursor-pointer transition shadow-2xs" title="Diktekan dengan Suara">
-                  <i class="fa-solid fa-microphone text-rose-500"></i>
+              <div class="flex items-center justify-between gap-1.5 mb-1.5 min-h-[26px]">
+                <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider truncate">Keterangan #${idx + 1}</span>
+                <button type="button" onclick="FMCUApp.startVoiceInput('ev-desc-${idx}', this)" class="shrink-0 h-6 text-[10px] font-bold text-teal-800 bg-teal-50 hover:bg-teal-100 px-2 rounded-lg border border-teal-200 flex items-center gap-1 cursor-pointer transition shadow-2xs" title="Diktekan dengan Suara">
+                  <i class="fa-solid fa-microphone text-rose-500 text-[10px]"></i>
                   <span>Dikte</span>
                 </button>
               </div>
@@ -5746,10 +5833,10 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
 
           <div class="col-span-7 flex flex-col justify-between pr-4">
             <div>
-              <div class="flex items-center justify-between mb-1">
-                <label class="block text-[10px] font-extrabold text-purple-700 uppercase">Bukti Perbaikan #${idx + 1}</label>
-                <button type="button" onclick="FMCUApp.startVoiceInput('ca-desc-${idx}', this)" class="text-[9.5px] font-bold text-purple-800 bg-purple-50 hover:bg-purple-100 px-1.5 py-0.5 rounded border border-purple-200 flex items-center gap-1 cursor-pointer transition shadow-2xs" title="Diktekan dengan Suara">
-                  <i class="fa-solid fa-microphone text-rose-500"></i>
+              <div class="flex items-center justify-between gap-1.5 mb-1.5 min-h-[26px]">
+                <span class="text-[10px] font-black text-purple-900/70 uppercase tracking-wider truncate">Perbaikan #${idx + 1}</span>
+                <button type="button" onclick="FMCUApp.startVoiceInput('ca-desc-${idx}', this)" class="shrink-0 h-6 text-[10px] font-bold text-purple-800 bg-purple-50 hover:bg-purple-100 px-2 rounded-lg border border-purple-200 flex items-center gap-1 cursor-pointer transition shadow-2xs" title="Diktekan dengan Suara">
+                  <i class="fa-solid fa-microphone text-rose-500 text-[10px]"></i>
                   <span>Dikte</span>
                 </button>
               </div>
