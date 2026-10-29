@@ -588,19 +588,19 @@
           </button>
 
           <!-- Home Navigation Button (Tampil di Form & sub-halaman lain) -->
-          <button id="header-home-btn" type="button" onclick="FMCUApp.navigate('home')" class="hidden items-center justify-center p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition cursor-pointer shadow-2xs" title="Kembali ke Beranda (Home)">
-            <i class="fa-solid fa-house text-xs sm:text-sm"></i>
+          <button id="header-home-btn" type="button" onclick="FMCUApp.navigate('home')" class="hidden h-10 w-10 rounded-2xl items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition cursor-pointer shadow-2xs shrink-0" title="Kembali ke Beranda (Home)">
+            <i class="fa-solid fa-house text-sm"></i>
           </button>
 
           <!-- Standar Holding Time Guide Button (HANYA tampil saat user berada di dalam Form Visit - Diperingkas Cukup Icon & Badge Saja) -->
-          <button id="header-holding-time-btn" type="button" onclick="FMCUApp.openHoldingTimeModal()" class="hidden items-center gap-1 p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 border border-amber-300 font-bold text-xs transition cursor-pointer shadow-2xs" title="Panduan Standar Holding Time Resmi (QC)">
-            <i class="fa-solid fa-clock-rotate-left text-xs sm:text-sm text-amber-600"></i>
+          <button id="header-holding-time-btn" type="button" onclick="FMCUApp.openHoldingTimeModal()" class="hidden h-10 px-2.5 rounded-2xl items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-800 border border-amber-300 font-extrabold text-xs transition cursor-pointer shadow-2xs shrink-0" title="Panduan Standar Holding Time Resmi (QC)">
+            <i class="fa-solid fa-clock-rotate-left text-sm text-amber-600"></i>
             <span id="header-holding-badge" class="px-1.5 py-0.5 rounded-full text-[9px] bg-amber-600 text-white font-extrabold leading-none">R23</span>
           </button>
 
           <!-- Profile Button -->
-          <button onclick="FMCUApp.openProfileModal()" class="flex items-center gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition cursor-pointer">
-            <div id="header-user-avatar" class="w-7 h-7 rounded-full bg-[#0099A6] text-white font-bold text-xs flex items-center justify-center">
+          <button onclick="FMCUApp.openProfileModal()" class="h-10 flex items-center gap-2 px-2 sm:px-3 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition cursor-pointer shadow-2xs shrink-0">
+            <div id="header-user-avatar" class="w-7 h-7 rounded-full bg-[#0099A6] text-white font-extrabold text-xs flex items-center justify-center shrink-0">
               VS
             </div>
             <span id="header-user-name" class="hidden sm:inline font-bold text-xs text-slate-800">Visitor FMCU</span>
@@ -919,7 +919,7 @@
         <!-- ==============================================================
              T.A.R.O AI - TRAINER ASYIK REKAN OPERASIONAL
              ============================================================== -->
-        <div id="analytics-ai-summary-card" class="relative w-full pt-1 pb-1 transition-all duration-300">
+        <div id="analytics-ai-summary-card" class="relative w-full -mt-2 sm:-mt-4 pt-0 pb-1 transition-all duration-300">
           <!-- Header TARO AI: Clean title, seamless mini mascot, action controls -->
           <div class="relative z-10 flex items-center justify-between gap-3 border-b border-slate-200/70 pb-2.5 mb-2">
             <!-- Left: Seamless Mini GIF Mascot & Title -->
@@ -1013,7 +1013,21 @@
                 <!-- Injected typewriter HTML -->
               </div>
 
-
+              <!-- Slide Indicator Dots & Prev/Next Mini Chevrons -->
+              <div class="flex items-center justify-between pt-2 border-t border-slate-100/80 mt-1 select-none">
+                <button type="button" onclick="FMCUApp.prevTaroSlide()" class="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-[10px] transition cursor-pointer" title="Poin Sebelumnya">
+                  <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <div class="flex items-center gap-1.5" id="taro-slide-dots">
+                  <button type="button" onclick="FMCUApp.showTaroSlide(0)" class="taro-dot w-2 h-2 rounded-full transition-all duration-300 bg-emerald-600 scale-125 cursor-pointer" title="Poin 1"></button>
+                  <button type="button" onclick="FMCUApp.showTaroSlide(1)" class="taro-dot w-2 h-2 rounded-full transition-all duration-300 bg-slate-300 cursor-pointer" title="Poin 2"></button>
+                  <button type="button" onclick="FMCUApp.showTaroSlide(2)" class="taro-dot w-2 h-2 rounded-full transition-all duration-300 bg-slate-300 cursor-pointer" title="Poin 3"></button>
+                  <button type="button" onclick="FMCUApp.showTaroSlide(3)" class="taro-dot w-2 h-2 rounded-full transition-all duration-300 bg-slate-300 cursor-pointer" title="Poin 4"></button>
+                </div>
+                <button type="button" onclick="FMCUApp.nextTaroSlide()" class="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-[10px] transition cursor-pointer" title="Poin Berikutnya">
+                  <i class="fa-solid fa-chevron-right"></i>
+                </button>
+              </div>
             </div>
 
             <!-- 2. EXPANDED VIEW: Full Comprehensive Overview (Shown on Perbesar) -->
@@ -1114,7 +1128,7 @@
               </div>
               <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700">Performa Toko</span>
             </div>
-            <div class="h-64 flex items-center justify-center relative">
+            <div id="chart-trend-stores-wrapper" class="min-h-[260px] max-h-[550px] overflow-y-auto flex items-center justify-center relative w-full">
               <canvas id="chart-trend-stores"></canvas>
             </div>
             <div id="trend-stores-summary" class="mt-4 pt-3 border-t border-slate-100 grid grid-cols-3 gap-2 text-xs"></div>
@@ -1158,7 +1172,7 @@
            HALAMAN 2: FORM VISIT STORE
            (Hanya terbuka jika user sudah masuk ke form toko masing-masing)
            ================================================================== -->
-      <main id="view-form" class="view-section p-4 sm:p-6 max-w-6xl w-full mx-auto space-y-6 pb-28 sm:pb-16 hidden">
+      <main id="view-form" class="view-section p-2.5 sm:p-6 max-w-6xl w-full mx-auto space-y-5 pb-28 sm:pb-16 hidden">
 
         <!-- Guard Screen if no store is currently active -->
         <div id="form-no-store-guard" class="fm-card p-8 max-w-lg mx-auto my-8 text-center space-y-4 hidden">
@@ -1385,7 +1399,7 @@
             <!-- ============================================================
                  SECTION 2: OBSERVATION (OPI PROJECT & QSC OBSERVATION)
                  ============================================================ -->
-            <div id="form-sec-2" class="form-step-section fm-card p-5 sm:p-6 space-y-5 hidden">
+            <div id="form-sec-2" class="form-step-section fm-card p-3.5 sm:p-6 space-y-5 hidden w-full">
               <!-- Header Section 2 -->
               <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div class="flex items-center gap-3">
@@ -1451,7 +1465,7 @@
               </div>
             </div>
 
-            <div id="form-sec-3" class="form-step-section fm-card p-5 sm:p-6 space-y-5 hidden">
+            <div id="form-sec-3" class="form-step-section fm-card p-3.5 sm:p-6 space-y-5 hidden w-full">
               <!-- Header Section 3 -->
               <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div class="flex items-center gap-3">
@@ -1459,6 +1473,19 @@
                     <i class="fa-solid fa-camera-retro"></i>
                   </div>
                   <h3 class="font-extrabold text-base sm:text-lg text-slate-900">Section 3: Evidence</h3>
+                </div>
+
+                <!-- Super Admin Timestamp Watermark Toggle Pill (Khusus Super Admin) -->
+                <div id="form-admin-watermark-toggle-box" class="hidden items-center gap-2 px-2.5 py-1 rounded-xl bg-amber-50 border border-amber-200 shadow-2xs">
+                  <span class="text-[10px] font-extrabold text-amber-900 flex items-center gap-1">
+                    <i class="fa-solid fa-shield-halved text-amber-600"></i>
+                    <span class="hidden sm:inline">Watermark GPS & Time:</span>
+                  </span>
+                  <label class="fm-toggle-switch fm-toggle-sm" title="Aktifkan/Nonaktifkan Watermark Timestamp GPS Foto (Super Admin Only)">
+                    <input type="checkbox" id="form-admin-toggle-watermark" checked onchange="FMCUApp.toggleAdminWatermarkGps(this.checked)" />
+                    <span class="fm-toggle-track"><span class="fm-toggle-knob"></span></span>
+                  </label>
+                  <span id="badge-admin-watermark" class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 leading-none">ON</span>
                 </div>
               </div>
 
@@ -3497,13 +3524,13 @@ service cloud.firestore {
           <!-- Floating Action Buttons for Section 3: Evidence (Camera & Gallery with blur shadow) -->
           <div id="floating-evidence-actions" class="hidden fixed bottom-20 sm:bottom-8 right-4 sm:right-8 z-40 flex items-center gap-3">
             <!-- Camera FAB -->
-            <button type="button" onclick="FMCUApp.handleFloatingCameraClick()" class="floating-fab-glow w-13 h-13 rounded-full fm-gradient text-white flex items-center justify-center cursor-pointer text-xl select-none" title="Ambil Foto Kamera">
-              <i class="fa-solid fa-camera"></i>
+            <button type="button" onclick="FMCUApp.handleFloatingCameraClick()" class="floating-fab-glow w-14 h-14 rounded-full fm-gradient text-white flex items-center justify-center cursor-pointer text-2xl select-none" title="Ambil Foto Kamera">
+              <i class="fa-solid fa-camera text-2xl"></i>
             </button>
 
             <!-- Gallery FAB -->
-            <button type="button" onclick="FMCUApp.handleFloatingGalleryClick()" class="floating-fab-glow-dark w-13 h-13 rounded-full bg-slate-900 hover:bg-black text-white flex items-center justify-center cursor-pointer text-xl select-none" title="Pilih dari Galeri">
-              <i class="fa-solid fa-images"></i>
+            <button type="button" onclick="FMCUApp.handleFloatingGalleryClick()" class="floating-fab-glow-dark w-14 h-14 rounded-full bg-slate-900 hover:bg-black text-white flex items-center justify-center cursor-pointer text-2xl select-none" title="Pilih dari Galeri">
+              <i class="fa-solid fa-images text-2xl"></i>
             </button>
 
             <!-- Hidden file inputs triggered programmatically -->

@@ -949,6 +949,39 @@ window.FMCUApp = {
         }
       }
     });
+
+    // 3. Super Admin Watermark GPS & Timestamp Toggle di Section 3 Form Visit
+    const adminWatermarkBox = document.getElementById('form-admin-watermark-toggle-box');
+    if (adminWatermarkBox) {
+      adminWatermarkBox.classList.toggle('hidden', !isSuperAdmin);
+      if (isSuperAdmin) {
+        const settings = window.FMCUData.getSettings();
+        const watermarkToggle = document.getElementById('form-admin-toggle-watermark');
+        const watermarkBadge = document.getElementById('badge-admin-watermark');
+        const isWatermarkOn = settings.autoWatermarkGps !== false;
+        if (watermarkToggle) watermarkToggle.checked = isWatermarkOn;
+        if (watermarkBadge) {
+          watermarkBadge.textContent = isWatermarkOn ? 'ON' : 'OFF';
+          watermarkBadge.className = isWatermarkOn
+            ? 'text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 leading-none'
+            : 'text-[9px] font-black px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-800 leading-none';
+        }
+      }
+    }
+  },
+
+  toggleAdminWatermarkGps(isChecked) {
+    window.FMCUData.saveSettings({ autoWatermarkGps: isChecked });
+    const watermarkBadge = document.getElementById('badge-admin-watermark');
+    if (watermarkBadge) {
+      watermarkBadge.textContent = isChecked ? 'ON' : 'OFF';
+      watermarkBadge.className = isChecked
+        ? 'text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 leading-none'
+        : 'text-[9px] font-black px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-800 leading-none';
+    }
+    const adminSetToggle = document.getElementById('set-auto-watermark-gps');
+    if (adminSetToggle) adminSetToggle.checked = isChecked;
+    this.showToast(`Watermark GPS & Timestamp foto ${isChecked ? 'diaktifkan (ON)' : 'dinonaktifkan (OFF)'}.`, isChecked ? 'success' : 'info');
   },
 
 
@@ -1525,6 +1558,14 @@ window.FMCUApp = {
     this.updateFormProgress();
     const targetSec = Number(secNum) || 1;
     this.currentFormSection = targetSec;
+
+    // Auto-fill nama visitor jika masih kosong
+    if (targetSec === 1) {
+      const audInput = document.getElementById('form-auditor-name');
+      if (audInput && !audInput.value.trim() && this.currentUser) {
+        audInput.value = this.currentUser.name || this.currentUser.username || '';
+      }
+    }
 
     // Tampilkan top banner Geofence Radar HANYA di Section 1 dan Section 4
     const topBanner = document.getElementById('form-top-geofence-banner');
@@ -2194,6 +2235,15 @@ window.FMCUApp = {
     if (!map || !layerGroup || typeof L === 'undefined') return;
     layerGroup.clearLayers();
 
+    const isPrivilegedAdmin = Boolean(
+      this.currentUser &&
+      (this.currentUser.role === 'SUPER_ADMIN' ||
+       this.currentUser.role === 'SCHEDULE_ADMIN' ||
+       this.currentUser.role === 'AREA_MANAGER' ||
+       this.currentUser.role === 'REGIONAL_MANAGER' ||
+       this.currentUser.username === 'admin')
+    );
+
     const users = window.FMCUData.getUsers();
     const besties = users.filter((u) => this.isAuditorUser(u));
     const currentUserId = this.currentUser?.id || this.currentUser?.username;
@@ -2212,6 +2262,13 @@ window.FMCUApp = {
       if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) return;
 
       const isMe = String(bestie.id || bestie.username) === String(currentUserId);
+
+      // LIVE LOC SISI USER:
+      // Regular user / bestie HANYA boleh melihat posisi GPS miliknya sendiri dan titik toko.
+      // Dilarang menampilkan lokasi pin Bestie lain jika bukan admin!
+      if (!isPrivilegedAdmin && !isMe) {
+        return;
+      }
       const initials = (bestie.name || 'RB')
         .split(' ')
         .filter(Boolean)
@@ -2860,7 +2917,7 @@ window.FMCUApp = {
       document.getElementById('form-actual-out').value = sch.actualOut;
     }
     if (this.currentUser) {
-      document.getElementById('form-auditor-name').value = this.currentUser.name || '';
+      document.getElementById('form-auditor-name').value = this.currentUser.name || this.currentUser.username || '';
     }
 
     if (store) {
@@ -3833,28 +3890,32 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     if (!rawText) return [];
     const metaList = [
       { defaultTitle: '1. Kabar Baik & Performa Toko Kita', icon: 'fa-thumbs-up', color: 'emerald' },
-      { defaultTitle: '2. Catatan & Pola Temuan Toko', icon: 'fa-triangle-exclamation', color: 'amber' },
+      { defaultTitle: '2. Catatan & Pola Temuan Kritis', icon: 'fa-triangle-exclamation', color: 'amber' },
       { defaultTitle: '3. Kenapa Bisa Terjadi? (Akar Masalah)', icon: 'fa-magnifying-glass-chart', color: 'rose' },
       { defaultTitle: '4. Action Plan Asyik & Solusi Cepat', icon: 'fa-rocket', color: 'teal' }
     ];
 
-    // Split markdown by headings "### "
-    let chunks = rawText.split(/^###\s+/m).map(c => c.trim()).filter(Boolean);
+    // Split markdown by common heading variants:
+    // Matches: ### 1., ## 1., # 1., **1., 1. **, or 1. Kabar / Catatan / Kenapa / Action
+    const splitRegex = /(?:^|\n)(?=(?:#{1,4}\s+|\*\*\s*[1-4][\.\)]|[1-4][\.\)]\s+\*\*|[1-4][\.\)]\s+(?:Kabar|Catatan|Kenapa|Action)))/i;
+    let chunks = rawText.split(splitRegex).map(c => c.trim()).filter(Boolean);
 
     // If first chunk is an unstructured intro or greeting, skip it if there are 4+ sections
-    if (chunks.length > 4 && !/^\d+[\.\)]/i.test(chunks[0])) {
+    if (chunks.length > 4 && !/^(?:#{1,4}|\*\*|\d+[\.\)])/i.test(chunks[0])) {
       chunks = chunks.slice(1);
     }
 
     const sections = [];
     chunks.forEach((chunk, idx) => {
-      const lines = chunk.split('\n');
-      let titleLine = (lines[0] || '').trim();
+      if (idx >= 4) return;
+      const lines = chunk.split('\n').filter(l => l.trim().length > 0);
+      let rawTitle = (lines[0] || '').trim();
+      const cleanTitle = rawTitle.replace(/^[#\s\*]+/, '').replace(/[\*\#]+$/, '').trim();
       const bodyLines = lines.slice(1).join('\n').trim();
       const meta = metaList[idx] || { defaultTitle: `Poin ${idx + 1}`, icon: 'fa-clipboard-check', color: 'emerald' };
 
-      const content = bodyLines || titleLine;
-      const title = bodyLines ? titleLine : meta.defaultTitle;
+      const content = bodyLines || chunk;
+      const title = cleanTitle || meta.defaultTitle;
 
       sections.push({
         title: title || meta.defaultTitle,
@@ -3865,14 +3926,13 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       });
     });
 
-    // Fallback: If AI returned fewer than 3 sections, split paragraphs into exactly 4 balanced points
-    if (sections.length < 3) {
+    // Fallback: Jika sections kurang dari 4, pecah paragraf secara proporsional TANPA duplikasi berulang
+    if (sections.length < 4) {
       const paragraphs = rawText.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
-      const cleanSections = [];
-      for (let i = 0; i < 4; i++) {
+      for (let i = sections.length; i < 4; i++) {
         const meta = metaList[i];
-        let pText = paragraphs[i] || paragraphs[0] || rawText;
-        cleanSections.push({
+        const pText = paragraphs[i] || (i === 0 ? rawText : '- Belum ada temuan tambahan pada kategori ini.');
+        sections.push({
           title: meta.defaultTitle,
           icon: meta.icon,
           color: meta.color,
@@ -3880,7 +3940,6 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
           html: this.formatAiMarkdown(pText)
         });
       }
-      return cleanSections;
     }
 
     return sections;
@@ -4011,7 +4070,18 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       this.typewriterElement(bodyEl, sec.html);
     }
 
-
+    // Update Slide Indicator Dots
+    const dotsContainer = document.getElementById('taro-slide-dots');
+    if (dotsContainer) {
+      const dots = dotsContainer.querySelectorAll('.taro-dot');
+      dots.forEach((dot, dIdx) => {
+        if (dIdx === index) {
+          dot.className = 'taro-dot w-2 h-2 rounded-full transition-all duration-300 bg-emerald-600 scale-125 cursor-pointer';
+        } else {
+          dot.className = 'taro-dot w-2 h-2 rounded-full transition-all duration-300 bg-slate-300 hover:bg-slate-400 cursor-pointer';
+        }
+      });
+    }
   },
 
   nextTaroSlide() {
@@ -4354,6 +4424,14 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     const ctx2 = document.getElementById('chart-trend-stores');
     if (ctx2 && typeof Chart !== 'undefined') {
       if (this.chartStores) this.chartStores.destroy();
+
+      // Dynamic wrapper height so bars are spacious and never cramped
+      const chartWrapper = document.getElementById('chart-trend-stores-wrapper');
+      if (chartWrapper) {
+        const dynamicH = Math.max(260, Math.min(1200, (storeNames.length || 1) * 38 + 60));
+        chartWrapper.style.height = `${dynamicH}px`;
+      }
+
       this.chartStores = new Chart(ctx2, {
         type: 'bar',
         data: {
@@ -4374,6 +4452,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
           ]
         },
         options: {
+          indexAxis: 'y',
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
@@ -4383,13 +4462,15 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
             }
           },
           scales: {
-            y: {
+            x: {
               beginAtZero: true,
               ticks: { precision: 0, font: { size: 10 } },
-              title: { display: true, text: 'Jumlah Temuan', font: { size: 11, weight: 'bold' } }
+              title: { display: true, text: 'Jumlah Temuan', font: { size: 10, weight: 'bold' } },
+              grid: { color: '#f1f5f9' }
             },
-            x: {
-              ticks: { maxRotation: 45, font: { size: 10 } }
+            y: {
+              ticks: { font: { size: 10, weight: 'bold' } },
+              grid: { display: false }
             }
           }
         }
@@ -4678,7 +4759,8 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     document.getElementById('form-store-name').value = '';
     document.getElementById('form-store-code').value = '';
     document.getElementById('form-store-type').value = 'CVS';
-    document.getElementById('form-auditor-name').value = '';
+    const defaultAuditor = this.currentUser?.name || this.currentUser?.username || '';
+    document.getElementById('form-auditor-name').value = defaultAuditor;
     document.getElementById('form-visit-date').value = todayStr;
     document.getElementById('form-qsc-score').value = '';
     document.getElementById('form-store-head').value = '';
@@ -5381,19 +5463,19 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
           </button>
 
           <!-- Card Header Info -->
-          <div class="flex flex-wrap items-center justify-between gap-2 pr-10">
-            <div class="flex items-center gap-2">
-              <span class="px-2.5 py-1 rounded-lg bg-teal-50 text-teal-800 border border-teal-200 font-black text-xs">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pr-10">
+            <div class="flex items-center gap-2 flex-wrap shrink-0">
+              <span class="px-2.5 py-1 rounded-lg bg-teal-50 text-teal-800 border border-teal-200 font-black text-xs shrink-0">
                 Temuan #${idx + 1}
               </span>
-              <span class="text-[10px] font-extrabold text-teal-700 bg-teal-50/80 px-2 py-0.5 rounded-full border border-teal-200">
+              <span class="text-[10px] font-extrabold text-teal-700 bg-teal-50/80 px-2 py-0.5 rounded-full border border-teal-200 shrink-0">
                 OPI Project
               </span>
             </div>
 
-            <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-xl text-xs font-bold border border-slate-200">
-              <span class="text-rose-700 text-[11px] font-extrabold whitespace-nowrap"><i class="fa-regular fa-calendar-xmark mr-1"></i>Deadline:</span>
-              <input type="date" value="${obs.deadline || ''}" onchange="FMCUApp.formOpiObservations[${idx}].deadline = this.value; FMCUApp.formOpiObservations[${idx}].deadlineFormatted = window.FMCUPdf.formatIndonesianDate(this.value, false);" class="text-xs font-bold text-rose-700 focus:outline-none bg-transparent cursor-pointer" />
+            <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-xl text-xs font-bold border border-slate-200 max-w-full">
+              <span class="text-rose-700 text-[11px] font-extrabold whitespace-nowrap shrink-0"><i class="fa-regular fa-calendar-xmark mr-1"></i>Deadline:</span>
+              <input type="date" value="${obs.deadline || ''}" onchange="FMCUApp.formOpiObservations[${idx}].deadline = this.value; FMCUApp.formOpiObservations[${idx}].deadlineFormatted = window.FMCUPdf.formatIndonesianDate(this.value, false);" class="text-xs font-bold text-rose-700 focus:outline-none bg-transparent cursor-pointer min-w-0 w-full sm:w-auto" />
             </div>
           </div>
 
@@ -5513,12 +5595,12 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
           </button>
 
           <!-- Card Header Info -->
-          <div class="flex flex-wrap items-center justify-between gap-2 pr-10">
-            <div class="flex items-center gap-2">
-              <span class="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 font-black text-xs">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pr-10">
+            <div class="flex items-center gap-2 flex-wrap min-w-0">
+              <span class="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 font-black text-xs shrink-0">
                 Temuan #${idx + 1}
               </span>
-              <select onchange="FMCUApp.formObservations[${idx}].category = this.value; FMCUApp.renderObservationsList();" class="text-xs font-extrabold bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1 text-slate-700 cursor-pointer max-w-[170px] truncate">
+              <select onchange="FMCUApp.formObservations[${idx}].category = this.value; FMCUApp.renderObservationsList();" class="text-xs font-extrabold bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1 text-slate-700 cursor-pointer w-full sm:w-auto max-w-full sm:max-w-[200px] truncate">
                 ${[
                   'Food Safety & Expired',
                   'Standar SOP & Alat Takar',
@@ -5534,9 +5616,9 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
               </select>
             </div>
 
-            <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-xl text-xs font-bold border border-slate-200">
-              <span class="text-rose-700 text-[11px] font-extrabold whitespace-nowrap"><i class="fa-regular fa-calendar-xmark mr-1"></i>Deadline:</span>
-              <input type="date" value="${obs.deadline || ''}" onchange="FMCUApp.formObservations[${idx}].deadline = this.value; FMCUApp.formObservations[${idx}].deadlineFormatted = window.FMCUPdf.formatIndonesianDate(this.value, false);" class="text-xs font-bold text-rose-700 focus:outline-none bg-transparent cursor-pointer" />
+            <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-xl text-xs font-bold border border-slate-200 max-w-full">
+              <span class="text-rose-700 text-[11px] font-extrabold whitespace-nowrap shrink-0"><i class="fa-regular fa-calendar-xmark mr-1"></i>Deadline:</span>
+              <input type="date" value="${obs.deadline || ''}" onchange="FMCUApp.formObservations[${idx}].deadline = this.value; FMCUApp.formObservations[${idx}].deadlineFormatted = window.FMCUPdf.formatIndonesianDate(this.value, false);" class="text-xs font-bold text-rose-700 focus:outline-none bg-transparent cursor-pointer min-w-0 w-full sm:w-auto" />
             </div>
           </div>
 
@@ -9142,7 +9224,15 @@ function getOrCreateSubFolder_(parent, name) {
       `);
     });
 
-    // 2. Render 18 Regional Besties & Route lines
+    // 2. Render Regional Besties & Route lines
+    const isPrivilegedAdmin = Boolean(
+      this.currentUser &&
+      (this.currentUser.role === 'SUPER_ADMIN' ||
+       this.currentUser.role === 'SCHEDULE_ADMIN' ||
+       this.currentUser.role === 'AREA_MANAGER' ||
+       this.currentUser.role === 'REGIONAL_MANAGER' ||
+       this.currentUser.username === 'admin')
+    );
     const users = window.FMCUData.getUsers();
     const besties = users.filter((u) => this.isAuditorUser(u));
     const currentUserId = this.currentUser?.id || this.currentUser?.username;
@@ -9161,6 +9251,11 @@ function getOrCreateSubFolder_(parent, name) {
       if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) return;
 
       const isMe = String(bestie.id || bestie.username) === String(currentUserId);
+
+      // LIVE LOC SISI USER: Regular visitor only sees self!
+      if (!isPrivilegedAdmin && !isMe) {
+        return;
+      }
       const initials = (bestie.name || 'RB')
         .split(' ')
         .filter(Boolean)
@@ -9302,12 +9397,24 @@ function getOrCreateSubFolder_(parent, name) {
     const container = document.getElementById('live-loc-bestie-list-container');
     if (!container) return;
 
+    const isPrivilegedAdmin = Boolean(
+      this.currentUser &&
+      (this.currentUser.role === 'SUPER_ADMIN' ||
+       this.currentUser.role === 'SCHEDULE_ADMIN' ||
+       this.currentUser.role === 'AREA_MANAGER' ||
+       this.currentUser.role === 'REGIONAL_MANAGER' ||
+       this.currentUser.username === 'admin')
+    );
+    const currentUserId = this.currentUser?.id || this.currentUser?.username;
+
     const users = window.FMCUData.getUsers();
     const besties = users.filter((u) => this.isAuditorUser(u));
     const query = (this.liveLocSearchQuery || '').toLowerCase().trim();
     const scope = this.liveLocBestieScope || 'ALL';
 
     let filtered = besties.filter((b) => {
+      const isMe = String(b.id || b.username) === String(currentUserId);
+      if (!isPrivilegedAdmin && !isMe) return false;
       const stInfo = this.getBestieActualStatus(b);
 
       if (scope === 'VISITING' && stInfo.key !== 'VISITING') return false;
@@ -9339,8 +9446,6 @@ function getOrCreateSubFolder_(parent, name) {
       `;
       return;
     }
-
-    const currentUserId = this.currentUser?.id || this.currentUser?.username;
 
     container.innerHTML = filtered
       .map((b) => {
