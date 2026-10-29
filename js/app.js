@@ -6902,7 +6902,16 @@ Instruksi:
         })
       });
 
-      const gasJson = await response.json().catch(() => null);
+      let responseText = '';
+      try {
+        responseText = await response.text();
+      } catch (e) {}
+
+      let gasJson = null;
+      try {
+        gasJson = JSON.parse(responseText);
+      } catch (e) {}
+
       if (gasJson && gasJson.status === 'SUCCESS') {
         if (gasJson.caSpreadsheetUrl) {
           rep.caSpreadsheetUrl = gasJson.caSpreadsheetUrl;
@@ -6941,7 +6950,14 @@ Instruksi:
         this.showToast('Semua berkas laporan berhasil diarsipkan ke Google Drive!', 'success');
         return;
       } else {
-        const errMsg = (gasJson && gasJson.message) ? gasJson.message : 'Respon gagal dari Google Apps Script.';
+        let errMsg = (gasJson && gasJson.message) ? gasJson.message : '';
+        if (!errMsg) {
+          if (response.status === 403 || responseText.includes('memerlukan akses') || responseText.includes('accounts.google.com')) {
+            errMsg = 'Akses Ditolak (403): Pada script.google.com, buka Deploy > Manage deployments > Edit > ganti "Who has access" menjadi "Anyone" (Siapa saja), lalu simpan deployment baru.';
+          } else {
+            errMsg = 'Respon gagal (' + response.status + ') dari Google Apps Script.';
+          }
+        }
         throw new Error(errMsg);
       }
     } catch (err) {
