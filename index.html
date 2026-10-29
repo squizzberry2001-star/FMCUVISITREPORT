@@ -3228,7 +3228,7 @@ service cloud.firestore {
             <span>Lampiran & Tautan Otomatis di Email:</span>
           </div>
           <ul class="list-disc list-inside space-y-0.5 text-emerald-800/90 pl-1">
-            <li><strong>PDF Laporan:</strong> Otomatis diunduh ke perangkat Anda & siap dilampirkan</li>
+            <li><strong>PDF Laporan & QSC:</strong> Otomatis tersimpan di folder Google Drive store</li>
             <li><strong>Link CA Store Assignment:</strong> Google Sheets khusus toko ini terisi di body email</li>
             <li><strong>Folder Google Drive:</strong> Tersimpan di <code>01. VISIT BESTIE 2026 / Visitor / Toko</code></li>
           </ul>
@@ -3247,7 +3247,29 @@ service cloud.firestore {
           <span>Buka Aplikasi Email Siap Kirim</span>
         </button>
 
+        <!-- Opsi Tambahan: Buka Tab Gmail Web & Salin Teks Email -->
         <div class="flex items-center gap-2">
+          <button
+            type="button"
+            onclick="FMCUApp.openGmailWebDirectly()"
+            class="flex-1 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+            title="Buka langsung di tab Gmail Web browser"
+          >
+            <i class="fa-brands fa-google text-red-500"></i>
+            <span>Buka di Web Gmail</span>
+          </button>
+          <button
+            type="button"
+            onclick="FMCUApp.copyEmailContent()"
+            class="flex-1 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+            title="Salin isi pesan email dan tautan CA ke clipboard"
+          >
+            <i class="fa-regular fa-copy text-teal-600"></i>
+            <span>Salin Isi Email</span>
+          </button>
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
           <button
             type="button"
             onclick="FMCUApp.closeModal('modal-send-integration')"

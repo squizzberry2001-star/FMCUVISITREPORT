@@ -11,12 +11,62 @@
  *    b. Foto Lembar QSC ("Kolase Lembar QSC-{Nama Store}-{DD-MM-YYYY}.pdf") - Vertikal
  *    c. Spreadsheet CA Store Assignment (Auto generate link live online & lock Kolom A-D)
  * ============================================================================
+ *
+ * CARA DEPLOY (1 MENIT):
+ * 1. Buka https://script.google.com -> Buat Project Baru
+ * 2. Paste seluruh kode ini ke dalam Code.gs
+ * 3. Klik tombol "Deploy" -> "New deployment"
+ * 4. Pilih type: "Web app"
+ *    - Description: "FMCU Backend v2"
+ *    - Execute as: "Me" (Akun Google Anda yang memiliki akses folder GDrive)
+ *    - Who has access: "Anyone" (Siapa saja, agar web app FMCU bisa mengirim data)
+ * 5. Salin Web App URL (https://script.google.com/macros/s/.../exec)
+ * 6. Tempel URL tersebut pada pop-up Kirim Laporan atau Portal Admin di web FMCU.
+ * ============================================================================
  */
 
 var DEFAULT_ROOT_GDRIVE_ID = "15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8";
 
+/**
+ * Endpoint GET: Health check & uji coba konektivitas
+ */
+function doGet(e) {
+  var rootId = DEFAULT_ROOT_GDRIVE_ID;
+  var accessible = false;
+  var rootName = '';
+  var errorNotice = null;
+
+  try {
+    var f = DriveApp.getFolderById(rootId);
+    accessible = true;
+    rootName = f.getName();
+  } catch (err) {
+    errorNotice = err.toString();
+  }
+
+  return jsonResponse_({
+    status: 'ONLINE',
+    service: 'FMCU Visit Report - Google Drive & Email Backend',
+    timestamp: new Date().toISOString(),
+    targetFolderId: rootId,
+    targetFolderAccessible: accessible,
+    targetFolderName: rootName,
+    errorNotice: errorNotice
+  });
+}
+
+/**
+ * Endpoint POST: Menangani Upload Foto, Sync 3 Berkas & Pengiriman Email
+ */
 function doPost(e) {
   try {
+    if (!e || !e.postData || !e.postData.contents) {
+      return jsonResponse_({
+        status: 'ERROR',
+        message: 'Payload kosong atau tidak valid.'
+      });
+    }
+
     var payload = JSON.parse(e.postData.contents);
     var action = payload.action || 'sendReport';
 
@@ -32,11 +82,11 @@ function doPost(e) {
       var photoFileName = payload.fileName || ('FMCU_PHOTO_' + new Date().getTime() + '.jpg');
       var photoBlob = Utilities.newBlob(decodedPhoto, 'image/jpeg', photoFileName);
 
-      var rootFolder = getOrCreateTargetFolder_(payload.gdrivePhotoFolderId || DEFAULT_ROOT_GDRIVE_ID, 'FMCU_Visit_Database');
-      var storeFolderName = ((payload.storeCode || 'STORE') + ' - ' + (payload.storeName || 'VISIT')).replace(/[\\/:*?"<>|]/g, ' ').trim();
-      var storeFolder = getOrCreateSubFolder_(rootFolder, storeFolderName);
+      var rootFolderPhoto = getOrCreateTargetFolder_(payload.gdrivePhotoFolderId || DEFAULT_ROOT_GDRIVE_ID, 'FMCU_Visit_Database');
+      var storeFolderNamePhoto = ((payload.storeCode || 'STORE') + ' - ' + (payload.storeName || 'VISIT')).replace(/[\\/:*?"<>|]/g, ' ').trim();
+      var storeFolderPhoto = getOrCreateSubFolder_(rootFolderPhoto, storeFolderNamePhoto);
 
-      var photoFile = storeFolder.createFile(photoBlob);
+      var photoFile = storeFolderPhoto.createFile(photoBlob);
       photoFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
       var fileId = photoFile.getId();
 
@@ -109,7 +159,7 @@ function doPost(e) {
       ddMmYyyy = ('0' + now.getDate()).slice(-2) + '-' + ('0' + (now.getMonth() + 1)).slice(-2) + '-' + visitYear;
     }
 
-    // 1. Root Folder
+    // 1. Root Folder (Target folder: 15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8)
     var rootFolderId = payload.gdriveFolderId || DEFAULT_ROOT_GDRIVE_ID;
     var rootFolder = getOrCreateTargetFolder_(rootFolderId, 'FMCU_VISIT_REPORTS');
 
@@ -135,6 +185,13 @@ function doPost(e) {
       var b64Pdf = payload.pdfBase64.indexOf(',') !== -1 ? payload.pdfBase64.split(',')[1] : payload.pdfBase64;
       var decodedPdf = Utilities.base64Decode(b64Pdf);
       var pdfBlob = Utilities.newBlob(decodedPdf, 'application/pdf', payload.fileName || pdfFileName);
+      
+      // Hapus versi lama jika ada nama file yang sama
+      var existingPdfs = storeFolder.getFilesByName(payload.fileName || pdfFileName);
+      while (existingPdfs.hasNext()) {
+        try { existingPdfs.next().setTrashed(true); } catch (eTr) {}
+      }
+
       pdfFile = storeFolder.createFile(pdfBlob);
       pdfFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
       pdfUrl = pdfFile.getUrl();
@@ -150,6 +207,13 @@ function doPost(e) {
       var decodedQsc = Utilities.base64Decode(b64Qsc);
       var qscFileName = 'Kolase Lembar QSC-' + storeName + '-' + ddMmYyyy + '.pdf';
       var qscBlob = Utilities.newBlob(decodedQsc, 'application/pdf', qscFileName);
+
+      // Hapus versi lama jika ada nama file yang sama
+      var existingQscs = storeFolder.getFilesByName(qscFileName);
+      while (existingQscs.hasNext()) {
+        try { existingQscs.next().setTrashed(true); } catch (eTrQ) {}
+      }
+
       qscPdfFile = storeFolder.createFile(qscBlob);
       qscPdfFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
       qscPdfUrl = qscPdfFile.getUrl();
@@ -313,9 +377,13 @@ function doPost(e) {
       }
 
       // KUNCI / LOCK KOLOM A-D (Toko hanya bisa mengisi Kolom E & F pada data temuan)
-      var protection = sheet.protect().setDescription('Kunci Kolom A-D (Form Store CA)');
-      var unprotectedRange = sheet.getRange(10, 5, totalDataRows, 2); // Kolom E & F
-      protection.setUnprotectedRanges([unprotectedRange]);
+      try {
+        var protection = sheet.protect().setDescription('Kunci Kolom A-D (Form Store CA)');
+        var unprotectedRange = sheet.getRange(10, 5, totalDataRows, 2); // Kolom E & F
+        protection.setUnprotectedRanges([unprotectedRange]);
+      } catch (eProt) {
+        Logger.log('Protection setup notice: ' + eProt.toString());
+      }
 
       caSpreadsheetUrl = ss.getUrl();
     } catch (eSs) {
@@ -352,7 +420,7 @@ function doPost(e) {
         '<li><b>Visitor / Auditor:</b> ' + visitorName + '</li>' +
         '<li><b>Store Head:</b> ' + (report.storeHead || '-') + '</li>' +
         '<li><b>Area Manager:</b> ' + (report.areaManager || '-') + '</li>' +
-        (pdfUrl ? '<li><b>PDF Laporan Google Drive:</b> <a href="' + pdfUrl + '">Download PDF Laporan</a></li>' : '') +
+        (pdfUrl ? '<li><b>PDF Laporan Google Drive:</b> <a href="' + pdfUrl + '">Buka PDF Laporan</a></li>' : '') +
         (qscPdfUrl ? '<li><b>Kolase Foto QSC (Vertikal):</b> <a href="' + qscPdfUrl + '">Lihat Lembar QSC</a></li>' : '') +
         (caSpreadsheetUrl ? '<li><b>Spreadsheet CA Toko (Online):</b> <a href="' + caSpreadsheetUrl + '">Buka & Update CA Store Assignment</a></li>' : '') +
         '</ul>' +
@@ -375,8 +443,13 @@ function doPost(e) {
       };
       if (ccEmails) mailOptions.cc = ccEmails;
 
-      MailApp.sendEmail(mailOptions);
-      emailStatus = 'SENT';
+      try {
+        MailApp.sendEmail(mailOptions);
+        emailStatus = 'SENT';
+      } catch (errMail) {
+        Logger.log('Mail send error: ' + errMail.toString());
+        emailStatus = 'ERROR: ' + errMail.toString();
+      }
     }
 
     return jsonResponse_({
@@ -407,8 +480,13 @@ function jsonResponse_(obj) {
 function extractDriveFolderId_(input) {
   if (!input) return '';
   var str = String(input).trim();
-  var match = str.match(/[-\\w]{25,}/);
-  return match ? match[0] : str;
+  var folderMatch = str.match(/\/folders\/([a-zA-Z0-9_-]{20,})/);
+  if (folderMatch) return folderMatch[1];
+  var idParamMatch = str.match(/[?&]id=([a-zA-Z0-9_-]{20,})/);
+  if (idParamMatch) return idParamMatch[1];
+  var directMatch = str.match(/([a-zA-Z0-9_-]{25,})/);
+  if (directMatch) return directMatch[1];
+  return str;
 }
 
 function getOrCreateTargetFolder_(folderIdOrUrl, defaultFolderName) {
@@ -416,7 +494,9 @@ function getOrCreateTargetFolder_(folderIdOrUrl, defaultFolderName) {
   if (cleanId && cleanId.length >= 15) {
     try {
       return DriveApp.getFolderById(cleanId);
-    } catch (e) {}
+    } catch (e) {
+      Logger.log('Could not get folder by ID: ' + cleanId + ' -> ' + e.toString());
+    }
   }
   var folders = DriveApp.getFoldersByName(defaultFolderName);
   if (folders.hasNext()) {
@@ -425,10 +505,23 @@ function getOrCreateTargetFolder_(folderIdOrUrl, defaultFolderName) {
   return DriveApp.createFolder(defaultFolderName);
 }
 
+function findSubFolderCaseInsensitive_(parentFolder, targetName) {
+  if (!parentFolder || !targetName) return null;
+  var cleanTarget = String(targetName).trim().toLowerCase();
+  var subFolders = parentFolder.getFolders();
+  while (subFolders.hasNext()) {
+    var f = subFolders.next();
+    if (f.getName().trim().toLowerCase() === cleanTarget) {
+      return f;
+    }
+  }
+  return null;
+}
+
 function getOrCreateSubFolder_(parentFolder, subFolderName) {
-  var subFolders = parentFolder.getFoldersByName(subFolderName);
-  if (subFolders.hasNext()) {
-    return subFolders.next();
+  var existing = findSubFolderCaseInsensitive_(parentFolder, subFolderName);
+  if (existing) {
+    return existing;
   }
   return parentFolder.createFolder(subFolderName);
 }
