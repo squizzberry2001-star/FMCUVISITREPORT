@@ -9666,7 +9666,9 @@ function doPost(e) {
       var storeFolderPhoto = getOrCreateSubFolder_(rootFolderPhoto, storeFolderNamePhoto);
 
       var photoFile = storeFolderPhoto.createFile(photoBlob);
-      photoFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      try {
+        photoFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      } catch (eShareP) {}
       var fileId = photoFile.getId();
 
       return jsonResponse_({
@@ -9761,19 +9763,25 @@ function doPost(e) {
     var pdfFileName = 'Hasil Kunjungan-' + storeName + '-' + ddMmYyyy + '.pdf';
 
     if (payload.pdfBase64) {
-      var b64Pdf = payload.pdfBase64.indexOf(',') !== -1 ? payload.pdfBase64.split(',')[1] : payload.pdfBase64;
-      var decodedPdf = Utilities.base64Decode(b64Pdf);
-      var pdfBlob = Utilities.newBlob(decodedPdf, 'application/pdf', payload.fileName || pdfFileName);
-      
-      // Hapus versi lama jika ada nama file yang sama
-      var existingPdfs = storeFolder.getFilesByName(payload.fileName || pdfFileName);
-      while (existingPdfs.hasNext()) {
-        try { existingPdfs.next().setTrashed(true); } catch (eTr) {}
-      }
+      try {
+        var b64Pdf = payload.pdfBase64.indexOf(',') !== -1 ? payload.pdfBase64.split(',')[1] : payload.pdfBase64;
+        var decodedPdf = Utilities.base64Decode(b64Pdf);
+        var pdfBlob = Utilities.newBlob(decodedPdf, 'application/pdf', payload.fileName || pdfFileName);
+        
+        // Hapus versi lama jika ada nama file yang sama
+        var existingPdfs = storeFolder.getFilesByName(payload.fileName || pdfFileName);
+        while (existingPdfs.hasNext()) {
+          try { existingPdfs.next().setTrashed(true); } catch (eTr) {}
+        }
 
-      pdfFile = storeFolder.createFile(pdfBlob);
-      pdfFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-      pdfUrl = pdfFile.getUrl();
+        pdfFile = storeFolder.createFile(pdfBlob);
+        try {
+          pdfFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        } catch (eSharePdf) {}
+        pdfUrl = pdfFile.getUrl();
+      } catch (errPdf) {
+        Logger.log('Error creating Lampiran 1 PDF: ' + errPdf.toString());
+      }
     }
 
     // ------------------------------------------------------------------------
@@ -9782,20 +9790,26 @@ function doPost(e) {
     var qscPdfFile = null;
     var qscPdfUrl = '';
     if (payload.qscPdfBase64) {
-      var b64Qsc = payload.qscPdfBase64.indexOf(',') !== -1 ? payload.qscPdfBase64.split(',')[1] : payload.qscPdfBase64;
-      var decodedQsc = Utilities.base64Decode(b64Qsc);
-      var qscFileName = 'Kolase Lembar QSC-' + storeName + '-' + ddMmYyyy + '.pdf';
-      var qscBlob = Utilities.newBlob(decodedQsc, 'application/pdf', qscFileName);
+      try {
+        var b64Qsc = payload.qscPdfBase64.indexOf(',') !== -1 ? payload.qscPdfBase64.split(',')[1] : payload.qscPdfBase64;
+        var decodedQsc = Utilities.base64Decode(b64Qsc);
+        var qscFileName = 'Kolase Lembar QSC-' + storeName + '-' + ddMmYyyy + '.pdf';
+        var qscBlob = Utilities.newBlob(decodedQsc, 'application/pdf', qscFileName);
 
-      // Hapus versi lama jika ada nama file yang sama
-      var existingQscs = storeFolder.getFilesByName(qscFileName);
-      while (existingQscs.hasNext()) {
-        try { existingQscs.next().setTrashed(true); } catch (eTrQ) {}
+        // Hapus versi lama jika ada nama file yang sama
+        var existingQscs = storeFolder.getFilesByName(qscFileName);
+        while (existingQscs.hasNext()) {
+          try { existingQscs.next().setTrashed(true); } catch (eTrQ) {}
+        }
+
+        qscPdfFile = storeFolder.createFile(qscBlob);
+        try {
+          qscPdfFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        } catch (eShareQsc) {}
+        qscPdfUrl = qscPdfFile.getUrl();
+      } catch (errQsc) {
+        Logger.log('Error creating Lampiran 2 QSC PDF: ' + errQsc.toString());
       }
-
-      qscPdfFile = storeFolder.createFile(qscBlob);
-      qscPdfFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-      qscPdfUrl = qscPdfFile.getUrl();
     }
 
     // ------------------------------------------------------------------------
