@@ -6988,14 +6988,31 @@ Instruksi:
             <p class="text-[11px] text-red-700 leading-tight">
               ${err.message || 'Periksa koneksi internet atau pastikan akun Google Apps Script telah diberikan hak akses ke folder 15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8.'}
             </p>
-            <div class="pt-1 flex items-center gap-2">
-              <button type="button" onclick="FMCUApp.executeSendEmailAndGDrive()" class="text-[11px] font-bold text-red-800 underline cursor-pointer">
-                Coba Sinkronkan Lagi
+            <div class="pt-1.5 flex items-center gap-2 flex-wrap">
+              <button type="button" onclick="FMCUApp.executeSendEmailAndGDrive()" class="px-2.5 py-1 rounded-lg bg-red-100 hover:bg-red-200 text-red-900 text-[11px] font-bold cursor-pointer transition">
+                <i class="fa-solid fa-arrows-rotate mr-1"></i>Coba Sinkronkan Lagi
+              </button>
+              <button type="button" onclick="FMCUApp.resetToVerifiedGasUrl()" class="px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-[11px] font-bold cursor-pointer transition shadow-2xs">
+                <i class="fa-solid fa-bolt mr-1"></i>Gunakan Webhook Resmi Aktif
               </button>
             </div>
           </div>
         `;
       }
+    }
+  },
+
+  resetToVerifiedGasUrl() {
+    const verifiedUrl = 'https://script.google.com/macros/s/AKfycbxqumXFq5ohGM9o-AiMOdMRad8idrUjrRl1B-yy17RliyM7ZTblheA1lCDHJbpKADgDZQ/exec';
+    const settings = window.FMCUData.getSettings();
+    settings.gasWebhookUrl = verifiedUrl;
+    window.FMCUData.saveSettings(settings);
+    const setGasUrl = document.getElementById('set-gas-url');
+    if (setGasUrl) setGasUrl.value = verifiedUrl;
+    this.showToast('Dialihkan ke URL Webhook Google Apps Script resmi yang aktif & terverifikasi!', 'success');
+    const rep = this.getActivePreviewReport();
+    if (rep) {
+      this.triggerBackgroundDriveUpload(rep);
     }
   },
 
@@ -9532,6 +9549,54 @@ ${obsItems || '- Tidak ada temuan khusus.'}`;
 var DEFAULT_ROOT_GDRIVE_ID = "15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8";
 
 /**
+ * UJI KONEKTIVITAS & OTORISASI DRIVEAPP
+ * Jalankan fungsi ini langsung di editor Apps Script (pilih fungsi 'testConnection' lalu klik '▷ Jalankan')
+ * untuk memicu pop-up Otorisasi Izin Google Drive dan memeriksa apakah akun Anda sudah diberi hak akses ke folder.
+ */
+function testConnection() {
+  var rootId = DEFAULT_ROOT_GDRIVE_ID;
+  var userEmail = '';
+  try {
+    userEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+  } catch (eU) {}
+
+  Logger.log('====================================================');
+  Logger.log('=== UJI KONEKTIVITAS FMCU DRIVEAPP & PERMISSION ===');
+  Logger.log('Akun Google aktif yang mengeksekusi: ' + (userEmail || '(akun pemilik deployment)'));
+  Logger.log('Target Folder ID: ' + rootId);
+  Logger.log('----------------------------------------------------');
+
+  try {
+    var folder = DriveApp.getFolderById(rootId);
+    Logger.log('✓ BERHASIL TERHUBUNG KE GOOGLE DRIVE!');
+    Logger.log('  Nama Folder  : "' + folder.getName() + '"');
+    Logger.log('  URL Folder   : ' + folder.getUrl());
+
+    // Uji coba membuat sub-folder sementara
+    var testSubName = '_uji_koneksi_' + new Date().getTime();
+    var testSub = folder.createFolder(testSubName);
+    Logger.log('✓ BERHASIL MEMBUAT FOLDER UJI: "' + testSub.getName() + '"');
+    testSub.setTrashed(true);
+    Logger.log('✓ FOLDER UJI BERHASIL DIBERSIHKAN (TRASHED).');
+    Logger.log('====================================================');
+    Logger.log('STATUS FINAL: DRIVEAPP 100% AKTIF, TEROTORISASI & SIAP DIGUNAKAN!');
+    Logger.log('====================================================');
+    return 'SUKSES: DriveApp aktif dan terhubung ke folder: ' + folder.getName();
+  } catch (err) {
+    Logger.log('✗ GAGAL MENGAKSES FOLDER: ' + err.toString());
+    Logger.log('----------------------------------------------------');
+    Logger.log('PANDUAN SOLUSI "Akses ditolak DriveApp":');
+    Logger.log('1. Akun "' + (userEmail || 'Anda') + '" belum ditambahkan sebagai Editor pada folder ' + rootId);
+    Logger.log('2. Buka link ini di browser: https://drive.google.com/drive/folders/' + rootId);
+    Logger.log('3. Klik tombol Bagikan (Share) pada folder "05. VISIT STORE"');
+    Logger.log('4. Masukkan email "' + (userEmail || 'FamilyMart Anda') + '" dan pilih peran sebagai "Editor"');
+    Logger.log('5. Setelah dibagikan, jalankan ulang fungsi testConnection ini.');
+    Logger.log('====================================================');
+    throw err;
+  }
+}
+
+/**
  * Endpoint GET: Health check & uji coba konektivitas
  */
 function doGet(e) {
@@ -9539,6 +9604,11 @@ function doGet(e) {
   var accessible = false;
   var rootName = '';
   var errorNotice = null;
+  var userEmail = '';
+
+  try {
+    userEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+  } catch (eU) {}
 
   try {
     var f = DriveApp.getFolderById(rootId);
@@ -9552,10 +9622,15 @@ function doGet(e) {
     status: 'ONLINE',
     service: 'FMCU Visit Report - Google Drive & Email Backend',
     timestamp: new Date().toISOString(),
+    accountExecuting: userEmail || 'Owner Deployment',
     targetFolderId: rootId,
     targetFolderAccessible: accessible,
     targetFolderName: rootName,
-    errorNotice: errorNotice
+    errorNotice: errorNotice,
+    troubleshooting: !accessible ? {
+      message: 'Folder ' + rootId + ' belum dibagikan ke akun ' + (userEmail || 'ini'),
+      action: 'Buka folder https://drive.google.com/drive/folders/' + rootId + ' di browser, klik Bagikan (Share), lalu tambahkan email "' + (userEmail || 'Google Apps Script Anda') + '" sebagai Editor.'
+    } : null
   });
 }
 
