@@ -19,6 +19,9 @@ window.FMCUApp = {
   currentUser: null,
   gpsWatchId: null,
   isGpsUnlocked: false,
+  isNotificationUnlocked: false,
+  swRegistration: null,
+  _notifCheckInterval: null,
   hasActiveStoreForm: false,
 
   liveGps: {
@@ -200,8 +203,16 @@ window.FMCUApp = {
       window.FMCUData.clearDummyBestieLocations();
     }
 
-    // Auto-request Mandatory GPS Permission on load
+    // Auto-request Mandatory GPS & Push Notification Permission on load
     this.initMandatoryGpsSystem();
+    this.initMandatoryNotificationSystem();
+
+    // Listener visibility tab untuk re-check notifikasi saat kembali ke browser
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        this.checkAndDispatchUserVisitNotifications();
+      }
+    });
 
     // Jalankan continuous Geofence Ticker setiap 4 detik untuk memantau radius 15m & timer 15m
     if (this._geofenceInterval) clearInterval(this._geofenceInterval);
@@ -327,6 +338,9 @@ window.FMCUApp = {
     }
     if (collectionName === 'stores') {
       this.populateMasterStoreSelect();
+    }
+    if (collectionName === 'schedules') {
+      this.checkAndDispatchUserVisitNotifications();
     }
     this.updateAdminFirestoreSummary();
 
@@ -515,6 +529,287 @@ window.FMCUApp = {
   },
 
   // ==========================================================================
+  // MANDATORY PUSH NOTIFICATION SYSTEM (DESKTOP & MOBILE)
+  // Memaksa browser mengizinkan push notifikasi sebelum web dapat diakses,
+  // dan mengirimkan notifikasi status visit aktif, pending, terlewat, & jadwal baru
+  // ==========================================================================
+  initMandatoryNotificationSystem() {
+    // 1. Cek dukungan Web Notification API
+    if (!('Notification' in window)) {
+      console.warn('Browser tidak mendukung Web Notifications API.');
+      this.isNotificationUnlocked = true;
+      this.unlockNotificationGate();
+      return;
+    }
+
+    // 2. Registrasi Service Worker sw.js untuk notifikasi mobile & desktop
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker
+        .register('sw.js')
+        .then((reg) => {
+          this.swRegistration = reg;
+        })
+        .catch((err) => {
+          console.warn('Gagal registrasi sw.js:', err);
+        });
+    }
+
+    // 3. Pantau perubahan status izin secara real-time via Permissions API jika tersedia
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions
+        .query({ name: 'notifications' })
+        .then((permStatus) => {
+          permStatus.onchange = () => {
+            if (permStatus.state === 'granted') {
+              this.isNotificationUnlocked = true;
+              this.unlockNotificationGate();
+              this.checkAndDispatchUserVisitNotifications(true);
+              this.startNotificationInterval();
+            } else if (permStatus.state === 'denied') {
+              this.isNotificationUnlocked = false;
+              this.lockWebForNotification(
+                'Izin notifikasi diblokir di setelan browser. Klik ikon gembok/setelan situs di browser, ubah Notifikasi menjadi Izinkan, lalu muat ulang halaman.'
+              );
+            }
+          };
+        })
+        .catch(() => {});
+    }
+
+    // 4. Evaluasi izin notifikasi saat ini
+    if (Notification.permission === 'granted') {
+      this.isNotificationUnlocked = true;
+      this.unlockNotificationGate();
+      this.checkAndDispatchUserVisitNotifications();
+      this.startNotificationInterval();
+    } else if (Notification.permission === 'denied') {
+      this.isNotificationUnlocked = false;
+      this.lockWebForNotification(
+        'Izin notifikasi diblokir di browser Anda. Klik ikon Gembok / Setelan Situs di samping URL browser, ubah Notifikasi menjadi Allow (Izinkan), lalu muat ulang halaman.'
+      );
+    } else {
+      // Status 'default': Kunci web sampai user menekan tombol izin notifikasi
+      this.isNotificationUnlocked = false;
+      this.lockWebForNotification();
+    }
+  },
+
+  async requestNotificationPermission() {
+    if (!('Notification' in window)) {
+      this.isNotificationUnlocked = true;
+      this.unlockNotificationGate();
+      this.showToast('Browser ini tidak mendukung Push Notifikasi.', 'info');
+      return;
+    }
+
+    const btn = document.getElementById('btn-request-notif');
+    const errBox = document.getElementById('notif-gate-error-box');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>Meminta Izin Notifikasi...</span>`;
+    }
+    if (errBox) errBox.classList.add('hidden');
+
+    try {
+      if ('serviceWorker' in navigator && !this.swRegistration) {
+        try {
+          this.swRegistration = await navigator.serviceWorker.register('sw.js');
+        } catch (e) {}
+      }
+
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        this.isNotificationUnlocked = true;
+        this.unlockNotificationGate();
+        this.showToast('Push notifikasi berhasil diaktifkan!', 'success');
+        this.dispatchPushNotification(
+          '🔔 Notifikasi FMCU Aktif',
+          'Sistem siap mengirimkan pengingat kunjungan, jadwal pending, dan tugas baru secara real-time.',
+          'notif-welcome'
+        );
+        this.checkAndDispatchUserVisitNotifications(true);
+        this.startNotificationInterval();
+      } else if (permission === 'denied') {
+        this.isNotificationUnlocked = false;
+        this.lockWebForNotification(
+          'Izin notifikasi ditolak. Web tidak dapat diakses tanpa izin notifikasi. Silakan buka setelan browser dan ubah izin notifikasi menjadi Allow / Izinkan.'
+        );
+      } else {
+        this.isNotificationUnlocked = false;
+        this.lockWebForNotification('Harap setujui permintaan izin notifikasi untuk melanjutkan ke aplikasi.');
+      }
+    } catch (err) {
+      console.warn('Gagal meminta izin notifikasi:', err);
+      this.lockWebForNotification('Gagal meminta izin notifikasi: ' + err.message);
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-bell"></i><span>Izinkan & Aktifkan Notifikasi Sekarang</span>`;
+      }
+    }
+  },
+
+  unlockNotificationGate() {
+    const gate = document.getElementById('notification-gate-screen');
+    if (gate) gate.classList.add('hidden');
+  },
+
+  lockWebForNotification(reasonText = '') {
+    const gate = document.getElementById('notification-gate-screen');
+    if (gate) gate.classList.remove('hidden');
+    const errBox = document.getElementById('notif-gate-error-box');
+    const errDetail = document.getElementById('notif-gate-error-detail');
+    if (reasonText && errBox && errDetail) {
+      errDetail.textContent = reasonText;
+      errBox.classList.remove('hidden');
+    } else if (errBox) {
+      errBox.classList.add('hidden');
+    }
+  },
+
+  startNotificationInterval() {
+    if (this._notifCheckInterval) clearInterval(this._notifCheckInterval);
+    // Jalankan interval pemantauan status jadwal & visit tiap 10 menit
+    this._notifCheckInterval = setInterval(() => {
+      this.checkAndDispatchUserVisitNotifications();
+    }, 10 * 60 * 1000);
+  },
+
+  async dispatchPushNotification(title, body, tag = 'fmcu-notif', data = {}) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') {
+      return;
+    }
+
+    const icon = 'assets/taro.gif';
+    const badge = 'assets/taro.gif';
+    const options = {
+      body,
+      icon,
+      badge,
+      tag,
+      renotify: true,
+      requireInteraction: false,
+      vibrate: [200, 100, 200],
+      data: { url: window.location.href, ...data }
+    };
+
+    // 1. Coba melalui Service Worker (metode utama untuk Android Mobile & Chromium)
+    try {
+      if (this.swRegistration && this.swRegistration.showNotification) {
+        await this.swRegistration.showNotification(title, options);
+        return;
+      }
+      if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+        const reg = await navigator.serviceWorker.ready;
+        if (reg && reg.showNotification) {
+          this.swRegistration = reg;
+          await reg.showNotification(title, options);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('SW showNotification fallback:', e);
+    }
+
+    // 2. Fallback standar Notification constructor (Desktop)
+    try {
+      const notif = new Notification(title, options);
+      notif.onclick = () => {
+        window.focus();
+        notif.close();
+      };
+    } catch (err) {
+      console.warn('Notification constructor error:', err);
+    }
+  },
+
+  checkAndDispatchUserVisitNotifications(forceCheck = false) {
+    if (!this.currentUser) return;
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+    // Throttle check agar tidak memborbardir notifikasi berulang kali dalam jeda singkat (< 5 menit)
+    const now = Date.now();
+    const lastCheck = Number(sessionStorage.getItem('fmcu_last_notif_check_ts') || 0);
+    if (!forceCheck && now - lastCheck < 5 * 60 * 1000) {
+      return;
+    }
+    sessionStorage.setItem('fmcu_last_notif_check_ts', String(now));
+
+    const schedules = window.FMCUData.getSchedules();
+    const reports = window.FMCUData.getReports();
+    const todayStr = this.getLocalDateISO();
+    const mySchedules = schedules.filter((s) => this.isScheduleOwnedByUser(s, this.currentUser));
+
+    // 1. Notifikasi Status Visit yang Belum Selesai (Active Check-In / In-Progress Form)
+    const activeCheckIn = window.FMCUData.getActiveCheckIn();
+    if (activeCheckIn && activeCheckIn.storeCode) {
+      const isCompleted = reports.some(
+        (r) => r.storeCode === activeCheckIn.storeCode && r.visitDate === todayStr
+      );
+      if (!isCompleted) {
+        this.dispatchPushNotification(
+          `⚠️ Visit Belum Selesai: FamilyMart ${activeCheckIn.storeName || activeCheckIn.storeCode}`,
+          `Sesi visit Anda saat ini masih aktif. Pastikan data form, foto QSC, dan observasi dikirimkan sebelum meninggalkan toko.`,
+          `visit-active-${activeCheckIn.storeCode}`
+        );
+      }
+    }
+
+    // 2. Notifikasi Jadwal Pending Hari Ini
+    const myPendingToday = mySchedules.filter((s) => {
+      const hasReport = s.reportId || reports.some((r) => r.storeCode === s.storeCode && r.visitDate === s.scheduledDate);
+      return s.scheduledDate === todayStr && s.status !== 'COMPLETED' && !hasReport;
+    });
+
+    if (myPendingToday.length > 0) {
+      const storeNames = myPendingToday.map((s) => s.storeName).slice(0, 3).join(', ');
+      const extra = myPendingToday.length > 3 ? ` (+${myPendingToday.length - 3} lainnya)` : '';
+      this.dispatchPushNotification(
+        `📅 ${myPendingToday.length} Jadwal Visit Pending Hari Ini`,
+        `Toko: ${storeNames}${extra}. Segera lakukan check-in dan mulai kunjungan.`,
+        `pending-today-${todayStr}`
+      );
+    }
+
+    // 3. Notifikasi Jadwal Terlewat (Overdue / Missed Schedules)
+    const myOverdue = mySchedules.filter((s) => {
+      const isPast = String(s.scheduledDate || '') < todayStr;
+      const hasReport = s.reportId || reports.some((r) => r.storeCode === s.storeCode && r.visitDate === s.scheduledDate);
+      return isPast && s.status !== 'COMPLETED' && !hasReport;
+    });
+
+    if (myOverdue.length > 0) {
+      const overdueNames = myOverdue.map((s) => `${s.storeName} (${s.scheduledDate})`).slice(0, 2).join(', ');
+      const extra = myOverdue.length > 2 ? ` (+${myOverdue.length - 2} lainnya)` : '';
+      this.dispatchPushNotification(
+        `⏰ ${myOverdue.length} Jadwal Visit Terlewat`,
+        `Terdapat jadwal yang belum selesai: ${overdueNames}${extra}. Harap segera periksa status kunjungan Anda.`,
+        `overdue-schedules`
+      );
+    }
+
+    // 4. Notifikasi Penugasan Jadwal Baru
+    const storageKey = `fmcu_known_schedules_${this.currentUser.id || this.currentUser.username || 'usr'}`;
+    const knownIds = JSON.parse(localStorage.getItem(storageKey) || '[]');
+    const currentIds = mySchedules.map((s) => s.id);
+
+    if (knownIds.length > 0) {
+      const newlyAssigned = mySchedules.filter(
+        (s) => !knownIds.includes(s.id) && String(s.scheduledDate || '') >= todayStr
+      );
+      if (newlyAssigned.length > 0) {
+        const newStoreNames = newlyAssigned.map((s) => s.storeName).slice(0, 2).join(', ');
+        this.dispatchPushNotification(
+          `🆕 ${newlyAssigned.length} Penugasan Jadwal Visit Baru`,
+          `Anda mendapatkan jadwal kunjungan baru: ${newStoreNames}. Buka menu Jadwal untuk melihat detailnya.`,
+          `new-schedule-${newlyAssigned[0].id}`
+        );
+      }
+    }
+    localStorage.setItem(storageKey, JSON.stringify(currentIds));
+  },
+
+  // ==========================================================================
   // TOAST NOTIFICATION HELPER
   // ==========================================================================
   showToast(message, type = 'success') {
@@ -616,6 +911,7 @@ window.FMCUApp = {
     this.populateHeaderRoleSwitcher();
     this.updateUserHeaderUI();
     this.renderAllViews();
+    this.checkAndDispatchUserVisitNotifications(true);
 
     // Prioritaskan savedView jika masih valid untuk role baru, atau ambil default role
     const savedView = sessionStorage.getItem('fmcu_active_view');
