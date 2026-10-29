@@ -18,7 +18,7 @@ window.FMCUPdf = {
   },
 
   // Compress & Stamp Uploaded Photo with Store + Timestamp + Live GPS Watermark
-  async processAndStampImage(file, options = {}) {
+  async processAndStampImage(fileOrDataUrl, options = {}) {
     const {
       storeName = 'STORE VISIT',
       gpsLat = null,
@@ -28,8 +28,7 @@ window.FMCUPdf = {
     } = options;
 
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
+      const renderOnCanvas = (src) => {
         const img = new Image();
         img.onload = () => {
           let w = img.width;
@@ -81,11 +80,25 @@ window.FMCUPdf = {
 
           resolve(canvas.toDataURL('image/jpeg', 0.84));
         };
-        img.onerror = reject;
-        img.src = e.target.result;
+        img.onerror = (err) => reject(err);
+        img.src = src;
       };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
+
+      if (!fileOrDataUrl) {
+        reject(new Error('Sumber foto kosong.'));
+        return;
+      }
+
+      if (typeof fileOrDataUrl === 'string') {
+        renderOnCanvas(fileOrDataUrl);
+      } else if (fileOrDataUrl instanceof Blob || fileOrDataUrl instanceof File) {
+        const reader = new FileReader();
+        reader.onload = (e) => renderOnCanvas(e.target.result);
+        reader.onerror = (err) => reject(err);
+        reader.readAsDataURL(fileOrDataUrl);
+      } else {
+        reject(new Error('Format foto tidak valid.'));
+      }
     });
   },
 
@@ -731,10 +744,238 @@ window.FMCUPdf = {
     return doc;
   },
 
-  // Get Filename for PDF Download
+  formatDateDdMmYyyy(dateStr) {
+    if (!dateStr) {
+      const now = new Date();
+      return `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
+    }
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) {
+      const m = String(dateStr).match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+      if (m) return `${String(m[3]).padStart(2, '0')}-${String(m[2]).padStart(2, '0')}-${m[1]}`;
+      return String(dateStr).replace(/[/\\:*?"<>|]/g, '-');
+    }
+    return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+  },
+
+  // Get Filename for PDF Download (Standard: Hasil Kunjungan-{Nama Store}-{DD-MM-YYYY}.pdf)
   getFileName(report) {
-    const cleanStore = String(report.storeName || 'STORE').replace(/[^a-zA-Z0-9_-]/g, '_').toUpperCase();
-    return `FMCU_Visit_Report_${cleanStore}.pdf`;
+    const cleanStore = String(report.storeName || 'STORE').replace(/[/\\:*?"<>|]/g, ' ').trim();
+    const dateFormatted = this.formatDateDdMmYyyy(report.visitDate);
+    return `Hasil Kunjungan-${cleanStore}-${dateFormatted}.pdf`;
+  },
+
+  // Generate Vertical Collage PDF for QSC Inspection Photos (Portrait A4)
+  generateVerticalQscCollagePdf(report) {
+    const { jsPDF } = window.jspdf || {};
+    if (!jsPDF) return null;
+
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const cleanStore = String(report.storeName || 'STORE').trim();
+    const dateFormatted = this.formatDateDdMmYyyy(report.visitDate);
+
+    const qscPhotos = (report.qscPhotos || []).filter(p => Boolean(p.dataUrl || p.driveViewUrl || p.driveUrl));
+
+    if (qscPhotos.length === 0) {
+      // Empty state single page
+      doc.setFillColor(0, 153, 68);
+      doc.rect(0, 0, pageWidth, 28, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.text('KOLASE LEMBAR QSC INSPECTION', pageWidth / 2, 14, { align: 'center' });
+      doc.setFontSize(10);
+      doc.text(`${cleanStore.toUpperCase()} (${report.storeCode || '-'}) • ${dateFormatted}`, pageWidth / 2, 22, { align: 'center' });
+
+      doc.setTextColor(100, 116, 139);
+      doc.setFontSize(12);
+      doc.text('Tidak ada lembar foto QSC yang dilampirkan pada laporan ini.', pageWidth / 2, 120, { align: 'center' });
+      return doc;
+    }
+
+    // Two vertical photos per page
+    const photosPerPage = 2;
+    const totalPages = Math.ceil(qscPhotos.length / photosPerPage);
+
+    for (let pIdx = 0; pIdx < totalPages; pIdx++) {
+      if (pIdx > 0) doc.addPage();
+
+      // Header Banner
+      doc.setFillColor(0, 153, 68);
+      doc.rect(0, 0, pageWidth, 24, 'F');
+      doc.setFillColor(0, 153, 166);
+      doc.rect(0, 24, pageWidth, 2, 'F');
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.text('KOLASE LEMBAR QSC (QUALITY, SERVICE, CLEANLINESS)', 12, 11);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Store: ${cleanStore} (${report.storeCode || '-'}) | Auditor: ${report.auditorName || '-'} | Tanggal: ${dateFormatted} | Hal ${pIdx + 1}/${totalPages}`, 12, 18);
+
+      const startPhotoIdx = pIdx * photosPerPage;
+      const pagePhotos = qscPhotos.slice(startPhotoIdx, startPhotoIdx + photosPerPage);
+
+      pagePhotos.forEach((photo, subIdx) => {
+        const photoNum = startPhotoIdx + subIdx + 1;
+        const boxY = 32 + (subIdx * 125);
+        const boxH = 118;
+        const boxW = 186;
+        const boxX = 12;
+
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(203, 213, 225);
+        doc.roundedRect(boxX, boxY, boxW, boxH, 3, 3, 'FD');
+
+        // Photo Label
+        doc.setFillColor(0, 153, 166);
+        doc.roundedRect(boxX + 4, boxY + 4, 45, 6, 1.5, 1.5, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.text(`Lembar QSC #${photoNum}`, boxX + 6, boxY + 8.5);
+
+        const imgSrc = this.getPhotoDisplaySrc(photo);
+        if (imgSrc) {
+          try {
+            doc.addImage(imgSrc, 'JPEG', boxX + 4, boxY + 12, boxW - 8, boxH - 16, undefined, 'FAST');
+          } catch (e) {
+            doc.setTextColor(148, 163, 184);
+            doc.setFontSize(9);
+            doc.text('[Foto QSC tersimpan di Google Drive]', boxX + 20, boxY + 50);
+          }
+        }
+      });
+
+      // Footer
+      doc.setTextColor(148, 163, 184);
+      doc.setFontSize(8);
+      doc.text(`PT FamilyMart Indonesia • FMCU Regional Bestie Visit Report • ${dateFormatted}`, pageWidth / 2, pageHeight - 6, { align: 'center' });
+    }
+
+    return doc;
+  },
+
+  async downloadVerticalQscPdf(report) {
+    await this.hydrateReportPhotosFromGDrive(report);
+    const doc = this.generateVerticalQscCollagePdf(report);
+    if (!doc) return;
+    const cleanStore = String(report.storeName || 'STORE').replace(/[/\\:*?"<>|]/g, ' ').trim();
+    const dateFormatted = this.formatDateDdMmYyyy(report.visitDate);
+    doc.save(`Kolase Lembar QSC-${cleanStore}-${dateFormatted}.pdf`);
+  },
+
+  async getVerticalQscPdfBase64(report) {
+    await this.hydrateReportPhotosFromGDrive(report);
+    const doc = this.generateVerticalQscCollagePdf(report);
+    if (!doc) return '';
+    const dataUri = doc.output('datauristring');
+    return dataUri.split(',')[1] || '';
+  },
+
+  // Generate CA Store Assignment Workbook (.xlsx) matching CA_Store_Assignment.xlsx with locked columns A-E
+  generateCaStoreAssignmentWorkbook(report) {
+    if (typeof XLSX === 'undefined') return null;
+
+    const cleanStore = String(report.storeName || 'STORE').replace(/[/\\:*?"<>|]/g, ' ').trim();
+    const storeCode = String(report.storeCode || '').trim();
+    const visitorName = String(report.auditorName || 'Visitor').trim();
+    const visitDate = report.visitDateFormatted || this.formatDateDdMmYyyy(report.visitDate);
+    const picStore = String(report.storeHead || 'PIC Store').trim();
+
+    const wb = XLSX.utils.book_new();
+
+    // Build raw cell matrix
+    const data = [
+      ['FORM DIISI OLEH TIM OPERASIONAL TOKO', '', '', '', '', ''], // Row 1 (index 0)
+      ['', '', '', '', '', ''], // Row 2
+      ['Kode Toko', '', '', storeCode, '', ''], // Row 3
+      ['Nama Store', '', '', cleanStore, '', ''], // Row 4
+      ['Nama Visitor', '', '', visitorName, '', ''], // Row 5
+      ['Tanggal Visit', '', '', visitDate, '', ''], // Row 6
+      ['PIC Store', '', '', picStore, '', ''], // Row 7
+      ['', '', '', '', '', ''], // Row 8
+      ['NO', 'DAFTAR TEMUAN\n(berdasarkan list pada visit report)', '', '', 'TANGGAL PERBAIKAN', 'BUKTI PERBAIKAN\n(isi dengan foto perbaikan)'] // Row 9
+    ];
+
+    const observations = report.observations || [];
+    const totalDataRows = Math.max(observations.length, 5);
+
+    for (let i = 0; i < totalDataRows; i++) {
+      let findingText = '';
+      if (i < observations.length) {
+        const obs = observations[i];
+        findingText = obs.temuan || obs.deskripsi || '';
+        if (obs.tindakanPerbaikan) {
+          findingText += ' \n(Action: ' + obs.tindakanPerbaikan + ')';
+        }
+      }
+      data.push([i + 1, findingText, '', '', '', '']);
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+
+    // Apply exact Merges from CA_Store_Assignment.xlsx
+    ws['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }, // A1:F1
+      { s: { r: 2, c: 0 }, e: { r: 2, c: 2 } }, // A3:C3
+      { s: { r: 2, c: 3 }, e: { r: 2, c: 4 } }, // D3:E3
+      { s: { r: 3, c: 0 }, e: { r: 3, c: 2 } }, // A4:C4
+      { s: { r: 3, c: 3 }, e: { r: 3, c: 4 } }, // D4:E4
+      { s: { r: 4, c: 0 }, e: { r: 4, c: 2 } }, // A5:C5
+      { s: { r: 4, c: 3 }, e: { r: 4, c: 4 } }, // D5:E5
+      { s: { r: 5, c: 0 }, e: { r: 5, c: 2 } }, // A6:C6
+      { s: { r: 5, c: 3 }, e: { r: 5, c: 4 } }, // D6:E6
+      { s: { r: 6, c: 0 }, e: { r: 6, c: 2 } }, // A7:C7
+      { s: { r: 6, c: 3 }, e: { r: 6, c: 4 } }, // D7:E7
+      { s: { r: 8, c: 1 }, e: { r: 8, c: 3 } }  // B9:D9
+    ];
+
+    for (let i = 0; i < totalDataRows; i++) {
+      const rowIdx = 9 + i;
+      ws['!merges'].push({ s: { r: rowIdx, c: 1 }, e: { r: rowIdx, c: 3 } }); // B:D
+    }
+
+    // Set Column Widths (matching CA_Store_Assignment.xlsx)
+    ws['!cols'] = [
+      { wch: 6 },   // A: NO
+      { wch: 5 },   // B: DAFTAR TEMUAN (part 1)
+      { wch: 14 },  // C: (part 2)
+      { wch: 24 },  // D: (part 3)
+      { wch: 22 },  // E: TANGGAL PERBAIKAN
+      { wch: 65 }   // F: BUKTI PERBAIKAN
+    ];
+
+    // Sheet Protection: Lock columns A-E, keep Column F & E for input
+    ws['!protect'] = {
+      password: 'fmcu',
+      sheet: true,
+      selectLockedCells: true,
+      selectUnlockedCells: true
+    };
+
+    XLSX.utils.book_append_sheet(wb, ws, 'ISI LANGSUNG PADA SPREADSHEET');
+    return wb;
+  },
+
+  downloadCaStoreAssignmentExcel(report) {
+    if (typeof XLSX === 'undefined') {
+      alert('Library XLSX belum selesai dimuat.');
+      return;
+    }
+    const wb = this.generateCaStoreAssignmentWorkbook(report);
+    if (!wb) return;
+    const cleanStore = String(report.storeName || 'STORE').replace(/[/\\:*?"<>|]/g, ' ').trim();
+    const dateFormatted = this.formatDateDdMmYyyy(report.visitDate);
+    XLSX.writeFile(wb, `CA_Store_Assignment_${cleanStore}_${dateFormatted}.xlsx`);
   },
 
   // Download PDF Directly (Menarik foto dari Google Drive terlebih dahulu jika dibuka dari perangkat lain)

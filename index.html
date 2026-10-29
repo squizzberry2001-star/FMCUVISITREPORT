@@ -102,6 +102,56 @@
   </div>
 
   <!-- ====================================================================
+       MANDATORY PUSH NOTIFICATION PERMISSION GATE (DESKTOP & MOBILE)
+       Web terkunci sampai izin push notification diizinkan user
+       ==================================================================== -->
+  <div id="notification-gate-screen" class="hidden fixed inset-0 z-[58] bg-slate-900/95 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-md w-full p-6 sm:p-8 text-center space-y-5 view-section">
+      <div class="w-20 h-20 rounded-full bg-teal-50 border-2 border-teal-200 text-[#0099A6] flex items-center justify-center text-3xl mx-auto relative">
+        <i class="fa-solid fa-bell animate-bounce"></i>
+        <span class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-500 border-2 border-white flex items-center justify-center text-[10px] text-white font-bold">!</span>
+      </div>
+
+      <div class="space-y-2">
+        <span class="inline-block text-[11px] font-extrabold uppercase tracking-wider px-3 py-1 rounded-full bg-teal-50 text-[#0099A6] border border-teal-200">
+          Notifikasi Real-Time FMCU
+        </span>
+        <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900">
+          Wajib Mengizinkan Notifikasi
+        </h2>
+        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+          Sistem <strong>FMCU Visit Store Report</strong> mewajibkan izin <strong>Push Notifikasi</strong> browser untuk memberikan pengingat langsung terhadap <strong>status kunjungan belum selesai</strong>, <strong>jadwal pending hari ini</strong>, <strong>jadwal terlewat</strong>, serta <strong>penugasan jadwal baru</strong>.
+        </p>
+      </div>
+
+      <div id="notif-gate-error-box" class="hidden bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl p-3.5 text-xs text-left space-y-1.5">
+        <div class="font-extrabold flex items-center gap-1.5 text-rose-700">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <span>Izin Notifikasi Diblokir</span>
+        </div>
+        <p id="notif-gate-error-detail" class="text-rose-700/90 leading-relaxed">
+          Klik ikon Gembok / Setelan Situs di samping URL browser, ubah <strong>Notifikasi</strong> menjadi <strong>Allow / Izinkan</strong>, lalu muat ulang halaman.
+        </p>
+      </div>
+
+      <div class="space-y-2.5 pt-1">
+        <button
+          type="button"
+          id="btn-request-notif"
+          onclick="FMCUApp.requestNotificationPermission()"
+          class="w-full fm-gradient hover:opacity-95 text-white font-bold py-3.5 px-5 rounded-xl shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 text-sm cursor-pointer"
+        >
+          <i class="fa-solid fa-bell"></i>
+          <span>Izinkan & Aktifkan Notifikasi Sekarang</span>
+        </button>
+        <div class="text-[11px] text-slate-400">
+          Aplikasi hanya dapat diakses setelah izin notifikasi diberikan.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================
        GLOBAL AUTH LOGIN OVERLAY (WAJIB LOGIN SETIAP BUKA TAB / WEB APP BARU)
        Pada Mobile: Menampilkan Animasi Loading Informasi FMCU terlebih dahulu
        sebelum otomatis beralih ke Form Login 1 layar penuh.
@@ -745,7 +795,7 @@
                     <span class="w-2.5 h-2.5 rounded-full bg-[#009944] border border-white shadow-2xs"></span>
                     <span>610 Toko FM</span>
                   </span>
-                  <span class="flex items-center gap-1.5">
+                  <span id="home-legend-bestie-count" class="flex items-center gap-1.5">
                     <span class="w-2.5 h-2.5 rounded-full bg-indigo-600 border border-white shadow-2xs"></span>
                     <span class="text-indigo-700">18 Bestie / Visitor (GPS)</span>
                   </span>
@@ -1590,7 +1640,22 @@
             </div>
 
             <!-- Action Buttons: Responsive Grid in Mobile -->
-            <div class="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
+            <div class="grid grid-cols-2 sm:flex sm:items-center sm:flex-wrap gap-2 w-full lg:w-auto">
+              <button type="button" onclick="FMCUApp.downloadCurrentCaExcel()" class="px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer" title="Download Excel CA Store Assignment (Kolom A-E Terkunci)">
+                <i class="fa-solid fa-file-excel"></i>
+                <span class="truncate">CA Store (.xlsx)</span>
+              </button>
+
+              <button type="button" onclick="FMCUApp.openCurrentCaSpreadsheet()" class="px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer" title="Buka Spreadsheet CA Online Toko">
+                <i class="fa-solid fa-table"></i>
+                <span class="truncate">Link Sheets CA</span>
+              </button>
+
+              <button type="button" onclick="FMCUApp.downloadCurrentQscCollagePdf()" class="px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer" title="Download Kolase Foto Lembar QSC (Format PDF Vertikal)">
+                <i class="fa-solid fa-file-arrow-down"></i>
+                <span class="truncate">PDF QSC Vertikal</span>
+              </button>
+
               <button type="button" onclick="FMCUApp.openIntegrationSendModal()" class="px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer">
                 <i class="fa-brands fa-google-drive"></i>
                 <span class="truncate">Kirim / GDrive</span>
@@ -1660,13 +1725,29 @@
             </div>
           </div>
 
+          <!-- Mobile PDF Helper Bar for Optimal Fit -->
+          <div class="sm:hidden px-3.5 py-2.5 bg-slate-800 text-slate-200 text-xs rounded-xl flex items-center justify-between gap-2 shadow-xs">
+            <span class="flex items-center gap-1.5 min-w-0">
+              <i class="fa-solid fa-mobile-screen text-[#0099A6] shrink-0"></i>
+              <span class="truncate">Tampilan Fit PDF di Layar Ponsel</span>
+            </span>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button type="button" onclick="FMCUApp.setPreviewMode('slide')" class="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-[11px] cursor-pointer">
+                Mode Slide
+              </button>
+              <button type="button" onclick="FMCUApp.openActualPdfInNewTab()" class="px-2.5 py-1 rounded-lg bg-[#009944] text-white font-bold text-[11px] cursor-pointer">
+                Layar Penuh
+              </button>
+            </div>
+          </div>
+
           <!-- Embedded Native PDF Viewer Frame -->
           <div class="w-full bg-slate-100 rounded-2xl border border-slate-300 overflow-hidden shadow-sm relative">
             <div id="preview-pdf-loading" class="absolute inset-0 bg-white/80 backdrop-blur-xs flex flex-col items-center justify-center gap-2 z-10 hidden">
               <div class="w-8 h-8 rounded-full border-3 border-teal-600 border-t-transparent animate-spin"></div>
               <span class="text-xs font-bold text-slate-700">Merender Dokumen PDF Aktual...</span>
             </div>
-            <iframe id="preview-actual-pdf-iframe" class="w-full h-[65vh] sm:h-[750px] border-0" title="Actual PDF Preview"></iframe>
+            <iframe id="preview-actual-pdf-iframe" class="w-full h-[68vh] sm:h-[750px] border-0" style="width: 100%; max-width: 100%; min-height: 480px;" title="Actual PDF Preview"></iframe>
           </div>
         </div>
 
@@ -3212,7 +3293,7 @@ service cloud.firestore {
             <i class="fa-solid fa-crosshairs text-[#0099A6]"></i>
             <span class="hidden sm:inline">Posisi Saya</span>
           </button>
-          <button type="button" onclick="FMCUApp.fitModalMapToAllBesties()" class="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 font-extrabold text-xs text-indigo-700 shadow-2xs transition flex items-center gap-1.5 cursor-pointer">
+          <button type="button" id="modal-map-btn-all-besties" onclick="FMCUApp.fitModalMapToAllBesties()" class="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 font-extrabold text-xs text-indigo-700 shadow-2xs transition flex items-center gap-1.5 cursor-pointer">
             <i class="fa-solid fa-users"></i>
             <span class="hidden sm:inline">Semua Bestie (18)</span>
           </button>
@@ -3247,7 +3328,7 @@ service cloud.firestore {
             <span class="w-3 h-3 rounded-full bg-[#009944] border-2 border-white shadow-xs"></span>
             <span>Titik Toko FamilyMart (610)</span>
           </span>
-          <span class="flex items-center gap-1.5">
+          <span id="modal-map-legend-besties" class="flex items-center gap-1.5">
             <span class="w-3.5 h-3.5 rounded-full bg-indigo-600 border-2 border-white shadow-xs flex items-center justify-center text-[7px] text-white font-bold">RB</span>
             <span class="text-indigo-900 font-extrabold">Pinpoint Actual GPS Bestie / Visitor (18)</span>
           </span>
@@ -3554,16 +3635,16 @@ service cloud.firestore {
             </button>
           </div>
 
-          <!-- Rotation & Reset Tools -->
+          <!-- Rotation & Reset Tools (Text Visible on Mobile) -->
           <div class="flex items-center gap-1.5">
-            <button type="button" onclick="FMCUApp.rotatePhotoEditor(90)" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="Putar 90 Derajat">
-              <i class="fa-solid fa-rotate-right text-emerald-400"></i><span class="hidden sm:inline">Putar 90°</span>
+            <button type="button" onclick="FMCUApp.rotatePhotoEditor(90)" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="Putar 90 Derajat">
+              <i class="fa-solid fa-rotate-right text-emerald-400"></i><span class="text-[11px] sm:text-xs font-bold">Putar 90°</span>
             </button>
-            <button type="button" onclick="FMCUApp.undoPhotoEditorMarker()" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="Undo Marker">
-              <i class="fa-solid fa-rotate-left text-amber-400"></i><span class="hidden sm:inline">Undo</span>
+            <button type="button" onclick="FMCUApp.undoPhotoEditorMarker()" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="Undo Marker">
+              <i class="fa-solid fa-rotate-left text-amber-400"></i><span class="text-[11px] sm:text-xs font-bold">Undo</span>
             </button>
-            <button type="button" onclick="FMCUApp.resetPhotoEditor()" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="Reset Semua">
-              <i class="fa-solid fa-arrow-rotate-left text-slate-400"></i><span class="hidden sm:inline">Reset</span>
+            <button type="button" onclick="FMCUApp.resetPhotoEditor()" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="Reset Semua">
+              <i class="fa-solid fa-arrow-rotate-left text-slate-400"></i><span class="text-[11px] sm:text-xs font-bold">Reset</span>
             </button>
           </div>
         </div>
