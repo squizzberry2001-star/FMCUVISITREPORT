@@ -1562,6 +1562,56 @@ window.FMCUData = {
       return false;
     }
   },
+  getStoreDraft(storeCode) {
+    if (!storeCode) return null;
+    try {
+      const drafts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DRAFT_REPORT) || '{}');
+      return drafts[String(storeCode)] || null;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  saveStoreDraft(storeCode, draftData) {
+    if (!storeCode || !draftData) return false;
+    try {
+      const drafts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DRAFT_REPORT) || '{}');
+      drafts[String(storeCode)] = {
+        ...draftData,
+        updatedAt: new Date().toISOString()
+      };
+      localStorage.setItem(STORAGE_KEYS.DRAFT_REPORT, JSON.stringify(drafts));
+      return true;
+    } catch (e) {
+      console.warn('Error saving store draft, attempting lightweight fallback:', e);
+      try {
+        const lightweightDraft = prepareReportForFirestore(draftData);
+        const drafts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DRAFT_REPORT) || '{}');
+        drafts[String(storeCode)] = {
+          ...lightweightDraft,
+          updatedAt: new Date().toISOString()
+        };
+        localStorage.setItem(STORAGE_KEYS.DRAFT_REPORT, JSON.stringify(drafts));
+        return true;
+      } catch (err2) {
+        console.error('Failed to save store draft even in lightweight mode:', err2);
+        return false;
+      }
+    }
+  },
+
+  deleteStoreDraft(storeCode) {
+    if (!storeCode) return false;
+    try {
+      const drafts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DRAFT_REPORT) || '{}');
+      delete drafts[String(storeCode)];
+      localStorage.setItem(STORAGE_KEYS.DRAFT_REPORT, JSON.stringify(drafts));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  },
+
   saveReport(report) {
     if (!report) return false;
     const reports = this.getReports();

@@ -163,10 +163,12 @@ window.FMCUApp = {
     this.checkAndDispatchUserVisitNotifications();
 
     this.renderHomeNewsSlider();
-    this.resetVisitForm(true);
     if (activeCheckIn && activeCheckIn.storeCode) {
       this.restoreActiveCheckInToForm(activeCheckIn);
+    } else {
+      this.resetVisitForm(true);
     }
+    this.setupFormAutoDraftListeners();
     this.populateGasScriptPreview();
     this.onCloudStatusChanged(window.FMCUData.cloudStatus, window.FMCUData.cloudErrorMsg);
 
@@ -214,6 +216,7 @@ window.FMCUApp = {
     // 1. Tandai waktu saat tab atau web app ditutup / di-unload & update status keluar aplikasi
     const markUnload = () => {
       try {
+        this.saveCurrentFormDraft();
         sessionStorage.setItem(window.FMCUData.TAB_UNLOAD_KEY, String(Date.now()));
         if (this.currentUser && this.isAuditorUser(this.currentUser)) {
           window.FMCUData.markUserExited(this.currentUser.id);
@@ -1324,6 +1327,11 @@ window.FMCUApp = {
   navigate(viewName, subTab = null) {
     this.updateSidebarAuthoritiesUI();
 
+    // Auto-save form draft jika visitor berpindah dari halaman Form
+    if (this.currentView === 'form' && viewName !== 'form') {
+      this.saveCurrentFormDraft();
+    }
+
     if (viewName === 'schedules' && !this.hasAuthority('manage_schedule')) {
       this.showToast('Akun Anda tidak memiliki otoritas untuk mengakses Atur Jadwal Visit.', 'warning');
       return;
@@ -1489,6 +1497,9 @@ window.FMCUApp = {
       this.updateFormGuardVisibility();
       this.switchFormSection(this.currentFormSection || 1, false);
     } else if (viewName === 'preview') {
+      if (this.currentView === 'form' && this.hasActiveStoreForm) {
+        this.activePreviewReportId = '__LIVE_FORM__';
+      }
       this.renderPreviewView();
     } else if (viewName === 'schedules') {
       this.checkAdminGateUI();
@@ -1562,6 +1573,7 @@ window.FMCUApp = {
       return;
     }
     this.updateFormProgress();
+    this.saveCurrentFormDraft();
     this.currentFormSection = targetSec;
 
     // Auto-fill nama visitor jika masih kosong
@@ -2813,19 +2825,24 @@ window.FMCUApp = {
     this.triggerHaptic('light');
     const todayStr = this.getLocalDateISO();
     const todayFormatted = window.FMCUPdf.formatIndonesianDate(todayStr, true);
-
-    // 1. If already checked in to a store, jump directly to its Form Visit
-    const activeCheckIn = window.FMCUData.getActiveCheckIn();
-    if (activeCheckIn && activeCheckIn.storeCode) {
-      this.hasActiveStoreForm = true;
-      this.updateFormGuardVisibility();
-      this.navigate('form');
-      this.showToast(`Melanjutkan Form Visit aktif di FamilyMart ${activeCheckIn.storeName || activeCheckIn.storeCode}.`, 'info');
-      return;
-    }
-
     const schedules = window.FMCUData.getSchedules();
     const reports = window.FMCUData.getReports();
+
+    // 1. If already checked in to a store, verify if it was already completed today
+    const activeCheckIn = window.FMCUData.getActiveCheckIn();
+    if (activeCheckIn && activeCheckIn.storeCode) {
+      const isAlreadyCompleted = reports.some(
+        (r) => r.storeCode === activeCheckIn.storeCode && r.visitDate === todayStr
+      );
+      if (isAlreadyCompleted) {
+        // Toko yang dicek-in sebelumnya sudah selesai, hapus agar visitor tidak terkunci di toko yang sama
+        window.FMCUData.setActiveCheckIn(null);
+      } else {
+        this.openStoreVisitForm(activeCheckIn.storeCode, activeCheckIn.scheduleId);
+        this.showToast(`Melanjutkan Form Visit aktif di FamilyMart ${activeCheckIn.storeName || activeCheckIn.storeCode}.`, 'info');
+        return;
+      }
+    }
 
     // 2. Find schedules owned by current user for today
     const myTodaySchedules = schedules.filter(
@@ -2860,6 +2877,7 @@ window.FMCUApp = {
     // 4. If user has NO assigned schedule today: Auto redirect to Form Visit with today's actual date
     this.resetVisitForm(true);
     this.hasActiveStoreForm = true;
+    this.activePreviewReportId = '__LIVE_FORM__';
     this.updateFormGuardVisibility();
     const dateInput = document.getElementById('form-visit-date');
     if (dateInput) dateInput.value = todayStr;
@@ -2872,21 +2890,31 @@ window.FMCUApp = {
   },
 
   restoreActiveCheckInToForm(checkInObj) {
+    if (!checkInObj || !checkInObj.storeCode) return;
     this.hasActiveStoreForm = true;
     this.updateFormGuardVisibility();
-    document.getElementById('form-schedule-id').value = checkInObj.scheduleId || '';
-    document.getElementById('form-actual-in').value = checkInObj.actualIn || '';
+    this.restoreStoreData(checkInObj.storeCode, checkInObj.scheduleId || null);
+
+    if (checkInObj.scheduleId) {
+      const schEl = document.getElementById('form-schedule-id');
+      if (schEl) schEl.value = checkInObj.scheduleId;
+    }
+    if (checkInObj.actualIn) {
+      const inEl = document.getElementById('form-actual-in');
+      if (inEl && !inEl.value) inEl.value = checkInObj.actualIn;
+    }
     if (checkInObj.actualOut) {
-      document.getElementById('form-actual-out').value = checkInObj.actualOut;
+      const outEl = document.getElementById('form-actual-out');
+      if (outEl && !outEl.value) outEl.value = checkInObj.actualOut;
     }
     this.checkAutomaticGeofenceInOut();
-    if (checkInObj.storeCode) {
-      document.getElementById('form-store-select').value = checkInObj.storeCode;
-      this.onSelectMasterStore(checkInObj.storeCode);
-    }
     if (this.currentUser) {
-      document.getElementById('form-auditor-name').value = this.currentUser.name || '';
+      const audInput = document.getElementById('form-auditor-name');
+      if (audInput && !audInput.value.trim()) {
+        audInput.value = this.currentUser.name || '';
+      }
     }
+    this.activePreviewReportId = '__LIVE_FORM__';
   },
 
   openStoreVisitForm(storeCode = '', scheduleId = null) {
@@ -2894,7 +2922,15 @@ window.FMCUApp = {
     const schedules = window.FMCUData.getSchedules();
     const sch = schedules.find((s) => s.id === scheduleId) || null;
     const store = stores.find((s) => s.code === storeCode) || null;
+    const targetCode = store ? store.code : sch ? sch.storeCode : storeCode;
+    const targetName = store ? store.name : sch ? sch.storeName : 'Toko Visit';
     const todayStr = this.getLocalDateISO();
+
+    // Simpan draft toko saat ini jika visitor berpindah membuka form toko lain
+    const currentStoreCode = document.getElementById('form-store-code')?.value.trim();
+    if (currentStoreCode && currentStoreCode !== '-' && currentStoreCode !== targetCode) {
+      this.saveCurrentFormDraft();
+    }
 
     // KEPATUHAN TANGGAL HARI AKTUAL:
     // Jika visitor atau regional bestie mencoba membuka jadwal visit di hari yang bukan aktual, form visit TIDAK BISA DIBUKA
@@ -2910,38 +2946,32 @@ window.FMCUApp = {
       return;
     }
 
-    this.resetVisitForm(true);
-    this.hasActiveStoreForm = true;
-    this.updateFormGuardVisibility();
+    // Pulihkan data laporan yang sudah ada, draft toko yang tersimpan, atau mulai form baru
+    this.restoreStoreData(targetCode, scheduleId);
 
-    document.getElementById('form-schedule-id').value = scheduleId || '';
-    if (sch?.actualIn) {
+    if (scheduleId) {
+      const schIdEl = document.getElementById('form-schedule-id');
+      if (schIdEl) schIdEl.value = scheduleId;
+    }
+    if (sch?.actualIn && !document.getElementById('form-actual-in').value) {
       document.getElementById('form-actual-in').value = sch.actualIn;
     }
-    if (sch?.actualOut) {
+    if (sch?.actualOut && !document.getElementById('form-actual-out').value) {
       document.getElementById('form-actual-out').value = sch.actualOut;
     }
     if (this.currentUser) {
-      document.getElementById('form-auditor-name').value = this.currentUser.name || this.currentUser.username || '';
-    }
-
-    if (store) {
-      document.getElementById('form-store-select').value = store.code;
-      this.onSelectMasterStore(store.code);
-    } else if (sch) {
-      document.getElementById('form-store-code').value = sch.storeCode || '';
-      document.getElementById('form-store-name').value = sch.storeName || '';
-      document.getElementById('form-store-type').value = sch.storeType || 'CVS';
-      if (document.getElementById('form-banner-title')) document.getElementById('form-banner-title').textContent = `FMCU Visit Store Report — ${sch.storeName || ''}`;
-      document.getElementById('form-banner-store-badge').textContent = `Kode Toko: ${sch.storeCode || '-'}`;
+      const audInput = document.getElementById('form-auditor-name');
+      if (audInput && !audInput.value.trim()) {
+        audInput.value = this.currentUser.name || this.currentUser.username || '';
+      }
     }
 
     const checkInObj = {
-      storeCode: store ? store.code : sch ? sch.storeCode : storeCode,
-      storeName: store ? store.name : sch ? sch.storeName : 'Toko Visit',
+      storeCode: targetCode,
+      storeName: targetName,
       scheduleId: scheduleId,
-      actualIn: sch?.actualIn || null,
-      actualOut: sch?.actualOut || null,
+      actualIn: document.getElementById('form-actual-in')?.value || sch?.actualIn || null,
+      actualOut: document.getElementById('form-actual-out')?.value || sch?.actualOut || null,
       latIn: this.liveGps.lat,
       lngIn: this.liveGps.lng,
       storeLat: store?.lat || null,
@@ -2950,6 +2980,10 @@ window.FMCUApp = {
     };
     window.FMCUData.setActiveCheckIn(checkInObj);
     this.updateActiveCheckInUI();
+
+    this.hasActiveStoreForm = true;
+    this.updateFormGuardVisibility();
+    this.activePreviewReportId = '__LIVE_FORM__';
 
     this.navigate('form');
 
@@ -4715,31 +4749,146 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       stores.map((s) => `<option value="${s.code}">${s.code} - ${s.name} (${s.type})</option>`).join('');
   },
 
-  onSelectMasterStore(storeCode) {
-    const stores = window.FMCUData.getStores();
-    const st = stores.find((s) => s.code === storeCode);
+  setupFormAutoDraftListeners() {
+    const formEl = document.getElementById('view-form');
+    if (!formEl || this._formDraftListenersAttached) return;
+    this._formDraftListenersAttached = true;
+
+    formEl.addEventListener('input', () => {
+      this.triggerAutoSaveDraft();
+    });
+    formEl.addEventListener('change', () => {
+      this.triggerAutoSaveDraft();
+    });
+  },
+
+  saveCurrentFormDraft() {
+    const storeCode = document.getElementById('form-store-code')?.value.trim();
+    if (!storeCode || storeCode === '-' || storeCode === '') return;
+    try {
+      const draft = this.buildCurrentFormReportObject();
+      window.FMCUData.saveStoreDraft(storeCode, draft);
+    } catch (e) {
+      console.warn('Draft save error:', e);
+    }
+  },
+
+  triggerAutoSaveDraft() {
+    if (this._draftSaveTimer) clearTimeout(this._draftSaveTimer);
+    this._draftSaveTimer = setTimeout(() => {
+      this.saveCurrentFormDraft();
+    }, 600);
+  },
+
+  populateStoreFields(st) {
     if (!st) return;
+    const sSel = document.getElementById('form-store-select');
+    if (sSel) sSel.value = st.code;
+    const sName = document.getElementById('form-store-name');
+    if (sName) sName.value = st.name || '';
+    const sCode = document.getElementById('form-store-code');
+    if (sCode) sCode.value = st.code || '';
+    const sType = document.getElementById('form-store-type');
+    if (sType) sType.value = st.type || 'CVS';
+    const sHead = document.getElementById('form-store-head');
+    if (sHead) sHead.value = st.storeHead || '';
+    const sAm = document.getElementById('form-area-manager');
+    if (sAm) sAm.value = st.areaManager || '';
+    const sRm = document.getElementById('form-regional-manager');
+    if (sRm) sRm.value = st.regionalManager || '';
+    const sEmail = document.getElementById('form-store-email');
+    if (sEmail) sEmail.value = st.email || '';
 
-    document.getElementById('form-store-name').value = st.name;
-    document.getElementById('form-store-code').value = st.code;
-    document.getElementById('form-store-type').value = st.type || 'CVS';
-    document.getElementById('form-store-head').value = st.storeHead || '';
-    document.getElementById('form-area-manager').value = st.areaManager || '';
-    document.getElementById('form-regional-manager').value = st.regionalManager || '';
-    document.getElementById('form-store-email').value = st.email || '';
-
-    if (document.getElementById('form-banner-title')) document.getElementById('form-banner-title').textContent = `FMCU Visit Store Report — ${st.name}`;
-    document.getElementById('form-banner-store-badge').textContent = `Kode Toko: ${st.code} (${st.type})`;
+    if (document.getElementById('form-banner-title')) {
+      document.getElementById('form-banner-title').textContent = `FMCU Visit Store Report — ${st.name}`;
+    }
+    const badge = document.getElementById('form-banner-store-badge');
+    if (badge) badge.textContent = `Kode Toko: ${st.code} (${st.type || 'CVS'})`;
+    const navSub = document.getElementById('nav-form-store-subtitle');
+    if (navSub) navSub.textContent = `${st.name} (${st.code})`;
 
     if (st.defaultCrew && st.defaultCrew.length > 0) {
       this.formCrew = JSON.parse(JSON.stringify(st.defaultCrew));
     }
-    // Auto isi nama Store Head di tabel tim bertugas
     if (st.storeHead) {
       this.syncStoreHeadToCrew(st.storeHead);
     } else {
       this.renderCrewTable();
     }
+  },
+
+  restoreStoreData(targetStoreCode, scheduleId = null) {
+    if (!targetStoreCode || targetStoreCode === '-') return false;
+    const reports = window.FMCUData.getReports();
+    const todayStr = this.getLocalDateISO();
+
+    // 1. Cek apakah laporan toko ini sudah pernah selesai dibuat
+    const existingRep = reports.find(
+      (r) =>
+        (scheduleId && r.scheduleId === scheduleId) ||
+        (r.storeCode === targetStoreCode && (r.visitDate === todayStr || (scheduleId && r.scheduleId === scheduleId)))
+    );
+    if (existingRep) {
+      this.loadReportObjectToForm(existingRep);
+      this.hasActiveStoreForm = true;
+      this.activePreviewReportId = existingRep.id;
+      this.updateFormGuardVisibility();
+      return true;
+    }
+
+    // 2. Cek apakah draft tersimpan di localStorage untuk toko ini
+    const draft = window.FMCUData.getStoreDraft(targetStoreCode);
+    if (draft) {
+      this.loadReportObjectToForm(draft);
+      this.hasActiveStoreForm = true;
+      this.activePreviewReportId = '__LIVE_FORM__';
+      this.updateFormGuardVisibility();
+      return true;
+    }
+
+    // 3. Toko baru tanpa draft / laporan: reset form dan isi data master toko
+    this.resetVisitForm(true);
+    this.hasActiveStoreForm = true;
+    this.activePreviewReportId = '__LIVE_FORM__';
+    this.updateFormGuardVisibility();
+
+    const stores = window.FMCUData.getStores();
+    const st = stores.find((s) => s.code === targetStoreCode);
+    if (st) {
+      this.populateStoreFields(st);
+    }
+    return false;
+  },
+
+  onSelectMasterStore(storeCode) {
+    if (!storeCode) return;
+    const prevCode = document.getElementById('form-store-code')?.value.trim();
+    if (prevCode && prevCode !== '-' && prevCode !== storeCode) {
+      this.saveCurrentFormDraft();
+    }
+
+    this.restoreStoreData(storeCode, null);
+
+    const stores = window.FMCUData.getStores();
+    const st = stores.find((s) => s.code === storeCode);
+    const storeName = st ? st.name : (document.getElementById('form-store-name')?.value || 'Toko Visit');
+
+    const checkInObj = {
+      storeCode: storeCode,
+      storeName: storeName,
+      scheduleId: document.getElementById('form-schedule-id')?.value || null,
+      actualIn: document.getElementById('form-actual-in')?.value || null,
+      actualOut: document.getElementById('form-actual-out')?.value || null,
+      latIn: this.liveGps.lat,
+      lngIn: this.liveGps.lng,
+      storeLat: st?.lat || null,
+      storeLng: st?.lng || null,
+      startedAt: Date.now()
+    };
+    window.FMCUData.setActiveCheckIn(checkInObj);
+    this.updateActiveCheckInUI();
+    this.activePreviewReportId = '__LIVE_FORM__';
+    this.checkAutomaticGeofenceInOut();
   },
 
   syncStoreHeadToCrew(storeHeadName) {
@@ -4874,12 +5023,20 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     const bCa = document.getElementById('badge-status-ca');
     if (bCa) bCa.textContent = this.enableCa ? 'ON' : 'OFF';
 
+    const hydratePhoto = (p) => {
+      if (!p) return p;
+      const mem = window.FMCUData?.getPhotoFromMemory?.(p.id, p.driveFileId);
+      if (!p.dataUrl && mem) {
+        p.dataUrl = mem;
+      }
+      return p;
+    };
     this.formCrew = JSON.parse(JSON.stringify(rep.crewList || []));
-    this.formQscPhotos = JSON.parse(JSON.stringify(rep.qscPhotos || []));
+    this.formQscPhotos = JSON.parse(JSON.stringify(rep.qscPhotos || [])).map(hydratePhoto);
     this.formOpiObservations = JSON.parse(JSON.stringify(rep.opiObservations || []));
     this.formObservations = JSON.parse(JSON.stringify(rep.qscObservations || rep.observations || []));
-    this.formEvidencePhotos = JSON.parse(JSON.stringify(rep.evidencePhotos || []));
-    this.formCaPhotos = JSON.parse(JSON.stringify(rep.caPhotos || rep.correctiveActionPhotos || []));
+    this.formEvidencePhotos = JSON.parse(JSON.stringify(rep.evidencePhotos || [])).map(hydratePhoto);
+    this.formCaPhotos = JSON.parse(JSON.stringify(rep.caPhotos || rep.correctiveActionPhotos || [])).map(hydratePhoto);
 
     this.renderFormDynamicSections();
     this.switchFormSection(1, false);
@@ -5202,6 +5359,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     for (const f of files) {
       await processFile(f);
     }
+    this.saveCurrentFormDraft();
     this.showToast(`${files.length} foto berhasil diproses!`, 'success');
   },
 
@@ -5320,12 +5478,14 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       jobLevel: '1A'
     });
     this.renderCrewTable();
+    this.saveCurrentFormDraft();
   },
 
   removeCrewRow(idx) {
     if (idx < 2) return;
     this.formCrew.splice(idx, 1);
     this.renderCrewTable();
+    this.saveCurrentFormDraft();
   },
 
   syncStoreHeadToCrew(name) {
@@ -5425,6 +5585,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       });
       photoObj._uploading = false;
       this.renderQscPhotosGrid();
+      this.saveCurrentFormDraft();
       this.showToast(
         photoObj.driveFileId
           ? `Foto lembar QSC #${idx + 1} berhasil disimpan ke Google Drive!`
@@ -5805,6 +5966,7 @@ Instruksi:
       status: 'OPEN'
     });
     this.renderOpiObservationsList();
+    this.saveCurrentFormDraft();
   },
 
   removeOpiObservationCard(idx) {
@@ -5812,6 +5974,7 @@ Instruksi:
     this.formOpiObservations.splice(idx, 1);
     this.renderOpiObservationsList();
     this.updateFormProgress();
+    this.saveCurrentFormDraft();
     this.showToast('Temuan OPI berhasil dihapus.', 'info');
   },
 
@@ -5966,6 +6129,7 @@ Instruksi:
     });
     this.renderObservationsList();
     this.updateFormProgress();
+    this.saveCurrentFormDraft();
     setTimeout(() => {
       const list = document.getElementById('form-observations-list');
       if (list && list.lastElementChild) {
@@ -5979,6 +6143,7 @@ Instruksi:
     this.formObservations.splice(idx, 1);
     this.renderObservationsList();
     this.updateFormProgress();
+    this.saveCurrentFormDraft();
     this.showToast('Temuan QSC berhasil dihapus.', 'info');
   },
 
@@ -5997,6 +6162,7 @@ Instruksi:
     };
     this.renderObservationsList();
     this.updateFormProgress();
+    this.saveCurrentFormDraft();
     this.showToast(`Template "${preset.label}" diterapkan ke temuan #${obsIdx + 1}`, 'success');
   },
 
@@ -6085,11 +6251,13 @@ Instruksi:
       driveUrl: ''
     });
     this.renderEvidenceGrid();
+    this.saveCurrentFormDraft();
   },
 
   removeEvidencePhotoCard(idx) {
     this.formEvidencePhotos.splice(idx, 1);
     this.renderEvidenceGrid();
+    this.saveCurrentFormDraft();
   },
 
   async handleSingleEvidenceUpload(event, idx) {
@@ -6123,6 +6291,7 @@ Instruksi:
       });
       evObj._uploading = false;
       this.renderEvidenceGrid();
+      this.saveCurrentFormDraft();
       this.showToast(
         evObj.driveFileId
           ? `Foto bukti #${idx + 1} berhasil disimpan ke Google Drive!`
@@ -6161,6 +6330,7 @@ Instruksi:
       newCards.push(evObj);
     }
     this.renderEvidenceGrid();
+    this.saveCurrentFormDraft();
 
     await Promise.all(
       newCards.map((evObj) =>
@@ -6174,6 +6344,7 @@ Instruksi:
       )
     );
     this.renderEvidenceGrid();
+    this.saveCurrentFormDraft();
     const uploadedCount = newCards.filter((c) => Boolean(c.driveFileId)).length;
     this.showToast(
       uploadedCount > 0
@@ -6270,12 +6441,14 @@ Instruksi:
       driveUrl: ''
     });
     this.renderCaPhotosGrid();
+    this.saveCurrentFormDraft();
   },
 
   removeCaPhotoCard(idx) {
     if (!this.formCaPhotos) return;
     this.formCaPhotos.splice(idx, 1);
     this.renderCaPhotosGrid();
+    this.saveCurrentFormDraft();
   },
 
   async handleSingleCaUpload(event, idx) {
@@ -6311,6 +6484,7 @@ Instruksi:
       });
       caObj._uploading = false;
       this.renderCaPhotosGrid();
+      this.saveCurrentFormDraft();
       this.showToast(
         caObj.driveFileId
           ? `Foto perbaikan #${idx + 1} berhasil disimpan ke Google Drive!`
@@ -6350,6 +6524,7 @@ Instruksi:
       newCards.push(caObj);
     }
     this.renderCaPhotosGrid();
+    this.saveCurrentFormDraft();
 
     await Promise.all(
       newCards.map((caObj) =>
@@ -6363,6 +6538,7 @@ Instruksi:
       )
     );
     this.renderCaPhotosGrid();
+    this.saveCurrentFormDraft();
     const uploadedCount = newCards.filter((c) => Boolean(c.driveFileId)).length;
     this.showToast(
       uploadedCount > 0
@@ -6458,10 +6634,14 @@ Instruksi:
       window.FMCUData.saveSchedules(schedules);
     }
 
+    // Hapus draft toko ini karena laporan sudah final disimpan
+    window.FMCUData.deleteStoreDraft(reportObj.storeCode);
+
     window.FMCUData.setActiveCheckIn(null);
     this.hasActiveStoreForm = false;
     this.updateActiveCheckInUI();
     this.checkAndRunSilentAiSummary();
+    this.activePreviewReportId = reportObj.id;
 
     return reportObj;
   },
@@ -6518,22 +6698,51 @@ Instruksi:
     if (!sel) return;
     const reports = window.FMCUData.getReports();
 
-    if (reports.length > 0 && this.activePreviewReportId === '__LIVE_FORM__' && !this.hasActiveStoreForm) {
-      this.activePreviewReportId = reports[0].id;
+    // Urutkan laporan dari yang paling baru
+    reports.sort((a, b) => String(b.createdAt || b.visitDate || '').localeCompare(String(a.createdAt || a.visitDate || '')));
+
+    const currentStoreName = document.getElementById('form-store-name')?.value.trim() || '';
+    const currentStoreCode = document.getElementById('form-store-code')?.value.trim() || '';
+    const hasCurrentStore = Boolean(currentStoreCode && currentStoreCode !== '-');
+
+    if (!this.activePreviewReportId) {
+      if (this.hasActiveStoreForm && hasCurrentStore) {
+        this.activePreviewReportId = '__LIVE_FORM__';
+      } else if (reports.length > 0) {
+        this.activePreviewReportId = reports[0].id;
+      } else {
+        this.activePreviewReportId = '__LIVE_FORM__';
+      }
+    } else if (this.activePreviewReportId !== '__LIVE_FORM__') {
+      const exists = reports.some((r) => r.id === this.activePreviewReportId);
+      if (!exists) {
+        if (this.hasActiveStoreForm && hasCurrentStore) {
+          this.activePreviewReportId = '__LIVE_FORM__';
+        } else if (reports.length > 0) {
+          this.activePreviewReportId = reports[0].id;
+        } else {
+          this.activePreviewReportId = '__LIVE_FORM__';
+        }
+      }
     }
 
-    const optionsHtml =
-      (this.hasActiveStoreForm || reports.length === 0
-        ? `<option value="__LIVE_FORM__" ${this.activePreviewReportId === '__LIVE_FORM__' ? 'selected' : ''}>[Draft Form Toko Saat Ini]</option>`
-        : '') +
-      reports
-        .map(
-          (r) =>
-            `<option value="${r.id}" ${r.id === this.activePreviewReportId ? 'selected' : ''}>${r.storeName} (${r.storeCode}) — ${r.visitDateFormatted || r.visitDate} [${r.auditorName}]</option>`
-        )
-        .join('');
+    const liveLabel = hasCurrentStore
+      ? `🎯 [Draft Form Toko Aktif: ${currentStoreName} (${currentStoreCode})]`
+      : `🎯 [Draft Form Toko Saat Ini]`;
 
-    sel.innerHTML = optionsHtml;
+    const liveOptionHtml =
+      (this.hasActiveStoreForm || reports.length === 0)
+        ? `<option value="__LIVE_FORM__" ${this.activePreviewReportId === '__LIVE_FORM__' ? 'selected' : ''}>${liveLabel}</option>`
+        : '';
+
+    const reportsOptionsHtml = reports
+      .map(
+        (r) =>
+          `<option value="${r.id}" ${r.id === this.activePreviewReportId ? 'selected' : ''}>${r.storeName} (${r.storeCode}) — ${r.visitDateFormatted || r.visitDate} [${r.auditorName}]</option>`
+      )
+      .join('');
+
+    sel.innerHTML = liveOptionHtml + reportsOptionsHtml;
   },
 
   getActivePreviewReport() {
@@ -6541,7 +6750,11 @@ Instruksi:
       return this.buildCurrentFormReportObject();
     }
     const reports = window.FMCUData.getReports();
-    return reports.find((r) => r.id === this.activePreviewReportId) || reports[0] || this.buildCurrentFormReportObject();
+    return (
+      reports.find((r) => r.id === this.activePreviewReportId) ||
+      (this.hasActiveStoreForm ? this.buildCurrentFormReportObject() : reports[0]) ||
+      this.buildCurrentFormReportObject()
+    );
   },
 
   openReportPreview(reportId) {
@@ -6760,6 +6973,23 @@ Instruksi:
     const rep = reports.find((r) => r.id === reportId);
     if (!rep) return;
     this.loadReportObjectToForm(rep);
+    this.hasActiveStoreForm = true;
+    this.updateFormGuardVisibility();
+    const checkInObj = {
+      storeCode: rep.storeCode,
+      storeName: rep.storeName,
+      scheduleId: rep.scheduleId || null,
+      actualIn: rep.actualIn || null,
+      actualOut: rep.actualOut || null,
+      latIn: rep.gpsLat || this.liveGps.lat,
+      lngIn: rep.gpsLng || this.liveGps.lng,
+      storeLat: null,
+      storeLng: null,
+      startedAt: Date.now()
+    };
+    window.FMCUData.setActiveCheckIn(checkInObj);
+    this.updateActiveCheckInUI();
+    this.activePreviewReportId = '__LIVE_FORM__';
     this.navigate('form');
     this.showToast(`Membuka form toko ${rep.storeName}`, 'info');
   },
