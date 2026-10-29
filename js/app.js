@@ -950,24 +950,7 @@ window.FMCUApp = {
       }
     });
 
-    // 3. Super Admin Watermark GPS & Timestamp Toggle di Section 3 Form Visit
-    const adminWatermarkBox = document.getElementById('form-admin-watermark-toggle-box');
-    if (adminWatermarkBox) {
-      adminWatermarkBox.classList.toggle('hidden', !isSuperAdmin);
-      if (isSuperAdmin) {
-        const settings = window.FMCUData.getSettings();
-        const watermarkToggle = document.getElementById('form-admin-toggle-watermark');
-        const watermarkBadge = document.getElementById('badge-admin-watermark');
-        const isWatermarkOn = settings.autoWatermarkGps !== false;
-        if (watermarkToggle) watermarkToggle.checked = isWatermarkOn;
-        if (watermarkBadge) {
-          watermarkBadge.textContent = isWatermarkOn ? 'ON' : 'OFF';
-          watermarkBadge.className = isWatermarkOn
-            ? 'text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 leading-none'
-            : 'text-[9px] font-black px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-800 leading-none';
-        }
-      }
-    }
+    // Auto timestamp watermark is always unconditionally enabled for all visitors per user request
   },
 
   toggleAdminWatermarkGps(isChecked) {
@@ -1555,8 +1538,12 @@ window.FMCUApp = {
 
   switchFormSection(secNum, scrollTop = true) {
     this.triggerHaptic('light');
-    this.updateFormProgress();
     const targetSec = Number(secNum) || 1;
+    if (targetSec >= 4) {
+      this.handleSaveAndPreview();
+      return;
+    }
+    this.updateFormProgress();
     this.currentFormSection = targetSec;
 
     // Auto-fill nama visitor jika masih kosong
@@ -5063,7 +5050,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
       const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
       const settings = window.FMCUData.getSettings();
-      const applyWm = settings.autoWatermarkGps !== false;
+      const applyWm = true;
 
       this.showToast('Membubuhkan timestamp & koordinat GPS...', 'info');
       const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
@@ -5132,7 +5119,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
           const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
           const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
           const settings = window.FMCUData.getSettings();
-          const applyWm = settings.autoWatermarkGps !== false;
+          const applyWm = true;
 
           const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
             storeName,
@@ -5394,7 +5381,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
       const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
       const settings = window.FMCUData.getSettings();
-      const applyWm = settings.autoWatermarkGps !== false;
+      const applyWm = true;
       const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
         storeName,
         gpsLat: this.liveGps.lat,
@@ -5430,6 +5417,9 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     const container = document.getElementById('form-opi-observations-list');
     if (!container) return;
 
+    // Update Quick Jump Bar for OPI
+    this.renderJumpBar('opi');
+
     if (!this.enableOpi) {
       container.innerHTML = `
         <div class="border border-dashed border-slate-300 rounded-2xl p-4 text-center text-slate-500 bg-slate-50/70">
@@ -5456,9 +5446,9 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     container.innerHTML = this.formOpiObservations
       .map(
         (obs, idx) => `
-        <div class="relative bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 sm:p-5 shadow-xs transition space-y-4">
-          <!-- Top Right Corner Delete Button -->
-          <button type="button" onclick="FMCUApp.removeOpiObservationCard(${idx})" class="absolute top-3.5 right-3.5 w-8 h-8 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition cursor-pointer" title="Hapus Temuan OPI">
+        <div id="obs-card-opi-${idx}" class="relative bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 sm:p-5 shadow-xs transition space-y-4 scroll-mt-24">
+          <!-- Top Right Corner Delete Button (Dengan Konfirmasi Iya / Tidak) -->
+          <button type="button" onclick="FMCUApp.confirmRemoveObservation(${idx}, 'opi')" class="absolute top-3.5 right-3.5 w-8 h-8 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition cursor-pointer" title="Hapus Temuan OPI #${idx + 1}">
             <i class="fa-solid fa-trash-can text-xs"></i>
           </button>
 
@@ -5482,42 +5472,52 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
           <!-- Clean Form Groups -->
           <div class="space-y-3">
             <div class="space-y-1">
-              <div class="flex items-center justify-between">
+              <div class="flex items-center justify-between flex-wrap gap-2">
                 <label class="font-extrabold text-xs text-amber-800 uppercase flex items-center gap-1">
                   <i class="fa-solid fa-triangle-exclamation text-amber-500"></i>Temuan (Finding) *
                 </label>
-                <button type="button" onclick="FMCUApp.startVoiceInput('obs-opi-temuan-${idx}', this)" class="text-[10px] font-bold text-teal-800 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded-lg border border-teal-200 flex items-center gap-1 transition cursor-pointer shadow-2xs" title="Diktekan temuan dengan suara">
-                  <i class="fa-solid fa-microphone text-rose-500"></i>
-                  <span>Dikte</span>
-                </button>
+                <div class="flex items-center gap-1.5">
+                  <!-- AI Auto-Isi Button with Loading State -->
+                  <button type="button" id="btn-ai-analyze-opi-${idx}" onclick="FMCUApp.autoAnalyzeFindingWithAi(${idx}, 'opi')" class="text-[10px] font-extrabold text-white bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 active:scale-95 px-2.5 py-1 rounded-lg border border-teal-500/30 flex items-center gap-1.5 transition cursor-pointer shadow-2xs" title="Auto-analisa temuan dengan AI (Kondisi Ideal, Dampak, Penyebab, Tindakan, Hasil)">
+                    <i class="fa-solid fa-wand-magic-sparkles text-amber-300"></i>
+                    <span>Auto-Isi AI</span>
+                  </button>
+                  <button type="button" onclick="FMCUApp.startVoiceInput('obs-opi-temuan-${idx}', this)" class="text-[10px] font-bold text-teal-800 bg-teal-50 hover:bg-teal-100 px-2 py-1 rounded-lg border border-teal-200 flex items-center gap-1 transition cursor-pointer shadow-2xs" title="Diktekan temuan dengan suara">
+                    <i class="fa-solid fa-microphone text-rose-500"></i>
+                    <span>Dikte</span>
+                  </button>
+                </div>
               </div>
               <textarea id="obs-opi-temuan-${idx}" rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formOpiObservations[${idx}].temuan = this.value; FMCUApp.updateFormProgress();" placeholder="Tuliskan detail temuan observasi proyek OPI..." class="fm-auto-textarea w-full bg-amber-50/30 border border-amber-300 rounded-xl p-2.5 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 transition">${obs.temuan || ''}</textarea>
             </div>
 
+            <!-- AI Loading Banner Container -->
+            <div id="ai-loading-box-opi-${idx}" class="hidden"></div>
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div class="space-y-1">
                 <label class="font-bold text-[11px] text-slate-600 uppercase tracking-wide block">Dampak (Impact)</label>
-                <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formOpiObservations[${idx}].dampak = this.value" placeholder="Tuliskan dampak terhadap operasional..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-teal-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.dampak || ''}</textarea>
+                <textarea id="obs-opi-dampak-${idx}" rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formOpiObservations[${idx}].dampak = this.value" placeholder="Tuliskan dampak terhadap operasional..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-teal-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.dampak || ''}</textarea>
               </div>
 
               <div class="space-y-1">
                 <label class="font-bold text-[11px] text-slate-600 uppercase tracking-wide block">Kondisi Ideal</label>
-                <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formOpiObservations[${idx}].kondisiIdeal = this.value" placeholder="Tuliskan standar kondisi ideal..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-teal-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.kondisiIdeal || ''}</textarea>
+                <textarea id="obs-opi-kondisi-${idx}" rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formOpiObservations[${idx}].kondisiIdeal = this.value" placeholder="Tuliskan standar kondisi ideal..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-teal-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.kondisiIdeal || ''}</textarea>
               </div>
 
               <div class="space-y-1">
                 <label class="font-bold text-[11px] text-slate-600 uppercase tracking-wide block">Tindakan Perbaikan (Corrective Action)</label>
-                <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formOpiObservations[${idx}].tindakanPerbaikan = this.value" placeholder="Tuliskan tindakan perbaikan..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-teal-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.tindakanPerbaikan || ''}</textarea>
+                <textarea id="obs-opi-tindakan-${idx}" rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formOpiObservations[${idx}].tindakanPerbaikan = this.value" placeholder="Tuliskan tindakan perbaikan..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-teal-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.tindakanPerbaikan || ''}</textarea>
               </div>
 
               <div class="space-y-1">
                 <label class="font-bold text-[11px] text-slate-600 uppercase tracking-wide block">Penyebab (Root Cause)</label>
-                <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formOpiObservations[${idx}].penyebab = this.value" placeholder="Tuliskan akar penyebab temuan..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-teal-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.penyebab || ''}</textarea>
+                <textarea id="obs-opi-penyebab-${idx}" rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formOpiObservations[${idx}].penyebab = this.value" placeholder="Tuliskan akar penyebab temuan..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-teal-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.penyebab || ''}</textarea>
               </div>
 
               <div class="space-y-1 md:col-span-2">
                 <label class="font-bold text-[11px] text-slate-600 uppercase tracking-wide block">Hasil (Result / Follow-Up)</label>
-                <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formOpiObservations[${idx}].hasil = this.value" placeholder="Tuliskan hasil tindak lanjut..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-teal-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.hasil || ''}</textarea>
+                <textarea id="obs-opi-hasil-${idx}" rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formOpiObservations[${idx}].hasil = this.value" placeholder="Tuliskan hasil tindak lanjut..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-teal-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.hasil || ''}</textarea>
               </div>
             </div>
           </div>
@@ -5527,6 +5527,243 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       .join('');
 
     container.querySelectorAll('textarea').forEach((ta) => this.autoExpandTextarea(ta));
+    this.updateFloatingJumpLabel();
+  },
+
+  // ==========================================================================
+  // CONFIRM DELETE TEMUAN (OPI & QSC) - PERMINTAAN USER: KONFIRMASI IYA / TIDAK
+  // ==========================================================================
+  confirmRemoveObservation(idx, type = 'qsc') {
+    this.triggerHaptic('medium');
+    const isOpi = type === 'opi';
+    const label = isOpi ? 'Temuan OPI' : 'Temuan QSC';
+    const num = idx + 1;
+    const isConfirmed = window.confirm(
+      `Apakah Anda yakin ingin menghapus ${label} #${num}?\n\n` +
+      `Tindakan ini akan menghapus detail temuan ini dari laporan visit.\n\n` +
+      `Klik OK untuk IYA (Hapus), atau klik Batal untuk TIDAK.`
+    );
+    if (!isConfirmed) return;
+
+    if (isOpi) {
+      this.removeOpiObservationCard(idx);
+    } else {
+      this.removeObservationCard(idx);
+    }
+  },
+
+  // ==========================================================================
+  // QUICK NAVIGATE ANTAR TEMUAN (LOMPAT CEPAT TANPA BANYAK SCROLL)
+  // ==========================================================================
+  renderJumpBar(type = 'qsc') {
+    const isOpi = type === 'opi';
+    const barEl = document.getElementById(isOpi ? 'jump-bar-opi' : 'jump-bar-qsc');
+    const list = isOpi ? this.formOpiObservations : this.formObservations;
+    if (!barEl) return;
+
+    if (!list || list.length < 2) {
+      barEl.classList.add('hidden');
+      barEl.innerHTML = '';
+      return;
+    }
+
+    barEl.classList.remove('hidden');
+    let pillsHtml = `
+      <div class="flex items-center gap-1.5 shrink-0 pr-1">
+        <span class="text-[10px] font-black uppercase text-slate-500 flex items-center gap-1">
+          <i class="fa-solid fa-location-arrow text-teal-600"></i>Lompat:
+        </span>
+      </div>
+    `;
+
+    list.forEach((_, idx) => {
+      pillsHtml += `
+        <button type="button" onclick="FMCUApp.scrollToObservation(${idx}, '${type}')" class="px-2.5 py-1 rounded-xl text-[10px] font-extrabold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs hover:border-teal-400 transition cursor-pointer shrink-0 active:scale-95">
+          #${idx + 1}
+        </button>
+      `;
+    });
+
+    barEl.innerHTML = pillsHtml;
+  },
+
+  scrollToObservation(idx, type = 'qsc') {
+    this.triggerHaptic('light');
+    const card = document.getElementById(`obs-card-${type}-${idx}`);
+    if (card) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      card.classList.add('ring-2', 'ring-teal-500', 'transition-all');
+      setTimeout(() => card.classList.remove('ring-2', 'ring-teal-500'), 1500);
+      this._currentObsJumpIdx = idx;
+      this.updateFloatingJumpLabel();
+    }
+  },
+
+  scrollToNextObservation() {
+    this.triggerHaptic('light');
+    const isOpi = this.currentObsSubSection === 'opi';
+    const type = isOpi ? 'opi' : 'qsc';
+    const list = isOpi ? this.formOpiObservations : this.formObservations;
+    if (!list || list.length === 0) return;
+
+    if (typeof this._currentObsJumpIdx !== 'number') {
+      this._currentObsJumpIdx = 0;
+    } else {
+      this._currentObsJumpIdx = (this._currentObsJumpIdx + 1) % list.length;
+    }
+    this.scrollToObservation(this._currentObsJumpIdx, type);
+  },
+
+  updateFloatingJumpLabel() {
+    const isOpi = this.currentObsSubSection === 'opi';
+    const list = isOpi ? this.formOpiObservations : this.formObservations;
+    const btnJump = document.getElementById('btn-fab-obs-jump');
+    const label = document.getElementById('floating-obs-jump-label');
+    if (!btnJump) return;
+
+    if (!list || list.length < 2) {
+      btnJump.classList.add('hidden');
+      return;
+    }
+
+    btnJump.classList.remove('hidden');
+    const nextIdx = typeof this._currentObsJumpIdx === 'number' ? ((this._currentObsJumpIdx + 1) % list.length) : 1;
+    if (label) label.textContent = `Temuan #${nextIdx + 1}`;
+  },
+
+  // ==========================================================================
+  // FITUR AI ANALISIS PADA MASING-MASING TEMUAN (AUTO-ISI KONDISI IDEAL DLL)
+  // ==========================================================================
+  async callAiJsonAnalysis(findingText, category = '') {
+    const apiKey = window.FMCUData?.GEMINI_CONFIG?.getApiKey?.() || (typeof atob !== 'undefined' ? atob('QVEuQWI4Uk42S1M2TlhBVEFXTU9lRXVFZWNMU3NEUUlXWG5uUEpqT2FfVEtKbVVNNHMyYVE=') : '');
+    const models = ['models/gemini-3.5-flash', 'models/gemini-3-flash-preview', 'models/gemini-3.8-flash', 'models/gemini-flash-latest'];
+
+    const promptText = `Anda adalah asisten Quality & Service Control (QSC) dan Operational Performance Improvement (OPI) FamilyMart Indonesia.
+Tugas Anda menganalisa temuan observasi toko berikut:
+Kategori: ${category || 'Umum / QSC'}
+Temuan: "${findingText}"
+
+Instruksi:
+- Berikan analisis operasional yang tajam, profesional, dan to the point sesuai standar retail convenience store (SOP & Food Safety FamilyMart Indonesia).
+- Balas HANYA dalam format JSON valid persis tanpa tanda kutip markdown backticks, dengan 5 field berikut:
+{
+  "kondisiIdeal": "Standar kondisi ideal yang seharusnya berlaku di toko...",
+  "dampak": "Dampak risiko terhadap kualitas produk, kenyamanan pelanggan, atau operasional toko...",
+  "penyebab": "Akar masalah utama mengapa temuan ini bisa terjadi...",
+  "tindakanPerbaikan": "Tindakan perbaikan (corrective action) konkret dan cepat yang harus diambil crew...",
+  "hasil": "Hasil yang dicapai setelah tindakan perbaikan selesai dilakukan..."
+}`;
+
+    for (const model of models) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${apiKey}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: promptText }] }],
+            generationConfig: {
+              temperature: 0.2
+            }
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (rawText) {
+            const cleanJson = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+            const parsed = JSON.parse(cleanJson);
+            return parsed;
+          }
+        }
+      } catch (e) {
+        console.warn(`AI analysis model ${model} failed, trying next:`, e);
+      }
+    }
+
+    throw new Error('Koneksi AI sedang sibuk. Silakan coba kembali.');
+  },
+
+  async autoAnalyzeFindingWithAi(idx, type = 'qsc') {
+    this.triggerHaptic('light');
+    const isOpi = type === 'opi';
+    const list = isOpi ? this.formOpiObservations : this.formObservations;
+    const obs = list[idx];
+    if (!obs) return;
+
+    const textareaEl = document.getElementById(isOpi ? `obs-opi-temuan-${idx}` : `obs-temuan-${idx}`);
+    const findingText = (textareaEl ? textareaEl.value : obs.temuan || '').trim();
+
+    if (!findingText) {
+      this.showToast('Harap tuliskan Temuan terlebih dahulu sebelum menekan Auto-Isi AI.', 'warning');
+      if (textareaEl) textareaEl.focus();
+      return;
+    }
+
+    obs.temuan = findingText;
+
+    const btnAi = document.getElementById(`btn-ai-analyze-${type}-${idx}`);
+    const loadingBox = document.getElementById(`ai-loading-box-${type}-${idx}`);
+
+    if (btnAi) {
+      btnAi.disabled = true;
+      btnAi.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-amber-300"></i><span>Menganalisis...</span>';
+      btnAi.classList.add('opacity-80', 'cursor-not-allowed');
+    }
+    if (loadingBox) {
+      loadingBox.innerHTML = `
+        <div class="flex items-center gap-2.5 p-2.5 sm:p-3 rounded-xl bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 text-teal-900 text-xs shadow-2xs animate-pulse">
+          <div class="w-7 h-7 rounded-lg bg-teal-600 text-white flex items-center justify-center shrink-0 text-xs shadow-2xs">
+            <i class="fa-solid fa-brain fa-bounce"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-extrabold text-[11px] sm:text-xs text-teal-900">T.A.R.O AI sedang menganalisa temuan...</div>
+            <div class="text-[9.5px] sm:text-[10px] text-teal-700 truncate">Merumuskan Kondisi Ideal, Dampak, Akar Masalah & Solusi Perbaikan</div>
+          </div>
+        </div>
+      `;
+      loadingBox.classList.remove('hidden');
+    }
+
+    try {
+      const result = await this.callAiJsonAnalysis(findingText, obs.category || '');
+      if (result) {
+        if (result.kondisiIdeal) obs.kondisiIdeal = result.kondisiIdeal;
+        if (result.dampak) obs.dampak = result.dampak;
+        if (result.penyebab) obs.penyebab = result.penyebab;
+        if (result.tindakanPerbaikan) obs.tindakanPerbaikan = result.tindakanPerbaikan;
+        if (result.hasil) obs.hasil = result.hasil;
+
+        const fKondisi = document.getElementById(`obs-${type}-kondisi-${idx}`);
+        const fDampak = document.getElementById(`obs-${type}-dampak-${idx}`);
+        const fPenyebab = document.getElementById(`obs-${type}-penyebab-${idx}`);
+        const fTindakan = document.getElementById(`obs-${type}-tindakan-${idx}`);
+        const fHasil = document.getElementById(`obs-${type}-hasil-${idx}`);
+
+        if (fKondisi) { fKondisi.value = obs.kondisiIdeal; this.autoExpandTextarea(fKondisi); }
+        if (fDampak) { fDampak.value = obs.dampak; this.autoExpandTextarea(fDampak); }
+        if (fPenyebab) { fPenyebab.value = obs.penyebab; this.autoExpandTextarea(fPenyebab); }
+        if (fTindakan) { fTindakan.value = obs.tindakanPerbaikan; this.autoExpandTextarea(fTindakan); }
+        if (fHasil) { fHasil.value = obs.hasil; this.autoExpandTextarea(fHasil); }
+
+        this.updateFormProgress();
+        this.showToast(`Analisa temuan #${idx + 1} berhasil diisi otomatis oleh AI!`, 'success');
+      }
+    } catch (err) {
+      console.error('AI Analysis Error:', err);
+      this.showToast(`Gagal auto-analisa AI: ${err.message || 'Periksa koneksi'}`, 'error');
+    } finally {
+      if (btnAi) {
+        btnAi.disabled = false;
+        btnAi.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles text-amber-300"></i><span>Auto-Isi AI</span>';
+        btnAi.classList.remove('opacity-80', 'cursor-not-allowed');
+      }
+      if (loadingBox) {
+        loadingBox.classList.add('hidden');
+        loadingBox.innerHTML = '';
+      }
+    }
   },
 
   addOpiObservationCard() {
@@ -5560,7 +5797,9 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
   renderObservationsList() {
     const container = document.getElementById('form-observations-list');
     if (!container) return;
-    const presets = window.FMCUData.FINDING_PRESETS || [];
+
+    // Update Quick Jump Bar for QSC
+    this.renderJumpBar('qsc');
 
     if (!this.enableQsc) {
       container.innerHTML = `
@@ -5588,9 +5827,9 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     container.innerHTML = this.formObservations
       .map(
         (obs, idx) => `
-        <div class="relative bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 sm:p-5 shadow-xs transition space-y-4">
-          <!-- Top Right Corner Delete Button -->
-          <button type="button" onclick="FMCUApp.removeObservationCard(${idx})" class="absolute top-3.5 right-3.5 w-8 h-8 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition cursor-pointer" title="Hapus Temuan">
+        <div id="obs-card-qsc-${idx}" class="relative bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 sm:p-5 shadow-xs transition space-y-4 scroll-mt-24">
+          <!-- Top Right Corner Delete Button (Dengan Konfirmasi Iya / Tidak) -->
+          <button type="button" onclick="FMCUApp.confirmRemoveObservation(${idx}, 'qsc')" class="absolute top-3.5 right-3.5 w-8 h-8 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition cursor-pointer" title="Hapus Temuan QSC #${idx + 1}">
             <i class="fa-solid fa-trash-can text-xs"></i>
           </button>
 
@@ -5600,7 +5839,11 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
               <span class="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 font-black text-xs shrink-0">
                 Temuan #${idx + 1}
               </span>
-              <select onchange="FMCUApp.formObservations[${idx}].category = this.value; FMCUApp.renderObservationsList();" class="text-xs font-extrabold bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1 text-slate-700 cursor-pointer w-full sm:w-auto max-w-full sm:max-w-[200px] truncate">
+              <!-- QSC Observation Pill Badge (Sesuai format OPI) -->
+              <span class="text-[10px] font-extrabold text-emerald-700 bg-emerald-50/80 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0">
+                QSC Observation
+              </span>
+              <select onchange="FMCUApp.formObservations[${idx}].category = this.value; FMCUApp.renderObservationsList();" class="text-xs font-extrabold bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1 text-slate-700 cursor-pointer w-full sm:w-auto max-w-full sm:max-w-[190px] truncate">
                 ${[
                   'Food Safety & Expired',
                   'Standar SOP & Alat Takar',
@@ -5622,62 +5865,55 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
             </div>
           </div>
 
-          <!-- Template Preset Quick Selection -->
-          <div class="flex flex-wrap items-center gap-1.5 pt-0.5">
-            <select onchange="FMCUApp.applyFindingPreset(${idx}, this.value)" class="text-[11px] bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg px-2 py-1 font-semibold focus:outline-none cursor-pointer">
-              <option value="">⚡ Template Standar SOP (Opsional)...</option>
-              ${presets.map((pr) => `<option value="${pr.id}">${pr.label}</option>`).join('')}
-            </select>
-            <button type="button" onclick="FMCUApp.applyFindingPreset(${idx}, 'preset-food-safety')" class="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 border border-slate-200 transition cursor-pointer">
-              ⚡ Expired / FEFO
-            </button>
-            <button type="button" onclick="FMCUApp.applyFindingPreset(${idx}, 'preset-kebersihan')" class="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 border border-slate-200 transition cursor-pointer">
-              ⚡ Kebersihan Area
-            </button>
-            <button type="button" onclick="FMCUApp.applyFindingPreset(${idx}, 'preset-alat-takar')" class="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 border border-slate-200 transition cursor-pointer">
-              ⚡ Alat Takar SOP
-            </button>
-          </div>
-
           <!-- Clean Form Groups -->
           <div class="space-y-3">
             <div class="space-y-1">
-              <div class="flex items-center justify-between">
+              <div class="flex items-center justify-between flex-wrap gap-2">
                 <label class="font-extrabold text-xs text-amber-800 uppercase flex items-center gap-1">
                   <i class="fa-solid fa-triangle-exclamation text-amber-500"></i>Temuan (Finding) *
                 </label>
-                <button type="button" onclick="FMCUApp.startVoiceInput('obs-temuan-${idx}', this)" class="text-[10px] font-bold text-teal-800 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded-lg border border-teal-200 flex items-center gap-1 transition cursor-pointer shadow-2xs" title="Diktekan temuan dengan suara">
-                  <i class="fa-solid fa-microphone text-rose-500"></i>
-                  <span>Dikte</span>
-                </button>
+                <div class="flex items-center gap-1.5">
+                  <!-- AI Auto-Isi Button with Loading State -->
+                  <button type="button" id="btn-ai-analyze-qsc-${idx}" onclick="FMCUApp.autoAnalyzeFindingWithAi(${idx}, 'qsc')" class="text-[10px] font-extrabold text-white bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 active:scale-95 px-2.5 py-1 rounded-lg border border-teal-500/30 flex items-center gap-1.5 transition cursor-pointer shadow-2xs" title="Auto-analisa temuan dengan AI (Kondisi Ideal, Dampak, Penyebab, Tindakan, Hasil)">
+                    <i class="fa-solid fa-wand-magic-sparkles text-amber-300"></i>
+                    <span>Auto-Isi AI</span>
+                  </button>
+                  <button type="button" onclick="FMCUApp.startVoiceInput('obs-temuan-${idx}', this)" class="text-[10px] font-bold text-teal-800 bg-teal-50 hover:bg-teal-100 px-2 py-1 rounded-lg border border-teal-200 flex items-center gap-1 transition cursor-pointer shadow-2xs" title="Diktekan temuan dengan suara">
+                    <i class="fa-solid fa-microphone text-rose-500"></i>
+                    <span>Dikte</span>
+                  </button>
+                </div>
               </div>
-              <textarea id="obs-temuan-${idx}" rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formObservations[${idx}].temuan = this.value; FMCUApp.updateFormProgress();" placeholder="Tuliskan detail temuan observasi..." class="fm-auto-textarea w-full bg-amber-50/30 border border-amber-300 rounded-xl p-2.5 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 transition">${obs.temuan || ''}</textarea>
+              <textarea id="obs-temuan-${idx}" rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formObservations[${idx}].temuan = this.value; FMCUApp.updateFormProgress();" placeholder="Tuliskan detail temuan observasi QSC..." class="fm-auto-textarea w-full bg-amber-50/30 border border-amber-300 rounded-xl p-2.5 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 transition">${obs.temuan || ''}</textarea>
             </div>
+
+            <!-- AI Loading Banner Container -->
+            <div id="ai-loading-box-qsc-${idx}" class="hidden"></div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div class="space-y-1">
                 <label class="font-bold text-[11px] text-slate-600 uppercase tracking-wide block">Dampak (Impact)</label>
-                <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formObservations[${idx}].dampak = this.value" placeholder="Tuliskan dampak terhadap kualitas..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.dampak || ''}</textarea>
+                <textarea id="obs-qsc-dampak-${idx}" rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formObservations[${idx}].dampak = this.value" placeholder="Tuliskan dampak terhadap kualitas..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.dampak || ''}</textarea>
               </div>
 
               <div class="space-y-1">
                 <label class="font-bold text-[11px] text-slate-600 uppercase tracking-wide block">Kondisi Ideal</label>
-                <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formObservations[${idx}].kondisiIdeal = this.value" placeholder="Tuliskan standar kondisi ideal..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.kondisiIdeal || ''}</textarea>
+                <textarea id="obs-qsc-kondisi-${idx}" rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formObservations[${idx}].kondisiIdeal = this.value" placeholder="Tuliskan standar kondisi ideal..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.kondisiIdeal || ''}</textarea>
               </div>
 
               <div class="space-y-1">
                 <label class="font-bold text-[11px] text-slate-600 uppercase tracking-wide block">Tindakan Perbaikan (Corrective Action)</label>
-                <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formObservations[${idx}].tindakanPerbaikan = this.value" placeholder="Tuliskan tindakan perbaikan..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.tindakanPerbaikan || ''}</textarea>
+                <textarea id="obs-qsc-tindakan-${idx}" rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formObservations[${idx}].tindakanPerbaikan = this.value" placeholder="Tuliskan tindakan perbaikan..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.tindakanPerbaikan || ''}</textarea>
               </div>
 
               <div class="space-y-1">
                 <label class="font-bold text-[11px] text-slate-600 uppercase tracking-wide block">Penyebab (Root Cause)</label>
-                <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formObservations[${idx}].penyebab = this.value" placeholder="Tuliskan akar penyebab temuan..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.penyebab || ''}</textarea>
+                <textarea id="obs-qsc-penyebab-${idx}" rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formObservations[${idx}].penyebab = this.value" placeholder="Tuliskan akar penyebab temuan..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.penyebab || ''}</textarea>
               </div>
 
               <div class="space-y-1 md:col-span-2">
                 <label class="font-bold text-[11px] text-slate-600 uppercase tracking-wide block">Hasil (Result / Follow-Up)</label>
-                <textarea rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formObservations[${idx}].hasil = this.value" placeholder="Tuliskan hasil tindak lanjut..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.hasil || ''}</textarea>
+                <textarea id="obs-qsc-hasil-${idx}" rows="2" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formObservations[${idx}].hasil = this.value" placeholder="Tuliskan hasil tindak lanjut..." class="fm-auto-textarea w-full bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none transition">${obs.hasil || ''}</textarea>
               </div>
             </div>
           </div>
@@ -5687,6 +5923,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       .join('');
 
     container.querySelectorAll('textarea').forEach((ta) => this.autoExpandTextarea(ta));
+    this.updateFloatingJumpLabel();
   },
 
     addObservationCard() {
@@ -5841,7 +6078,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
       const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
       const settings = window.FMCUData.getSettings();
-      const applyWm = settings.autoWatermarkGps !== false;
+      const applyWm = true;
       const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
         storeName,
         gpsLat: this.liveGps.lat,
@@ -5879,7 +6116,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
     const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
     const settings = window.FMCUData.getSettings();
-    const applyWm = settings.autoWatermarkGps !== false;
+    const applyWm = true;
 
     const newCards = [];
     for (const file of files) {
@@ -6027,7 +6264,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
       const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
       const settings = window.FMCUData.getSettings();
-      const applyWm = settings.autoWatermarkGps !== false;
+      const applyWm = true;
       const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
         storeName,
         gpsLat: this.liveGps.lat,
@@ -6067,7 +6304,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
     const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
     const settings = window.FMCUData.getSettings();
-    const applyWm = settings.autoWatermarkGps !== false;
+    const applyWm = true;
 
     if (!this.formCaPhotos) this.formCaPhotos = [];
     const newCards = [];
