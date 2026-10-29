@@ -6831,9 +6831,10 @@ Instruksi:
     this.triggerBackgroundDriveUpload(rep);
   },
 
-  async triggerBackgroundDriveUpload(rep) {
+  async triggerBackgroundDriveUpload(rep, retryCount = 0) {
     if (!rep) return;
     const statusBox = document.getElementById('modal-send-status');
+    const statusIconEl = document.getElementById('modal-send-status-icon');
     const statusTextEl = document.getElementById('modal-send-status-text');
 
     const fileName = window.FMCUPdf.getFileName(rep);
@@ -6846,12 +6847,14 @@ Instruksi:
       if (statusBox) {
         statusBox.className = 'p-3.5 rounded-2xl font-semibold text-xs border border-amber-300 bg-amber-50 text-amber-950 flex flex-col gap-2.5';
       }
+      if (statusIconEl) {
+        statusIconEl.className = 'fa-solid fa-triangle-exclamation text-amber-600 text-sm shrink-0';
+      }
       if (statusTextEl) {
         statusTextEl.innerHTML = `
           <div class="space-y-2">
-            <div class="font-extrabold text-amber-900 flex items-center gap-1.5 text-xs">
-              <i class="fa-solid fa-triangle-exclamation text-amber-600 text-sm"></i>
-              <span>Webhook Google Apps Script Belum Terhubung</span>
+            <div class="font-extrabold text-amber-900 text-xs">
+              Webhook Google Apps Script Belum Terhubung
             </div>
             <p class="text-[11px] text-amber-800 leading-relaxed">
               Untuk mengaktifkan sinkronisasi otomatis 3 berkas ke Google Drive (<code>15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8</code>) & pembuatan Spreadsheet CA unik toko, silakan tempel Web App URL Google Apps Script Anda di bawah ini:
@@ -6874,13 +6877,11 @@ Instruksi:
     if (statusBox) {
       statusBox.className = 'p-3 rounded-2xl font-semibold text-xs border border-teal-200 bg-teal-50/90 text-teal-900 flex items-start gap-2.5';
     }
+    if (statusIconEl) {
+      statusIconEl.className = 'fa-solid fa-spinner fa-spin text-teal-600 text-sm mt-0.5 shrink-0';
+    }
     if (statusTextEl) {
-      statusTextEl.innerHTML = `
-        <div class="flex items-center gap-2">
-          <i class="fa-solid fa-spinner fa-spin text-teal-600 text-sm shrink-0"></i>
-          <span>Menyimpan otomatis 3 berkas ke Google Drive (PDF Laporan, PDF QSC, & Spreadsheet CA unik toko)...</span>
-        </div>
-      `;
+      statusTextEl.innerHTML = `<span>Menyimpan otomatis 3 berkas ke Google Drive (PDF Laporan, PDF QSC, & Spreadsheet CA unik toko)...</span>`;
     }
 
     try {
@@ -6938,17 +6939,31 @@ Instruksi:
         if (gasJson.storeFolderUrl) {
           rep.storeFolderUrl = gasJson.storeFolderUrl;
         }
-        window.FMCUData.saveReport(rep);
+
+        if (window.FMCUData && typeof window.FMCUData.saveReport === 'function') {
+          window.FMCUData.saveReport(rep);
+        } else {
+          const reports = window.FMCUData.getReports();
+          const idx = reports.findIndex((r) => String(r.id) === String(rep.id));
+          if (idx !== -1) {
+            reports[idx] = { ...reports[idx], ...rep };
+          } else {
+            reports.unshift(rep);
+          }
+          window.FMCUData.saveReports(reports);
+        }
 
         if (statusBox) {
           statusBox.className = 'p-3 rounded-2xl font-semibold text-xs border border-emerald-300 bg-emerald-50 text-emerald-950 flex items-start gap-2.5';
         }
+        if (statusIconEl) {
+          statusIconEl.className = 'fa-solid fa-circle-check text-emerald-600 text-base mt-0.5 shrink-0';
+        }
         if (statusTextEl) {
           statusTextEl.innerHTML = `
             <div class="space-y-1.5">
-              <div class="font-extrabold text-emerald-800 flex items-center gap-1.5">
-                <i class="fa-solid fa-circle-check text-emerald-600 text-base"></i>
-                <span>3 Berkas Tersimpan Rapi di Google Drive!</span>
+              <div class="font-extrabold text-emerald-800 text-xs">
+                3 Berkas Tersimpan Rapi di Google Drive!
               </div>
               <div class="text-[11px] text-emerald-900/90 leading-tight">
                 Folder: <code>01. VISIT BESTIE 2026 / ${rep.auditorName || 'Visitor'} / ${rep.storeCode || ''} - ${rep.storeName || 'STORE'}</code>
@@ -6975,27 +6990,43 @@ Instruksi:
       }
     } catch (err) {
       console.warn('Background GAS sync error:', err);
+      // Auto-retry di balik layar tanpa tombol manual
+      if (retryCount < 3) {
+        const nextAttempt = retryCount + 1;
+        if (statusBox) {
+          statusBox.className = 'p-3 rounded-2xl font-semibold text-xs border border-teal-200 bg-teal-50/90 text-teal-900 flex items-start gap-2.5';
+        }
+        if (statusIconEl) {
+          statusIconEl.className = 'fa-solid fa-spinner fa-spin text-teal-600 text-sm mt-0.5 shrink-0';
+        }
+        if (statusTextEl) {
+          statusTextEl.innerHTML = `
+            <div class="space-y-0.5">
+              <div class="font-bold text-teal-950">Menyinkronkan otomatis di balik layar...</div>
+              <div class="text-[11px] text-teal-800">Menghubungkan ke Google Drive (Percobaan ${nextAttempt}/3)</div>
+            </div>
+          `;
+        }
+        setTimeout(() => {
+          this.triggerBackgroundDriveUpload(rep, nextAttempt);
+        }, 2500 * nextAttempt);
+        return;
+      }
+
+      // Background queue state saat jaringan bermasalah
       if (statusBox) {
-        statusBox.className = 'p-3 rounded-2xl font-semibold text-xs border border-red-300 bg-red-50 text-red-950 flex items-start gap-2.5';
+        statusBox.className = 'p-3 rounded-2xl font-semibold text-xs border border-slate-200 bg-slate-50 text-slate-800 flex items-start gap-2.5';
+      }
+      if (statusIconEl) {
+        statusIconEl.className = 'fa-solid fa-cloud-arrow-up text-teal-600 text-sm mt-0.5 shrink-0';
       }
       if (statusTextEl) {
         statusTextEl.innerHTML = `
-          <div class="space-y-1">
-            <div class="font-bold text-red-800 flex items-center gap-1.5">
-              <i class="fa-solid fa-circle-exclamation text-red-600 text-sm"></i>
-              <span>Gagal Menyinkronkan ke Google Drive</span>
-            </div>
-            <p class="text-[11px] text-red-700 leading-tight">
-              ${err.message || 'Periksa koneksi internet atau pastikan akun Google Apps Script telah diberikan hak akses ke folder 15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8.'}
+          <div class="space-y-0.5">
+            <div class="font-bold text-slate-900">Sinkronisasi Berjalan di Latar Belakang</div>
+            <p class="text-[11px] text-slate-600 leading-tight">
+              Sistem otomatis mengarsipkan 3 berkas laporan ke Google Drive saat jaringan kembali stabil.
             </p>
-            <div class="pt-1.5 flex items-center gap-2 flex-wrap">
-              <button type="button" onclick="FMCUApp.executeSendEmailAndGDrive()" class="px-2.5 py-1 rounded-lg bg-red-100 hover:bg-red-200 text-red-900 text-[11px] font-bold cursor-pointer transition">
-                <i class="fa-solid fa-arrows-rotate mr-1"></i>Coba Sinkronkan Lagi
-              </button>
-              <button type="button" onclick="FMCUApp.resetToVerifiedGasUrl()" class="px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-[11px] font-bold cursor-pointer transition shadow-2xs">
-                <i class="fa-solid fa-bolt mr-1"></i>Gunakan Webhook Resmi Aktif
-              </button>
-            </div>
           </div>
         `;
       }

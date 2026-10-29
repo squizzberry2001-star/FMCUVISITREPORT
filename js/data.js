@@ -1562,6 +1562,18 @@ window.FMCUData = {
       return false;
     }
   },
+  saveReport(report) {
+    if (!report) return false;
+    const reports = this.getReports();
+    const idx = reports.findIndex((r) => String(r.id) === String(report.id));
+    if (idx !== -1) {
+      reports[idx] = { ...reports[idx], ...report };
+    } else {
+      reports.unshift(report);
+    }
+    return this.saveReports(reports);
+  },
+
   saveReports(reports) {
     const prevReports = this.getReports();
     const ok = this.saveReportsLocalOnly(reports);
