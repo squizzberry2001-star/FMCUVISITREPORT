@@ -234,8 +234,17 @@ function doPost(e) {
       } else {
         ss = SpreadsheetApp.create(ssTitle);
         var ssFile = DriveApp.getFileById(ss.getId());
-        ssFile.moveTo(storeFolder);
-        ssFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.EDIT);
+        try {
+          ssFile.moveTo(storeFolder);
+        } catch (eMove) {
+          try {
+            storeFolder.addFile(ssFile);
+            DriveApp.getRootFolder().removeFile(ssFile);
+          } catch (eFallback) {}
+        }
+        try {
+          ssFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.EDIT);
+        } catch (eShare) {}
       }
 
       var sheet = ss.getActiveSheet();
@@ -337,43 +346,49 @@ function doPost(e) {
       sheet.getRange('A9:F9').setBorder(true, true, true, true, true, true, '#94A3B8', SpreadsheetApp.BorderStyle.SOLID);
       sheet.setRowHeight(9, 50);
 
-      // Rows 10+: Temuan Observasi
-      var observations = report.observations || [];
+      // Rows 10+: Temuan Observasi (Batch Write & Style for Ultra-Fast Execution)
+      var observations = [];
+      if (Array.isArray(report.opiObservations) && report.opiObservations.length > 0) {
+        observations = observations.concat(report.opiObservations.filter(function(o) { return o && (o.temuan || o.deskripsi); }));
+      }
+      var qscObs = report.qscObservations || report.observations || [];
+      if (Array.isArray(qscObs) && qscObs.length > 0) {
+        observations = observations.concat(qscObs.filter(function(o) { return o && (o.temuan || o.deskripsi); }));
+      }
+      if (observations.length === 0 && Array.isArray(report.observations)) {
+        observations = report.observations;
+      }
       var totalDataRows = Math.max(observations.length, 5);
+      var tableValues = [];
 
       for (var oi = 0; oi < totalDataRows; oi++) {
-        var rowNum = 10 + oi;
-        sheet.setRowHeight(rowNum, 40);
-
-        var cNo = sheet.getRange('A' + rowNum);
-        cNo.setValue(oi + 1);
-        cNo.setHorizontalAlignment('center');
-        cNo.setVerticalAlignment('middle');
-        cNo.setFontSize(10);
-
-        var cDesc = sheet.getRange('B' + rowNum + ':D' + rowNum);
-        cDesc.merge();
-        if (oi < observations.length) {
-          var obsItem = observations[oi];
-          var descText = obsItem.temuan || obsItem.deskripsi || '';
-          if (obsItem.tindakanPerbaikan) {
-            descText += '\n(Action: ' + obsItem.tindakanPerbaikan + ')';
-          }
-          cDesc.setValue(descText);
+        var obsItem = (oi < observations.length) ? observations[oi] : null;
+        var descText = obsItem ? (obsItem.temuan || obsItem.deskripsi || '') : '';
+        if (obsItem && obsItem.tindakanPerbaikan) {
+          descText += '\n(Action: ' + obsItem.tindakanPerbaikan + ')';
         }
-        cDesc.setWrap(true);
-        cDesc.setVerticalAlignment('top');
-        cDesc.setFontSize(10);
+        var deadlineText = obsItem ? (obsItem.deadlineFormatted || obsItem.deadline || '') : '';
+        tableValues.push([
+          oi + 1,
+          descText,
+          '',
+          '',
+          deadlineText,
+          ''
+        ]);
+      }
 
-        var cTgl = sheet.getRange('E' + rowNum);
-        cTgl.setHorizontalAlignment('center');
-        cTgl.setVerticalAlignment('middle');
-        cTgl.setFontSize(10);
+      sheet.getRange(10, 1, totalDataRows, 6).setValues(tableValues);
+      sheet.getRange(10, 1, totalDataRows, 6).setBorder(true, true, true, true, true, true, '#E2E8F0', SpreadsheetApp.BorderStyle.SOLID);
+      sheet.getRange(10, 1, totalDataRows, 1).setHorizontalAlignment('center').setVerticalAlignment('middle').setFontSize(10);
+      sheet.getRange(10, 2, totalDataRows, 3).setWrap(true).setVerticalAlignment('top').setFontSize(10);
+      sheet.getRange(10, 5, totalDataRows, 1).setHorizontalAlignment('center').setVerticalAlignment('middle').setFontSize(10);
+      sheet.getRange(10, 6, totalDataRows, 1).setVerticalAlignment('middle');
 
-        var cBkt = sheet.getRange('F' + rowNum);
-        cBkt.setVerticalAlignment('middle');
-
-        sheet.getRange(rowNum, 1, 1, 6).setBorder(true, true, true, true, true, true, '#E2E8F0', SpreadsheetApp.BorderStyle.SOLID);
+      for (var oi = 0; oi < totalDataRows; oi++) {
+        var rNum = 10 + oi;
+        sheet.getRange(rNum, 2, 1, 3).merge();
+        sheet.setRowHeight(rNum, 40);
       }
 
       // KUNCI / LOCK KOLOM A-D (Toko hanya bisa mengisi Kolom E & F pada data temuan)
@@ -399,7 +414,18 @@ function doPost(e) {
 
     if (recipientEmails) {
       var subject = '[FMCU VISIT REPORT] ' + storeName + ' (' + (storeCode || '-') + ') - ' + ddMmYyyy;
-      var obsHtml = (report.observations || []).map(function(o, i) {
+      var allObs = [];
+      if (Array.isArray(report.opiObservations) && report.opiObservations.length > 0) {
+        allObs = allObs.concat(report.opiObservations.filter(function(o) { return o && (o.temuan || o.deskripsi); }));
+      }
+      var qscObsEmail = report.qscObservations || report.observations || [];
+      if (Array.isArray(qscObsEmail) && qscObsEmail.length > 0) {
+        allObs = allObs.concat(qscObsEmail.filter(function(o) { return o && (o.temuan || o.deskripsi); }));
+      }
+      if (allObs.length === 0 && Array.isArray(report.observations)) {
+        allObs = report.observations;
+      }
+      var obsHtml = allObs.map(function(o, i) {
         return '<tr>' +
           '<td style="border:1px solid #cbd5e1;padding:8px;text-align:center;">' + (i + 1) + '</td>' +
           '<td style="border:1px solid #cbd5e1;padding:8px;font-weight:bold;background:#fefce8;">' + (o.temuan || '-') + '</td>' +

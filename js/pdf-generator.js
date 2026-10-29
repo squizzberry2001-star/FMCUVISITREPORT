@@ -781,33 +781,64 @@ window.FMCUPdf = {
     const cleanStore = String(report.storeName || 'STORE').trim();
     const dateFormatted = this.formatDateDdMmYyyy(report.visitDate);
 
-    const qscPhotos = (report.qscPhotos || []).filter(p => Boolean(p.dataUrl || p.driveViewUrl || p.driveUrl));
+    // Ambil foto lembar QSC dari Section 1 Form Visit (report.qscPhotos atau formQscPhotos live)
+    let rawQscPhotos = [];
+    if (Array.isArray(report.qscPhotos) && report.qscPhotos.length > 0) {
+      rawQscPhotos = report.qscPhotos;
+    } else if (window.FMCUApp && Array.isArray(window.FMCUApp.formQscPhotos) && window.FMCUApp.formQscPhotos.length > 0) {
+      rawQscPhotos = window.FMCUApp.formQscPhotos;
+    }
 
-    if (qscPhotos.length === 0) {
+    // Resolusi Base64 untuk masing-masing foto Lembar QSC Section 1
+    const processedPhotos = [];
+    rawQscPhotos.forEach((p, idx) => {
+      if (!p) return;
+      let base64 = this.getPhotoBase64ForPdf(p);
+      if (!base64 && p.dataUrl && p.dataUrl.startsWith('data:image')) {
+        base64 = p.dataUrl;
+      }
+      if (!base64 && window.FMCUApp?.formQscPhotos?.[idx]?.dataUrl?.startsWith('data:image')) {
+        base64 = window.FMCUApp.formQscPhotos[idx].dataUrl;
+      }
+      if (!base64 && window.FMCUData && typeof window.FMCUData.getPhotoFromMemory === 'function') {
+        base64 = window.FMCUData.getPhotoFromMemory(p.id, p.driveFileId);
+      }
+      processedPhotos.push({
+        ...p,
+        resolvedBase64: base64 || '',
+        slotIndex: idx + 1,
+        caption: p.caption || `Lembar Form QSC / FamiTrack #${idx + 1}`
+      });
+    });
+
+    // Filter foto aktif (yang memiliki Base64 atau ID Drive)
+    const activePhotos = processedPhotos.filter(p => Boolean(p.resolvedBase64 || p.dataUrl || p.driveUrl || p.driveFileId));
+
+    if (activePhotos.length === 0) {
       // Empty state single page
       doc.setFillColor(0, 153, 68);
       doc.rect(0, 0, pageWidth, 28, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(16);
-      doc.text('KOLASE LEMBAR QSC INSPECTION', pageWidth / 2, 14, { align: 'center' });
+      doc.setFontSize(15);
+      doc.text('KOLASE LEMBAR QSC (SECTION 1 FORM VISIT)', pageWidth / 2, 14, { align: 'center' });
       doc.setFontSize(10);
       doc.text(`${cleanStore.toUpperCase()} (${report.storeCode || '-'}) • ${dateFormatted}`, pageWidth / 2, 22, { align: 'center' });
 
       doc.setTextColor(100, 116, 139);
-      doc.setFontSize(12);
-      doc.text('Tidak ada lembar foto QSC yang dilampirkan pada laporan ini.', pageWidth / 2, 120, { align: 'center' });
+      doc.setFontSize(11);
+      doc.text('Belum ada foto lembar QSC yang diunggah pada Section 1 Form Visit.', pageWidth / 2, 120, { align: 'center' });
       return doc;
     }
 
-    // Two vertical photos per page
+    // Two vertical photos per page (Format Vertikal)
     const photosPerPage = 2;
-    const totalPages = Math.ceil(qscPhotos.length / photosPerPage);
+    const totalPages = Math.ceil(activePhotos.length / photosPerPage);
 
     for (let pIdx = 0; pIdx < totalPages; pIdx++) {
       if (pIdx > 0) doc.addPage();
 
-      // Header Banner
+      // Header Banner FamilyMart
       doc.setFillColor(0, 153, 68);
       doc.rect(0, 0, pageWidth, 24, 'F');
       doc.setFillColor(0, 153, 166);
@@ -816,16 +847,16 @@ window.FMCUPdf = {
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(13);
-      doc.text('KOLASE LEMBAR QSC (QUALITY, SERVICE, CLEANLINESS)', 12, 11);
+      doc.text('KOLASE LEMBAR QSC (SECTION 1 FORM VISIT)', 12, 11);
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
       doc.text(`Store: ${cleanStore} (${report.storeCode || '-'}) | Auditor: ${report.auditorName || '-'} | Tanggal: ${dateFormatted} | Hal ${pIdx + 1}/${totalPages}`, 12, 18);
 
       const startPhotoIdx = pIdx * photosPerPage;
-      const pagePhotos = qscPhotos.slice(startPhotoIdx, startPhotoIdx + photosPerPage);
+      const pagePhotos = activePhotos.slice(startPhotoIdx, startPhotoIdx + photosPerPage);
 
       pagePhotos.forEach((photo, subIdx) => {
-        const photoNum = startPhotoIdx + subIdx + 1;
+        const photoNum = photo.slotIndex || (startPhotoIdx + subIdx + 1);
         const boxY = 32 + (subIdx * 125);
         const boxH = 118;
         const boxW = 186;
@@ -837,21 +868,26 @@ window.FMCUPdf = {
 
         // Photo Label
         doc.setFillColor(0, 153, 166);
-        doc.roundedRect(boxX + 4, boxY + 4, 45, 6, 1.5, 1.5, 'F');
+        doc.roundedRect(boxX + 4, boxY + 4, 75, 6.5, 1.5, 1.5, 'F');
         doc.setTextColor(255, 255, 255);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(8);
-        doc.text(`Lembar QSC #${photoNum}`, boxX + 6, boxY + 8.5);
+        doc.text(`Lembar QSC / FamiTrack #${photoNum} (Section 1)`, boxX + 6, boxY + 8.5);
 
-        const imgSrc = this.getPhotoDisplaySrc(photo);
-        if (imgSrc) {
+        const imgBase64 = photo.resolvedBase64 || (photo.dataUrl && photo.dataUrl.startsWith('data:image') ? photo.dataUrl : '');
+        if (imgBase64) {
           try {
-            doc.addImage(imgSrc, 'JPEG', boxX + 4, boxY + 12, boxW - 8, boxH - 16, undefined, 'FAST');
+            doc.addImage(imgBase64, 'JPEG', boxX + 4, boxY + 12, boxW - 8, boxH - 16, undefined, 'FAST');
           } catch (e) {
+            console.warn('QSC photo draw error:', e);
             doc.setTextColor(148, 163, 184);
             doc.setFontSize(9);
-            doc.text('[Foto QSC tersimpan di Google Drive]', boxX + 20, boxY + 50);
+            doc.text('[Foto QSC Section 1 tersimpan di Google Drive]', boxX + 20, boxY + 50);
           }
+        } else {
+          doc.setTextColor(148, 163, 184);
+          doc.setFontSize(9);
+          doc.text('[Foto Lembar QSC Section 1 tersimpan di Google Drive]', boxX + 20, boxY + 50);
         }
       });
 
@@ -865,6 +901,10 @@ window.FMCUPdf = {
   },
 
   async downloadVerticalQscPdf(report) {
+    if (!report) return;
+    if ((!report.qscPhotos || report.qscPhotos.length === 0) && window.FMCUApp?.formQscPhotos?.length > 0) {
+      report.qscPhotos = JSON.parse(JSON.stringify(window.FMCUApp.formQscPhotos));
+    }
     await this.hydrateReportPhotosFromGDrive(report);
     const doc = this.generateVerticalQscCollagePdf(report);
     if (!doc) return;
@@ -874,6 +914,11 @@ window.FMCUPdf = {
   },
 
   async getVerticalQscPdfBase64(report) {
+    if (!report) return '';
+    // Sinkronkan lembar QSC Section 1 dari form jika belum ada di objek report
+    if ((!report.qscPhotos || report.qscPhotos.length === 0) && window.FMCUApp?.formQscPhotos?.length > 0) {
+      report.qscPhotos = JSON.parse(JSON.stringify(window.FMCUApp.formQscPhotos));
+    }
     await this.hydrateReportPhotosFromGDrive(report);
     const doc = this.generateVerticalQscCollagePdf(report);
     if (!doc) return '';
@@ -906,7 +951,17 @@ window.FMCUPdf = {
       ['NO', 'DAFTAR TEMUAN\n(berdasarkan list pada visit report)', '', '', 'TANGGAL PERBAIKAN', 'BUKTI PERBAIKAN\n(isi dengan foto perbaikan)'] // Row 9
     ];
 
-    const observations = report.observations || [];
+    let observations = [];
+    if (Array.isArray(report.opiObservations) && report.opiObservations.length > 0) {
+      observations = observations.concat(report.opiObservations.filter((o) => o && (o.temuan || o.deskripsi)));
+    }
+    const qscObs = report.qscObservations || report.observations || [];
+    if (Array.isArray(qscObs) && qscObs.length > 0) {
+      observations = observations.concat(qscObs.filter((o) => o && (o.temuan || o.deskripsi)));
+    }
+    if (observations.length === 0 && Array.isArray(report.observations)) {
+      observations = report.observations;
+    }
     const totalDataRows = Math.max(observations.length, 5);
 
     for (let i = 0; i < totalDataRows; i++) {
