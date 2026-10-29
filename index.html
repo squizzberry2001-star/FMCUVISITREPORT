@@ -1639,31 +1639,17 @@
               </button>
             </div>
 
-            <!-- Action Buttons: Responsive Grid in Mobile -->
-            <div class="grid grid-cols-2 sm:flex sm:items-center sm:flex-wrap gap-2 w-full lg:w-auto">
-              <button type="button" onclick="FMCUApp.downloadCurrentCaExcel()" class="px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer" title="Download Excel CA Store Assignment (Kolom A-E Terkunci)">
-                <i class="fa-solid fa-file-excel"></i>
-                <span class="truncate">CA Store (.xlsx)</span>
-              </button>
-
-              <button type="button" onclick="FMCUApp.openCurrentCaSpreadsheet()" class="px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer" title="Buka Spreadsheet CA Online Toko">
-                <i class="fa-solid fa-table"></i>
-                <span class="truncate">Link Sheets CA</span>
-              </button>
-
-              <button type="button" onclick="FMCUApp.downloadCurrentQscCollagePdf()" class="px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer" title="Download Kolase Foto Lembar QSC (Format PDF Vertikal)">
-                <i class="fa-solid fa-file-arrow-down"></i>
-                <span class="truncate">PDF QSC Vertikal</span>
-              </button>
-
-              <button type="button" onclick="FMCUApp.openIntegrationSendModal()" class="px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer">
+            <!-- Action Button: Hanya KIRIM & GDRIVE per instruksi user -->
+            <div class="w-full sm:w-auto">
+              <button
+                type="button"
+                id="btn-preview-send-gdrive"
+                onclick="FMCUApp.openIntegrationSendModal()"
+                class="w-full sm:w-auto px-6 py-2.5 rounded-xl fm-gradient hover:opacity-95 text-white font-extrabold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <i class="fa-solid fa-paper-plane"></i>
                 <i class="fa-brands fa-google-drive"></i>
-                <span class="truncate">Kirim / GDrive</span>
-              </button>
-
-              <button type="button" onclick="FMCUApp.downloadCurrentPreviewPdf()" class="fm-gradient hover:opacity-95 text-white font-bold px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer">
-                <i class="fa-solid fa-download"></i>
-                <span class="truncate">Download PDF</span>
+                <span>KIRIM & GDRIVE</span>
               </button>
             </div>
           </div>
@@ -3190,53 +3176,96 @@ service cloud.firestore {
   <!-- ====================================================================
        MODAL: INTEGRASI KIRIM EMAIL & UPLOAD FOLDER GOOGLE DRIVE
        ==================================================================== -->
-  <div id="modal-send-integration" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4 view-section">
+  <div id="modal-send-integration" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-slate-200 space-y-4 view-section max-h-[92vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <div class="flex items-center gap-2.5">
-          <div class="w-10 h-10 rounded-xl bg-teal-50 text-[#0099A6] flex items-center justify-center text-lg">
-            <i class="fa-solid fa-cloud-arrow-up"></i>
+          <div class="w-10 h-10 rounded-2xl bg-teal-50 text-[#0099A6] flex items-center justify-center text-lg shrink-0 shadow-2xs">
+            <i class="fa-solid fa-paper-plane"></i>
           </div>
           <div>
-            <h3 class="font-extrabold text-base text-slate-900">Kirim Laporan ke Email & Google Drive</h3>
-            <p class="text-[11px] text-slate-500">Otomatis rekap PDF ke folder GDrive & teruskan ke Email Store, AM, RM & FMCU</p>
+            <h3 class="font-extrabold text-sm sm:text-base text-slate-900">Kirim Laporan & Sinkronisasi GDrive</h3>
+            <p class="text-[10px] sm:text-[11px] text-slate-500">Auto-upload ke folder Google Drive & buka aplikasi email siap kirim</p>
           </div>
         </div>
-        <button onclick="FMCUApp.closeModal('modal-send-integration')" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
-          <i class="fa-solid fa-xmark text-lg"></i>
+        <button onclick="FMCUApp.closeModal('modal-send-integration')" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition cursor-pointer">
+          <i class="fa-solid fa-xmark text-sm"></i>
         </button>
       </div>
 
       <div class="space-y-3 text-xs">
-        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
-          <div class="font-bold text-slate-800" id="modal-send-report-name">Laporan Visit</div>
-          <div class="text-slate-500 mt-0.5" id="modal-send-report-meta">-</div>
+        <!-- Status Box Google Drive Background Sync -->
+        <div id="modal-send-status" class="p-3 rounded-2xl font-semibold text-xs border border-teal-200 bg-teal-50/80 text-teal-900 flex items-start gap-2.5">
+          <i class="fa-solid fa-spinner fa-spin text-teal-600 text-sm mt-0.5 shrink-0"></i>
+          <div class="flex-1 min-w-0" id="modal-send-status-text">
+            Menyimpan otomatis 3 berkas ke Google Drive (PDF Laporan, PDF QSC, & Spreadsheet CA unik toko)...
+          </div>
+        </div>
+
+        <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200/80">
+          <div class="font-bold text-slate-900 truncate" id="modal-send-report-name">Laporan Visit</div>
+          <div class="text-[11px] text-slate-500 mt-0.5" id="modal-send-report-meta">-</div>
         </div>
 
         <div>
-          <label class="block font-bold text-slate-700 uppercase mb-1">Email Tujuan Utama (Store)</label>
-          <input type="text" id="modal-send-to" placeholder="Masukkan email tujuan" class="fm-input text-xs" />
-        </div>
-        <div>
-          <label class="block font-bold text-slate-700 uppercase mb-1">CC Email (Regional Manager, Area Manager, FMCU)</label>
-          <input type="text" id="modal-send-cc" placeholder="Masukkan email CC" class="fm-input text-xs" />
-        </div>
-        <div>
-          <label class="block font-bold text-slate-700 uppercase mb-1">Folder Google Drive Tujuan Rekap PDF</label>
-          <input type="text" id="modal-send-folder" placeholder="Masukkan ID Folder Google Drive" class="fm-input text-xs font-mono" />
+          <label class="block font-bold text-slate-700 uppercase mb-1 text-[11px]">Email Tujuan Utama (Store)</label>
+          <input type="text" id="modal-send-to" placeholder="Masukkan email toko (contoh: store0449@familymartindonesia.com)" class="fm-input text-xs" />
         </div>
 
-        <div id="modal-send-status" class="hidden p-3 rounded-xl font-semibold text-xs"></div>
+        <div>
+          <label class="block font-bold text-slate-700 uppercase mb-1 text-[11px]">CC Email (AM, RM, & FMCU)</label>
+          <input type="text" id="modal-send-cc" placeholder="Email CC Area Manager, Regional Manager & FMCU" class="fm-input text-xs" />
+          <p class="text-[10px] text-slate-400 mt-1">Otomatis menyertakan AM, RM, serta tim FMCU (Mekarsari, Putri Ayu, Septiana Indasari).</p>
+        </div>
+
+        <!-- Hidden ID Folder Google Drive (Auto-Linked Tanpa User Tahu) -->
+        <input type="hidden" id="modal-send-folder" value="15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8" />
+
+        <!-- Info Lampiran Email -->
+        <div class="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-[11px] space-y-1.5">
+          <div class="font-extrabold flex items-center gap-1.5 text-emerald-800">
+            <i class="fa-solid fa-paperclip"></i>
+            <span>Lampiran & Tautan Otomatis di Email:</span>
+          </div>
+          <ul class="list-disc list-inside space-y-0.5 text-emerald-800/90 pl-1">
+            <li><strong>PDF Laporan:</strong> Otomatis diunduh ke perangkat Anda & siap dilampirkan</li>
+            <li><strong>Link CA Store Assignment:</strong> Google Sheets khusus toko ini terisi di body email</li>
+            <li><strong>Folder Google Drive:</strong> Tersimpan di <code>01. VISIT BESTIE 2026 / Visitor / Toko</code></li>
+          </ul>
+        </div>
       </div>
 
-      <div class="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-100">
-        <button type="button" onclick="FMCUApp.closeModal('modal-send-integration')" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs cursor-pointer">
-          Tutup
+      <div class="space-y-2 pt-2 border-t border-slate-100">
+        <!-- Tombol Utama: Buka Aplikasi Email Siap Kirim -->
+        <button
+          type="button"
+          id="btn-open-ready-email"
+          onclick="FMCUApp.openReadyEmailApp()"
+          class="w-full py-3 px-4 rounded-2xl bg-[#009944] hover:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 cursor-pointer"
+        >
+          <i class="fa-regular fa-envelope text-base"></i>
+          <span>Buka Aplikasi Email Siap Kirim</span>
         </button>
-        <button type="button" id="btn-execute-send" onclick="FMCUApp.executeSendEmailAndGDrive()" class="fm-gradient text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow-md hover:opacity-95 transition flex items-center gap-1.5 cursor-pointer">
-          <i class="fa-solid fa-paper-plane"></i>
-          <span>Proses Upload GDrive & Kirim Email</span>
-        </button>
+
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            onclick="FMCUApp.closeModal('modal-send-integration')"
+            class="flex-1 py-2 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-50 font-bold text-xs transition cursor-pointer text-center"
+          >
+            Selesai / Tutup
+          </button>
+          <button
+            type="button"
+            id="btn-execute-send"
+            onclick="FMCUApp.executeSendEmailAndGDrive()"
+            class="flex-1 py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+            title="Kirim via background server Google Apps Script"
+          >
+            <i class="fa-solid fa-cloud-arrow-up text-teal-400"></i>
+            <span>Sinkron Ulang Drive</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
