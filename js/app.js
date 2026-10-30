@@ -5927,7 +5927,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
           <div class="w-full h-52 rounded-xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center relative group">
             ${
               displaySrc
-                ? `<img src="${displaySrc}" class="w-full h-full object-cover" alt="QSC Form ${idx + 1}" />`
+                ? `<img src="${displaySrc}" class="w-full h-full object-contain p-1 bg-slate-900/5" alt="QSC Form ${idx + 1}" />`
                 : `<div class="text-center text-slate-400 text-xs p-4">
                     <i class="fa-solid fa-file-invoice text-3xl mb-1.5 text-slate-300 block"></i>
                     <span class="font-bold text-slate-600 block">Foto Lembar QSC #${idx + 1}</span>
@@ -7589,7 +7589,37 @@ Instruksi:
   // GOOGLE DRIVE SYNC INTEGRATION (ROOT: 15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8)
   // Catatan: Sistem pengiriman email dinonaktifkan total selama masa testing.
   // ==========================================================================
-  openIntegrationSendModal(reportId = null) {
+  async handlePreviewGDriveSyncClick() {
+    const rep = this.getActivePreviewReport();
+    if (!rep) {
+      this.showToast('Laporan aktif tidak ditemukan.', 'warning');
+      return;
+    }
+
+    const loader = document.getElementById('loading-gdrive-sync');
+    const loaderStatus = document.getElementById('loading-gdrive-sync-status');
+    if (loader) {
+      if (loaderStatus) loaderStatus.textContent = 'Menyiapkan berkas laporan...';
+      loader.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+
+    try {
+      if (loaderStatus) loaderStatus.textContent = 'Menyimpan 3 berkas ke Google Drive...';
+      await this.triggerBackgroundDriveUpload(rep);
+    } catch (err) {
+      console.warn('Sync error:', err);
+    } finally {
+      if (loader) {
+        loader.classList.add('hidden');
+        document.body.style.overflow = '';
+      }
+      // Tampilkan pop-up konfirmasi setelah proses upload selesai
+      this.openIntegrationSendModal(rep.id, true);
+    }
+  },
+
+  openIntegrationSendModal(reportId = null, skipBackgroundTrigger = false) {
     if (reportId) this.activePreviewReportId = reportId;
     const rep = this.getActivePreviewReport();
     if (!rep) return;
@@ -7603,7 +7633,7 @@ Instruksi:
       metaEl.textContent = `Visitor: ${rep.auditorName || '-'} • ${(rep.observations || []).length} Temuan Observasi • ${(rep.evidencePhotos || []).length} Foto Bukti`;
     }
 
-    // Set tautan tombol buka folder toko dan spreadsheet CA jika sudah ada
+    // Set tautan tombol buka folder toko dan spreadsheet CA jika ada di DOM
     const folderBtn = document.getElementById('btn-open-store-folder');
     if (folderBtn) {
       folderBtn.href = rep.storeFolderUrl || 'https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8';
@@ -7626,8 +7656,10 @@ Instruksi:
     const modal = document.getElementById('modal-send-integration');
     if (modal) modal.classList.remove('hidden');
 
-    // Secara otomatis dibalik layar simpan seluruh berkas ke Google Drive (Tahun/Visitor/Store)
-    this.triggerBackgroundDriveUpload(rep);
+    // Secara otomatis dibalik layar simpan seluruh berkas ke Google Drive jika belum dipicu
+    if (!skipBackgroundTrigger) {
+      this.triggerBackgroundDriveUpload(rep);
+    }
   },
 
   async triggerBackgroundDriveUpload(rep, retryCount = 0) {
@@ -8824,13 +8856,13 @@ Instruksi:
         <button
           type="button"
           onclick="FMCUApp.assignStoreToWeeklySlot('${st.code}', null, null, true)"
-          class="shrink-0 px-3 py-2 rounded-xl bg-white/10 hover:bg-emerald-500 hover:text-slate-950 border border-white/15 transition text-left group cursor-pointer"
+          class="shrink-0 px-2.5 py-1.5 rounded-xl bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 transition text-left group cursor-pointer shadow-2xs"
         >
           <div class="flex items-center gap-1.5">
-            <span class="font-mono font-extrabold text-[11px] text-emerald-300 group-hover:text-slate-950">${st.code}</span>
-            <span class="font-extrabold text-xs text-white group-hover:text-slate-950">${st.name}</span>
+            <span class="font-mono font-extrabold text-[11px] text-[#009944]">${st.code}</span>
+            <span class="font-extrabold text-xs text-slate-800 group-hover:text-slate-900">${st.name}</span>
           </div>
-          <div class="text-[10px] text-slate-300 group-hover:text-slate-900 mt-0.5">
+          <div class="text-[10px] text-slate-500 mt-0.5">
             ${st.type || 'CVS'} • ${st.city || '-'} ${st.areaManager ? '• AM: ' + st.areaManager : ''}
           </div>
         </button>
@@ -10218,7 +10250,7 @@ Instruksi:
  * 4. Folder Toko: Kode & Nama Toko yang divisit (contoh: "0449 - PORIS PARADISE")
  * 5. Tiga Lampiran di dalam Folder Toko:
  *    a. PDF Laporan Visit ("Hasil Kunjungan-{Nama Store}-{DD-MM-YYYY}.pdf")
- *    b. Foto Lembar QSC ("Kolase Lembar QSC-{Nama Store}-{DD-MM-YYYY}.pdf") - Vertikal
+ *    b. Foto Lembar QSC ("Lembar QSC-FAMITRACK-{Nama Store}-{DD-MM-YYYY}.pdf") - Vertikal
  *    c. Spreadsheet CA Store Assignment (Auto generate link live online & lock Kolom A-D)
  * ============================================================================
  *
@@ -10482,7 +10514,7 @@ function doPost(e) {
       try {
         var b64Qsc = payload.qscPdfBase64.indexOf(',') !== -1 ? payload.qscPdfBase64.split(',')[1] : payload.qscPdfBase64;
         var decodedQsc = Utilities.base64Decode(b64Qsc);
-        var qscFileName = 'Kolase Lembar QSC-' + storeName + '-' + ddMmYyyy + '.pdf';
+        var qscFileName = 'Lembar QSC-FAMITRACK-' + storeName + '-' + ddMmYyyy + '.pdf';
         var qscBlob = Utilities.newBlob(decodedQsc, 'application/pdf', qscFileName);
 
         // Hapus versi lama jika ada nama file yang sama

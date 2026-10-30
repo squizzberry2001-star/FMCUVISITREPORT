@@ -107,6 +107,50 @@ window.FMCUPdf = {
     // Watermark / footer text intentionally omitted per user request
   },
 
+  // Helper to draw image inside a bounding box while preserving natural aspect ratio (mencegah foto & timestamp tertarik)
+  drawImageProportional(doc, imgData, boxX, boxY, boxW, boxH, format = 'JPEG', compression = 'FAST') {
+    if (!doc || !imgData) return null;
+    try {
+      let imgW = 0;
+      let imgH = 0;
+      if (typeof doc.getImageProperties === 'function') {
+        const props = doc.getImageProperties(imgData);
+        imgW = props.width;
+        imgH = props.height;
+      }
+      if (!imgW || !imgH) {
+        imgW = boxW;
+        imgH = boxH;
+      }
+
+      const imgAspect = imgW / imgH;
+      const boxAspect = boxW / boxH;
+
+      let drawW = boxW;
+      let drawH = boxH;
+
+      if (imgAspect > boxAspect) {
+        // Gambar lebih lebar daripada kotak -> sesuaikan tinggi
+        drawH = boxW / imgAspect;
+      } else {
+        // Gambar lebih tinggi (portrait) daripada kotak -> sesuaikan lebar
+        drawW = boxH * imgAspect;
+      }
+
+      // Posisi di tengah-tengah kotak (centered)
+      const drawX = boxX + (boxW - drawW) / 2;
+      const drawY = boxY + (boxH - drawH) / 2;
+
+      doc.addImage(imgData, format, drawX, drawY, drawW, drawH, undefined, compression);
+      return { drawX, drawY, drawW, drawH };
+    } catch (e) {
+      console.warn('drawImageProportional error:', e);
+      try {
+        doc.addImage(imgData, format, boxX, boxY, boxW, boxH, undefined, compression);
+      } catch (err) {}
+    }
+  },
+
   // Ambil sumber URL gambar untuk tampilan HTML & Slide Preview (mendukung cache RAM + URL Google Drive)
   getPhotoDisplaySrc(photo) {
     if (!photo) return '';
@@ -365,11 +409,8 @@ window.FMCUPdf = {
 
         const qscImgBase64 = this.getPhotoBase64ForPdf(photo);
         if (qscImgBase64) {
-          try {
-            doc.addImage(qscImgBase64, 'JPEG', cardX + 3, 45, 139, 104);
-          } catch (e) {
-            console.warn('QSC photo draw error:', e);
-          }
+          // Gambar proporsional di dalam kotak 139 x 104 mm agar tidak tertarik / gepeng
+          this.drawImageProportional(doc, qscImgBase64, cardX + 3, 45, 139, 104, 'JPEG', 'FAST');
         } else {
           doc.setFillColor(248, 250, 252);
           doc.rect(cardX + 3, 45, 139, 104, 'F');
@@ -987,7 +1028,8 @@ window.FMCUPdf = {
         const imgBase64 = photo.resolvedBase64 || (photo.dataUrl && photo.dataUrl.startsWith('data:image') ? photo.dataUrl : '');
         if (imgBase64) {
           try {
-            doc.addImage(imgBase64, 'JPEG', boxX + 4, boxY + 12, boxW - 8, boxH - 16, undefined, 'FAST');
+            // Gambar proporsional vertikal di dalam kotak A4 agar checklist & timestamp tidak tertarik
+            this.drawImageProportional(doc, imgBase64, boxX + 4, boxY + 12, boxW - 8, boxH - 16, 'JPEG', 'FAST');
           } catch (e) {
             console.warn('QSC photo draw error:', e);
             doc.setTextColor(148, 163, 184);
@@ -1010,6 +1052,14 @@ window.FMCUPdf = {
     return doc;
   },
 
+  // Format Nama File Lembar QSC: "Lembar QSC-FAMITRACK-{nama store}-{DD-MM-YYYY}.pdf"
+  getVerticalQscFileName(report) {
+    if (!report) return 'Lembar QSC-FAMITRACK-STORE.pdf';
+    const cleanStore = String(report.storeName || 'STORE').replace(/[/\\:*?"<>|]/g, ' ').trim();
+    const dateFormatted = this.formatDateDdMmYyyy(report.visitDate);
+    return `Lembar QSC-FAMITRACK-${cleanStore}-${dateFormatted}.pdf`;
+  },
+
   async downloadVerticalQscPdf(report) {
     if (!report) return;
     if ((!report.qscPhotos || report.qscPhotos.length === 0) && window.FMCUApp?.formQscPhotos?.length > 0) {
@@ -1018,9 +1068,7 @@ window.FMCUPdf = {
     await this.hydrateReportPhotosFromGDrive(report);
     const doc = this.generateVerticalQscCollagePdf(report);
     if (!doc) return;
-    const cleanStore = String(report.storeName || 'STORE').replace(/[/\\:*?"<>|]/g, ' ').trim();
-    const dateFormatted = this.formatDateDdMmYyyy(report.visitDate);
-    doc.save(`Kolase Lembar QSC-${cleanStore}-${dateFormatted}.pdf`);
+    doc.save(this.getVerticalQscFileName(report));
   },
 
   async getVerticalQscPdfBase64(report) {
@@ -1249,7 +1297,7 @@ window.FMCUPdf = {
                 <div class="border border-slate-300 rounded-xl p-[1cqw] flex flex-col justify-between bg-white h-full overflow-hidden">
                   <div class="w-full h-[88%] bg-slate-50 rounded-lg overflow-hidden flex items-center justify-center">
                     ${src
-                      ? `<img src="${src}" class="w-full h-full object-cover" alt="QSC" />`
+                      ? `<img src="${src}" class="w-full h-full object-contain" alt="QSC" />`
                       : `<span class="text-slate-400 text-xs">Tidak ada foto</span>`}
                   </div>
                   <div class="text-[clamp(6.5px,0.85cqw,11px)] text-slate-800 pt-1">${p.caption || `Foto QSC / Famitrack ${i + idx + 1}`}</div>

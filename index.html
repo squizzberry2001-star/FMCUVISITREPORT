@@ -1666,7 +1666,7 @@
               <button
                 type="button"
                 id="btn-preview-send-gdrive"
-                onclick="FMCUApp.openIntegrationSendModal()"
+                onclick="FMCUApp.handlePreviewGDriveSyncClick()"
                 class="w-full sm:w-auto px-6 py-2.5 rounded-xl fm-gradient hover:opacity-95 text-white font-extrabold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
               >
                 <i class="fa-brands fa-google-drive text-base"></i>
@@ -1879,240 +1879,217 @@ service cloud.firestore {
 }</pre>
           </div>
 
-          <!-- ADMIN TAB 1: ATUR JADWAL VISIT (RINGKAS & TERPISAH SUB-SECTION) -->
+          <!-- ADMIN TAB 1: ATUR JADWAL VISIT (SIMPLE & MINIMALIST) -->
           <div id="admin-tab-schedules" class="space-y-4">
-            <!-- Sub-Section Navigation Switcher Bar (Compact Single Header) -->
-            <div class="fm-card p-3.5 sm:p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-gradient-to-r from-emerald-50/70 via-white to-teal-50/70 border border-emerald-200">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl fm-gradient text-white flex items-center justify-center text-base shrink-0 shadow-xs">
-                  <i class="fa-solid fa-calendar-check"></i>
+            <!-- Navigation Switcher Bar (Minimalist Tabs) -->
+            <div class="p-3 sm:p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-emerald-50 text-[#009944] flex items-center justify-center text-base shrink-0">
+                  <i class="fa-solid fa-calendar-days"></i>
                 </div>
                 <div>
-                  <h2 class="font-extrabold text-sm sm:text-base text-slate-900">Manajemen Jadwal Visit Toko & Planner Mingguan</h2>
-                  <p class="text-[11px] text-slate-500">Susun jadwal langsung 5 hari (Senin–Jumat) untuk banyak Regional Bestie / Visitor</p>
+                  <h2 class="font-bold text-xs sm:text-sm text-slate-900">Setting Jadwal Visit 5 Hari</h2>
+                  <p class="text-[10px] sm:text-[11px] text-slate-500">Susun penugasan toko Senin s/d Jumat untuk Regional Bestie / Visitor</p>
                 </div>
               </div>
 
-              <div class="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1.5 rounded-xl border border-slate-200 w-full lg:w-auto">
-                <button type="button" id="sch-subtab-btn-create" onclick="FMCUApp.switchScheduleSubSection('create')" class="flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-[#009944] text-white shadow-xs">
-                  <i class="fa-solid fa-table-columns"></i>
-                  <span>Planner 5 Hari (Sen–Jum) Multi-Visitor</span>
+              <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 self-stretch sm:self-auto overflow-x-auto">
+                <button type="button" id="sch-subtab-btn-create" onclick="FMCUApp.switchScheduleSubSection('create')" class="flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer bg-[#009944] text-white shadow-2xs whitespace-nowrap">
+                  <i class="fa-solid fa-calendar-plus text-xs"></i>
+                  <span>Planner 5 Hari</span>
                 </button>
-                <button type="button" id="sch-subtab-btn-list" onclick="FMCUApp.switchScheduleSubSection('list')" class="flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white">
-                  <i class="fa-solid fa-list-check"></i>
-                  <span>Daftar Seluruh Jadwal</span>
-                  <span id="admin-schedule-count-pill" class="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-extrabold">0</span>
+                <button type="button" id="sch-subtab-btn-list" onclick="FMCUApp.switchScheduleSubSection('list')" class="flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-900 whitespace-nowrap">
+                  <i class="fa-solid fa-list-check text-xs"></i>
+                  <span>Daftar Jadwal</span>
+                  <span id="admin-schedule-count-pill" class="px-1.5 py-0.2 rounded-full text-[9px] bg-slate-200 text-slate-700 font-extrabold">0</span>
                 </button>
-                <button type="button" onclick="FMCUApp.navigate('live-maps')" class="flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-[#0099A6] text-white hover:bg-teal-700 shadow-xs">
-                  <i class="fa-solid fa-map-location-dot"></i>
-                  <span>Live Loc Maps</span>
-                  <span class="w-1.5 h-1.5 rounded-full bg-white gps-pulse"></span>
+                <button type="button" onclick="FMCUApp.navigate('live-maps')" class="flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer text-[#0099A6] hover:bg-white whitespace-nowrap">
+                  <i class="fa-solid fa-map-location-dot text-xs"></i>
+                  <span>Live Maps</span>
                 </button>
               </div>
             </div>
 
             <!-- SUB-SECTION HALAMAN 1: PLANNER 5 HARI (SENIN-JUMAT) MULTI-VISITOR -->
             <div id="schedule-section-create" class="space-y-4">
-              <!-- MODE A: INTERACTIVE 5-DAY WEEKLY PLANNER (SENIN - JUMAT) FOR MULTIPLE AUDITORS -->
               <div id="sch-create-mode-weekly" class="space-y-4">
-                <!-- STEP 1 & STEP 2 GRID -->
-                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                  <!-- STEP 1: Pilih Minggu Kerja (Senin - Jumat) & Parameter Default -->
-                  <div class="lg:col-span-5 fm-card p-4 sm:p-5 space-y-4">
-                    <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                      <div class="flex items-center gap-2">
-                        <span class="w-6 h-6 rounded-full bg-[#009944] text-white text-xs font-extrabold flex items-center justify-center">1</span>
-                        <h4 class="font-extrabold text-xs sm:text-sm text-slate-900 uppercase tracking-wide">Periode 5 Hari (Senin – Jumat) & Default</h4>
-                      </div>
-                      <span id="weekly-date-range-badge" class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">Senin – Jumat</span>
-                    </div>
-
-                    <div class="space-y-1.5">
-                      <label class="block text-[11px] font-bold text-slate-600 uppercase">Tanggal Senin Terdekat (Auto Sesuai Hari & Tanggal Aktual)</label>
-                      <div class="flex flex-wrap items-center gap-1.5">
-                        <button type="button" onclick="FMCUApp.shiftWeeklyMonday(-7)" title="Minggu Sebelumnya" class="px-2.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold cursor-pointer">
-                          <i class="fa-solid fa-chevron-left"></i>
-                        </button>
-                        <input type="date" id="weekly-monday-input" onchange="FMCUApp.onChangeWeeklyMonday(this.value)" class="fm-input flex-1 min-w-[140px] text-xs font-bold" />
-                        <button type="button" onclick="FMCUApp.shiftWeeklyMonday(7)" title="Minggu Berikutnya" class="px-2.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold cursor-pointer">
-                          <i class="fa-solid fa-chevron-right"></i>
-                        </button>
-                        <button type="button" onclick="FMCUApp.setWeeklyMondayToCurrentWeek(0)" class="px-2.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#009944] border border-emerald-200 text-[11px] font-extrabold cursor-pointer">
-                          Senin Terdekat (Auto)
-                        </button>
-                        <button type="button" onclick="FMCUApp.setWeeklyMondayToCurrentWeek(7)" class="px-2.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 text-[11px] font-extrabold cursor-pointer">
-                          +1 Minggu
-                        </button>
-                      </div>
-                      <div id="weekly-nearest-monday-info" class="text-[10px] font-semibold text-emerald-700"></div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-2.5">
+                <!-- CARD 1: PENGATURAN PERIODE & PILIH VISITOR -->
+                <div class="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-4">
+                  <!-- Row 1: Periode Minggu Visit -->
+                  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                    <div class="flex items-center gap-2">
+                      <span class="w-5 h-5 rounded-md bg-[#009944] text-white text-[10px] font-extrabold flex items-center justify-center">1</span>
                       <div>
-                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Prioritas Default</label>
-                        <select id="weekly-default-priority" class="fm-input text-xs">
-                          <option value="NORMAL" selected>NORMAL (Rutin)</option>
-                          <option value="HIGH">HIGH (Prioritas Utama)</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Jam Operasional Default</label>
-                        <input type="text" id="weekly-default-window" value="08:30 - 17:30" placeholder="08:30 - 17:30" class="fm-input text-xs" />
+                        <span class="font-extrabold text-xs sm:text-sm text-slate-900">Pilih Periode Minggu Visit</span>
+                        <span id="weekly-date-range-badge" class="ml-2 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">Senin – Jumat</span>
                       </div>
                     </div>
 
-                    <!-- FOKUS AUDIT / CATATAN MINGGUAN (MULTIPLE CHECKLIST & TOMBOL +) -->
-                    <div class="space-y-2 pt-1 border-t border-slate-100">
-                      <div class="flex items-center justify-between gap-2">
-                        <div class="flex items-center gap-1.5 min-w-0">
-                          <label class="block text-[11px] font-bold text-slate-700 uppercase tracking-wide truncate">Fokus Audit (Multiple Checklist)</label>
-                          <span id="weekly-focus-count-badge" class="text-[10px] font-extrabold px-1.5 py-0.2 rounded-full bg-teal-50 text-[#0099A6] border border-teal-200 shrink-0">1 Terpilih</span>
-                        </div>
-                        <div class="flex items-center gap-1 shrink-0">
-                          <button type="button" onclick="FMCUApp.toggleAllWeeklyFocusOptions(true)" class="text-[10px] font-bold text-slate-500 hover:text-emerald-700 px-1 py-0.5 rounded cursor-pointer transition" title="Pilih Semua Fokus">
-                            Semua
-                          </button>
-                          <span class="text-slate-300 text-[10px]">|</span>
-                          <button type="button" onclick="FMCUApp.toggleAllWeeklyFocusOptions(false)" class="text-[10px] font-bold text-slate-500 hover:text-rose-600 px-1 py-0.5 rounded cursor-pointer transition" title="Reset Pilihan">
-                            Reset
-                          </button>
-                          <button type="button" onclick="FMCUApp.openAddFocusOptionPrompt()" class="ml-1 px-2 py-0.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#009944] border border-emerald-200 text-[11px] font-extrabold flex items-center gap-1 cursor-pointer transition shadow-2xs" title="Tambah Pilihan Fokus Audit Baru">
-                            <i class="fa-solid fa-plus text-[10px]"></i>
-                            <span>Tambah</span>
-                          </button>
-                        </div>
-                      </div>
-
-                      <!-- Quick Add Input Box (Muncul saat klik tombol + Tambah) -->
-                      <div id="weekly-focus-add-box" class="hidden flex items-center gap-1.5 p-1.5 bg-emerald-50/90 border border-emerald-200 rounded-xl transition">
-                        <input type="text" id="weekly-new-focus-input" placeholder="Ketik pilihan fokus audit baru..." class="fm-input text-xs py-1 px-2.5 flex-1 bg-white" onkeydown="if(event.key==='Enter'){event.preventDefault();FMCUApp.submitNewFocusOption();}" />
-                        <button type="button" onclick="FMCUApp.submitNewFocusOption()" class="px-2.5 py-1 rounded-lg bg-[#009944] hover:bg-emerald-700 text-white font-extrabold text-xs transition cursor-pointer shrink-0">
-                          Simpan
-                        </button>
-                        <button type="button" onclick="FMCUApp.closeAddFocusOptionBox()" class="px-2 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-500 font-bold text-xs border border-slate-200 cursor-pointer shrink-0">
-                          Batal
-                        </button>
-                      </div>
-
-                      <!-- Kotak Multiple Checklist Fokus Audit -->
-                      <div id="weekly-focus-checklist-container" class="max-h-40 overflow-y-auto space-y-1 p-2 rounded-xl bg-slate-50/80 border border-slate-200 text-xs">
-                        <!-- Checklist options di-render via JS -->
-                      </div>
-
-                      <!-- Ringkasan Teks Fokus Terpilih -->
-                      <div class="flex items-center gap-1.5 text-[11px] text-slate-500 pt-0.5">
-                        <i class="fa-solid fa-clipboard-check text-emerald-600 shrink-0"></i>
-                        <span class="font-bold text-slate-600 shrink-0">Ringkasan:</span>
-                        <span id="weekly-focus-summary-text" class="text-slate-500 truncate italic">Belum ada fokus audit dipilih</span>
-                      </div>
-
-                      <!-- SINKRONISASI INPUT VALUE UNTUK COMPATIBILITY DENGAN BATCH SCHEDULE -->
-                      <input type="hidden" id="weekly-default-focus" value="" />
+                    <!-- Date Navigator -->
+                    <div class="flex flex-wrap items-center gap-1.5">
+                      <button type="button" onclick="FMCUApp.shiftWeeklyMonday(-7)" title="Minggu Sebelumnya" class="w-8 h-8 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center justify-center cursor-pointer">
+                        <i class="fa-solid fa-chevron-left text-[11px]"></i>
+                      </button>
+                      <input type="date" id="weekly-monday-input" onchange="FMCUApp.onChangeWeeklyMonday(this.value)" class="fm-input py-1 px-2.5 text-xs font-bold w-36" />
+                      <button type="button" onclick="FMCUApp.shiftWeeklyMonday(7)" title="Minggu Berikutnya" class="w-8 h-8 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center justify-center cursor-pointer">
+                        <i class="fa-solid fa-chevron-right text-[11px]"></i>
+                      </button>
+                      <button type="button" onclick="FMCUApp.setWeeklyMondayToCurrentWeek(0)" class="px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#009944] border border-emerald-200 text-[11px] font-bold cursor-pointer">
+                        Minggu Ini
+                      </button>
+                      <button type="button" onclick="FMCUApp.setWeeklyMondayToCurrentWeek(7)" class="px-2.5 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 text-[11px] font-bold cursor-pointer">
+                        +1 Minggu
+                      </button>
                     </div>
                   </div>
+                  <div id="weekly-nearest-monday-info" class="text-[10px] font-semibold text-emerald-700 -mt-2"></div>
 
-                  <!-- STEP 2: Pilih Regional Bestie / Visitor (Multi-Select, Khusus Visitor) -->
-                  <div class="lg:col-span-7 fm-card p-4 sm:p-5 space-y-3.5">
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+                  <!-- Row 2: Pilih Visitor -->
+                  <div class="space-y-2">
+                    <div class="flex items-center justify-between gap-2">
+                      <div class="flex items-center gap-1.5">
+                        <label class="font-extrabold text-xs text-slate-800">Visitor / Regional Bestie yang Ditugaskan:</label>
+                      </div>
+                      <div class="flex items-center gap-1.5">
+                        <button type="button" onclick="FMCUApp.selectAllWeeklyAuditors(true)" class="text-[11px] font-bold text-[#009944] hover:underline cursor-pointer">
+                          Pilih Semua
+                        </button>
+                        <span class="text-slate-300 text-xs">•</span>
+                        <button type="button" onclick="FMCUApp.selectAllWeeklyAuditors(false)" class="text-[11px] font-bold text-slate-500 hover:underline cursor-pointer">
+                          Reset
+                        </button>
+                      </div>
+                    </div>
+                    <div id="weekly-auditor-selector-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 max-h-48 overflow-y-auto pr-1"></div>
+                  </div>
+
+                  <!-- Row 3: Pengaturan Tambahan (Collapsible) -->
+                  <details class="group rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs">
+                    <summary class="font-bold text-slate-700 cursor-pointer flex items-center justify-between select-none">
                       <div class="flex items-center gap-2">
-                        <span class="w-6 h-6 rounded-full bg-[#0099A6] text-white text-xs font-extrabold flex items-center justify-center">2</span>
+                        <i class="fa-solid fa-sliders text-emerald-600 text-xs"></i>
+                        <span>Pengaturan Tambahan (Prioritas, Jam & Fokus Audit)</span>
+                        <span id="weekly-focus-count-badge" class="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700">1 Terpilih</span>
+                      </div>
+                      <i class="fa-solid fa-chevron-down text-slate-400 group-open:rotate-180 transition text-xs"></i>
+                    </summary>
+
+                    <div class="pt-3 space-y-3 border-t border-slate-200 mt-2.5">
+                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                          <h4 class="font-extrabold text-xs sm:text-sm text-slate-900 uppercase tracking-wide">Pilih Visitor / Regional Bestie (Khusus Role Visitor)</h4>
-                          <p class="text-[11px] text-slate-500">Hanya menampilkan daftar Visitor / Regional Bestie (akun Admin tidak termasuk)</p>
+                          <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Prioritas Default</label>
+                          <select id="weekly-default-priority" class="fm-input text-xs py-1.5">
+                            <option value="NORMAL" selected>NORMAL (Rutin)</option>
+                            <option value="HIGH">HIGH (Prioritas Utama)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Jam Operasional Default</label>
+                          <input type="text" id="weekly-default-window" value="08:30 - 17:30" placeholder="08:30 - 17:30" class="fm-input text-xs py-1.5" />
                         </div>
                       </div>
-                      <div class="flex flex-wrap items-center gap-1.5">
-                        <button type="button" onclick="FMCUApp.selectAllWeeklyAuditors(true)" class="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#009944] border border-emerald-200 text-[11px] font-extrabold cursor-pointer">
-                          <i class="fa-solid fa-check-double mr-1"></i>Pilih Semua Visitor
-                        </button>
-                        <button type="button" onclick="FMCUApp.selectAllWeeklyAuditors(false)" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-[11px] font-bold cursor-pointer">
-                          Reset Pilihan
-                        </button>
+
+                      <div class="space-y-1.5">
+                        <div class="flex items-center justify-between gap-2">
+                          <label class="block text-[11px] font-bold text-slate-700 uppercase">Fokus Audit (Multiple Checklist)</label>
+                          <div class="flex items-center gap-1.5">
+                            <button type="button" onclick="FMCUApp.toggleAllWeeklyFocusOptions(true)" class="text-[10px] font-bold text-emerald-700 hover:underline cursor-pointer">Semua</button>
+                            <span class="text-slate-300 text-[10px]">•</span>
+                            <button type="button" onclick="FMCUApp.toggleAllWeeklyFocusOptions(false)" class="text-[10px] font-bold text-rose-600 hover:underline cursor-pointer">Reset</button>
+                            <button type="button" onclick="FMCUApp.openAddFocusOptionPrompt()" class="ml-1 px-2 py-0.5 rounded-lg bg-white border border-slate-300 text-[10px] font-bold text-slate-700 hover:bg-slate-100 cursor-pointer">
+                              + Tambah
+                            </button>
+                          </div>
+                        </div>
+
+                        <!-- Quick Add Input Box -->
+                        <div id="weekly-focus-add-box" class="hidden flex items-center gap-1.5 p-1.5 bg-white border border-emerald-300 rounded-xl">
+                          <input type="text" id="weekly-new-focus-input" placeholder="Ketik pilihan fokus audit baru..." class="fm-input text-xs py-1 px-2.5 flex-1" onkeydown="if(event.key==='Enter'){event.preventDefault();FMCUApp.submitNewFocusOption();}" />
+                          <button type="button" onclick="FMCUApp.submitNewFocusOption()" class="px-2.5 py-1 rounded-lg bg-[#009944] text-white font-extrabold text-xs cursor-pointer">Simpan</button>
+                          <button type="button" onclick="FMCUApp.closeAddFocusOptionBox()" class="px-2 py-1 rounded-lg bg-slate-100 text-slate-600 font-bold text-xs cursor-pointer">Batal</button>
+                        </div>
+
+                        <!-- Checklist Container -->
+                        <div id="weekly-focus-checklist-container" class="max-h-36 overflow-y-auto space-y-1 p-2 rounded-xl bg-white border border-slate-200 text-xs"></div>
+                        <div class="flex items-center gap-1.5 text-[11px] text-slate-500 pt-0.5">
+                          <span class="font-bold text-slate-600">Ringkasan:</span>
+                          <span id="weekly-focus-summary-text" class="text-slate-500 truncate italic">Belum ada fokus audit dipilih</span>
+                        </div>
+                        <input type="hidden" id="weekly-default-focus" value="" />
                       </div>
                     </div>
-
-                    <div id="weekly-auditor-selector-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2.5 max-h-56 overflow-y-auto pr-1"></div>
-                  </div>
+                  </details>
                 </div>
 
-                <!-- STEP 3: ASISTEN PENGISI CEPAT TOKO (CLICK-TO-ASSIGN + AUTO-ADVANCE SENIN s/d JUMAT) -->
-                <div id="weekly-quick-picker-card" class="fm-card p-4 sm:p-5 bg-gradient-to-r from-slate-900 via-slate-800 to-teal-950 text-white space-y-3.5 shadow-md">
-                  <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-white/10 pb-3">
-                    <div class="space-y-1">
-                      <div class="flex flex-wrap items-center gap-2">
-                        <span class="w-6 h-6 rounded-full bg-emerald-500 text-slate-950 text-xs font-extrabold flex items-center justify-center">3</span>
-                        <span class="text-xs font-extrabold uppercase tracking-wider text-emerald-300">Asisten Pengisi Cepat 5 Hari (Click-to-Assign)</span>
-                        <span id="weekly-active-slot-indicator" class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-[11px] font-extrabold">
-                          🎯 Target Slot: Pilih Hari di Bawah
-                        </span>
-                      </div>
-                      <p class="text-[11px] text-slate-300">
-                        Klik salah satu kotak hari (<strong>Senin s/d Jumat</strong>) pada kartu Visitor di bawah, lalu <strong>klik nama toko</strong> di daftar ini untuk langsung memasukkan toko.
-                      </p>
+                <!-- CARD 2: PENCARIAN & PEMILIHAN TOKO CEPAT -->
+                <div id="weekly-quick-picker-card" class="p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-3">
+                  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <span class="w-5 h-5 rounded-md bg-[#009944] text-white text-[10px] font-extrabold flex items-center justify-center">2</span>
+                      <span class="text-xs font-extrabold text-slate-900">Pilih Toko untuk Ditugaskan</span>
+                      <span id="weekly-active-slot-indicator" class="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                        🎯 Target Slot: Pilih Hari di Bawah
+                      </span>
                     </div>
-
-                    <div class="flex flex-wrap items-center gap-2">
-                      <label class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/10 border border-white/15 text-xs font-bold text-emerald-200 cursor-pointer select-none">
-                        <input type="checkbox" id="weekly-auto-advance-day" checked class="rounded text-emerald-500 focus:ring-0" />
-                        <span>⚡ Auto-Lanjut Hari (Sen &rarr; Sel &rarr; Rab &rarr; Kam &rarr; Jum)</span>
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                      <label class="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-600 cursor-pointer select-none">
+                        <input type="checkbox" id="weekly-auto-advance-day" checked class="rounded text-[#009944] focus:ring-0" />
+                        <span>Auto-Lanjut Hari</span>
                       </label>
-
-                      <button type="button" onclick="FMCUApp.autoFillFiveDaysForActiveAuditor()" class="px-3 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer">
-                        <i class="fa-solid fa-wand-magic-sparkles"></i>
-                        <span>Isi Otomatis 5 Hari (Visitor Aktif)</span>
+                      <button type="button" onclick="FMCUApp.autoFillFiveDaysForActiveAuditor()" class="px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-bold text-[11px] transition flex items-center gap-1 cursor-pointer">
+                        <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i>
+                        <span>Isi 5 Hari (Visitor Aktif)</span>
                       </button>
-
-                      <button type="button" onclick="FMCUApp.autoFillFiveDaysForAllSelectedAuditors()" class="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer">
-                        <i class="fa-solid fa-bolt"></i>
-                        <span>Sebar Otomatis 5 Hari (Semua Visitor)</span>
+                      <button type="button" onclick="FMCUApp.autoFillFiveDaysForAllSelectedAuditors()" class="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#009944] border border-emerald-200 font-bold text-[11px] transition flex items-center gap-1 cursor-pointer">
+                        <i class="fa-solid fa-bolt text-[10px]"></i>
+                        <span>Sebar ke Semua Visitor</span>
                       </button>
                     </div>
                   </div>
 
-                  <!-- Search & City Filter for Master Stores -->
-                  <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                  <!-- Search & City Filter -->
+                  <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
                     <div class="sm:col-span-8 relative">
-                      <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                      <input type="text" id="weekly-store-search" oninput="FMCUApp.renderWeeklyQuickStoreResults()" placeholder="Ketik Site Code / Nama Toko / Kota / Area Manager / Regional Manager..." class="w-full pl-9 pr-3 py-2 rounded-xl bg-white/10 border border-white/20 text-white placeholder-slate-400 text-xs font-semibold focus:outline-none focus:border-emerald-400" />
+                      <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                      <input type="text" id="weekly-store-search" oninput="FMCUApp.renderWeeklyQuickStoreResults()" placeholder="Cari nama toko, site code, kota, area manager..." class="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50/70 text-slate-800 placeholder-slate-400 text-xs font-semibold focus:outline-none focus:border-[#009944] focus:bg-white" />
                     </div>
                     <div class="sm:col-span-4">
-                      <select id="weekly-store-city-filter" onchange="FMCUApp.renderWeeklyQuickStoreResults()" class="w-full px-3 py-2 rounded-xl bg-slate-800 border border-white/20 text-white text-xs font-semibold focus:outline-none focus:border-emerald-400">
-                        <option value="ALL">Semua Kota / Wilayah</option>
+                      <select id="weekly-store-city-filter" onchange="FMCUApp.renderWeeklyQuickStoreResults()" class="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50/70 text-slate-700 text-xs font-semibold focus:outline-none focus:border-[#009944] focus:bg-white">
+                        <option value="ALL">Semua Wilayah</option>
                       </select>
                     </div>
                   </div>
 
                   <!-- Clickable Store Chips Result -->
-                  <div id="weekly-store-quick-results" class="flex items-center gap-2 overflow-x-auto pb-1.5 pt-0.5"></div>
+                  <div id="weekly-store-quick-results" class="flex items-center gap-2 overflow-x-auto pb-1 pt-0.5"></div>
                 </div>
 
                 <!-- PAPAN MATRIKS 5 HARI (SENIN s/d JUMAT) PER VISITOR -->
                 <div id="weekly-planner-board" class="space-y-4"></div>
 
                 <!-- STICKY ACTION BAR: APPLY ALL 5-DAY SCHEDULES -->
-                <div id="weekly-submit-bar" class="fm-card p-2.5 sm:p-4 lg:p-5 bg-gradient-to-r from-emerald-50 via-white to-teal-50 border-2 border-[#009944]/40 flex flex-row items-center justify-between gap-2 sm:gap-3 sticky bottom-16 lg:bottom-4 z-20 shadow-lg">
+                <div id="weekly-submit-bar" class="p-3 sm:p-4 rounded-2xl bg-white/95 backdrop-blur-md border border-slate-200/80 flex flex-row items-center justify-between gap-2 sm:gap-3 sticky bottom-16 lg:bottom-4 z-20 shadow-xl">
                   <div class="flex items-center gap-2 sm:gap-3 min-w-0">
-                    <div class="hidden sm:flex w-9 h-9 lg:w-10 lg:h-10 rounded-xl bg-[#009944] text-white items-center justify-center text-sm lg:text-base font-extrabold shrink-0 shadow-xs">
-                      <i class="fa-solid fa-rocket"></i>
+                    <div class="w-8 h-8 rounded-xl bg-emerald-50 text-[#009944] flex items-center justify-center text-sm font-extrabold shrink-0">
+                      <i class="fa-solid fa-calendar-check"></i>
                     </div>
                     <div class="min-w-0">
                       <div class="flex items-center gap-1.5 flex-wrap">
-                        <span id="weekly-total-draft-badge" class="font-extrabold text-xs sm:text-sm lg:text-base text-slate-900 leading-tight">
+                        <span id="weekly-total-draft-badge" class="font-extrabold text-xs sm:text-sm text-slate-900 leading-tight">
                           <span class="sm:hidden">0 Jadwal Siap</span>
                           <span class="hidden sm:inline">0 Jadwal Visit Siap Ditugaskan (Senin–Jumat)</span>
                         </span>
-                        <span id="weekly-total-auditor-badge" class="text-[10px] sm:text-[11px] font-extrabold px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-800 shrink-0">0 Visitor</span>
+                        <span id="weekly-total-auditor-badge" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-teal-50 text-[#0099A6] border border-teal-200 shrink-0">0 Visitor</span>
                       </div>
-                      <p class="hidden sm:block text-[11px] text-slate-500 mt-0.5">Seluruh jadwal dalam matriks Senin–Jumat di atas akan langsung disimpan ke Cloud Firestore & siap dikunjungi oleh masing-masing Visitor.</p>
                     </div>
                   </div>
 
                   <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                    <button type="button" onclick="FMCUApp.clearAllWeeklyDrafts()" title="Reset Draft" class="px-2 py-1.5 sm:px-3.5 sm:py-2 rounded-lg sm:rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1">
+                    <button type="button" onclick="FMCUApp.clearAllWeeklyDrafts()" title="Reset Draft" class="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1">
                       <i class="fa-solid fa-rotate-left text-xs"></i>
-                      <span class="hidden md:inline">Reset Draft</span>
+                      <span class="hidden sm:inline">Reset</span>
                     </button>
-                    <button type="button" onclick="FMCUApp.applyWeeklySchedulesBatch()" class="px-2.5 py-1.5 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl fm-gradient text-white font-extrabold text-xs sm:text-sm shadow-md hover:opacity-95 transition flex items-center justify-center gap-1.5 cursor-pointer">
+                    <button type="button" onclick="FMCUApp.applyWeeklySchedulesBatch()" class="px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl fm-gradient text-white font-extrabold text-xs sm:text-sm shadow-md hover:opacity-95 transition flex items-center justify-center gap-1.5 cursor-pointer">
                       <i class="fa-solid fa-check-double text-xs"></i>
                       <span id="weekly-apply-btn-text">
                         <span class="sm:hidden">Simpan Jadwal</span>
@@ -3195,6 +3172,28 @@ service cloud.firestore {
   </nav>
 
   <!-- ====================================================================
+       FULLSCREEN LOADING FREEZE LAYER (SINKRONISASI GOOGLE DRIVE)
+       ==================================================================== -->
+  <div id="loading-gdrive-sync" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex flex-col items-center justify-center p-4 hidden select-none">
+    <div class="bg-white/95 backdrop-blur-lg border border-slate-200/80 rounded-3xl p-6 sm:p-8 max-w-sm w-full shadow-2xl text-center space-y-4 animate-in fade-in zoom-in duration-200">
+      <div class="relative w-20 h-20 mx-auto flex items-center justify-center">
+        <div class="absolute inset-0 rounded-full border-4 border-emerald-100 border-t-[#009944] animate-spin"></div>
+        <div class="w-14 h-14 rounded-full bg-emerald-50 text-[#009944] flex items-center justify-center text-2xl shadow-inner">
+          <i class="fa-brands fa-google-drive"></i>
+        </div>
+      </div>
+      <div class="space-y-1.5">
+        <h3 class="font-black text-slate-900 text-base sm:text-lg tracking-tight">Menyimpan ke Google Drive...</h3>
+        <p class="text-xs text-slate-500 font-medium leading-relaxed">Sedang menyinkronkan berkas PDF Laporan, Lembar QSC, & Spreadsheet CA...</p>
+      </div>
+      <div class="inline-flex items-center justify-center gap-2 text-[11px] font-bold text-emerald-700 bg-emerald-50 py-1.5 px-4 rounded-full border border-emerald-200 shadow-2xs">
+        <i class="fa-solid fa-spinner fa-spin text-xs"></i>
+        <span id="loading-gdrive-sync-status">Memproses upload berkas...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================
        MODAL: SINKRONISASI FOLDER GOOGLE DRIVE (SISTEM EMAIL DINONAKTIFKAN MASA TESTING)
        ==================================================================== -->
   <div id="modal-send-integration" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 hidden">
@@ -3250,54 +3249,20 @@ service cloud.firestore {
           </div>
           <ul class="list-disc list-inside space-y-1 text-emerald-900/90 pl-1">
             <li><strong>1. PDF Laporan Visit:</strong> Format slide presentasi 16:9 ("Hasil Kunjungan-...")</li>
-            <li><strong>2. Kolase Lembar QSC:</strong> Format PDF vertikal ("Kolase Lembar QSC-...")</li>
+            <li><strong>2. Kolase Lembar QSC:</strong> Format PDF vertikal ("Lembar QSC-FAMITRACK-...")</li>
             <li><strong>3. Spreadsheet CA Toko:</strong> Google Sheets khusus toko yang divisit</li>
           </ul>
         </div>
       </div>
 
-      <div class="space-y-2 pt-2 border-t border-slate-100">
-        <!-- Tombol Aksi Langsung ke Google Drive -->
-        <div class="flex items-center gap-2">
-          <a
-            id="btn-open-store-folder"
-            href="https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8"
-            target="_blank"
-            class="flex-1 py-2.5 px-3 rounded-xl border border-teal-300 bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer text-center"
-          >
-            <i class="fa-solid fa-folder-open text-[#009944]"></i>
-            <span class="truncate">Buka Folder Toko</span>
-          </a>
-          <a
-            id="btn-open-ca-sheet"
-            href="#"
-            target="_blank"
-            class="flex-1 py-2.5 px-3 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer text-center hidden"
-          >
-            <i class="fa-solid fa-table text-[#009944]"></i>
-            <span class="truncate">Buka Spreadsheet CA</span>
-          </a>
-        </div>
-
-        <div class="flex items-center gap-2 pt-1">
-          <button
-            type="button"
-            onclick="FMCUApp.closeModal('modal-send-integration')"
-            class="flex-1 py-2 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-50 font-bold text-xs transition cursor-pointer text-center"
-          >
-            Selesai / Tutup
-          </button>
-          <button
-            type="button"
-            id="btn-execute-send"
-            onclick="FMCUApp.executeSendEmailAndGDrive()"
-            class="flex-1 py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
-            title="Sinkronkan berkas ke Google Drive"
-          >
-            <i class="fa-solid fa-cloud-arrow-up text-teal-400"></i>
-            <span>Sinkron Ulang Drive</span>
-          </button>
-        </div>
+      <div class="pt-2 border-t border-slate-100">
+        <button
+          type="button"
+          onclick="FMCUApp.closeModal('modal-send-integration')"
+          class="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white font-extrabold text-xs sm:text-sm transition cursor-pointer text-center shadow-xs"
+        >
+          Selesai / Tutup
+        </button>
       </div>
     </div>
   </div>
