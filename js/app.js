@@ -7525,14 +7525,13 @@ Instruksi:
   },
 
   // ==========================================================================
-  // EMAIL & GOOGLE DRIVE INTEGRATION (AUTO-LINKED ROOT: 15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8)
+  // GOOGLE DRIVE SYNC INTEGRATION (ROOT: 15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8)
+  // Catatan: Sistem pengiriman email dinonaktifkan total selama masa testing.
   // ==========================================================================
   openIntegrationSendModal(reportId = null) {
     if (reportId) this.activePreviewReportId = reportId;
     const rep = this.getActivePreviewReport();
     if (!rep) return;
-    const settings = window.FMCUData.getSettings();
-    const matchedStore = window.FMCUData.getStores().find((s) => s.code === rep.storeCode);
 
     const nameEl = document.getElementById('modal-send-report-name');
     if (nameEl) {
@@ -7543,43 +7542,22 @@ Instruksi:
       metaEl.textContent = `Visitor: ${rep.auditorName || '-'} • ${(rep.observations || []).length} Temuan Observasi • ${(rep.evidencePhotos || []).length} Foto Bukti`;
     }
 
-    // 1. Email tujuan utama (Store)
-    const storeEmail = rep.storeEmail || matchedStore?.email || (rep.storeCode ? `store${rep.storeCode}@familymartindonesia.com` : '');
-    const toInput = document.getElementById('modal-send-to');
-    if (toInput) toInput.value = storeEmail;
-
-    // 2. CC Email: AM, RM, dan 3 email wajib FMCU
-    const ccList = [];
-    if (matchedStore?.areaManagerEmail) ccList.push(matchedStore.areaManagerEmail.trim());
-    if (matchedStore?.regionalManagerEmail) ccList.push(matchedStore.regionalManagerEmail.trim());
-
-    const mandatoryCc = [
-      'mekarsari.pramawati@familymartindonesia.com',
-      'putri.ayu@familymartindonesia.com',
-      'septiana.indasari@familymartindonesia.com'
-    ];
-    mandatoryCc.forEach((email) => {
-      if (!ccList.some((e) => e.toLowerCase() === email.toLowerCase())) {
-        ccList.push(email);
+    // Set tautan tombol buka folder toko dan spreadsheet CA jika sudah ada
+    const folderBtn = document.getElementById('btn-open-store-folder');
+    if (folderBtn) {
+      folderBtn.href = rep.storeFolderUrl || 'https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8';
+    }
+    const caBtn = document.getElementById('btn-open-ca-sheet');
+    if (caBtn) {
+      if (rep.caSpreadsheetUrl) {
+        caBtn.href = rep.caSpreadsheetUrl;
+        caBtn.classList.remove('hidden');
+      } else {
+        caBtn.classList.add('hidden');
       }
-    });
-
-    if (settings.defaultCcEmails) {
-      settings.defaultCcEmails
-        .split(',')
-        .map((e) => e.trim())
-        .filter(Boolean)
-        .forEach((e) => {
-          if (!ccList.some((existing) => existing.toLowerCase() === e.toLowerCase())) {
-            ccList.push(e);
-          }
-        });
     }
 
-    const ccInput = document.getElementById('modal-send-cc');
-    if (ccInput) ccInput.value = ccList.join(', ');
-
-    // 3. Kolom masukan ID folder Google tersembunyi & auto-linked ke 15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8
+    // Kolom masukan ID folder Google tersembunyi & auto-linked ke 15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8
     const folderInput = document.getElementById('modal-send-folder');
     if (folderInput) folderInput.value = '15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8';
 
@@ -7587,7 +7565,7 @@ Instruksi:
     const modal = document.getElementById('modal-send-integration');
     if (modal) modal.classList.remove('hidden');
 
-    // 4. Secara otomatis dibalik layar simpan seluruh berkas ke Google Drive (Tahun/Visitor/Store)
+    // Secara otomatis dibalik layar simpan seluruh berkas ke Google Drive (Tahun/Visitor/Store)
     this.triggerBackgroundDriveUpload(rep);
   },
 
@@ -7721,6 +7699,11 @@ Instruksi:
       if (gasJson && gasJson.status === 'SUCCESS') {
         if (gasJson.caSpreadsheetUrl) {
           rep.caSpreadsheetUrl = gasJson.caSpreadsheetUrl;
+          const caBtn = document.getElementById('btn-open-ca-sheet');
+          if (caBtn) {
+            caBtn.href = gasJson.caSpreadsheetUrl;
+            caBtn.classList.remove('hidden');
+          }
         }
         if (gasJson.pdfUrl) {
           rep.pdfDriveUrl = gasJson.pdfUrl;
@@ -7730,6 +7713,10 @@ Instruksi:
         }
         if (gasJson.storeFolderUrl) {
           rep.storeFolderUrl = gasJson.storeFolderUrl;
+          const folderBtn = document.getElementById('btn-open-store-folder');
+          if (folderBtn) {
+            folderBtn.href = gasJson.storeFolderUrl;
+          }
         }
 
         if (window.FMCUData && typeof window.FMCUData.saveReport === 'function') {
@@ -7860,197 +7847,15 @@ Instruksi:
   },
 
   openReadyEmailApp() {
-    this.triggerHaptic('medium');
-    const rep = this.getActivePreviewReport();
-    if (!rep) {
-      this.showToast('Tidak ada laporan visit yang aktif.', 'warning');
-      return;
-    }
-
-    const toEmail = document.getElementById('modal-send-to')?.value.trim() || '';
-    const ccEmail = document.getElementById('modal-send-cc')?.value.trim() || '';
-    const fileName = window.FMCUPdf.getFileName(rep);
-    const dateFormatted = window.FMCUPdf.formatDateDdMmYyyy(rep.visitDate);
-
-    // Link Spreadsheet CA Store Assignment unik toko
-    const caSpreadsheetLink = rep.caSpreadsheetUrl || rep.caLink || 'https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8';
-
-    // Link Folder / File Drive
-    const driveFolderLink = rep.storeFolderUrl || 'https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8';
-    const pdfDriveLink = rep.pdfDriveUrl || '';
-
-    const obsCount = (rep.observations || []).length;
-    const obsItems = (rep.observations || [])
-      .map((o, i) => `${i + 1}. ${o.temuan || '-'}${o.tindakanPerbaikan ? ' (Action: ' + o.tindakanPerbaikan + ')' : ''} [Deadline: ${o.deadlineFormatted || o.deadline || '-'}]`)
-      .join('\n');
-
-    const subject = `[FMCU VISIT REPORT] ${rep.storeName || 'STORE'} (${rep.storeCode || '-'}) - ${dateFormatted}`;
-
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth < 768 && ('ontouchstart' in window || navigator.maxTouchPoints > 0));
-
-    if (!isMobile) {
-      // ======================================================================
-      // DESKTOP: Buka tab baru langsung ke Gmail Web compose (Bukan native app!)
-      // ======================================================================
-      const desktopBodyText = `Halo Tim Store ${rep.storeName || 'STORE'} (${rep.storeCode || '-'}),
-
-Berikut adalah hasil kunjungan audit FMCU / Regional Bestie pada ${rep.visitDayDateFormatted || dateFormatted}:
-- Visitor / Auditor: ${rep.auditorName || '-'}
-- Store Head / PIC: ${rep.storeHead || '-'}
-- Area Manager: ${rep.areaManager || '-'}
-- Regional Manager: ${rep.regionalManager || '-'}
-- Waktu Actual In - Out: ${rep.actualIn || '-'} s/d ${rep.actualOut || '-'}
-- Koordinat GPS: ${rep.gpsLat || '-'}, ${rep.gpsLng || '-'}
-
-============================================================
-LINK SPREADSHEET CA STORE ASSIGNMENT:
-${caSpreadsheetLink}
-(Dapat dibuka & diupdate langsung oleh tim operasional toko)
-============================================================
-
-LINK FOLDER ARSIP GOOGLE DRIVE (VISIT BESTIE 2026):
-${driveFolderLink}
-${pdfDriveLink ? `File PDF Laporan: ${pdfDriveLink}\n` : ''}
-RINGKASAN TEMUAN OBSERVASI (${obsCount} Temuan):
-${obsItems || '- Tidak ada temuan khusus.'}
-
-------------------------------------------------------------
-*Dokumen Laporan PDF resmi ("${fileName}"), Kolase QSC & Spreadsheet CA telah otomatis tersimpan di folder Google Drive.`;
-
-      const gmailWebUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(toEmail)}&cc=${encodeURIComponent(ccEmail)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(desktopBodyText)}`;
-
-      this.showToast('Membuka tab baru Gmail Web...', 'success');
-      const win = window.open(gmailWebUrl, '_blank');
-      if (!win || win.closed || typeof win.closed === 'undefined') {
-        window.location.href = gmailWebUrl;
-      }
-      return;
-    }
-
-    // ======================================================================
-    // MOBILE: Buka langsung aplikasi email mobile bawaan (Gmail / Mail App)
-    // Note: URL mailto di mobile dioptimalkan agar tidak melebihi limit OS
-    // ======================================================================
-    const mobileObsSummary = (rep.observations || [])
-      .slice(0, 5)
-      .map((o, i) => `${i + 1}. ${o.temuan || '-'}${o.tindakanPerbaikan ? ' (' + o.tindakanPerbaikan + ')' : ''}`)
-      .join('\n');
-    const remainingCount = obsCount > 5 ? `\n...dan ${obsCount - 5} temuan lainnya.` : '';
-
-    const mobileBodyText = `Halo Tim Store ${rep.storeName || 'STORE'} (${rep.storeCode || '-'}),
-
-Hasil kunjungan audit FMCU / Regional Bestie (${dateFormatted}):
-- Visitor: ${rep.auditorName || '-'}
-- Store Head: ${rep.storeHead || '-'}
-- AM / RM: ${rep.areaManager || '-'} / ${rep.regionalManager || '-'}
-
-LINK SPREADSHEET CA STORE ASSIGNMENT:
-${caSpreadsheetLink}
-
-LINK ARSIP GOOGLE DRIVE:
-${driveFolderLink}
-
-RINGKASAN TEMUAN (${obsCount} Temuan):
-${mobileObsSummary || '- Tidak ada temuan.'}${remainingCount}
-
-*Dokumen PDF Laporan & CA tersimpan otomatis di Google Drive.`;
-
-    const mailtoUrl = `mailto:${encodeURIComponent(toEmail)}?cc=${encodeURIComponent(ccEmail)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(mobileBodyText)}`;
-
-    this.showToast('Membuka aplikasi email mobile...', 'success');
-    
-    const mailLink = document.createElement('a');
-    mailLink.href = mailtoUrl;
-    document.body.appendChild(mailLink);
-    mailLink.click();
-    setTimeout(() => {
-      if (mailLink.parentNode) {
-        mailLink.parentNode.removeChild(mailLink);
-      }
-    }, 500);
+    this.showToast('Fitur email dinonaktifkan selama masa testing agar tidak masuk ke email orang.', 'warning');
   },
 
   openGmailWebDirectly() {
-    this.triggerHaptic('light');
-    const rep = this.getActivePreviewReport();
-    if (!rep) return;
-    const toEmail = document.getElementById('modal-send-to')?.value.trim() || '';
-    const ccEmail = document.getElementById('modal-send-cc')?.value.trim() || '';
-    const dateFormatted = window.FMCUPdf.formatDateDdMmYyyy(rep.visitDate);
-    const caSpreadsheetLink = rep.caSpreadsheetUrl || rep.caLink || 'https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8';
-    const driveFolderLink = rep.storeFolderUrl || 'https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8';
-    const pdfDriveLink = rep.pdfDriveUrl || '';
-    const obsCount = (rep.observations || []).length;
-    const obsItems = (rep.observations || [])
-      .map((o, i) => `${i + 1}. ${o.temuan || '-'}${o.tindakanPerbaikan ? ' (Action: ' + o.tindakanPerbaikan + ')' : ''} [Deadline: ${o.deadlineFormatted || o.deadline || '-'}]`)
-      .join('\n');
-
-    const subject = `[FMCU VISIT REPORT] ${rep.storeName || 'STORE'} (${rep.storeCode || '-'}) - ${dateFormatted}`;
-    const desktopBodyText = `Halo Tim Store ${rep.storeName || 'STORE'} (${rep.storeCode || '-'}),
-
-Berikut adalah hasil kunjungan audit FMCU / Regional Bestie pada ${rep.visitDayDateFormatted || dateFormatted}:
-- Visitor / Auditor: ${rep.auditorName || '-'}
-- Store Head / PIC: ${rep.storeHead || '-'}
-- Area Manager: ${rep.areaManager || '-'}
-- Regional Manager: ${rep.regionalManager || '-'}
-- Waktu Actual In - Out: ${rep.actualIn || '-'} s/d ${rep.actualOut || '-'}
-- Koordinat GPS: ${rep.gpsLat || '-'}, ${rep.gpsLng || '-'}
-
-============================================================
-LINK SPREADSHEET CA STORE ASSIGNMENT:
-${caSpreadsheetLink}
-(Dapat dibuka & diupdate langsung oleh tim operasional toko)
-============================================================
-
-LINK FOLDER ARSIP GOOGLE DRIVE (VISIT BESTIE 2026):
-${driveFolderLink}
-${pdfDriveLink ? `File PDF Laporan: ${pdfDriveLink}\n` : ''}
-RINGKASAN TEMUAN OBSERVASI (${obsCount} Temuan):
-${obsItems || '- Tidak ada temuan khusus.'}
-
-------------------------------------------------------------
-*Dokumen Laporan PDF resmi ("${window.FMCUPdf.getFileName(rep)}"), Kolase QSC & Spreadsheet CA telah otomatis tersimpan di folder Google Drive.`;
-
-    const gmailWebUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(toEmail)}&cc=${encodeURIComponent(ccEmail)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(desktopBodyText)}`;
-    window.open(gmailWebUrl, '_blank');
+    this.showToast('Fitur email dinonaktifkan selama masa testing agar tidak masuk ke email orang.', 'warning');
   },
 
   copyEmailContent() {
-    this.triggerHaptic('light');
-    const rep = this.getActivePreviewReport();
-    if (!rep) return;
-    const toEmail = document.getElementById('modal-send-to')?.value.trim() || '';
-    const ccEmail = document.getElementById('modal-send-cc')?.value.trim() || '';
-    const dateFormatted = window.FMCUPdf.formatDateDdMmYyyy(rep.visitDate);
-    const caSpreadsheetLink = rep.caSpreadsheetUrl || rep.caLink || 'https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8';
-    const driveFolderLink = rep.storeFolderUrl || 'https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8';
-    const obsItems = (rep.observations || [])
-      .map((o, i) => `${i + 1}. ${o.temuan || '-'}${o.tindakanPerbaikan ? ' (Action: ' + o.tindakanPerbaikan + ')' : ''} [Deadline: ${o.deadlineFormatted || o.deadline || '-'}]`)
-      .join('\n');
-
-    const copyText = `To: ${toEmail}
-Cc: ${ccEmail}
-Subject: [FMCU VISIT REPORT] ${rep.storeName || 'STORE'} (${rep.storeCode || '-'}) - ${dateFormatted}
-
-Halo Tim Store ${rep.storeName || 'STORE'} (${rep.storeCode || '-'}),
-
-Berikut adalah hasil kunjungan audit FMCU / Regional Bestie pada ${rep.visitDayDateFormatted || dateFormatted}:
-- Visitor / Auditor: ${rep.auditorName || '-'}
-- Store Head / PIC: ${rep.storeHead || '-'}
-- Area Manager: ${rep.areaManager || '-'}
-- Regional Manager: ${rep.regionalManager || '-'}
-
-LINK SPREADSHEET CA STORE ASSIGNMENT:
-${caSpreadsheetLink}
-
-LINK FOLDER ARSIP GOOGLE DRIVE:
-${driveFolderLink}
-
-RINGKASAN TEMUAN OBSERVASI (${(rep.observations || []).length} Temuan):
-${obsItems || '- Tidak ada temuan khusus.'}`;
-
-    navigator.clipboard?.writeText(copyText);
-    this.showToast('Isi pesan email berhasil disalin ke clipboard!', 'success');
+    this.showToast('Fitur email dinonaktifkan selama masa testing agar tidak masuk ke email orang.', 'warning');
   },
 
   async executeSendEmailAndGDrive() {
@@ -10813,64 +10618,12 @@ function doPost(e) {
     }
 
     // ------------------------------------------------------------------------
-    // PENGIRIMAN EMAIL OTOMATIS (JIKA EMAIL DIBERIKAN)
+    // SISTEM PENGIRIMAN EMAIL DIHAPUS TOTAL (MODE TESTING)
     // ------------------------------------------------------------------------
-    var recipientEmails = payload.recipientEmails || '';
-    var ccEmails = payload.ccEmails || '';
-    var emailStatus = 'SKIPPED';
-
-    if (recipientEmails) {
-      var subject = '[FMCU VISIT REPORT] ' + storeName + ' (' + (storeCode || '-') + ') - ' + ddMmYyyy;
-      var allObs = [];
-      if (Array.isArray(report.opiObservations) && report.opiObservations.length > 0) {
-        allObs = allObs.concat(report.opiObservations.filter(function(o) { return o && (o.temuan || o.deskripsi); }));
-      }
-      var qscObsEmail = report.qscObservations || report.observations || [];
-      if (Array.isArray(qscObsEmail) && qscObsEmail.length > 0) {
-        allObs = allObs.concat(qscObsEmail.filter(function(o) { return o && (o.temuan || o.deskripsi); }));
-      }
-      if (allObs.length === 0 && Array.isArray(report.observations)) {
-        allObs = report.observations;
-      }
-      var obsHtml = allObs.map(function(o, i) {
-        return '<tr>' +
-          '<td style="border:1px solid #cbd5e1;padding:8px;text-align:center;">' + (i + 1) + '</td>' +
-          '<td style="border:1px solid #cbd5e1;padding:8px;font-weight:bold;background:#fefce8;">' + (o.temuan || '-') + '</td>' +
-          '<td style="border:1px solid #cbd5e1;padding:8px;">' + (o.tindakanPerbaikan || '-') + '</td>' +
-          '<td style="border:1px solid #cbd5e1;padding:8px;color:#b91c1c;font-weight:bold;">' + (o.deadlineFormatted || o.deadline || '-') + '</td>' +
-          '</tr>';
-      }).join('');
-
-      var htmlBody = '<div style="font-family:Arial,sans-serif;max-width:720px;color:#0f172a;">' +
-        '<div style="background:linear-gradient(135deg,#009944,#0099a6);padding:20px;color:#ffffff;border-radius:12px 12px 0 0;">' +
-        '<h2 style="margin:0;">FMCU Visit Store Report</h2>' +
-        '<p style="margin:4px 0 0;opacity:0.9;">Store: ' + storeName + ' (' + (storeCode || '-') + ') | Tanggal: ' + ddMmYyyy + '</p>' +
-        '</div>' +
-        '<div style="border:1px solid #e2e8f0;border-top:none;padding:20px;border-radius:0 0 12px 12px;">' +
-        '<p>Halo Tim Store <b>' + storeName + '</b>,</p>' +
-        '<p>Berikut adalah hasil kunjungan audit FMCU / Regional Bestie:</p>' +
-        '<ul>' +
-        '<li><b>Visitor / Auditor:</b> ' + visitorName + '</li>' +
-        '<li><b>Store Head:</b> ' + (report.storeHead || '-') + '</li>' +
-        '<li><b>Area Manager:</b> ' + (report.areaManager || '-') + '</li>' +
-        (pdfUrl ? '<li><b>PDF Laporan Google Drive:</b> <a href="' + pdfUrl + '">Buka PDF Laporan</a></li>' : '') +
-        (qscPdfUrl ? '<li><b>Kolase Foto QSC (Vertikal):</b> <a href="' + qscPdfUrl + '">Lihat Lembar QSC</a></li>' : '') +
-        (caSpreadsheetUrl ? '<li><b>Spreadsheet CA Toko (Online):</b> <a href="' + caSpreadsheetUrl + '">Buka & Update CA Store Assignment</a></li>' : '') +
-        '</ul>' +
-        '<h4>Ringkasan Temuan Observasi (' + (report.observations ? report.observations.length : 0) + ' Temuan):</h4>' +
-        '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
-        '<thead><tr style="background:#0099a6;color:#fff;">' +
-        '<th style="padding:8px;">No</th><th style="padding:8px;">Temuan</th><th style="padding:8px;">Tindakan Perbaikan</th><th style="padding:8px;">Deadline</th>' +
-        '</tr></thead><tbody>' + (obsHtml || '<tr><td colspan="4" style="text-align:center;padding:10px;">Tidak ada temuan.</td></tr>') + '</tbody></table>' +
-        '</div></div>';
-
-      // AUTO-KIRIM EMAIL DIMATIKAN SESUAI INSTRUKSI USER:
-      // Fitur kirim email via server background (MailApp.sendEmail) dinonaktifkan.
-      // Seluruh berkas diarsipkan ke Google Drive, dan pengguna dapat mengirim email secara manual.
-      emailStatus = 'DISABLED';
-    } else {
-      emailStatus = 'DISABLED';
-    }
+    // Seluruh kode pengiriman email dinonaktifkan agar tidak ada email yang terkirim ke
+    // tim Store, Area Manager, Regional Manager, maupun tim FMCU.
+    // Laporan murni hanya diarsipkan ke Google Drive.
+    var emailStatus = 'DISABLED';
 
     return jsonResponse_({
       status: 'SUCCESS',

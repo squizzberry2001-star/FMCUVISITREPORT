@@ -478,64 +478,12 @@ function doPost(e) {
     }
 
     // ------------------------------------------------------------------------
-    // PENGIRIMAN EMAIL OTOMATIS (JIKA EMAIL DIBERIKAN)
+    // SISTEM PENGIRIMAN EMAIL DIHAPUS TOTAL (MODE TESTING)
     // ------------------------------------------------------------------------
-    var recipientEmails = payload.recipientEmails || '';
-    var ccEmails = payload.ccEmails || '';
-    var emailStatus = 'SKIPPED';
-
-    if (recipientEmails) {
-      var subject = '[FMCU VISIT REPORT] ' + storeName + ' (' + (storeCode || '-') + ') - ' + ddMmYyyy;
-      var allObs = [];
-      if (Array.isArray(report.opiObservations) && report.opiObservations.length > 0) {
-        allObs = allObs.concat(report.opiObservations.filter(function(o) { return o && (o.temuan || o.deskripsi); }));
-      }
-      var qscObsEmail = report.qscObservations || report.observations || [];
-      if (Array.isArray(qscObsEmail) && qscObsEmail.length > 0) {
-        allObs = allObs.concat(qscObsEmail.filter(function(o) { return o && (o.temuan || o.deskripsi); }));
-      }
-      if (allObs.length === 0 && Array.isArray(report.observations)) {
-        allObs = report.observations;
-      }
-      var obsHtml = allObs.map(function(o, i) {
-        return '<tr>' +
-          '<td style="border:1px solid #cbd5e1;padding:8px;text-align:center;">' + (i + 1) + '</td>' +
-          '<td style="border:1px solid #cbd5e1;padding:8px;font-weight:bold;background:#fefce8;">' + (o.temuan || '-') + '</td>' +
-          '<td style="border:1px solid #cbd5e1;padding:8px;">' + (o.tindakanPerbaikan || '-') + '</td>' +
-          '<td style="border:1px solid #cbd5e1;padding:8px;color:#b91c1c;font-weight:bold;">' + (o.deadlineFormatted || o.deadline || '-') + '</td>' +
-          '</tr>';
-      }).join('');
-
-      var htmlBody = '<div style="font-family:Arial,sans-serif;max-width:720px;color:#0f172a;">' +
-        '<div style="background:linear-gradient(135deg,#009944,#0099a6);padding:20px;color:#ffffff;border-radius:12px 12px 0 0;">' +
-        '<h2 style="margin:0;">FMCU Visit Store Report</h2>' +
-        '<p style="margin:4px 0 0;opacity:0.9;">Store: ' + storeName + ' (' + (storeCode || '-') + ') | Tanggal: ' + ddMmYyyy + '</p>' +
-        '</div>' +
-        '<div style="border:1px solid #e2e8f0;border-top:none;padding:20px;border-radius:0 0 12px 12px;">' +
-        '<p>Halo Tim Store <b>' + storeName + '</b>,</p>' +
-        '<p>Berikut adalah hasil kunjungan audit FMCU / Regional Bestie:</p>' +
-        '<ul>' +
-        '<li><b>Visitor / Auditor:</b> ' + visitorName + '</li>' +
-        '<li><b>Store Head:</b> ' + (report.storeHead || '-') + '</li>' +
-        '<li><b>Area Manager:</b> ' + (report.areaManager || '-') + '</li>' +
-        (pdfUrl ? '<li><b>PDF Laporan Google Drive:</b> <a href="' + pdfUrl + '">Buka PDF Laporan</a></li>' : '') +
-        (qscPdfUrl ? '<li><b>Kolase Foto QSC (Vertikal):</b> <a href="' + qscPdfUrl + '">Lihat Lembar QSC</a></li>' : '') +
-        (caSpreadsheetUrl ? '<li><b>Spreadsheet CA Toko (Online):</b> <a href="' + caSpreadsheetUrl + '">Buka & Update CA Store Assignment</a></li>' : '') +
-        '</ul>' +
-        '<h4>Ringkasan Temuan Observasi (' + (report.observations ? report.observations.length : 0) + ' Temuan):</h4>' +
-        '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
-        '<thead><tr style="background:#0099a6;color:#fff;">' +
-        '<th style="padding:8px;">No</th><th style="padding:8px;">Temuan</th><th style="padding:8px;">Tindakan Perbaikan</th><th style="padding:8px;">Deadline</th>' +
-        '</tr></thead><tbody>' + (obsHtml || '<tr><td colspan="4" style="text-align:center;padding:10px;">Tidak ada temuan.</td></tr>') + '</tbody></table>' +
-        '</div></div>';
-
-      // AUTO-KIRIM EMAIL DIMATIKAN SESUAI INSTRUKSI USER:
-      // Fitur kirim email via server background (MailApp.sendEmail) dinonaktifkan.
-      // Seluruh berkas diarsipkan ke Google Drive, dan pengguna dapat mengirim email secara manual.
-      emailStatus = 'DISABLED';
-    } else {
-      emailStatus = 'DISABLED';
-    }
+    // Seluruh kode pengiriman email dinonaktifkan agar tidak ada email yang terkirim ke
+    // tim Store, Area Manager, Regional Manager, maupun tim FMCU.
+    // Laporan murni hanya diarsipkan ke Google Drive.
+    var emailStatus = 'DISABLED';
 
     return jsonResponse_({
       status: 'SUCCESS',
@@ -543,6 +491,11 @@ function doPost(e) {
       qscPdfUrl: qscPdfUrl,
       caSpreadsheetUrl: caSpreadsheetUrl,
       storeFolderUrl: storeFolder.getUrl(),
+      visitorFolderUrl: visitorFolder.getUrl(),
+      yearFolderUrl: yearFolder.getUrl(),
+      emailStatus: emailStatus,
+      timestamp: new Date().toISOString()
+    });
       visitorFolderUrl: visitorFolder.getUrl(),
       yearFolderUrl: yearFolder.getUrl(),
       emailStatus: emailStatus,

@@ -1585,10 +1585,6 @@
                   <i class="fa-solid fa-arrow-left mr-1.5"></i>Kembali ke Section 2
                 </button>
                 <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                  <button type="button" onclick="FMCUApp.handleSaveAndSendIntegration()" class="w-full sm:w-auto text-center justify-center px-4 py-2.5 rounded-xl border border-teal-300 text-teal-800 bg-teal-50 hover:bg-teal-100 font-extrabold text-xs sm:text-sm transition flex items-center gap-2 cursor-pointer shadow-2xs">
-                    <i class="fa-solid fa-paper-plane text-teal-600"></i>
-                    <span>Kirim (Email & GDrive)</span>
-                  </button>
                   <button type="submit" class="w-full sm:w-auto text-center justify-center bg-slate-900 hover:bg-black text-white font-extrabold px-5 py-2.5 rounded-xl text-xs sm:text-sm shadow-md transition flex items-center gap-2 cursor-pointer">
                     <i class="fa-solid fa-file-pdf text-rose-400"></i>
                     <span>Simpan & Buka Preview PDF</span>
@@ -1639,7 +1635,7 @@
               </button>
             </div>
 
-            <!-- Action Button: Hanya KIRIM & GDRIVE per instruksi user -->
+            <!-- Action Button: SINKRONISASI GDRIVE (Email dinonaktifkan selama masa testing) -->
             <div class="w-full sm:w-auto">
               <button
                 type="button"
@@ -1647,9 +1643,8 @@
                 onclick="FMCUApp.openIntegrationSendModal()"
                 class="w-full sm:w-auto px-6 py-2.5 rounded-xl fm-gradient hover:opacity-95 text-white font-extrabold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
               >
-                <i class="fa-solid fa-paper-plane"></i>
-                <i class="fa-brands fa-google-drive"></i>
-                <span>KIRIM & GDRIVE</span>
+                <i class="fa-brands fa-google-drive text-base"></i>
+                <span>SINKRONISASI GDRIVE</span>
               </button>
             </div>
           </div>
@@ -3174,18 +3169,18 @@ service cloud.firestore {
   </nav>
 
   <!-- ====================================================================
-       MODAL: INTEGRASI KIRIM EMAIL & UPLOAD FOLDER GOOGLE DRIVE
+       MODAL: SINKRONISASI FOLDER GOOGLE DRIVE (SISTEM EMAIL DINONAKTIFKAN MASA TESTING)
        ==================================================================== -->
   <div id="modal-send-integration" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 hidden">
     <div class="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-slate-200 space-y-4 view-section max-h-[92vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <div class="flex items-center gap-2.5">
-          <div class="w-10 h-10 rounded-2xl bg-teal-50 text-[#0099A6] flex items-center justify-center text-lg shrink-0 shadow-2xs">
-            <i class="fa-solid fa-paper-plane"></i>
+          <div class="w-10 h-10 rounded-2xl bg-emerald-50 text-[#009944] flex items-center justify-center text-lg shrink-0 shadow-2xs">
+            <i class="fa-brands fa-google-drive"></i>
           </div>
           <div>
-            <h3 class="font-extrabold text-sm sm:text-base text-slate-900">Kirim Laporan & Sinkronisasi GDrive</h3>
-            <p class="text-[10px] sm:text-[11px] text-slate-500">Auto-upload ke folder Google Drive & buat draft email manual (Auto-kirim email dimatikan)</p>
+            <h3 class="font-extrabold text-sm sm:text-base text-slate-900">Sinkronisasi Google Drive</h3>
+            <p class="text-[10px] sm:text-[11px] text-slate-500">Auto-upload 3 berkas (PDF Laporan, PDF QSC & CA Toko) ke Google Drive</p>
           </div>
         </div>
         <button onclick="FMCUApp.closeModal('modal-send-integration')" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition cursor-pointer">
@@ -3207,67 +3202,55 @@ service cloud.firestore {
           <div class="text-[11px] text-slate-500 mt-0.5" id="modal-send-report-meta">-</div>
         </div>
 
-        <div>
-          <label class="block font-bold text-slate-700 uppercase mb-1 text-[11px]">Email Tujuan Utama (Store)</label>
-          <input type="text" id="modal-send-to" placeholder="Masukkan email toko (contoh: store0449@familymartindonesia.com)" class="fm-input text-xs" />
-        </div>
-
-        <div>
-          <label class="block font-bold text-slate-700 uppercase mb-1 text-[11px]">CC Email (AM, RM, & FMCU)</label>
-          <input type="text" id="modal-send-cc" placeholder="Email CC Area Manager, Regional Manager & FMCU" class="fm-input text-xs" />
-          <p class="text-[10px] text-slate-400 mt-1">Otomatis menyertakan AM, RM, serta tim FMCU (Mekarsari, Putri Ayu, Septiana Indasari).</p>
+        <!-- Banner Info Testing: Sistem Email Dinonaktifkan -->
+        <div class="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] flex items-start gap-2.5">
+          <i class="fa-solid fa-shield-halved text-amber-600 text-base mt-0.5 shrink-0"></i>
+          <div class="space-y-0.5">
+            <div class="font-bold text-amber-950">Sistem Pengiriman Email Dinonaktifkan (Mode Testing)</div>
+            <p class="text-amber-800 leading-relaxed">
+              Selama masa uji coba, seluruh fitur pengiriman email (ke Store, Area Manager, Regional Manager & tim FMCU) <strong>dinonaktifkan sepenuhnya</strong> agar email tidak terkirim ke alamat email orang lain.
+            </p>
+          </div>
         </div>
 
         <!-- Hidden ID Folder Google Drive (Auto-Linked Tanpa User Tahu) -->
         <input type="hidden" id="modal-send-folder" value="15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8" />
 
-        <!-- Info Lampiran Email -->
+        <!-- Info Berkas Google Drive -->
         <div class="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-[11px] space-y-1.5">
           <div class="font-extrabold flex items-center gap-1.5 text-emerald-800">
-            <i class="fa-solid fa-paperclip"></i>
-            <span>Lampiran & Tautan di Draft Email:</span>
+            <i class="fa-solid fa-folder-tree"></i>
+            <span>3 Berkas Tersimpan di Folder Google Drive Toko:</span>
           </div>
-          <ul class="list-disc list-inside space-y-0.5 text-emerald-800/90 pl-1">
-            <li><strong>PDF Laporan & QSC:</strong> Otomatis tersimpan di folder Google Drive store</li>
-            <li><strong>Link CA Store Assignment:</strong> Google Sheets khusus toko ini terisi di body email</li>
-            <li><strong>Folder Google Drive:</strong> Tersimpan di <code>01. VISIT BESTIE 2026 / Visitor / Toko</code></li>
-            <li><strong>Status:</strong> <span class="font-bold text-emerald-800">Auto-kirim email otomatis dimatikan.</span> Silakan kirim email manual via tombol di bawah.</li>
+          <ul class="list-disc list-inside space-y-1 text-emerald-900/90 pl-1">
+            <li><strong>1. PDF Laporan Visit:</strong> Format slide presentasi 16:9 ("Hasil Kunjungan-...")</li>
+            <li><strong>2. Kolase Lembar QSC:</strong> Format PDF vertikal ("Kolase Lembar QSC-...")</li>
+            <li><strong>3. Spreadsheet CA Toko:</strong> Google Sheets khusus toko yang divisit</li>
           </ul>
         </div>
       </div>
 
       <div class="space-y-2 pt-2 border-t border-slate-100">
-        <!-- Tombol Utama: Buka Aplikasi Email Siap Kirim -->
-        <button
-          type="button"
-          id="btn-open-ready-email"
-          onclick="FMCUApp.openReadyEmailApp()"
-          class="w-full py-3 px-4 rounded-2xl bg-[#009944] hover:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 cursor-pointer"
-        >
-          <i class="fa-regular fa-envelope text-base"></i>
-          <span>Buka Aplikasi Email Siap Kirim</span>
-        </button>
-
-        <!-- Opsi Tambahan: Buka Tab Gmail Web & Salin Teks Email -->
+        <!-- Tombol Aksi Langsung ke Google Drive -->
         <div class="flex items-center gap-2">
-          <button
-            type="button"
-            onclick="FMCUApp.openGmailWebDirectly()"
-            class="flex-1 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
-            title="Buka langsung di tab Gmail Web browser"
+          <a
+            id="btn-open-store-folder"
+            href="https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8"
+            target="_blank"
+            class="flex-1 py-2.5 px-3 rounded-xl border border-teal-300 bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer text-center"
           >
-            <i class="fa-brands fa-google text-red-500"></i>
-            <span>Buka di Web Gmail</span>
-          </button>
-          <button
-            type="button"
-            onclick="FMCUApp.copyEmailContent()"
-            class="flex-1 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
-            title="Salin isi pesan email dan tautan CA ke clipboard"
+            <i class="fa-solid fa-folder-open text-[#009944]"></i>
+            <span class="truncate">Buka Folder Toko</span>
+          </a>
+          <a
+            id="btn-open-ca-sheet"
+            href="#"
+            target="_blank"
+            class="flex-1 py-2.5 px-3 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer text-center hidden"
           >
-            <i class="fa-regular fa-copy text-teal-600"></i>
-            <span>Salin Isi Email</span>
-          </button>
+            <i class="fa-solid fa-table text-[#009944]"></i>
+            <span class="truncate">Buka Spreadsheet CA</span>
+          </a>
         </div>
 
         <div class="flex items-center gap-2 pt-1">
