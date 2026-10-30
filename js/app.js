@@ -1777,9 +1777,10 @@ window.FMCUApp = {
       const activeCheckIn = window.FMCUData.getActiveCheckIn();
       const todayStr = this.getLocalDateISO();
 
-      if (isVisitor && activeCheckIn && activeCheckIn.scheduleId) {
+      if (!activeCheckIn?.isArchivedView && isVisitor && activeCheckIn && activeCheckIn.scheduleId) {
         const sch = window.FMCUData.getSchedules().find((s) => s.id === activeCheckIn.scheduleId);
-        if (sch && sch.scheduledDate && sch.scheduledDate !== todayStr) {
+        const isCompleted = sch && (sch.status === 'COMPLETED' || sch.reportId);
+        if (!isCompleted && sch && sch.scheduledDate && sch.scheduledDate !== todayStr) {
           window.FMCUData.setActiveCheckIn(null);
           this.hasActiveStoreForm = false;
           this.showToast(
@@ -3230,8 +3231,11 @@ window.FMCUApp = {
 
     // KEPATUHAN TANGGAL HARI AKTUAL:
     // Jika visitor atau regional bestie mencoba membuka jadwal visit di hari yang bukan aktual, form visit TIDAK BISA DIBUKA
+    // Catatan: Jadwal yang sudah selesai visit / tersimpan di arsip tetap dapat dibuka untuk review!
     const isVisitorOrRegionalBestie = this.isAuditorUser(this.currentUser) || !this.hasAuthority('manage_schedule');
-    if (isVisitorOrRegionalBestie && sch && sch.scheduledDate && sch.scheduledDate !== todayStr) {
+    const reports = window.FMCUData.getReports();
+    const isCompleted = sch && (sch.status === 'COMPLETED' || sch.reportId || reports.some((r) => (sch.reportId && r.id === sch.reportId) || (r.storeCode === targetCode && r.visitDate === sch.scheduledDate)));
+    if (!isCompleted && isVisitorOrRegionalBestie && sch && sch.scheduledDate && sch.scheduledDate !== todayStr) {
       const schDateFormatted = window.FMCUPdf.formatIndonesianDate(sch.scheduledDate, true);
       const todayFormatted = window.FMCUPdf.formatIndonesianDate(todayStr, true);
       this.showToast(
@@ -3840,11 +3844,14 @@ window.FMCUApp = {
                 <div class="text-[11px] text-emerald-700 font-semibold">
                   <i class="fa-solid fa-clock-rotate-left mr-1"></i>In: ${s.actualIn || '-'} • Out: ${s.actualOut || '-'}
                 </div>
-                ${
-                  repId
-                    ? `<button onclick="FMCUApp.openReportPreview('${repId}')" class="px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition cursor-pointer">Lihat PDF →</button>`
-                    : ''
-                }
+                <div class="flex items-center gap-1.5">
+                  ${
+                    repId
+                      ? `<button onclick="FMCUApp.editReportById('${repId}')" class="px-2.5 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition cursor-pointer"><i class="fa-solid fa-pen mr-1"></i>Buka Form</button>
+                         <button onclick="FMCUApp.openReportPreview('${repId}')" class="px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition cursor-pointer">Lihat PDF →</button>`
+                      : `<button onclick="FMCUApp.openStoreVisitForm('${s.storeCode}', '${s.id}')" class="px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition cursor-pointer">Buka Form →</button>`
+                  }
+                </div>
               `
                   : isPast
                   ? `
@@ -5066,6 +5073,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
   },
 
   saveCurrentFormDraft() {
+    if (this._isHydratingForm) return;
     const storeCode = document.getElementById('form-store-code')?.value.trim();
     if (!storeCode || storeCode === '-' || storeCode === '') return;
     try {
@@ -5125,12 +5133,55 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     const reports = window.FMCUData.getReports();
     const todayStr = this.getLocalDateISO();
 
-    // 1. Cek apakah laporan toko ini sudah pernah selesai dibuat
-    const existingRep = reports.find(
-      (r) =>
-        (scheduleId && r.scheduleId === scheduleId) ||
-        (r.storeCode === targetStoreCode && (r.visitDate === todayStr || (scheduleId && r.scheduleId === scheduleId)))
-    );
+    // 1. Cek apakah ada draft yang sedang aktif dikerjakan untuk toko ini
+    const draft = window.FMCUData.getStoreDraft(targetStoreCode);
+    const hasMeaningfulDraft =
+      draft &&
+      ((draft.observations && draft.observations.length > 0) ||
+        (draft.opiObservations && draft.opiObservations.length > 0) ||
+        (draft.evidencePhotos && draft.evidencePhotos.length > 0) ||
+        (draft.caPhotos && draft.caPhotos.length > 0) ||
+        (draft.qscScore && Number(draft.qscScore) > 0) ||
+        (draft.actualIn && draft.actualIn !== '-') ||
+        (draft.crewList && draft.crewList.some((c) => c.name && c.name.trim())));
+
+    // 2. Cek laporan yang sudah ada di database / arsip untuk toko ini
+    let existingRep = null;
+    if (scheduleId) {
+      existingRep = reports.find((r) => r.scheduleId === scheduleId);
+    }
+    if (!existingRep) {
+      existingRep = reports.find((r) => r.storeCode === targetStoreCode && r.visitDate === todayStr);
+    }
+    if (!existingRep) {
+      // Cari laporan arsip riwayat visit toko ini (diurutkan paling mutakhir)
+      const storeReports = reports
+        .filter((r) => r.storeCode === targetStoreCode)
+        .sort((a, b) => String(b.createdAt || b.visitDate || '').localeCompare(String(a.createdAt || a.visitDate || '')));
+      if (storeReports.length > 0) {
+        existingRep = storeReports[0];
+      }
+    }
+
+    // Jika ada laporan di arsip dan TIDAK ADA draft aktif baru, muat data laporan arsip toko ini
+    if (existingRep && (!hasMeaningfulDraft || existingRep.id === draft?.id)) {
+      this.loadReportObjectToForm(existingRep);
+      this.hasActiveStoreForm = true;
+      this.activePreviewReportId = existingRep.id;
+      this.updateFormGuardVisibility();
+      return true;
+    }
+
+    // Jika ada draft aktif yang sedang diedit pengguna, muat draft tersebut
+    if (draft) {
+      this.loadReportObjectToForm(draft);
+      this.hasActiveStoreForm = true;
+      this.activePreviewReportId = draft.id || '__LIVE_FORM__';
+      this.updateFormGuardVisibility();
+      return true;
+    }
+
+    // Jika ada existingRep (meskipun ada draft kosong), tetap muat existingRep
     if (existingRep) {
       this.loadReportObjectToForm(existingRep);
       this.hasActiveStoreForm = true;
@@ -5139,17 +5190,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       return true;
     }
 
-    // 2. Cek apakah draft tersimpan di localStorage untuk toko ini
-    const draft = window.FMCUData.getStoreDraft(targetStoreCode);
-    if (draft) {
-      this.loadReportObjectToForm(draft);
-      this.hasActiveStoreForm = true;
-      this.activePreviewReportId = '__LIVE_FORM__';
-      this.updateFormGuardVisibility();
-      return true;
-    }
-
-    // 3. Toko baru tanpa draft / laporan: reset form dan isi data master toko
+    // 3. Hanya jika toko benar-benar baru tanpa draft dan tanpa arsip riwayat laporan sama sekali
     this.resetVisitForm(true);
     this.hasActiveStoreForm = true;
     this.activePreviewReportId = '__LIVE_FORM__';
@@ -5276,6 +5317,8 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
   },
 
   loadReportObjectToForm(rep) {
+    if (!rep) return;
+    this._isHydratingForm = true;
     this.populateMasterStoreSelect();
     this.hasActiveStoreForm = true;
     this.updateFormGuardVisibility();
@@ -5341,6 +5384,18 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     this.formEvidencePhotos = JSON.parse(JSON.stringify(rep.evidencePhotos || [])).map(hydratePhoto);
     this.formCaPhotos = JSON.parse(JSON.stringify(rep.caPhotos || rep.correctiveActionPhotos || [])).map(hydratePhoto);
 
+    // Otomatis aktifkan subtab sesuai data yang ada di laporan arsip
+    if (this.formOpiObservations.length > 0 && this.formObservations.length === 0) {
+      this.switchObsSubSection('opi');
+    } else {
+      this.switchObsSubSection('qsc');
+    }
+    if (this.formCaPhotos.length > 0 && this.formEvidencePhotos.length === 0) {
+      this.switchEvidenceSubSection('ca');
+    } else {
+      this.switchEvidenceSubSection('finding');
+    }
+
     this.renderFormDynamicSections();
     this.switchFormSection(1, false);
 
@@ -5360,9 +5415,14 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
             }
           })
         ).then(() => {
+          this._isHydratingForm = false;
           this.renderFormDynamicSections();
         });
+      } else {
+        this._isHydratingForm = false;
       }
+    } else {
+      this._isHydratingForm = false;
     }
   },
 
@@ -7509,6 +7569,7 @@ Instruksi:
       storeCode: rep.storeCode,
       storeName: rep.storeName,
       scheduleId: rep.scheduleId || null,
+      isArchivedView: true,
       actualIn: rep.actualIn || null,
       actualOut: rep.actualOut || null,
       latIn: rep.gpsLat || this.liveGps.lat,
@@ -7519,7 +7580,7 @@ Instruksi:
     };
     window.FMCUData.setActiveCheckIn(checkInObj);
     this.updateActiveCheckInUI();
-    this.activePreviewReportId = '__LIVE_FORM__';
+    this.activePreviewReportId = rep.id;
     this.navigate('form');
     this.showToast(`Membuka form toko ${rep.storeName}`, 'info');
   },

@@ -482,6 +482,7 @@ window.FMCUData = {
   unsubscribers: [],
   // Cache sementara di RAM sesi aktif untuk merender PDF dengan cepat tanpa membebani Firestore/localStorage
   photoMemoryCache: {},
+  draftMemoryCache: {},
 
   init() {
     // Hapus seluruh cache data dummy versi lama (v1) dan hapus sesi persisten lama di localStorage
@@ -575,7 +576,8 @@ window.FMCUData = {
       localStorage.setItem(STORAGE_KEYS.ATTENDANCE_LOGS, JSON.stringify([]));
     }
 
-    // Inisialisasi Cloud Firestore Real-time Sync
+    // Inisialisasi Penyimpanan Foto Lokal IndexedDB & Cloud Firestore Real-time Sync
+    this.initPhotoStorage();
     this.initFirestore();
   },
 
@@ -1059,15 +1061,25 @@ window.FMCUData = {
           const data = doc.data();
           if (data && data.id) {
             const localMatch = localReports.find((r) => r.id === data.id);
-            if (data._photosTrimmedForCloudLimit && localMatch) {
-              cloudReports.push({
-                ...data,
-                qscPhotos: localMatch.qscPhotos || data.qscPhotos || [],
-                evidencePhotos: localMatch.evidencePhotos || data.evidencePhotos || []
-              });
-            } else {
-              cloudReports.push(data);
+            if (localMatch) {
+              const mergePhotoList = (cloudArr, localArr) => {
+                if (!Array.isArray(cloudArr)) return localArr || [];
+                if (!Array.isArray(localArr)) return cloudArr;
+                return cloudArr.map((cp) => {
+                  const lp = localArr.find((l) => (cp.id && l.id === cp.id) || (cp.driveFileId && l.driveFileId === cp.driveFileId));
+                  if (lp && lp.dataUrl && lp.dataUrl.startsWith('data:image')) {
+                    return { ...cp, dataUrl: lp.dataUrl };
+                  }
+                  return cp;
+                });
+              };
+              data.qscPhotos = mergePhotoList(data.qscPhotos, localMatch.qscPhotos);
+              data.evidencePhotos = mergePhotoList(data.evidencePhotos, localMatch.evidencePhotos);
+              const mergedCa = mergePhotoList(data.caPhotos || data.correctiveActionPhotos, localMatch.caPhotos || localMatch.correctiveActionPhotos);
+              data.caPhotos = mergedCa;
+              data.correctiveActionPhotos = mergedCa;
             }
+            cloudReports.push(data);
           }
         });
         cloudReports.sort((a, b) => String(b.createdAt || b.visitDate || '').localeCompare(String(a.createdAt || a.visitDate || '')));
@@ -1472,7 +1484,7 @@ window.FMCUData = {
     if (typeof indexedDB === 'undefined') return null;
     return new Promise((resolve) => {
       try {
-        const req = indexedDB.open('fmcu_local_storage_db', 2);
+        const req = indexedDB.open('fmcu_local_storage_db', 3);
         req.onupgradeneeded = (e) => {
           const db = e.target.result;
           if (!db.objectStoreNames.contains('photos')) {
@@ -1480,6 +1492,9 @@ window.FMCUData = {
           }
           if (!db.objectStoreNames.contains('drafts')) {
             db.createObjectStore('drafts');
+          }
+          if (!db.objectStoreNames.contains('reports')) {
+            db.createObjectStore('reports');
           }
         };
         req.onsuccess = (e) => {
@@ -1553,6 +1568,100 @@ window.FMCUData = {
       const tx = db.transaction('drafts', 'readwrite');
       tx.objectStore('drafts').delete(String(storeCode));
     } catch (e) {}
+  },
+
+  async saveReportInDb(reportId, reportData) {
+    if (!reportId || !reportData) return;
+    try {
+      const db = await this.getPhotoDb();
+      if (!db) return;
+      const tx = db.transaction('reports', 'readwrite');
+      tx.objectStore('reports').put(reportData, String(reportId));
+    } catch (e) {}
+  },
+
+  async getReportFromDb(reportId) {
+    if (!reportId) return null;
+    try {
+      const db = await this.getPhotoDb();
+      if (!db) return null;
+      return new Promise((resolve) => {
+        const tx = db.transaction('reports', 'readonly');
+        const req = tx.objectStore('reports').get(String(reportId));
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => resolve(null);
+      });
+    } catch (e) {
+      return null;
+    }
+  },
+
+  async deleteReportFromDb(reportId) {
+    if (!reportId) return;
+    try {
+      const db = await this.getPhotoDb();
+      if (!db) return;
+      const tx = db.transaction('reports', 'readwrite');
+      tx.objectStore('reports').delete(String(reportId));
+    } catch (e) {}
+  },
+
+  async initPhotoStorage() {
+    try {
+      const db = await this.getPhotoDb();
+      if (!db) return;
+
+      // 1. Preload semua binary foto dari IndexedDB ke photoMemoryCache di RAM
+      if (db.objectStoreNames.contains('photos')) {
+        const photoTx = db.transaction('photos', 'readonly');
+        const photoStore = photoTx.objectStore('photos');
+        const cursorReq = photoStore.openCursor();
+        cursorReq.onsuccess = (e) => {
+          const cursor = e.target.result;
+          if (cursor) {
+            if (cursor.key && cursor.value && typeof cursor.value === 'string' && cursor.value.startsWith('data:image')) {
+              this.photoMemoryCache[cursor.key] = cursor.value;
+            }
+            cursor.continue();
+          }
+        };
+      }
+
+      // 2. Preload foto dan data dari drafts store
+      if (db.objectStoreNames.contains('drafts')) {
+        const draftTx = db.transaction('drafts', 'readonly');
+        const draftStore = draftTx.objectStore('drafts');
+        const draftCursorReq = draftStore.openCursor();
+        draftCursorReq.onsuccess = (e) => {
+          const cursor = e.target.result;
+          if (cursor) {
+            const draft = cursor.value;
+            if (draft && cursor.key) {
+              this.draftMemoryCache[String(cursor.key)] = draft;
+              this.cacheReportPhotosInMemory(draft);
+            }
+            cursor.continue();
+          }
+        };
+      }
+
+      // 3. Preload foto dari reports store
+      if (db.objectStoreNames.contains('reports')) {
+        const repTx = db.transaction('reports', 'readonly');
+        const repStore = repTx.objectStore('reports');
+        const repCursorReq = repStore.openCursor();
+        repCursorReq.onsuccess = (e) => {
+          const cursor = e.target.result;
+          if (cursor) {
+            const rep = cursor.value;
+            if (rep) this.cacheReportPhotosInMemory(rep);
+            cursor.continue();
+          }
+        };
+      }
+    } catch (err) {
+      console.warn('initPhotoStorage warning:', err);
+    }
   },
 
   cachePhotoInMemory(photoId, driveFileId, dataUrl) {
@@ -1744,7 +1853,12 @@ window.FMCUData = {
 
   saveReportsLocalOnly(reports) {
     try {
-      (reports || []).forEach((r) => this.cacheReportPhotosInMemory(r));
+      (reports || []).forEach((r) => {
+        this.cacheReportPhotosInMemory(r);
+        if (r && r.id) {
+          this.saveReportInDb(r.id, r);
+        }
+      });
       const lightweightReports = (reports || []).map((r) => prepareReportForFirestore(r));
       localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(lightweightReports));
       return true;
@@ -1758,7 +1872,7 @@ window.FMCUData = {
     if (!storeCode) return null;
     try {
       const drafts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DRAFT_REPORT) || '{}');
-      const draft = drafts[String(storeCode)] || null;
+      let draft = drafts[String(storeCode)] || this.draftMemoryCache[String(storeCode)] || null;
       if (draft) {
         const hydrate = (p) => {
           if (!p) return p;
@@ -1776,12 +1890,13 @@ window.FMCUData = {
       }
       return null;
     } catch (e) {
-      return null;
+      return this.draftMemoryCache[String(storeCode)] || null;
     }
   },
 
   saveStoreDraft(storeCode, draftData) {
     if (!storeCode || !draftData) return false;
+    this.draftMemoryCache[String(storeCode)] = draftData;
     this.cacheReportPhotosInMemory(draftData);
     this.saveDraftInDb(storeCode, draftData);
     try {
@@ -1812,6 +1927,7 @@ window.FMCUData = {
 
   deleteStoreDraft(storeCode) {
     if (!storeCode) return false;
+    delete this.draftMemoryCache[String(storeCode)];
     this.deleteDraftFromDb(storeCode);
     try {
       const drafts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DRAFT_REPORT) || '{}');
@@ -1862,6 +1978,7 @@ window.FMCUData = {
 
   deleteReport(reportId) {
     if (!reportId) return;
+    this.deleteReportFromDb(reportId);
     const reports = this.getReports().filter((r) => String(r.id) !== String(reportId));
     this.saveReportsLocalOnly(reports);
     if (this.db) {
