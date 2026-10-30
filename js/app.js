@@ -7699,8 +7699,12 @@ Instruksi:
           qscPdfBase64,
           fileName,
           gdriveFolderId: targetFolderId,
-          recipientEmails: document.getElementById('modal-send-to')?.value.trim() || '',
-          ccEmails: document.getElementById('modal-send-cc')?.value.trim() || ''
+          // AUTO-KIRIM EMAIL DIMATIKAN SESUAI INSTRUKSI USER:
+          // Kosongkan recipientEmails dan ccEmails agar Google Apps Script tidak mengeksekusi MailApp.sendEmail otomatis.
+          // Pengiriman email dilakukan manual oleh user melalui tombol "Buka Aplikasi Email Siap Kirim" atau "Buka di Web Gmail".
+          sendEmail: false,
+          recipientEmails: '',
+          ccEmails: ''
         })
       });
 
@@ -10860,25 +10864,12 @@ function doPost(e) {
         '</tr></thead><tbody>' + (obsHtml || '<tr><td colspan="4" style="text-align:center;padding:10px;">Tidak ada temuan.</td></tr>') + '</tbody></table>' +
         '</div></div>';
 
-      var attachments = [];
-      if (pdfFile) attachments.push(pdfFile.getBlob());
-      if (qscPdfFile) attachments.push(qscPdfFile.getBlob());
-
-      var mailOptions = {
-        to: recipientEmails,
-        subject: subject,
-        htmlBody: htmlBody,
-        attachments: attachments
-      };
-      if (ccEmails) mailOptions.cc = ccEmails;
-
-      try {
-        MailApp.sendEmail(mailOptions);
-        emailStatus = 'SENT';
-      } catch (errMail) {
-        Logger.log('Mail send error: ' + errMail.toString());
-        emailStatus = 'ERROR: ' + errMail.toString();
-      }
+      // AUTO-KIRIM EMAIL DIMATIKAN SESUAI INSTRUKSI USER:
+      // Fitur kirim email via server background (MailApp.sendEmail) dinonaktifkan.
+      // Seluruh berkas diarsipkan ke Google Drive, dan pengguna dapat mengirim email secara manual.
+      emailStatus = 'DISABLED';
+    } else {
+      emailStatus = 'DISABLED';
     }
 
     return jsonResponse_({

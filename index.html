@@ -3185,7 +3185,7 @@ service cloud.firestore {
           </div>
           <div>
             <h3 class="font-extrabold text-sm sm:text-base text-slate-900">Kirim Laporan & Sinkronisasi GDrive</h3>
-            <p class="text-[10px] sm:text-[11px] text-slate-500">Auto-upload ke folder Google Drive & buka aplikasi email siap kirim</p>
+            <p class="text-[10px] sm:text-[11px] text-slate-500">Auto-upload ke folder Google Drive & buat draft email manual (Auto-kirim email dimatikan)</p>
           </div>
         </div>
         <button onclick="FMCUApp.closeModal('modal-send-integration')" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition cursor-pointer">
@@ -3225,12 +3225,13 @@ service cloud.firestore {
         <div class="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-[11px] space-y-1.5">
           <div class="font-extrabold flex items-center gap-1.5 text-emerald-800">
             <i class="fa-solid fa-paperclip"></i>
-            <span>Lampiran & Tautan Otomatis di Email:</span>
+            <span>Lampiran & Tautan di Draft Email:</span>
           </div>
           <ul class="list-disc list-inside space-y-0.5 text-emerald-800/90 pl-1">
             <li><strong>PDF Laporan & QSC:</strong> Otomatis tersimpan di folder Google Drive store</li>
             <li><strong>Link CA Store Assignment:</strong> Google Sheets khusus toko ini terisi di body email</li>
             <li><strong>Folder Google Drive:</strong> Tersimpan di <code>01. VISIT BESTIE 2026 / Visitor / Toko</code></li>
+            <li><strong>Status:</strong> <span class="font-bold text-emerald-800">Auto-kirim email otomatis dimatikan.</span> Silakan kirim email manual via tombol di bawah.</li>
           </ul>
         </div>
       </div>
@@ -3282,7 +3283,7 @@ service cloud.firestore {
             id="btn-execute-send"
             onclick="FMCUApp.executeSendEmailAndGDrive()"
             class="flex-1 py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
-            title="Kirim via background server Google Apps Script"
+            title="Sinkronkan berkas ke Google Drive"
           >
             <i class="fa-solid fa-cloud-arrow-up text-teal-400"></i>
             <span>Sinkron Ulang Drive</span>
