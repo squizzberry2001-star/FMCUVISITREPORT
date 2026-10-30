@@ -2010,50 +2010,42 @@ window.FMCUData = {
 
   // ==========================================================================
   // FOKUS AUDIT / CATATAN MINGGUAN OPTIONS & SELECTIONS (MULTIPLE CHECKLIST)
+  // Default bawaan dikosongkan agar Admin dapat meng-adjust sendiri via tombol + Tambah
   // ==========================================================================
   getDefaultFocusOptions() {
-    return [
-      { id: 'foc-1', text: 'Audit Rutin QSC (Quality, Service, Cleanliness)', isDefault: true },
-      { id: 'foc-2', text: 'Food Safety, Suhu Chiller/Freezer & Expired Date', isDefault: true },
-      { id: 'foc-3', text: 'Standar SOP Operasional & Alat Takar FamiCafe', isDefault: true },
-      { id: 'foc-4', text: 'Kebersihan Area Sales, Dine-In & Dapur Sanitasi', isDefault: true },
-      { id: 'foc-5', text: 'Administrasi Toko, Logbook & Dokumen Perizinan', isDefault: true },
-      { id: 'foc-6', text: 'Merchandising, Planogram, Display & Price Card', isDefault: true },
-      { id: 'foc-7', text: 'FamiTrack & Pengecekan Area Sales', isDefault: true },
-      { id: 'foc-8', text: 'Kesiapan Promo, POS Material & Kasir', isDefault: true }
-    ];
+    return [];
   },
 
   getAuditFocusOptions() {
     try {
-      const raw = localStorage.getItem('fmcu_focus_options_v2');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {}
-    const defaults = this.getDefaultFocusOptions();
-    localStorage.setItem('fmcu_focus_options_v2', JSON.stringify(defaults));
-    return defaults;
-  },
-
-  saveAuditFocusOptions(options) {
-    localStorage.setItem('fmcu_focus_options_v2', JSON.stringify(options));
-  },
-
-  getSelectedFocusOptions() {
-    try {
-      const raw = localStorage.getItem('fmcu_selected_focus_v2');
-      if (raw) {
+      const raw = localStorage.getItem('fmcu_focus_options_v3');
+      if (raw !== null) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) return parsed;
       }
     } catch (e) {}
-    return ['foc-1'];
+    const defaults = this.getDefaultFocusOptions();
+    localStorage.setItem('fmcu_focus_options_v3', JSON.stringify(defaults));
+    return defaults;
+  },
+
+  saveAuditFocusOptions(options) {
+    localStorage.setItem('fmcu_focus_options_v3', JSON.stringify(options || []));
+  },
+
+  getSelectedFocusOptions() {
+    try {
+      const raw = localStorage.getItem('fmcu_selected_focus_v3');
+      if (raw !== null) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {}
+    return [];
   },
 
   saveSelectedFocusOptions(selectedIds) {
-    localStorage.setItem('fmcu_selected_focus_v2', JSON.stringify(selectedIds));
+    localStorage.setItem('fmcu_selected_focus_v3', JSON.stringify(selectedIds || []));
   },
 
   // ==========================================================================

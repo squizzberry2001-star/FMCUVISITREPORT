@@ -2054,6 +2054,7 @@ window.FMCUApp = {
   },
 
   isHomeMapExpanded: false,
+  isLiveLocMapExpanded: false,
   modalMap: null,
   modalStoreLayer: null,
   modalBestieLayer: null,
@@ -2239,6 +2240,34 @@ window.FMCUApp = {
         if (this.liveGps.lat !== null && this.liveGps.lng !== null) {
           this.homeMap.setView([this.liveGps.lat, this.liveGps.lng], this.isHomeMapExpanded ? 13 : 12);
         }
+      }
+    }, 250);
+  },
+
+  toggleLiveLocMapExpand() {
+    const mapEl = document.getElementById('live-loc-dedicated-map');
+    const iconEl = document.getElementById('icon-toggle-live-loc-map');
+    const textEl = document.getElementById('text-toggle-live-loc-map');
+    if (!mapEl) return;
+
+    this.isLiveLocMapExpanded = !this.isLiveLocMapExpanded;
+
+    if (this.isLiveLocMapExpanded) {
+      mapEl.classList.remove('h-[380px]', 'sm:h-[480px]', 'lg:h-[640px]');
+      mapEl.classList.add('h-[80vh]', 'min-h-[580px]');
+      if (iconEl) iconEl.className = 'fa-solid fa-compress text-rose-500';
+      if (textEl) textEl.textContent = 'Perkecil Maps';
+      this.showToast('Tampilan peta diperbesar (Tekan tombol perkecil untuk kembali)', 'info', 2500);
+    } else {
+      mapEl.classList.remove('h-[80vh]', 'min-h-[580px]');
+      mapEl.classList.add('h-[380px]', 'sm:h-[480px]', 'lg:h-[640px]');
+      if (iconEl) iconEl.className = 'fa-solid fa-maximize text-[#0099A6]';
+      if (textEl) textEl.textContent = 'Perbesar Maps';
+    }
+
+    setTimeout(() => {
+      if (this.liveLocMap) {
+        this.liveLocMap.invalidateSize();
       }
     }, 250);
   },
@@ -3574,10 +3603,11 @@ window.FMCUApp = {
       return;
     }
 
-    const canDelete = Boolean(
+    const isAdmin = Boolean(
       this.currentUser &&
       (this.currentUser.role === 'ADMIN_SCHEDULE' || this.currentUser.role === 'SUPER_ADMIN')
     );
+    const canDelete = isAdmin;
 
     container.innerHTML = filtered
       .map((r) => {
@@ -3615,24 +3645,27 @@ window.FMCUApp = {
             </div>
 
             <div class="flex flex-wrap items-center gap-2 shrink-0">
-              <button type="button" onclick="FMCUApp.editReportById('${r.id}')" class="px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition cursor-pointer">
-                <i class="fa-solid fa-pen mr-1"></i>Buka Form
-              </button>
-              <button type="button" onclick="FMCUApp.openReportPreview('${r.id}')" class="px-3.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition flex items-center gap-1.5 cursor-pointer">
-                <i class="fa-solid fa-display"></i>
-                <span>Preview Slide PDF</span>
-              </button>
-              <button type="button" onclick="FMCUApp.downloadReportById('${r.id}')" class="fm-gradient hover:opacity-95 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer">
-                <i class="fa-solid fa-file-arrow-down"></i>
-                <span>Unduh PDF</span>
-              </button>
               ${
-                canDelete
-                  ? `<button type="button" onclick="FMCUApp.deleteReportById('${r.id}')" class="px-3 py-2 rounded-xl border border-rose-200 hover:bg-rose-50 text-rose-600 font-bold text-xs transition flex items-center gap-1 cursor-pointer" title="Hapus Laporan Visit">
-                      <i class="fa-solid fa-trash-can"></i>
-                      <span>Hapus</span>
-                    </button>`
-                  : ''
+                isAdmin
+                  ? `
+                <a href="${r.storeFolderUrl || r.visitorFolderUrl || 'https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8'}" target="_blank" rel="noopener noreferrer" class="px-3.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs">
+                  <i class="fa-solid fa-folder-open text-[#009944]"></i>
+                  <span>Folder Toko</span>
+                </a>
+              `
+                  : `
+                <button type="button" onclick="FMCUApp.editReportById('${r.id}')" class="px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition cursor-pointer">
+                  <i class="fa-solid fa-pen mr-1"></i>Buka Form
+                </button>
+                <button type="button" onclick="FMCUApp.openReportPreview('${r.id}')" class="px-3.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition flex items-center gap-1.5 cursor-pointer">
+                  <i class="fa-solid fa-display"></i>
+                  <span>Preview Slide PDF</span>
+                </button>
+                <button type="button" onclick="FMCUApp.downloadReportById('${r.id}')" class="fm-gradient hover:opacity-95 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                  <i class="fa-solid fa-file-arrow-down"></i>
+                  <span>Unduh PDF</span>
+                </button>
+              `
               }
             </div>
           </div>
@@ -5019,26 +5052,27 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
             </div>
 
             <div class="flex flex-wrap items-center gap-2 shrink-0">
-              <button onclick="FMCUApp.editReportById('${r.id}')" class="px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition cursor-pointer">
-                <i class="fa-solid fa-pen mr-1"></i>Buka Form Toko
-              </button>
-              <button onclick="FMCUApp.openReportPreview('${r.id}')" class="px-3.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition flex items-center gap-1.5 cursor-pointer">
-                <i class="fa-solid fa-display"></i>
-                <span>Preview Slide PDF</span>
-              </button>
-              <button onclick="FMCUApp.downloadReportById('${r.id}')" class="fm-gradient hover:opacity-95 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer">
-                <i class="fa-solid fa-file-arrow-down"></i>
-                <span>Unduh PDF</span>
-              </button>
               ${
                 isAdmin
                   ? `
-                <button onclick="FMCUApp.deleteReportById('${r.id}')" class="px-3 py-2 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer" title="Hapus Riwayat Laporan Visit">
-                  <i class="fa-regular fa-trash-can"></i>
-                  <span>Hapus</span>
+                <a href="${r.storeFolderUrl || r.visitorFolderUrl || 'https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8'}" target="_blank" rel="noopener noreferrer" class="px-3.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs">
+                  <i class="fa-solid fa-folder-open text-[#009944]"></i>
+                  <span>Folder Toko</span>
+                </a>
+              `
+                  : `
+                <button onclick="FMCUApp.editReportById('${r.id}')" class="px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition cursor-pointer">
+                  <i class="fa-solid fa-pen mr-1"></i>Buka Form Toko
+                </button>
+                <button onclick="FMCUApp.openReportPreview('${r.id}')" class="px-3.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition flex items-center gap-1.5 cursor-pointer">
+                  <i class="fa-solid fa-display"></i>
+                  <span>Preview Slide PDF</span>
+                </button>
+                <button onclick="FMCUApp.downloadReportById('${r.id}')" class="fm-gradient hover:opacity-95 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                  <i class="fa-solid fa-file-arrow-down"></i>
+                  <span>Unduh PDF</span>
                 </button>
               `
-                  : ''
               }
             </div>
           </div>
@@ -8500,11 +8534,11 @@ Instruksi:
 
   getFiveWorkDays(mondayStr) {
     const baseMon = this.getMondayOfWeek(mondayStr);
-    const dayNames = ['SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT'];
+    const dayNames = ['SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU', 'MINGGU'];
     const shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
     const result = [];
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 7; i++) {
       const dt = new Date(baseMon + 'T00:00:00');
       dt.setDate(dt.getDate() + i);
       const yyyy = dt.getFullYear();
@@ -8530,13 +8564,11 @@ Instruksi:
     const auditors = this.getSchedulableAuditors();
     const validIds = new Set(auditors.map((u) => u.id));
 
-    if (!Array.isArray(this.weeklySelectedAuditors) || this.weeklySelectedAuditors.length === 0) {
-      this.weeklySelectedAuditors = auditors.map((u) => u.id);
+    // Default uncheck pada checklist nama user
+    if (!Array.isArray(this.weeklySelectedAuditors)) {
+      this.weeklySelectedAuditors = [];
     } else {
       this.weeklySelectedAuditors = this.weeklySelectedAuditors.filter((id) => validIds.has(id));
-      if (this.weeklySelectedAuditors.length === 0 && auditors.length > 0 && !this._userClearedAuditors) {
-        this.weeklySelectedAuditors = auditors.map((u) => u.id);
-      }
     }
 
     if (!this.weeklyActiveSlot.auditorId || !this.weeklySelectedAuditors.includes(this.weeklyActiveSlot.auditorId)) {
@@ -8566,7 +8598,7 @@ Instruksi:
     if (!val) return;
     const snappedMonday = this.getMondayOfWeek(val);
     if (snappedMonday !== val) {
-      this.showToast('Tanggal otomatis disesuaikan ke hari Senin terdekat pada minggu tersebut (Senin–Jumat).', 'info');
+      this.showToast('Tanggal otomatis disesuaikan ke hari Senin terdekat pada minggu tersebut (Senin–Minggu).', 'info');
     }
     this.weeklyMondayDate = snappedMonday;
     this.renderWeeklySchedulePlanner();
@@ -8609,7 +8641,7 @@ Instruksi:
   setActiveWeeklySlot(auditorId, dayIndex) {
     this.weeklyActiveSlot = {
       auditorId,
-      dayIndex: Math.max(0, Math.min(4, Number(dayIndex) || 0))
+      dayIndex: Math.max(0, Math.min(6, Number(dayIndex) || 0))
     };
     this.renderWeeklySchedulePlanner();
   },
@@ -8659,10 +8691,10 @@ Instruksi:
     const days = this.getFiveWorkDays(this.weeklyMondayDate);
     const dayName = days[dayIdx]?.dayName || 'HARI';
 
-    // Jika berasal dari Quick Picker dan Auto-Advance aktif, geser ke hari berikutnya (Sen -> Sel -> Rab -> Kam -> Jum)
+    // Jika berasal dari Quick Picker dan Auto-Advance aktif, geser ke hari berikutnya (Sen -> Sel -> Rab -> Kam -> Jum -> Sab -> Min)
     const autoAdvance = document.getElementById('weekly-auto-advance-day')?.checked;
     if (fromQuickPicker && autoAdvance) {
-      if (dayIdx < 4) {
+      if (dayIdx < 6) {
         this.weeklyActiveSlot = { auditorId: audId, dayIndex: dayIdx + 1 };
       } else {
         // Pindah ke Visitor berikutnya pada hari Senin (0)
@@ -8681,6 +8713,45 @@ Instruksi:
     const users = window.FMCUData.getUsers();
     const au = users.find((u) => u.id === audId);
     this.showToast(`+ ${st.code} ${st.name} ditambahkan ke ${au ? au.name : 'Visitor'} (${dayName})`, 'success');
+  },
+
+  promptAddManualStoreToWeeklySlot(auditorId, dayIndex) {
+    const storeName = prompt('Masukkan Nama Toko yang ingin ditambahkan:');
+    if (!storeName || !storeName.trim()) return;
+
+    const trimmedName = storeName.trim();
+    let storeCode = prompt('Masukkan Kode / Site Toko (opsional, tekan OK untuk kode otomatis):');
+    if (storeCode) {
+      storeCode = storeCode.trim();
+    }
+    if (!storeCode) {
+      storeCode = 'M-' + Math.floor(1000 + Math.random() * 9000);
+    }
+
+    let stores = window.FMCUData.getStores();
+    let existing = stores.find(
+      (s) =>
+        String(s.code).toLowerCase() === String(storeCode).toLowerCase() ||
+        String(s.name).toLowerCase() === trimmedName.toLowerCase()
+    );
+
+    if (!existing) {
+      existing = {
+        code: storeCode,
+        name: trimmedName,
+        type: 'CVS',
+        city: 'Manual Add',
+        address: 'Input Manual dari Atur Jadwal',
+        lat: null,
+        lng: null,
+        radiusMeters: 50
+      };
+      stores.push(existing);
+      window.FMCUData.saveStores(stores, existing);
+    }
+
+    this.assignStoreToWeeklySlot(existing.code, auditorId, dayIndex, false);
+    this.showToast(`Toko manual "${existing.name}" (${existing.code}) berhasil ditambahkan ke jadwal!`, 'success');
   },
 
   onInlineAddStoreToDay(auditorId, dayIndex, selectEl) {
@@ -8707,17 +8778,17 @@ Instruksi:
   },
 
   clearAuditorWeeklyDraft(auditorId) {
-    for (let d = 0; d < 5; d++) {
+    for (let d = 0; d < 7; d++) {
       this.weeklyDraftMatrix[this.getWeeklySlotKey(auditorId, d)] = [];
     }
     this.renderWeeklySchedulePlanner();
-    this.showToast('Draft jadwal 5 hari untuk visitor tersebut dikosongkan.', 'info');
+    this.showToast('Draft jadwal 1 minggu untuk visitor tersebut dikosongkan.', 'info');
   },
 
   clearAllWeeklyDrafts() {
     this.weeklyDraftMatrix = {};
     this.renderWeeklySchedulePlanner();
-    this.showToast('Seluruh draft jadwal pada planner 5 hari telah di-reset.', 'info');
+    this.showToast('Seluruh draft jadwal pada planner 1 week telah di-reset.', 'info');
   },
 
   copyAuditorWeekToOthers(sourceAuditorId) {
@@ -8728,13 +8799,13 @@ Instruksi:
       return;
     }
     targets.forEach((tId) => {
-      for (let d = 0; d < 5; d++) {
+      for (let d = 0; d < 7; d++) {
         const srcItems = this.getWeeklySlotItems(sourceAuditorId, d);
         this.weeklyDraftMatrix[this.getWeeklySlotKey(tId, d)] = srcItems.map((it) => ({ ...it }));
       }
     });
     this.renderWeeklySchedulePlanner();
-    this.showToast(`Jadwal 5 hari (Senin–Jumat) berhasil disalin ke ${targets.length} visitor lainnya!`, 'success');
+    this.showToast(`Jadwal 1 minggu (Senin–Minggu) berhasil disalin ke ${targets.length} visitor lainnya!`, 'success');
   },
 
   getFilteredStoresForWeeklyPicker() {
@@ -8764,12 +8835,12 @@ Instruksi:
 
     const defaultPriority = document.getElementById('weekly-default-priority')?.value || 'NORMAL';
     const usedCodes = new Set();
-    for (let d = 0; d < 5; d++) {
+    for (let d = 0; d < 7; d++) {
       this.getWeeklySlotItems(auditorId, d).forEach((it) => usedCodes.add(String(it.storeCode)));
     }
 
     let added = 0;
-    for (let d = 0; d < 5; d++) {
+    for (let d = 0; d < 7; d++) {
       const slotItems = this.getWeeklySlotItems(auditorId, d);
       if (slotItems.length === 0) {
         let picked = null;
@@ -8795,7 +8866,7 @@ Instruksi:
 
     if (!silent) {
       this.renderWeeklySchedulePlanner();
-      this.showToast(`Berhasil mengisi otomatis ${added} hari kerja (Senin–Jumat)!`, 'success');
+      this.showToast(`Berhasil mengisi otomatis ${added} hari (Senin–Minggu)!`, 'success');
     }
     return added;
   },
@@ -8823,7 +8894,7 @@ Instruksi:
     });
     this.renderWeeklySchedulePlanner();
     this.showToast(
-      `Berhasil menyebarkan ${totalAdded} jadwal toko untuk ${this.weeklySelectedAuditors.length} Visitor (Senin–Jumat)!`,
+      `Berhasil menyebarkan ${totalAdded} jadwal toko untuk ${this.weeklySelectedAuditors.length} Visitor (Senin–Minggu)!`,
       'success'
     );
   },
@@ -9050,11 +9121,11 @@ Instruksi:
     }
     const fiveDays = this.getFiveWorkDays(this.weeklyMondayDate);
     const rangeBadge = document.getElementById('weekly-date-range-badge');
-    if (rangeBadge && fiveDays.length === 5) {
-      rangeBadge.textContent = `${fiveDays[0].shortDate} – ${fiveDays[4].shortDate} (Senin–Jumat)`;
+    if (rangeBadge && fiveDays.length === 7) {
+      rangeBadge.textContent = `${fiveDays[0].shortDate} – ${fiveDays[6].shortDate} (Senin–Minggu)`;
     }
     const nearestInfoEl = document.getElementById('weekly-nearest-monday-info');
-    if (nearestInfoEl && fiveDays.length === 5) {
+    if (nearestInfoEl && fiveDays.length === 7) {
       const todayActualStr = window.FMCUPdf.formatIndonesianDate(this.getLocalDateISO(), true);
       const mondayTargetStr = window.FMCUPdf.formatIndonesianDate(fiveDays[0].dateStr, true);
       nearestInfoEl.innerHTML = `<i class="fa-regular fa-calendar-check mr-1"></i>Aktual Hari Ini: <strong>${todayActualStr}</strong> &rarr; Senin Terdekat: <strong>${mondayTargetStr}</strong>`;
@@ -9071,7 +9142,7 @@ Instruksi:
           .map((u) => {
           const isSelected = this.weeklySelectedAuditors.includes(u.id);
           let draftCount = 0;
-          for (let d = 0; d < 5; d++) {
+          for (let d = 0; d < 7; d++) {
             draftCount += this.getWeeklySlotItems(u.id, d).length;
           }
           const savedThisWeek = schedules.filter((s) => s.auditorId === u.id && weekDatesSet.has(s.scheduledDate)).length;
@@ -9130,7 +9201,7 @@ Instruksi:
     }
     this.renderWeeklyQuickStoreResults();
 
-    // 4. Render 5-Day Matrix Board per Selected Visitor
+    // 4. Render 1-Week Matrix Board per Selected Visitor
     const boardEl = document.getElementById('weekly-planner-board');
     if (!boardEl) return;
 
@@ -9139,14 +9210,16 @@ Instruksi:
         <div class="fm-card p-8 text-center space-y-2 border border-dashed border-slate-300">
           <div class="text-2xl text-slate-400"><i class="fa-solid fa-user-check"></i></div>
           <div class="font-extrabold text-sm text-slate-700">Belum Ada Regional Bestie / Visitor yang Dipilih</div>
-          <p class="text-xs text-slate-500">Klik tombol <strong>"Pilih Semua Visitor"</strong> atau pilih nama Visitor pada Langkah 2 di atas untuk menampilkan papan jadwal 5 hari (Senin s/d Jumat).</p>
+          <p class="text-xs text-slate-500">Klik tombol <strong>"Pilih Semua Visitor"</strong> atau pilih nama Visitor pada Langkah 2 di atas untuk menampilkan papan jadwal 1 week (Senin s/d Minggu).</p>
         </div>
       `;
     } else {
+      const sortedStores = [...stores].sort((a, b) =>
+        String(a.code || '').localeCompare(String(b.code || ''), undefined, { numeric: true })
+      );
       const compactStoreOptions =
-        `<option value="">+ Pilih Toko...</option>` +
-        stores
-          .slice(0, 20)
+        `<option value="">+ Pilih Toko (${sortedStores.length})...</option>` +
+        sortedStores
           .map((s) => `<option value="${s.code}">${s.code} - ${s.name} (${s.city || s.type || 'CVS'})</option>`)
           .join('');
 
@@ -9155,7 +9228,7 @@ Instruksi:
           const u = users.find((x) => x.id === audId);
           if (!u) return '';
           let audDraftTotal = 0;
-          for (let d = 0; d < 5; d++) {
+          for (let d = 0; d < 7; d++) {
             audDraftTotal += this.getWeeklySlotItems(u.id, d).length;
           }
           const initials = u.name
@@ -9177,7 +9250,7 @@ Instruksi:
               return `
                 <div
                   onclick="FMCUApp.setActiveWeeklySlot('${u.id}', ${dayObj.dayIndex})"
-                  class="rounded-2xl border p-3 flex flex-col justify-between gap-2.5 transition cursor-pointer ${
+                  class="rounded-2xl border p-2.5 sm:p-3 flex flex-col justify-between gap-2.5 transition cursor-pointer ${
                     isSlotActive
                       ? 'bg-emerald-50/70 border-[#009944] ring-2 ring-[#009944]/30 shadow-sm'
                       : 'bg-slate-50/70 border-slate-200 hover:border-teal-300 hover:bg-white'
@@ -9273,14 +9346,23 @@ Instruksi:
                     </div>
                   </div>
 
-                  <!-- Inline Quick Dropdown Add -->
-                  <div onclick="event.stopPropagation()">
+                  <!-- Inline Quick Dropdown Add & Manual Add Button -->
+                  <div onclick="event.stopPropagation()" class="space-y-1.5">
                     <select
                       onchange="FMCUApp.onInlineAddStoreToDay('${u.id}', ${dayObj.dayIndex}, this)"
                       class="w-full px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[10px] font-bold text-slate-700 focus:outline-none focus:border-[#009944]"
                     >
                       ${compactStoreOptions}
                     </select>
+                    <button
+                      type="button"
+                      onclick="FMCUApp.promptAddManualStoreToWeeklySlot('${u.id}', ${dayObj.dayIndex})"
+                      class="w-full py-1 px-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#009944] border border-emerald-200 text-[10px] font-extrabold transition flex items-center justify-center gap-1 cursor-pointer"
+                      title="Tambah toko secara manual jika belum ada di master toko"
+                    >
+                      <i class="fa-solid fa-plus text-[9px]"></i>
+                      <span>+ Toko Manual</span>
+                    </button>
                   </div>
                 </div>
               `;
@@ -9311,13 +9393,13 @@ Instruksi:
                     class="px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#009944] border border-emerald-200 font-extrabold text-[11px] transition flex items-center gap-1 cursor-pointer"
                   >
                     <i class="fa-solid fa-wand-magic-sparkles"></i>
-                    <span>Isi Otomatis Sen–Jum</span>
+                    <span>Isi Otomatis Sen–Min</span>
                   </button>
                   <button
                     type="button"
                     onclick="FMCUApp.copyAuditorWeekToOthers('${u.id}')"
                     class="px-2.5 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-[11px] transition flex items-center gap-1 cursor-pointer"
-                    title="Salin susunan toko Senin-Jumat visitor ini ke visitor terpilih lainnya"
+                    title="Salin susunan toko 1 minggu visitor ini ke visitor terpilih lainnya"
                   >
                     <i class="fa-regular fa-copy"></i>
                     <span>Salin ke Visitor Lain</span>
@@ -9332,8 +9414,8 @@ Instruksi:
                 </div>
               </div>
 
-              <!-- 5 Columns: Senin s/d Jumat -->
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              <!-- 7 Columns: Senin s/d Minggu -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-2.5">
                 ${daysColumnsHtml}
               </div>
             </div>
@@ -9347,7 +9429,7 @@ Instruksi:
     let activeAuditorsWithDraft = 0;
     this.weeklySelectedAuditors.forEach((audId) => {
       let c = 0;
-      for (let d = 0; d < 5; d++) {
+      for (let d = 0; d < 7; d++) {
         c += this.getWeeklySlotItems(audId, d).length;
       }
       if (c > 0) activeAuditorsWithDraft++;
@@ -9358,7 +9440,7 @@ Instruksi:
     if (totalDraftBadge) {
       totalDraftBadge.innerHTML = `
         <span class="sm:hidden">${totalDraftSchedules} Jadwal Siap</span>
-        <span class="hidden sm:inline">${totalDraftSchedules} Jadwal Visit Siap Ditugaskan (Senin–Jumat)</span>
+        <span class="hidden sm:inline">${totalDraftSchedules} Jadwal Visit Siap Ditugaskan (Senin–Minggu)</span>
       `;
     }
     const totalAudBadge = document.getElementById('weekly-total-auditor-badge');
@@ -9369,8 +9451,8 @@ Instruksi:
     if (applyBtnText) {
       applyBtnText.innerHTML =
         totalDraftSchedules > 0
-          ? `<span class="sm:hidden">Simpan (${totalDraftSchedules})</span><span class="hidden sm:inline">Terapkan & Simpan ${totalDraftSchedules} Jadwal 5 Hari</span>`
-          : `<span class="sm:hidden">Simpan Jadwal</span><span class="hidden sm:inline">Terapkan & Simpan Jadwal 5 Hari</span>`;
+          ? `<span class="sm:hidden">Simpan (${totalDraftSchedules})</span><span class="hidden sm:inline">Terapkan & Simpan Jadwal 1 Week (${totalDraftSchedules})</span>`
+          : `<span class="sm:hidden">Simpan Jadwal</span><span class="hidden sm:inline">Terapkan & Simpan Jadwal 1 Week</span>`;
     }
   },
 
@@ -9422,7 +9504,7 @@ Instruksi:
     });
 
     if (newSchedules.length === 0) {
-      this.showToast('Belum ada toko yang dimasukkan ke dalam jadwal 5 hari (Senin–Jumat). Silakan pilih toko terlebih dahulu.', 'warning');
+      this.showToast('Belum ada toko yang dimasukkan ke dalam jadwal 1 minggu (Senin–Minggu). Silakan pilih toko terlebih dahulu.', 'warning');
       return;
     }
 
@@ -9433,7 +9515,7 @@ Instruksi:
     this.renderAllViews();
     this.switchScheduleSubSection('list');
     this.showToast(
-      `🎉 Berhasil menerapkan ${newSchedules.length} Jadwal Visit (Senin–Jumat) untuk ${involvedAuditors.size} Visitor!`,
+      `🎉 Berhasil menerapkan ${newSchedules.length} Jadwal Visit 1 Week (Senin–Minggu) untuk ${involvedAuditors.size} Visitor!`,
       'success'
     );
   },
@@ -9637,7 +9719,7 @@ Instruksi:
             ? daySch.map((s) => `[${s.storeCode}] ${s.storeName} (${s.status})`).join(' ; ')
             : '-';
       });
-      row['Total Toko Minggu Ini (Sen-Jum)'] = weekTotal;
+      row['Total Toko Minggu Ini (Senin–Minggu)'] = weekTotal;
       return row;
     });
 
@@ -9755,7 +9837,7 @@ Instruksi:
       { wch: 32 },
       { wch: 22 }
     ];
-    XLSX.utils.book_append_sheet(wb, ws3, 'Matriks 5 Hari (Sen-Jum)');
+    XLSX.utils.book_append_sheet(wb, ws3, 'Matriks 1 Week (Sen-Min)');
 
     const ws4 = XLSX.utils.json_to_sheet(
       reportDetailRows.length > 0 ? reportDetailRows : [{ Info: 'Belum ada laporan visit' }]
