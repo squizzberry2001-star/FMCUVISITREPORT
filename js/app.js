@@ -4026,29 +4026,36 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       let aiResultText = '';
       let fetchError = null;
 
-      for (const model of models) {
-        try {
-          const url = `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${apiKey}`;
-          const res = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: promptText }] }]
-            })
-          });
+      const userSeed = this.currentUser?.id || this.currentUser?.username || Date.now();
+      const geminiKeys = window.FMCUData?.GEMINI_CONFIG?.getAllKeys?.(userSeed) || [apiKey];
 
-          if (res.ok) {
-            const data = await res.json();
-            if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-              aiResultText = data.candidates[0].content.parts[0].text;
-              break;
+      // Rotasi multi-key Gemini untuk mencegah bentrok kuota antar user
+      for (const gKey of geminiKeys) {
+        if (aiResultText) break;
+        for (const model of models) {
+          try {
+            const url = `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${gKey}`;
+            const res = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: promptText }] }]
+              })
+            });
+
+            if (res.ok) {
+              const data = await res.json();
+              if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+                aiResultText = data.candidates[0].content.parts[0].text;
+                break;
+              }
+            } else {
+              const errData = await res.json().catch(() => ({}));
+              fetchError = errData?.error?.message || `HTTP ${res.status}`;
             }
-          } else {
-            const errData = await res.json().catch(() => ({}));
-            fetchError = errData?.error?.message || `HTTP ${res.status}`;
+          } catch (e) {
+            fetchError = e.message;
           }
-        } catch (e) {
-          fetchError = e.message;
         }
       }
 
@@ -6303,17 +6310,20 @@ Instruksi:
     }
 
     // ========================================================================
-    // ENGINE 2 (FALLBACK): GOOGLE GEMINI API (dengan AbortController timeout 3.5s)
+    // ENGINE 2 (FALLBACK): GOOGLE GEMINI MULTI-KEY POOL (LOAD BALANCED ANTAR USER)
+    // Mendukung KEY 1 s/d KEY 4 + KEY 0, berotasi otomatis jika salah satu terkena limit
     // ========================================================================
-    const geminiKey = window.FMCUData?.GEMINI_CONFIG?.getApiKey?.();
-    const geminiModels = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-flash-latest'];
-    if (geminiKey) {
+    const userSeed = this.currentUser?.id || this.currentUser?.username || Date.now();
+    const geminiKeys = window.FMCUData?.GEMINI_CONFIG?.getAllKeys?.(userSeed) || [];
+    const geminiModels = ['models/gemini-3.5-flash', 'models/gemini-3-flash-preview', 'models/gemini-3.8-flash'];
+
+    for (const gKey of geminiKeys) {
       for (const model of geminiModels) {
         try {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 3500);
 
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
+          const url = `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${gKey}`;
           const res = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -6338,13 +6348,51 @@ Instruksi:
             }
           }
         } catch (e) {
-          console.warn(`Gemini model ${model} failed, trying next:`, e);
+          console.warn(`Gemini key / model ${model} failed, trying next key:`, e);
         }
       }
     }
 
     // ========================================================================
-    // ENGINE 3 (INSTANT GUARANTEE): SMART HEURISTIC SOP ENGINE (0ms, 100% RELIABLE)
+    // ENGINE 3 (FALLBACK): OPENAI API (KEY 5)
+    // ========================================================================
+    const openAiKey = window.FMCUData?.OPENAI_CONFIG?.getApiKey?.();
+    if (openAiKey) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${openAiKey}`
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [
+              { role: 'system', content: 'Anda adalah asisten QSC & OPI FamilyMart Indonesia. Outputkan analisis dalam format JSON murni.' },
+              { role: 'user', content: promptText }
+            ],
+            response_format: { type: 'json_object' },
+            temperature: 0.2
+          }),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          const data = await res.json();
+          const raw = data.choices?.[0]?.message?.content;
+          if (raw) {
+            const clean = raw.replace(/```json/gi, '').replace(/```/g, '').trim();
+            const parsed = JSON.parse(clean);
+            if (parsed.kondisiIdeal || parsed.penyebab) return parsed;
+          }
+        }
+      } catch (e) {}
+    }
+
+    // ========================================================================
+    // ENGINE 4 (INSTANT GUARANTEE): SMART HEURISTIC SOP ENGINE (0ms, 100% RELIABLE)
     // Menjamin analisis selalu berhasil seketika tanpa loading lama jika offline/limit
     // ========================================================================
     return this.generateInstantHeuristicFindingAnalysis(findingText, category);

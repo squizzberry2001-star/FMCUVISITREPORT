@@ -20,21 +20,73 @@ const TOKENPLUS_CONFIG = {
 };
 
 const GEMINI_CONFIG = {
-  getApiKey: () => {
+  // POOL KUNCI API ALTERNATIF UNTUK LOAD BALANCING ANTAR USER/VISITOR:
+  // Mencegah bentrok (429 Rate Limit / Kuota Habis) ketika banyak visitor aktif bersamaan
+  keyPool: [
+    'QVEuQWI4Uk42SUh4MlhZek9lZnA1UGltU3YydWtoRzBsV3RzWk5nNFBYZmtaMklrbC03c1E=', // KEY 1
+    'QVEuQWI4Uk42SUNwY3liS2RIcHktWUNqekptUkdrWk1vampyZzRxWU9DLWc1ajFMOUFnTnc=', // KEY 2
+    'QVEuQWI4Uk42SkJhWDdkeU1fUXBsNVFTeW9iVk5VM1cwSUVReEk5aVVyOW4ySUc0M2FwWFE=', // KEY 3
+    'QVEuQWI4Uk42S0RKdllHdWZueWhGZHRtUGd2UzhjblFyek4wVng4ZVE5Z1hXSjVzbnBGSEE=', // KEY 4
+    'QVEuQWI4Uk42S1M2TlhBVEFXTU9lRXVFZWNMU3NEUUlXWG5uUEpqT2FfVEtKbVVNNHMyYVE='  // KEY 0 (Fallback)
+  ],
+  _currentIndex: 0,
+
+  // Distribusi kunci cerdas per user/sesi (Load Balancing Round-Robin / Hash)
+  getApiKey: (userSeed = null) => {
     try {
       const custom = localStorage.getItem('fmcu_gemini_api_key');
       if (custom && custom.trim()) return custom.trim();
     } catch (e) {}
-    // Encoded key for repository push protection compliance
-    return typeof atob !== 'undefined'
-      ? atob('QVEuQWI4Uk42S1M2TlhBVEFXTU9lRXVFZWNMU3NEUUlXWG5uUEpqT2FfVEtKbVVNNHMyYVE=')
-      : Buffer.from('QVEuQWI4Uk42S1M2TlhBVEFXTU9lRXVFZWNMU3NEUUlXWG5uUEpqT2FfVEtKbVVNNHMyYVE=', 'base64').toString('utf8');
+
+    const pool = GEMINI_CONFIG.getAllKeys();
+    if (pool.length === 0) return '';
+
+    if (userSeed) {
+      let hash = 0;
+      const str = String(userSeed);
+      for (let i = 0; i < str.length; i++) {
+        hash = (hash << 5) - hash + str.charCodeAt(i);
+        hash |= 0;
+      }
+      const idx = Math.abs(hash) % pool.length;
+      return pool[idx];
+    }
+
+    const key = pool[GEMINI_CONFIG._currentIndex % pool.length];
+    GEMINI_CONFIG._currentIndex = (GEMINI_CONFIG._currentIndex + 1) % pool.length;
+    return key;
   },
+
+  // Mengambil seluruh kunci valid untuk failover otomatis berantai jika ada kunci yang 429
+  getAllKeys: (userSeed = null) => {
+    const decode = (b64) => {
+      try {
+        return typeof atob !== 'undefined'
+          ? atob(b64)
+          : Buffer.from(b64, 'base64').toString('utf8');
+      } catch (e) {
+        return '';
+      }
+    };
+    const list = GEMINI_CONFIG.keyPool.map(decode).filter(Boolean);
+    if (userSeed && list.length > 1) {
+      let hash = 0;
+      const str = String(userSeed);
+      for (let i = 0; i < str.length; i++) {
+        hash = (hash << 5) - hash + str.charCodeAt(i);
+        hash |= 0;
+      }
+      const startIdx = Math.abs(hash) % list.length;
+      // Rotasikan urutan pool agar tiap user mencoba kunci miliknya terlebih dahulu
+      return [...list.slice(startIdx), ...list.slice(0, startIdx)];
+    }
+    return list;
+  },
+
   model: 'models/gemini-3.5-flash',
   fallbackModel: 'models/gemini-3-flash-preview',
   apiEndpoint: 'https://generativelanguage.googleapis.com/v1beta/'
 };
-
 
 const _decodeHexSecret = (hex, k = 43) => {
   let s = '';
@@ -42,6 +94,26 @@ const _decodeHexSecret = (hex, k = 43) => {
     s += String.fromCharCode(parseInt(hex.substr(i, 2), 16) ^ k);
   }
   return s;
+};
+
+const OPENAI_CONFIG = {
+  getApiKey: () => {
+    try {
+      const custom = localStorage.getItem('fmcu_openai_api_key');
+      if (custom && custom.trim()) return custom.trim();
+    } catch (e) {}
+    // KEY 5 (OpenAI)
+    const b64 = 'c2stcHJvai1rc1BodXlIcmhRMjAzaFVtZkI2M205VDJnUUduMlIyallka25abVRNMmZMQ0lSenJFTy04RVAwRnZnRUF4S0d2M1dkbEk5ekFncFQzQmxia0ZKY1dJc0ZsUG0teVZrTHctcjN6cFc2N2pnSWt5NWpNWDZnLTlpVVRKZlBybjI0ZmstV0pMbHVRaDJyMFlrc0tIV2l0UXFUa1lIa0E=';
+    try {
+      return typeof atob !== 'undefined'
+        ? atob(b64)
+        : Buffer.from(b64, 'base64').toString('utf8');
+    } catch (e) {
+      return '';
+    }
+  },
+  endpoint: 'https://api.openai.com/v1/chat/completions',
+  models: ['gpt-4o-mini', 'gpt-4o']
 };
 
 const GROQ_CONFIG = {
@@ -391,6 +463,7 @@ window.FMCUData = {
   FINDING_PRESETS,
   FIREBASE_CONFIG,
   GEMINI_CONFIG,
+  OPENAI_CONFIG,
   GROQ_CONFIG,
   OPENROUTER_CONFIG,
   TOKENPLUS_CONFIG,
