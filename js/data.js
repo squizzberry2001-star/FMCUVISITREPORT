@@ -350,6 +350,9 @@ function sanitizeForFirestore(obj) {
 // ============================================================================
 function stripPhotoBinaryForDatabase(photo) {
   if (!photo) return {};
+  if (photo.dataUrl && photo.dataUrl.startsWith('data:image') && window.FMCUData) {
+    window.FMCUData.cachePhotoInMemory(photo.id, photo.driveFileId, photo.dataUrl);
+  }
   const isHttpUrl = photo.dataUrl && /^https?:\/\//i.test(photo.dataUrl);
   const directUrl =
     photo.driveUrl ||
@@ -373,10 +376,13 @@ function stripPhotoBinaryForDatabase(photo) {
 
 function prepareReportForFirestore(report) {
   const clean = sanitizeForFirestore(report);
+  const cleanCa = (clean.caPhotos || clean.correctiveActionPhotos || []).map(stripPhotoBinaryForDatabase);
   return {
     ...clean,
     qscPhotos: (clean.qscPhotos || []).map(stripPhotoBinaryForDatabase),
     evidencePhotos: (clean.evidencePhotos || []).map(stripPhotoBinaryForDatabase),
+    caPhotos: cleanCa,
+    correctiveActionPhotos: cleanCa,
     _photoStorageMode: 'GOOGLE_DRIVE_APPS_SCRIPT'
   };
 }
@@ -1382,14 +1388,110 @@ window.FMCUData = {
   },
 
   // ==========================================================================
-  // GOOGLE DRIVE PHOTO DATABASE (VIA GOOGLE APPS SCRIPT)
-  // Khusus foto disimpan di Google Drive, sementara Firestore hanya menyimpan
-  // teks laporan + ID/Link Google Drive foto.
+  // GOOGLE DRIVE & INDEXEDDB OFFLINE PHOTO DATABASE (VIA APPS SCRIPT & INDEXEDDB)
+  // Seluruh binary foto lokal disimpan aman di IndexedDB (kapasitas > 500 MB)
+  // dan disinkronkan ke Google Drive via GAS Webhook.
+  // Firestore & LocalStorage hanya menyimpan referensi ringan.
   // ==========================================================================
+  _photoDbInstance: null,
+  async getPhotoDb() {
+    if (this._photoDbInstance) return this._photoDbInstance;
+    if (typeof indexedDB === 'undefined') return null;
+    return new Promise((resolve) => {
+      try {
+        const req = indexedDB.open('fmcu_local_storage_db', 2);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains('photos')) {
+            db.createObjectStore('photos');
+          }
+          if (!db.objectStoreNames.contains('drafts')) {
+            db.createObjectStore('drafts');
+          }
+        };
+        req.onsuccess = (e) => {
+          this._photoDbInstance = e.target.result;
+          resolve(this._photoDbInstance);
+        };
+        req.onerror = () => resolve(null);
+      } catch (e) {
+        resolve(null);
+      }
+    });
+  },
+
+  async setPhotoInDb(key, dataUrl) {
+    if (!key || !dataUrl || !dataUrl.startsWith('data:image')) return;
+    try {
+      const db = await this.getPhotoDb();
+      if (!db) return;
+      const tx = db.transaction('photos', 'readwrite');
+      tx.objectStore('photos').put(dataUrl, String(key));
+    } catch (e) {}
+  },
+
+  async getPhotoFromDb(key) {
+    if (!key) return '';
+    try {
+      const db = await this.getPhotoDb();
+      if (!db) return '';
+      return new Promise((resolve) => {
+        const tx = db.transaction('photos', 'readonly');
+        const req = tx.objectStore('photos').get(String(key));
+        req.onsuccess = () => resolve(req.result || '');
+        req.onerror = () => resolve('');
+      });
+    } catch (e) {
+      return '';
+    }
+  },
+
+  async saveDraftInDb(storeCode, draftData) {
+    if (!storeCode || !draftData) return;
+    try {
+      const db = await this.getPhotoDb();
+      if (!db) return;
+      const tx = db.transaction('drafts', 'readwrite');
+      tx.objectStore('drafts').put(draftData, String(storeCode));
+    } catch (e) {}
+  },
+
+  async getDraftFromDb(storeCode) {
+    if (!storeCode) return null;
+    try {
+      const db = await this.getPhotoDb();
+      if (!db) return null;
+      return new Promise((resolve) => {
+        const tx = db.transaction('drafts', 'readonly');
+        const req = tx.objectStore('drafts').get(String(storeCode));
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => resolve(null);
+      });
+    } catch (e) {
+      return null;
+    }
+  },
+
+  async deleteDraftFromDb(storeCode) {
+    if (!storeCode) return;
+    try {
+      const db = await this.getPhotoDb();
+      if (!db) return;
+      const tx = db.transaction('drafts', 'readwrite');
+      tx.objectStore('drafts').delete(String(storeCode));
+    } catch (e) {}
+  },
+
   cachePhotoInMemory(photoId, driveFileId, dataUrl) {
     if (!dataUrl || !dataUrl.startsWith('data:image')) return;
-    if (photoId) this.photoMemoryCache[photoId] = dataUrl;
-    if (driveFileId) this.photoMemoryCache[driveFileId] = dataUrl;
+    if (photoId) {
+      this.photoMemoryCache[photoId] = dataUrl;
+      this.setPhotoInDb(photoId, dataUrl);
+    }
+    if (driveFileId) {
+      this.photoMemoryCache[driveFileId] = dataUrl;
+      this.setPhotoInDb(driveFileId, dataUrl);
+    }
   },
 
   getPhotoFromMemory(photoId, driveFileId) {
@@ -1549,8 +1651,24 @@ window.FMCUData = {
   },
 
   getReports() {
-    return JSON.parse(localStorage.getItem(STORAGE_KEYS.REPORTS) || '[]');
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEYS.REPORTS) || '[]');
+    return (raw || []).map((rep) => {
+      const hydrate = (p) => {
+        if (!p) return p;
+        if (!p.dataUrl || !p.dataUrl.startsWith('data:image')) {
+          const mem = this.getPhotoFromMemory(p.id, p.driveFileId);
+          if (mem) p.dataUrl = mem;
+        }
+        return p;
+      };
+      if (Array.isArray(rep.qscPhotos)) rep.qscPhotos = rep.qscPhotos.map(hydrate);
+      if (Array.isArray(rep.evidencePhotos)) rep.evidencePhotos = rep.evidencePhotos.map(hydrate);
+      if (Array.isArray(rep.caPhotos)) rep.caPhotos = rep.caPhotos.map(hydrate);
+      if (Array.isArray(rep.correctiveActionPhotos)) rep.correctiveActionPhotos = rep.correctiveActionPhotos.map(hydrate);
+      return rep;
+    });
   },
+
   saveReportsLocalOnly(reports) {
     try {
       (reports || []).forEach((r) => this.cacheReportPhotosInMemory(r));
@@ -1562,11 +1680,28 @@ window.FMCUData = {
       return false;
     }
   },
+
   getStoreDraft(storeCode) {
     if (!storeCode) return null;
     try {
       const drafts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DRAFT_REPORT) || '{}');
-      return drafts[String(storeCode)] || null;
+      const draft = drafts[String(storeCode)] || null;
+      if (draft) {
+        const hydrate = (p) => {
+          if (!p) return p;
+          if (!p.dataUrl || !p.dataUrl.startsWith('data:image')) {
+            const mem = this.getPhotoFromMemory(p.id, p.driveFileId);
+            if (mem) p.dataUrl = mem;
+          }
+          return p;
+        };
+        if (Array.isArray(draft.qscPhotos)) draft.qscPhotos = draft.qscPhotos.map(hydrate);
+        if (Array.isArray(draft.evidencePhotos)) draft.evidencePhotos = draft.evidencePhotos.map(hydrate);
+        if (Array.isArray(draft.caPhotos)) draft.caPhotos = draft.caPhotos.map(hydrate);
+        if (Array.isArray(draft.correctiveActionPhotos)) draft.correctiveActionPhotos = draft.correctiveActionPhotos.map(hydrate);
+        return draft;
+      }
+      return null;
     } catch (e) {
       return null;
     }
@@ -1574,6 +1709,8 @@ window.FMCUData = {
 
   saveStoreDraft(storeCode, draftData) {
     if (!storeCode || !draftData) return false;
+    this.cacheReportPhotosInMemory(draftData);
+    this.saveDraftInDb(storeCode, draftData);
     try {
       const drafts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DRAFT_REPORT) || '{}');
       drafts[String(storeCode)] = {
@@ -1583,7 +1720,7 @@ window.FMCUData = {
       localStorage.setItem(STORAGE_KEYS.DRAFT_REPORT, JSON.stringify(drafts));
       return true;
     } catch (e) {
-      console.warn('Error saving store draft, attempting lightweight fallback:', e);
+      console.warn('LocalStorage draft quota warning, saving lightweight draft:', e);
       try {
         const lightweightDraft = prepareReportForFirestore(draftData);
         const drafts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DRAFT_REPORT) || '{}');
@@ -1594,7 +1731,7 @@ window.FMCUData = {
         localStorage.setItem(STORAGE_KEYS.DRAFT_REPORT, JSON.stringify(drafts));
         return true;
       } catch (err2) {
-        console.error('Failed to save store draft even in lightweight mode:', err2);
+        console.error('Failed to save store draft in localStorage, draft safely preserved in IndexedDB:', err2);
         return false;
       }
     }
@@ -1602,6 +1739,7 @@ window.FMCUData = {
 
   deleteStoreDraft(storeCode) {
     if (!storeCode) return false;
+    this.deleteDraftFromDb(storeCode);
     try {
       const drafts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DRAFT_REPORT) || '{}');
       delete drafts[String(storeCode)];

@@ -129,26 +129,113 @@ window.FMCUPdf = {
       return photo.dataUrl;
     }
     if (window.FMCUData && typeof window.FMCUData.getPhotoFromMemory === 'function') {
-      return window.FMCUData.getPhotoFromMemory(photo.id, photo.driveFileId) || '';
+      const mem = window.FMCUData.getPhotoFromMemory(photo.id, photo.driveFileId);
+      if (mem && mem.startsWith('data:image')) return mem;
+    }
+    if (window.FMCUApp) {
+      const liveList = [
+        ...(window.FMCUApp.formEvidencePhotos || []),
+        ...(window.FMCUApp.formCaPhotos || []),
+        ...(window.FMCUApp.formQscPhotos || [])
+      ];
+      const match = liveList.find(
+        (p) => p && ((photo.id && p.id === photo.id) || (photo.driveFileId && p.driveFileId === photo.driveFileId))
+      );
+      if (match && match.dataUrl && match.dataUrl.startsWith('data:image')) {
+        return match.dataUrl;
+      }
     }
     return '';
   },
 
-  // Tarik Base64 foto dari Google Drive (via Google Apps Script) apabila dibuka dari perangkat lain
-  async hydrateReportPhotosFromGDrive(report) {
-    if (!report || !window.FMCUData || typeof window.FMCUData.fetchDrivePhotosBase64 !== 'function') {
-      return report;
-    }
-    const driveIdsToFetch = [];
-    const allPhotos = [...(report.qscPhotos || []), ...(report.evidencePhotos || []), ...(report.caPhotos || report.correctiveActionPhotos || [])];
-    allPhotos.forEach((p) => {
-      if (p && p.driveFileId && !this.getPhotoBase64ForPdf(p)) {
-        driveIdsToFetch.push(p.driveFileId);
-      }
+  async urlToBase64(url) {
+    if (!url || typeof url !== 'string' || !url.startsWith('http')) return '';
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth || img.width;
+          canvas.height = img.naturalHeight || img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/jpeg', 0.84));
+        } catch (e) {
+          resolve('');
+        }
+      };
+      img.onerror = () => resolve('');
+      img.src = url;
     });
-    if (driveIdsToFetch.length > 0) {
-      await window.FMCUData.fetchDrivePhotosBase64(driveIdsToFetch);
+  },
+
+  // Tarik Base64 foto dari IndexedDB, Google Drive, atau URL gambar
+  async hydrateReportPhotosFromGDrive(report) {
+    if (!report) return report;
+    const allPhotos = [
+      ...(report.qscPhotos || []),
+      ...(report.evidencePhotos || []),
+      ...(report.caPhotos || report.correctiveActionPhotos || [])
+    ];
+
+    // 1. Ambil dari IndexedDB lokal jika hilang dari memori RAM
+    if (window.FMCUData && typeof window.FMCUData.getPhotoFromDb === 'function') {
+      for (const p of allPhotos) {
+        if (!p) continue;
+        if (!this.getPhotoBase64ForPdf(p)) {
+          if (p.id) {
+            const b64 = await window.FMCUData.getPhotoFromDb(p.id);
+            if (b64 && b64.startsWith('data:image')) {
+              p.dataUrl = b64;
+              window.FMCUData.cachePhotoInMemory(p.id, p.driveFileId, b64);
+              continue;
+            }
+          }
+          if (p.driveFileId) {
+            const b64 = await window.FMCUData.getPhotoFromDb(p.driveFileId);
+            if (b64 && b64.startsWith('data:image')) {
+              p.dataUrl = b64;
+              window.FMCUData.cachePhotoInMemory(p.id, p.driveFileId, b64);
+            }
+          }
+        }
+      }
     }
+
+    // 2. Ambil dari Google Drive via Apps Script jika belum ada di perangkat ini
+    if (window.FMCUData && typeof window.FMCUData.fetchDrivePhotosBase64 === 'function') {
+      const driveIdsToFetch = [];
+      allPhotos.forEach((p) => {
+        if (p && p.driveFileId && !this.getPhotoBase64ForPdf(p)) {
+          driveIdsToFetch.push(p.driveFileId);
+        }
+      });
+      if (driveIdsToFetch.length > 0) {
+        await window.FMCUData.fetchDrivePhotosBase64(driveIdsToFetch);
+      }
+    }
+
+    // 3. Konversi URL HTTP/Drive langsung ke Base64 via Canvas jika masih belum tersedia
+    for (const p of allPhotos) {
+      if (!p) continue;
+      if (!this.getPhotoBase64ForPdf(p)) {
+        const httpUrl =
+          (p.dataUrl && /^https?:\/\//i.test(p.dataUrl) ? p.dataUrl : '') ||
+          p.driveUrl ||
+          (p.driveFileId ? `https://drive.google.com/thumbnail?id=${p.driveFileId}&sz=w1200` : '');
+        if (httpUrl) {
+          const b64 = await this.urlToBase64(httpUrl);
+          if (b64 && b64.startsWith('data:image')) {
+            p.dataUrl = b64;
+            if (window.FMCUData) {
+              window.FMCUData.cachePhotoInMemory(p.id, p.driveFileId, b64);
+            }
+          }
+        }
+      }
+    }
+
     return report;
   },
 
@@ -581,6 +668,15 @@ window.FMCUPdf = {
             } catch (e) {
               console.warn('Photo draw error:', e);
             }
+          } else {
+            // Placeholder rapi jika binary Base64 belum selesai diunduh dari GDrive
+            doc.setFillColor(241, 245, 249);
+            doc.roundedRect(imgX, imgY, imgW, imgH, 2, 2, 'F');
+            doc.setFont('helvetica', 'italic');
+            doc.setFontSize(7.5);
+            doc.setTextColor(148, 163, 184);
+            doc.text('Foto Tersimpan', imgX + imgW / 2, imgY + imgH / 2 - 2, { align: 'center' });
+            doc.text('(Offline / GDrive)', imgX + imgW / 2, imgY + imgH / 2 + 3, { align: 'center' });
           }
 
           // Description text on right half of card
@@ -647,8 +743,14 @@ window.FMCUPdf = {
     // SECTION C: FINDING EVIDENCE PHOTOS
     // ========================================================================
     const evEnabled = report.enableEvidence !== false;
-    const evPhotos = (evEnabled && report.evidencePhotos && report.evidencePhotos.length > 0)
+    let rawEvPhotos = (report.evidencePhotos && report.evidencePhotos.length > 0)
       ? report.evidencePhotos
+      : [];
+    if ((!rawEvPhotos || rawEvPhotos.length === 0) && window.FMCUApp && Array.isArray(window.FMCUApp.formEvidencePhotos) && window.FMCUApp.formEvidencePhotos.length > 0) {
+      rawEvPhotos = window.FMCUApp.formEvidencePhotos;
+    }
+    const evPhotos = evEnabled
+      ? rawEvPhotos.filter((p) => p && (p.dataUrl || p.driveFileId || (p.description && p.description.trim()) || (p.id && (window.FMCUData?.getPhotoFromMemory?.(p.id) || ''))))
       : [];
 
     if (evEnabled && evPhotos.length > 0) {
@@ -670,10 +772,15 @@ window.FMCUPdf = {
     // SECTION D: CORRECTIVE ACTION EVIDENCE & RESULT (CONDET 2 STANDARD)
     // ========================================================================
     const caEnabled = report.enableCa !== false;
-    const rawCaPhotos = (report.caPhotos && report.caPhotos.length > 0)
+    let rawCaPhotos = (report.caPhotos && report.caPhotos.length > 0)
       ? report.caPhotos
       : (report.correctiveActionPhotos && report.correctiveActionPhotos.length > 0 ? report.correctiveActionPhotos : []);
-    const caPhotos = caEnabled ? rawCaPhotos : [];
+    if ((!rawCaPhotos || rawCaPhotos.length === 0) && window.FMCUApp && Array.isArray(window.FMCUApp.formCaPhotos) && window.FMCUApp.formCaPhotos.length > 0) {
+      rawCaPhotos = window.FMCUApp.formCaPhotos;
+    }
+    const caPhotos = caEnabled
+      ? rawCaPhotos.filter((p) => p && (p.dataUrl || p.driveFileId || (p.description && p.description.trim()) || (p.id && (window.FMCUData?.getPhotoFromMemory?.(p.id) || ''))))
+      : [];
 
     if (caEnabled && caPhotos.length > 0) {
       doc.addPage([320, 180], 'landscape');
@@ -1324,8 +1431,14 @@ window.FMCUPdf = {
 
     // 6. Finding Evidence (Divider & Content ONLY if enabled and has photos)
     const evEnabled = report.enableEvidence !== false;
-    const evList = (evEnabled && report.evidencePhotos && report.evidencePhotos.length > 0)
+    let rawEvList = (report.evidencePhotos && report.evidencePhotos.length > 0)
       ? report.evidencePhotos
+      : [];
+    if ((!rawEvList || rawEvList.length === 0) && window.FMCUApp && Array.isArray(window.FMCUApp.formEvidencePhotos) && window.FMCUApp.formEvidencePhotos.length > 0) {
+      rawEvList = window.FMCUApp.formEvidencePhotos;
+    }
+    const evList = evEnabled
+      ? rawEvList.filter((p) => p && (p.dataUrl || p.driveFileId || (p.description && p.description.trim()) || (p.id && (window.FMCUData?.getPhotoFromMemory?.(p.id) || ''))))
       : [];
 
     if (evEnabled && evList.length > 0) {
@@ -1350,10 +1463,15 @@ window.FMCUPdf = {
 
     // 7. Corrective Action Evidence & Result (Divider & Content ONLY if enabled and has photos)
     const caEnabled = report.enableCa !== false;
-    const rawCaList = (report.caPhotos && report.caPhotos.length > 0)
+    let rawCaList = (report.caPhotos && report.caPhotos.length > 0)
       ? report.caPhotos
       : (report.correctiveActionPhotos && report.correctiveActionPhotos.length > 0 ? report.correctiveActionPhotos : []);
-    const caList = caEnabled ? rawCaList : [];
+    if ((!rawCaList || rawCaList.length === 0) && window.FMCUApp && Array.isArray(window.FMCUApp.formCaPhotos) && window.FMCUApp.formCaPhotos.length > 0) {
+      rawCaList = window.FMCUApp.formCaPhotos;
+    }
+    const caList = caEnabled
+      ? rawCaList.filter((p) => p && (p.dataUrl || p.driveFileId || (p.description && p.description.trim()) || (p.id && (window.FMCUData?.getPhotoFromMemory?.(p.id) || ''))))
+      : [];
 
     if (caEnabled && caList.length > 0) {
       slides.push({

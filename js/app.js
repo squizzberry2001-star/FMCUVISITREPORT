@@ -5322,7 +5322,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     const hydratePhoto = (p) => {
       if (!p) return p;
       const mem = window.FMCUData?.getPhotoFromMemory?.(p.id, p.driveFileId);
-      if (!p.dataUrl && mem) {
+      if ((!p.dataUrl || !p.dataUrl.startsWith('data:image')) && mem) {
         p.dataUrl = mem;
       }
       return p;
@@ -5336,6 +5336,27 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
 
     this.renderFormDynamicSections();
     this.switchFormSection(1, false);
+
+    // Asynchronous IndexedDB photo hydration (apabila tab sempat di-refresh atau memory cache kosong)
+    if (window.FMCUData && typeof window.FMCUData.getPhotoFromDb === 'function') {
+      const allFormPhotos = [...this.formQscPhotos, ...this.formEvidencePhotos, ...this.formCaPhotos];
+      const needsHydration = allFormPhotos.filter((p) => p && (!p.dataUrl || !p.dataUrl.startsWith('data:image')));
+      if (needsHydration.length > 0) {
+        Promise.all(
+          needsHydration.map(async (p) => {
+            let b64 =
+              (p.id ? await window.FMCUData.getPhotoFromDb(p.id) : '') ||
+              (p.driveFileId ? await window.FMCUData.getPhotoFromDb(p.driveFileId) : '');
+            if (b64 && b64.startsWith('data:image')) {
+              p.dataUrl = b64;
+              window.FMCUData.cachePhotoInMemory(p.id, p.driveFileId, b64);
+            }
+          })
+        ).then(() => {
+          this.renderFormDynamicSections();
+        });
+      }
+    }
   },
 
   renderFormDynamicSections() {
@@ -5548,6 +5569,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         window.FMCUData.cachePhotoInMemory(caObj.id, null, dataUrl);
         this.formCaPhotos.push(caObj);
         this.renderCaPhotosGrid();
+        this.saveCurrentFormDraft();
         await window.FMCUData.uploadPhotoToGDrive(caObj, {
           storeCode,
           storeName,
@@ -5555,6 +5577,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         });
         caObj._uploading = false;
         this.renderCaPhotosGrid();
+        this.saveCurrentFormDraft();
         this.showToast('Foto perbaikan (CA) berhasil ditambahkan!', 'success');
       } else {
         if (!this.formEvidencePhotos) this.formEvidencePhotos = [];
@@ -5569,6 +5592,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         window.FMCUData.cachePhotoInMemory(evObj.id, null, dataUrl);
         this.formEvidencePhotos.push(evObj);
         this.renderEvidenceGrid();
+        this.saveCurrentFormDraft();
         await window.FMCUData.uploadPhotoToGDrive(evObj, {
           storeCode,
           storeName,
@@ -5576,6 +5600,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         });
         evObj._uploading = false;
         this.renderEvidenceGrid();
+        this.saveCurrentFormDraft();
         this.showToast('Foto bukti temuan berhasil ditambahkan!', 'success');
       }
       this.updateFormProgress();
@@ -5616,6 +5641,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
             window.FMCUData.cachePhotoInMemory(caObj.id, null, dataUrl);
             this.formCaPhotos.push(caObj);
             this.renderCaPhotosGrid();
+            this.saveCurrentFormDraft();
             window.FMCUData.uploadPhotoToGDrive(caObj, {
               storeCode,
               storeName,
@@ -5623,6 +5649,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
             }).then(() => {
               caObj._uploading = false;
               this.renderCaPhotosGrid();
+              this.saveCurrentFormDraft();
             });
           } else {
             if (!this.formEvidencePhotos) this.formEvidencePhotos = [];
@@ -5637,6 +5664,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
             window.FMCUData.cachePhotoInMemory(evObj.id, null, dataUrl);
             this.formEvidencePhotos.push(evObj);
             this.renderEvidenceGrid();
+            this.saveCurrentFormDraft();
             window.FMCUData.uploadPhotoToGDrive(evObj, {
               storeCode,
               storeName,
@@ -5644,6 +5672,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
             }).then(() => {
               evObj._uploading = false;
               this.renderEvidenceGrid();
+              this.saveCurrentFormDraft();
             });
           }
           this.updateFormProgress();
@@ -7091,13 +7120,14 @@ Instruksi:
     }
   },
 
-  renderActualPdfViewer() {
+  async renderActualPdfViewer() {
     const report = this.getActivePreviewReport();
     if (!report) return;
     const loadingEl = document.getElementById('preview-pdf-loading');
     if (loadingEl) loadingEl.classList.remove('hidden');
 
     try {
+      await window.FMCUPdf.hydrateReportPhotosFromGDrive(report);
       const doc = window.FMCUPdf.generatePdfDoc(report);
       const blobUrl = doc.output('bloburl');
       this.currentPdfBlobUrl = blobUrl;
@@ -7118,18 +7148,16 @@ Instruksi:
     }
   },
 
-  openActualPdfInNewTab() {
+  async openActualPdfInNewTab() {
     this.triggerHaptic('light');
-    if (this.currentPdfBlobUrl) {
-      window.open(this.currentPdfBlobUrl, '_blank');
-    } else {
-      const report = this.getActivePreviewReport();
-      if (!report) return;
-      const doc = window.FMCUPdf.generatePdfDoc(report);
-      const blobUrl = doc.output('bloburl');
-      this.currentPdfBlobUrl = blobUrl;
-      window.open(blobUrl, '_blank');
-    }
+    const report = this.getActivePreviewReport();
+    if (!report) return;
+    this.showToast('Menyiapkan dokumen PDF asli...', 'info');
+    await window.FMCUPdf.hydrateReportPhotosFromGDrive(report);
+    const doc = window.FMCUPdf.generatePdfDoc(report);
+    const blobUrl = doc.output('bloburl');
+    this.currentPdfBlobUrl = blobUrl;
+    window.open(blobUrl, '_blank');
   },
 
   downloadCurrentCaExcel() {
@@ -7421,6 +7449,34 @@ Instruksi:
               p.dataUrl = this.formQscPhotos[idx].dataUrl;
             }
           });
+        }
+      }
+
+      // Pastikan Foto Bukti Temuan (Evidence) disinkronkan dengan formEvidencePhotos live jika tersedia
+      if (Array.isArray(this.formEvidencePhotos) && this.formEvidencePhotos.length > 0) {
+        if (!rep.evidencePhotos || rep.evidencePhotos.length === 0) {
+          rep.evidencePhotos = JSON.parse(JSON.stringify(this.formEvidencePhotos));
+        } else {
+          rep.evidencePhotos.forEach((p, idx) => {
+            if ((!p.dataUrl || !p.dataUrl.startsWith('data:image')) && this.formEvidencePhotos[idx]?.dataUrl) {
+              p.dataUrl = this.formEvidencePhotos[idx].dataUrl;
+            }
+          });
+        }
+      }
+
+      // Pastikan Foto Hasil Perbaikan (CA) disinkronkan dengan formCaPhotos live jika tersedia
+      if (Array.isArray(this.formCaPhotos) && this.formCaPhotos.length > 0) {
+        if (!rep.caPhotos || rep.caPhotos.length === 0) {
+          rep.caPhotos = JSON.parse(JSON.stringify(this.formCaPhotos));
+          rep.correctiveActionPhotos = JSON.parse(JSON.stringify(this.formCaPhotos));
+        } else {
+          rep.caPhotos.forEach((p, idx) => {
+            if ((!p.dataUrl || !p.dataUrl.startsWith('data:image')) && this.formCaPhotos[idx]?.dataUrl) {
+              p.dataUrl = this.formCaPhotos[idx].dataUrl;
+            }
+          });
+          rep.correctiveActionPhotos = rep.caPhotos;
         }
       }
 
@@ -11933,6 +11989,10 @@ function getOrCreateSubFolder_(parentFolder, subFolderName) {
       const offset = circumference - (progress / 100) * circumference;
       circle.style.strokeDashoffset = offset;
       text.textContent = `${progress}%`;
+    }
+
+    if (typeof this.debounceSaveDraft === 'function') {
+      this.debounceSaveDraft();
     }
   },
 
