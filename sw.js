@@ -34,8 +34,8 @@ self.addEventListener('push', (event) => {
     const title = payload.title || 'FMCU Visit Notification';
     const options = {
       body: payload.body || '',
-      icon: payload.icon || 'assets/taro.gif',
-      badge: payload.badge || 'assets/taro.gif',
+      icon: payload.icon || 'icon-192.png',
+      badge: payload.badge || 'favicon-32x32.png',
       vibrate: [200, 100, 200],
       tag: payload.tag || 'fmcu-push-' + Date.now(),
       renotify: true,
@@ -47,8 +47,8 @@ self.addEventListener('push', (event) => {
     event.waitUntil(
       self.registration.showNotification('FMCU Visit Store Report', {
         body: text,
-        icon: 'assets/taro.gif',
-        badge: 'assets/taro.gif'
+        icon: 'icon-192.png',
+        badge: 'favicon-32x32.png'
       })
     );
   }

@@ -5,6 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>FMCU VISIT STORE REPORT — Sistem Audit & Analitik Kunjungan Toko</title>
 
+  <!-- Web App & Favicon Icons (FMCUICON) -->
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <link rel="shortcut icon" type="image/png" href="FMCUICON.png" />
+
+  <!-- Web App Manifest & Mobile PWA Configuration -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#0099A6" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="FMCU Report" />
+  <meta name="application-name" content="FMCU Report" />
+
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -162,14 +179,19 @@
       <!-- PANEL 1: VISUAL CORPORATE BRANDING & MOBILE INTRO LOADING ANIMATION -->
       <div id="auth-splash-panel" onclick="FMCUApp.skipMobileAuthSplash()" class="lg:col-span-5 fm-gradient p-6 sm:p-8 text-white flex flex-col justify-between relative overflow-hidden cursor-pointer lg:cursor-default rounded-2xl sm:rounded-3xl lg:rounded-r-none lg:rounded-l-3xl">
         <div class="relative z-10 splash-anim-1">
-          <div class="inline-flex items-center gap-2.5 bg-white/15 backdrop-blur-sm px-3.5 py-1.5 rounded-full text-xs font-bold tracking-wider uppercase mb-5">
-            <span class="w-2.5 h-2.5 rounded-full bg-emerald-300 animate-ping"></span>
-            FamilyMart Corporate University (FMCU)
+          <div class="flex items-center gap-3.5 mb-4">
+            <img src="FMCUICON.png" alt="FMCU Icon" class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white p-1.5 shadow-md object-contain shrink-0" />
+            <div>
+              <div class="inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold tracking-wider uppercase">
+                <span class="w-2 h-2 rounded-full bg-emerald-300 animate-ping"></span>
+                FamilyMart (FMCU)
+              </div>
+              <h1 onclick="FMCUApp.handleSecretTitleTap(event)" class="text-xl sm:text-2xl font-extrabold leading-tight tracking-tight select-none cursor-pointer mt-1">
+                FMCU VISIT STORE REPORT
+              </h1>
+            </div>
           </div>
-          <h1 onclick="FMCUApp.handleSecretTitleTap(event)" class="text-2xl sm:text-3xl font-extrabold leading-tight tracking-tight select-none cursor-pointer">
-            FMCU VISIT STORE REPORT
-          </h1>
-          <p class="text-white/85 text-xs sm:text-sm mt-3 leading-relaxed">
+          <p class="text-white/85 text-xs sm:text-sm mt-2 leading-relaxed">
             Platform terpadu laporan audit kunjungan toko, pemantauan Live GPS Location, Actual In-Out, Analitik Trend Temuan & Toko, serta generator laporan PDF otomatis.
           </p>
         </div>
@@ -221,10 +243,13 @@
       <!-- PANEL 2: RIGHT LOGIN FORM PANEL (Muncul otomatis setelah loading selesai di Mobile, 1 Layar Penuh) -->
       <div id="auth-login-panel" class="hidden lg:flex lg:col-span-7 flex-col justify-between bg-white relative overflow-visible rounded-2xl sm:rounded-3xl lg:rounded-l-none lg:rounded-r-3xl">
         <!-- Compact Header Khusus Mobile saat sudah masuk ke Form Login -->
-        <div class="lg:hidden fm-gradient px-5 py-3.5 text-white flex items-center justify-between rounded-t-2xl sm:rounded-t-3xl">
-          <div>
-            <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-200">FamilyMart Corporate University (FMCU)</div>
-            <div onclick="FMCUApp.handleSecretTitleTap(event)" class="text-sm font-extrabold tracking-tight select-none cursor-pointer">FMCU VISIT STORE REPORT</div>
+        <div class="lg:hidden fm-gradient px-4 py-3 text-white flex items-center justify-between rounded-t-2xl sm:rounded-t-3xl">
+          <div class="flex items-center gap-2.5">
+            <img src="FMCUICON.png" alt="FMCU Icon" class="w-8 h-8 rounded-lg bg-white p-1 shadow-sm object-contain shrink-0" />
+            <div>
+              <div class="text-[9px] font-bold uppercase tracking-wider text-emerald-200">FamilyMart Corporate University (FMCU)</div>
+              <div onclick="FMCUApp.handleSecretTitleTap(event)" class="text-xs sm:text-sm font-extrabold tracking-tight select-none cursor-pointer">FMCU VISIT STORE REPORT</div>
+            </div>
           </div>
           <button type="button" onclick="FMCUApp.triggerMobileAuthSplash()" title="Lihat Info Sistem" class="w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-xs text-white cursor-pointer">
             <i class="fa-solid fa-circle-info"></i>
@@ -233,9 +258,14 @@
 
         <div class="p-5 sm:p-8 lg:p-10 flex-1 flex flex-col justify-center">
           <div class="mb-3.5 sm:mb-6">
-            <span class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full">Portal Akses Otoritas</span>
-            <h2 id="login-title-secret" onclick="FMCUApp.handleSecretTitleTap(event)" class="text-lg sm:text-2xl font-extrabold text-slate-900 mt-1.5 select-none cursor-pointer">Masuk ke Sistem FMCU</h2>
-            <p class="text-[11px] sm:text-sm text-slate-500 mt-0.5">Pilih nama user / karyawan dan masukkan password otoritas Anda.</p>
+            <div class="flex items-center gap-3">
+              <img src="FMCUICON.png" alt="FMCU Icon" class="hidden lg:block w-12 h-12 rounded-xl bg-slate-50 p-1 border border-slate-200 shadow-2xs object-contain shrink-0" />
+              <div>
+                <span class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full">Portal Akses Otoritas</span>
+                <h2 id="login-title-secret" onclick="FMCUApp.handleSecretTitleTap(event)" class="text-lg sm:text-2xl font-extrabold text-slate-900 mt-1 select-none cursor-pointer">Masuk ke Sistem FMCU</h2>
+              </div>
+            </div>
+            <p class="text-[11px] sm:text-sm text-slate-500 mt-1">Pilih nama user / karyawan dan masukkan password otoritas Anda.</p>
           </div>
 
           <form id="login-form" class="space-y-3 sm:space-y-4">
@@ -394,10 +424,8 @@
     <!-- DESKTOP SIDEBAR -->
     <aside class="hidden lg:flex lg:flex-col lg:w-72 lg:fixed lg:inset-y-0 lg:left-0 lg:pt-[5px] bg-white border-r border-slate-200 z-30 select-none">
       <!-- Brand Logo Header -->
-      <div class="px-5 py-5 border-b border-slate-100 flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl fm-gradient flex items-center justify-center text-white font-extrabold text-lg shadow-sm">
-          FM
-        </div>
+      <div class="px-5 py-4 border-b border-slate-100 flex items-center gap-3">
+        <img src="FMCUICON.png" alt="FMCU Logo" class="w-10 h-10 rounded-xl bg-white p-1 border border-slate-100 shadow-sm object-contain shrink-0" />
         <div>
           <div class="font-extrabold text-sm tracking-tight text-slate-900 leading-none">FMCU VISIT REPORT</div>
           <div class="text-[11px] font-semibold text-emerald-600 mt-1">Store Audit & Analytics</div>
@@ -610,9 +638,7 @@
       <!-- TOP HEADER BAR -->
       <header class="sticky top-[5px] z-20 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
         <div class="flex items-center gap-3 min-w-0">
-          <div class="lg:hidden w-9 h-9 rounded-xl fm-gradient flex items-center justify-center text-white font-extrabold text-sm shrink-0">
-            FM
-          </div>
+          <img src="FMCUICON.png" alt="FMCU Logo" class="lg:hidden w-9 h-9 rounded-xl bg-white p-1 border border-slate-100 shadow-2xs object-contain shrink-0" />
           <div class="min-w-0">
             <h1 id="header-page-title" class="font-extrabold text-sm sm:text-lg text-slate-900 truncate">
               Home — Jadwal Toko & History Visit

@@ -680,8 +680,8 @@ window.FMCUApp = {
       return;
     }
 
-    const icon = 'assets/taro.gif';
-    const badge = 'assets/taro.gif';
+    const icon = 'icon-192.png';
+    const badge = 'favicon-32x32.png';
     const options = {
       body,
       icon,
