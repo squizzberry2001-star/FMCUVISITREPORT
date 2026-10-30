@@ -263,17 +263,20 @@ window.FMCUPdf = {
     doc.setFillColor(255, 255, 255);
     doc.rect(0, 0, 320, 180, 'F');
 
-    if (PA.bannerFamilyMart) {
+    const coverBanner = PA.bannerCover || PA.bannerStorefront || PA.bannerFamilyMart;
+    if (coverBanner) {
       try {
-        doc.addImage(PA.bannerFamilyMart, 'JPEG', 0, 0, 320, 180);
+        // COVER1.jpg has dimensions 7244x2368 (aspect ratio 3.059:1)
+        // 320mm / 104.6mm = 3.059:1 exact natural aspect ratio
+        doc.addImage(coverBanner, 'JPEG', 0, 0, 320, 105);
       } catch (e) {
         console.warn('Cover image error:', e);
       }
     }
 
-    // White rectangle covering bottom area (y=103 to 180) so custom title renders cleanly
+    // White rectangle covering bottom area (y=104 to 180) so custom title renders cleanly
     doc.setFillColor(255, 255, 255);
-    doc.rect(0, 103, 320, 77, 'F');
+    doc.rect(0, 104, 320, 76, 'F');
 
     // Main Report Title
     doc.setFont('helvetica', 'bold');
@@ -1173,7 +1176,7 @@ window.FMCUPdf = {
       html: `
         <div class="w-full h-full bg-white flex flex-col justify-between relative overflow-hidden">
           <div class="w-full h-[57%] overflow-hidden bg-slate-100">
-            <img src="${PA.bannerStorefront || PA.bannerFamilyMart || ''}" class="w-full h-full object-cover object-top" alt="FamilyMart Banner" />
+            <img src="${PA.bannerCover || PA.bannerStorefront || PA.bannerFamilyMart || 'COVER1.jpg'}" class="w-full h-full object-cover object-top" alt="FamilyMart Banner" />
           </div>
           <div class="w-full h-[43%] px-[3.8%] pt-[1.8%] pb-[3%] flex flex-col justify-between bg-white">
             <h1 class="text-[#0099A6] font-extrabold text-[clamp(11px,2.7cqw,32px)] tracking-tight">${reportTitle}</h1>
