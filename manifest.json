@@ -1,6 +1,6 @@
 {
-  "name": "FMCU VISIT STORE REPORT",
-  "short_name": "FMCU Report",
+  "name": "FMCU-ONEGATESYSTEM",
+  "short_name": "FMCU-ONEGATESYSTEM",
   "description": "Sistem Audit & Analitik Kunjungan Toko FamilyMart Corporate University",
   "start_url": "./",
   "scope": "./",
