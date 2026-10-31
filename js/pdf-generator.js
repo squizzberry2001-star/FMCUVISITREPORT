@@ -337,54 +337,60 @@ window.FMCUPdf = {
     doc.setFillColor(255, 255, 255);
     doc.rect(0, 104, 320, 76, 'F');
 
-    // Main Report Title
+    // Main Report Title (Corporate Elegant Typography)
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(26);
+    doc.setFontSize(22);
     doc.setTextColor(0, 153, 166);
-    doc.text(reportTitle, 12, 126);
+    doc.text(reportTitle, 12, 124);
+
+    // Accent Line Divider
+    doc.setDrawColor(0, 153, 68); // FamilyMart Green Accent
+    doc.setLineWidth(0.6);
+    doc.line(12, 129, 65, 129);
 
     // Left Metadata (Nama, Store, Store Head)
     const leftRows = [
-      { label: 'Nama', value: report.auditorName || '-', y: 144, size: 12.5 },
-      { label: 'Store', value: report.storeName || '-', y: 153, size: 12.5 },
-      { label: 'Store Head', value: report.storeHead || '-', y: 162, size: 11.5 }
+      { label: 'Nama Visitor', value: report.auditorName || '-', y: 143, size: 11 },
+      { label: 'Nama Store', value: report.storeName || '-', y: 152, size: 11 },
+      { label: 'Store Head', value: report.storeHead || '-', y: 161, size: 10.5 }
     ];
     leftRows.forEach((row) => {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(row.size);
-      doc.setTextColor(82, 82, 91);
+      doc.setTextColor(100, 116, 139); // Slate-500
       doc.text(row.label, 12, row.y);
-      doc.text(':', 51, row.y);
+      doc.setTextColor(148, 163, 184);
+      doc.text(':', 50, row.y);
 
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(39, 39, 42);
-      doc.text(String(row.value), 57, row.y);
+      doc.setTextColor(15, 23, 42); // Deep Slate-900
+      doc.text(String(row.value), 56, row.y);
     });
 
-    // Right Metadata Card
-    doc.setFillColor(247, 250, 252);
-    doc.setDrawColor(227, 232, 240);
-    doc.setLineWidth(0.2);
-    doc.roundedRect(180, 134, 130, 41, 3, 3, 'FD');
+    // Right Metadata Card (Clean Minimalist Rounded Card)
+    doc.setFillColor(248, 250, 252); // Slate-50
+    doc.setDrawColor(226, 232, 240); // Slate-200
+    doc.setLineWidth(0.25);
+    doc.roundedRect(180, 133, 130, 42, 3, 3, 'FD');
 
     const visitDateText = report.visitDateFormatted || this.formatIndonesianDate(report.visitDate, false);
     const rightMeta = [
-      { label: 'TANGGAL VISIT', value: visitDateText, x: 188, y: 141.5 },
-      { label: 'KODE TOKO', value: report.storeCode || '-', x: 253, y: 141.5 },
-      { label: 'TIPE TOKO', value: report.storeType || 'CVS', x: 188, y: 155 },
-      { label: 'AREA MANAGER', value: report.areaManager || '-', x: 253, y: 155 },
-      { label: 'REGIONAL MANAGER', value: report.regionalManager || '-', x: 188, y: 168 }
+      { label: 'TANGGAL VISIT', value: visitDateText, x: 188, y: 140.5 },
+      { label: 'KODE TOKO', value: report.storeCode || '-', x: 253, y: 140.5 },
+      { label: 'TIPE TOKO', value: report.storeType || 'CVS', x: 188, y: 154 },
+      { label: 'AREA MANAGER', value: report.areaManager || '-', x: 253, y: 154 },
+      { label: 'REGIONAL MANAGER', value: report.regionalManager || '-', x: 188, y: 167.5 }
     ];
 
     rightMeta.forEach((m) => {
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(7.2);
-      doc.setTextColor(100, 116, 139);
+      doc.setFontSize(7);
+      doc.setTextColor(100, 116, 139); // Slate-500
       doc.text(m.label, m.x, m.y);
 
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9.5);
-      doc.setTextColor(39, 39, 42);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.2);
+      doc.setTextColor(15, 23, 42); // Slate-900
       doc.text(String(m.value), m.x, m.y + 4.8);
     });
 
@@ -405,40 +411,48 @@ window.FMCUPdf = {
       doc.setFillColor(255, 255, 255);
       doc.rect(0, 0, 320, 180, 'F');
 
+      // Header Minimalist & Corporate
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(24);
-      doc.setTextColor(0, 153, 166);
-      doc.text('QSC/ Famitrack Result', 10, 24);
+      doc.setFontSize(18);
+      doc.setTextColor(15, 23, 42); // Slate-900
+      doc.text('QSC / FamiTrack Result', 12, 22);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(100, 116, 139); // Slate-500
+      doc.text('Form penilaian standar kualitas, kebersihan & layanan operasional toko', 12, 28);
 
       doc.setDrawColor(0, 153, 166);
-      doc.setLineWidth(0.4);
-      doc.line(10, 37, 310, 37);
+      doc.setLineWidth(0.35);
+      doc.line(12, 33, 308, 33);
 
       const pair = qscPhotos.slice(i, i + 2);
       pair.forEach((photo, idx) => {
-        const cardX = idx === 0 ? 10 : 165;
+        const cardX = idx === 0 ? 12 : 164;
         doc.setFillColor(255, 255, 255);
-        doc.setDrawColor(204, 214, 224);
-        doc.setLineWidth(0.35);
-        doc.roundedRect(cardX, 42, 145, 119, 4, 4, 'FD');
+        doc.setDrawColor(226, 232, 240); // Slate-200
+        doc.setLineWidth(0.25);
+        doc.roundedRect(cardX, 39, 144, 128, 3, 3, 'FD');
 
         const qscImgBase64 = this.getPhotoBase64ForPdf(photo);
         if (qscImgBase64 && qscImgBase64.startsWith('data:image')) {
-          // Gambar proporsional di dalam kotak 139 x 104 mm agar tidak tertarik / gepeng
-          this.drawImageProportional(doc, qscImgBase64, cardX + 3, 45, 139, 104, 'JPEG', 'FAST');
+          this.drawImageProportional(doc, qscImgBase64, cardX + 3, 43, 138, 112, 'JPEG', 'FAST');
         } else {
           doc.setFillColor(248, 250, 252);
-          doc.rect(cardX + 3, 45, 139, 104, 'F');
+          doc.roundedRect(cardX + 3, 43, 138, 112, 2, 2, 'F');
           doc.setFont('helvetica', 'normal');
-          doc.setFontSize(10);
+          doc.setFontSize(9.5);
           doc.setTextColor(148, 163, 184);
-          doc.text('Tidak ada foto dilampirkan (Kosong)', cardX + 72.5, 97, { align: 'center' });
+          doc.text('Tidak ada foto dilampirkan (Kosong)', cardX + 72, 99, { align: 'center' });
         }
 
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8.5);
+        // Caption Bar
+        doc.setFillColor(248, 250, 252);
+        doc.roundedRect(cardX + 3, 157, 138, 8, 1.5, 1.5, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.8);
         doc.setTextColor(15, 23, 42);
-        doc.text(photo.caption || `Lembar Form QSC / FamiTrack #${i + idx + 1}`, cardX + 5, 155);
+        doc.text(photo.caption || `Lembar Form QSC / FamiTrack #${i + idx + 1}`, cardX + 6, 162.5);
       });
 
       this.drawPageFooter(doc, footerText);
@@ -451,44 +465,45 @@ window.FMCUPdf = {
     doc.setFillColor(255, 255, 255);
     doc.rect(0, 0, 320, 180, 'F');
 
+    // Title & Header Minimalist
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(19);
-    doc.setTextColor(39, 39, 42);
-    doc.text('General Information', 10, 25);
+    doc.setFontSize(18);
+    doc.setTextColor(15, 23, 42); // Slate-900
+    doc.text('General Information (Store Crew)', 12, 23);
 
     const dayDateText = report.visitDayDateFormatted || this.formatIndonesianDate(report.visitDate, true);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(12.5);
-    doc.setTextColor(82, 82, 91);
-    doc.text('Hari, Tanggal', 10, 42);
-    doc.text(':', 46, 42);
+    doc.setFontSize(9.5);
+    doc.setTextColor(100, 116, 139);
+    doc.text('Hari, Tanggal Visit :', 12, 33);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(39, 39, 42);
-    doc.text(dayDateText, 52, 42);
+    doc.setTextColor(15, 23, 42);
+    doc.text(dayDateText, 48, 33);
 
-    // Table Header
-    const tableX = 10;
-    let tableY = 52;
-    const colW1 = 58;
-    const colW2 = 192;
+    // Accent line
+    doc.setDrawColor(0, 153, 166);
+    doc.setLineWidth(0.35);
+    doc.line(12, 38, 308, 38);
+
+    // Corporate Minimalist Table
+    const tableX = 12;
+    let tableY = 46;
+    const colW1 = 60;
+    const colW2 = 186;
     const colW3 = 50;
-    const headerH = 12;
+    const headerH = 11;
 
-    doc.setFillColor(0, 153, 166);
-    doc.rect(tableX, tableY, colW1 + colW2 + colW3, headerH, 'F');
-
-    doc.setDrawColor(204, 214, 224);
-    doc.setLineWidth(0.25);
-    doc.rect(tableX, tableY, colW1, headerH, 'S');
-    doc.rect(tableX + colW1, tableY, colW2, headerH, 'S');
-    doc.rect(tableX + colW1 + colW2, tableY, colW3, headerH, 'S');
+    // Header Background
+    doc.setFillColor(15, 23, 42); // Corporate Deep Slate
+    doc.roundedRect(tableX, tableY, colW1 + colW2 + colW3, headerH, 2, 2, 'F');
+    doc.rect(tableX, tableY + 5, colW1 + colW2 + colW3, headerH - 5, 'F');
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12.5);
+    doc.setFontSize(9.5);
     doc.setTextColor(255, 255, 255);
-    doc.text('Role', tableX + colW1 / 2, tableY + 7.8, { align: 'center' });
-    doc.text('Nama', tableX + colW1 + colW2 / 2, tableY + 7.8, { align: 'center' });
-    doc.text('Job Level', tableX + colW1 + colW2 + colW3 / 2, tableY + 7.8, { align: 'center' });
+    doc.text('ROLE / JABATAN', tableX + 6, tableY + 7.2);
+    doc.text('NAMA PERSONEL', tableX + colW1 + 6, tableY + 7.2);
+    doc.text('JOB LEVEL', tableX + colW1 + colW2 + colW3 / 2, tableY + 7.2, { align: 'center' });
 
     tableY += headerH;
     const crewRows = (report.crewList && report.crewList.length > 0)
@@ -500,26 +515,27 @@ window.FMCUPdf = {
           { role: 'Crew Store 2', name: '-', jobLevel: 'MG1' }
         ];
 
-    const rowH = 11;
+    const rowH = 11.5;
     crewRows.forEach((crew, idx) => {
-      if (idx % 2 === 0) {
-        doc.setFillColor(247, 250, 252);
-      } else {
-        doc.setFillColor(255, 255, 255);
-      }
+      doc.setFillColor(idx % 2 === 0 ? 255 : 248, idx % 2 === 0 ? 255 : 250, idx % 2 === 0 ? 255 : 252);
       doc.rect(tableX, tableY, colW1 + colW2 + colW3, rowH, 'F');
-      doc.setDrawColor(204, 214, 224);
-      doc.rect(tableX, tableY, colW1, rowH, 'S');
-      doc.rect(tableX + colW1, tableY, colW2, rowH, 'S');
-      doc.rect(tableX + colW1 + colW2, tableY, colW3, rowH, 'S');
+
+      // Hairline bottom border
+      doc.setDrawColor(226, 232, 240); // Slate-200
+      doc.setLineWidth(0.2);
+      doc.line(tableX, tableY + rowH, tableX + colW1 + colW2 + colW3, tableY + rowH);
 
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11.5);
-      doc.setTextColor(39, 39, 42);
-      doc.text(String(crew.role || '-'), tableX + 5, tableY + 7.2);
+      doc.setFontSize(9.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text(String(crew.role || '-'), tableX + 6, tableY + 7.2);
 
       doc.setFont('helvetica', 'normal');
-      doc.text(String(crew.name || '-'), tableX + colW1 + 5, tableY + 7.2);
+      doc.setTextColor(51, 65, 85);
+      doc.text(String(crew.name || '-'), tableX + colW1 + 6, tableY + 7.2);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 153, 166);
       doc.text(String(crew.jobLevel || '-'), tableX + colW1 + colW2 + colW3 / 2, tableY + 7.2, { align: 'center' });
 
       tableY += rowH;
@@ -527,7 +543,7 @@ window.FMCUPdf = {
 
     this.drawPageFooter(doc, footerText);
 
-    // Helper: Draw observation findings pages (2 findings per page)
+    // Helper: Draw observation findings pages (2 findings per page - Corporate Minimalist Layout)
     const drawObservationPages = (obsList, sectionTitle) => {
       const totalObs = obsList.length;
       for (let i = 0; i < totalObs; i += 2) {
@@ -535,143 +551,151 @@ window.FMCUPdf = {
         doc.setFillColor(255, 255, 255);
         doc.rect(0, 0, 320, 180, 'F');
 
-        // Top Teal Header Bar
+        // Top Corporate Header Bar (Deep Emerald / Cyan Tone)
         doc.setFillColor(0, 153, 166);
-        doc.rect(0, 0, 320, 18, 'F');
+        doc.rect(0, 0, 320, 15, 'F');
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(12.5);
+        doc.setFontSize(11.5);
         doc.setTextColor(255, 255, 255);
-        doc.text(sectionTitle, 12, 11.8);
+        doc.text(sectionTitle, 12, 10.2);
 
         // Subtitle
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8.8);
-        doc.setTextColor(100, 116, 139);
-        doc.text('Ringkasan observasi - beberapa temuan per halaman', 12, 23.5);
+        doc.setFontSize(8.2);
+        doc.setTextColor(100, 116, 139); // Slate-500
+        doc.text('Ringkasan observasi dan rencana tindak lanjut perbaikan toko', 12, 21.5);
 
         const pair = obsList.slice(i, i + 2);
         pair.forEach((obs, idx) => {
-          const cardY = idx === 0 ? 27 : 98;
-          const cardH = 66;
-          const cardX = 8;
-          const cardW = 304;
+          const cardY = idx === 0 ? 25 : 99;
+          const cardH = 70;
+          const cardX = 10;
+          const cardW = 300;
 
-          // Outer Card
+          // Outer Card with Subtle Hairline Border
           doc.setFillColor(255, 255, 255);
-          doc.setDrawColor(148, 163, 184);
-          doc.setLineWidth(0.3);
-          doc.roundedRect(cardX, cardY, cardW, cardH, 2.5, 2.5, 'FD');
+          doc.setDrawColor(226, 232, 240); // Slate-200
+          doc.setLineWidth(0.25);
+          doc.roundedRect(cardX, cardY, cardW, cardH, 3, 3, 'FD');
 
-          // Card Top Header Strip (Teal)
-          doc.setFillColor(0, 153, 166);
-          doc.roundedRect(cardX, cardY, cardW, 8.5, 2.5, 2.5, 'F');
+          // Card Header Strip
+          doc.setFillColor(248, 250, 252); // Slate-50
+          doc.roundedRect(cardX, cardY, cardW, 8.5, 3, 3, 'F');
           doc.rect(cardX, cardY + 4, cardW, 4.5, 'F');
 
+          // Finding Pill Badge
+          doc.setFillColor(0, 153, 166);
+          doc.roundedRect(cardX + 3, cardY + 1.5, 30, 5.5, 1.5, 1.5, 'F');
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(9.5);
+          doc.setFontSize(7.5);
           doc.setTextColor(255, 255, 255);
-          doc.text(`Temuan ${i + idx + 1}/${totalObs}`, cardX + 3.5, cardY + 5.8);
+          doc.text(`Temuan ${i + idx + 1}/${totalObs}`, cardX + 18, cardY + 5.2, { align: 'center' });
 
           // Deadline Pill Badge on Right
           const dlText = obs.deadlineFormatted || this.formatIndonesianDate(obs.deadline, false);
-          doc.setFillColor(255, 255, 255);
-          doc.roundedRect(cardX + cardW - 62, cardY + 1.4, 58, 5.6, 2.8, 2.8, 'F');
+          doc.setFillColor(254, 242, 242); // Red-50
+          doc.setDrawColor(254, 202, 202); // Red-200
+          doc.setLineWidth(0.2);
+          doc.roundedRect(cardX + cardW - 65, cardY + 1.4, 62, 5.8, 2.9, 2.9, 'FD');
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(7.2);
-          doc.setTextColor(185, 28, 28);
-          doc.text(`Deadline Perbaikan: ${dlText}`, cardX + cardW - 33, cardY + 5.2, { align: 'center' });
+          doc.setTextColor(185, 28, 28); // Red-700
+          doc.text(`Deadline: ${dlText}`, cardX + cardW - 34, cardY + 5.3, { align: 'center' });
 
           // 2x3 Grid of Sub-boxes inside Card
-          const leftColX = cardX + 2.5;
-          const rightColX = cardX + 153;
-          const boxW = 148.5;
+          const leftColX = cardX + 3;
+          const rightColX = cardX + 151;
+          const boxW = 146;
 
           const row1Y = cardY + 10.5;
-          const row1H = 19.5;
-          const row2Y = cardY + 31.5;
-          const row2H = 16;
-          const row3Y = cardY + 49;
-          const row3H = 15;
+          const row1H = 20.5;
+          const row2Y = cardY + 32.5;
+          const row2H = 17;
+          const row3Y = cardY + 51;
+          const row3H = 16;
 
-          // Left Row 1: Temuan (Yellow Highlight Box)
-          doc.setFillColor(254, 252, 232);
-          doc.setDrawColor(148, 163, 184);
-          doc.setLineWidth(0.25);
-          doc.roundedRect(leftColX, row1Y, boxW, row1H, 1.2, 1.2, 'FD');
+          // Left Row 1: Temuan (Soft Amber Highlight Box)
+          doc.setFillColor(254, 243, 199); // Amber-100
+          doc.setDrawColor(253, 230, 138); // Amber-200
+          doc.setLineWidth(0.2);
+          doc.roundedRect(leftColX, row1Y, boxW, row1H, 1.5, 1.5, 'FD');
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7.8);
-          doc.setTextColor(180, 83, 9);
-          doc.text('Temuan', leftColX + 2.2, row1Y + 4.2);
+          doc.setFontSize(7);
+          doc.setTextColor(146, 64, 14); // Amber-800
+          doc.text('TEMUAN AUDIT', leftColX + 3, row1Y + 4.2);
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(8.8);
-          doc.setTextColor(24, 24, 27);
-          const temuanLines = doc.splitTextToSize(String(obs.temuan || '-'), boxW - 4.5);
-          doc.text(temuanLines.slice(0, 3), leftColX + 2.2, row1Y + 8.5);
+          doc.setFontSize(8.2);
+          doc.setTextColor(15, 23, 42); // Slate-900
+          const temuanLines = doc.splitTextToSize(String(obs.temuan || '-'), boxW - 6);
+          doc.text(temuanLines.slice(0, 3), leftColX + 3, row1Y + 8.8);
 
           // Right Row 1: Dampak
-          doc.setFillColor(255, 255, 255);
-          doc.roundedRect(rightColX, row1Y, boxW, row1H, 1.2, 1.2, 'FD');
+          doc.setFillColor(248, 250, 252);
+          doc.setDrawColor(226, 232, 240);
+          doc.roundedRect(rightColX, row1Y, boxW, row1H, 1.5, 1.5, 'FD');
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7.8);
-          doc.setTextColor(0, 130, 145);
-          doc.text('Dampak', rightColX + 2.2, row1Y + 4.2);
+          doc.setFontSize(7);
+          doc.setTextColor(0, 153, 166);
+          doc.text('DAMPAK OPERASIONAL', rightColX + 3, row1Y + 4.2);
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(7.8);
-          doc.setTextColor(24, 24, 27);
-          const dampakLines = doc.splitTextToSize(String(obs.dampak || '-'), boxW - 4.5);
-          doc.text(dampakLines.slice(0, 4), rightColX + 2.2, row1Y + 8.2);
+          doc.setTextColor(51, 65, 85);
+          const dampakLines = doc.splitTextToSize(String(obs.dampak || '-'), boxW - 6);
+          doc.text(dampakLines.slice(0, 4), rightColX + 3, row1Y + 8.5);
 
           // Left Row 2: Kondisi Ideal
-          doc.setFillColor(255, 255, 255);
-          doc.roundedRect(leftColX, row2Y, boxW, row2H, 1.2, 1.2, 'FD');
+          doc.setFillColor(248, 250, 252);
+          doc.roundedRect(leftColX, row2Y, boxW, row2H, 1.5, 1.5, 'FD');
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7.8);
-          doc.setTextColor(0, 130, 145);
-          doc.text('Kondisi Ideal', leftColX + 2.2, row2Y + 4.2);
+          doc.setFontSize(7);
+          doc.setTextColor(0, 153, 166);
+          doc.text('KONDISI IDEAL / STANDAR', leftColX + 3, row2Y + 4.2);
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(7.8);
-          doc.setTextColor(24, 24, 27);
-          const idealLines = doc.splitTextToSize(String(obs.kondisiIdeal || '-'), boxW - 4.5);
-          doc.text(idealLines.slice(0, 3), leftColX + 2.2, row2Y + 8.2);
+          doc.setTextColor(51, 65, 85);
+          const idealLines = doc.splitTextToSize(String(obs.kondisiIdeal || '-'), boxW - 6);
+          doc.text(idealLines.slice(0, 3), leftColX + 3, row2Y + 8.5);
 
-          // Right Row 2: Tindakan Perbaikan
-          doc.setFillColor(255, 255, 255);
-          doc.roundedRect(rightColX, row2Y, boxW, row2H, 1.2, 1.2, 'FD');
+          // Right Row 2: Tindakan Perbaikan (Soft Emerald Box)
+          doc.setFillColor(236, 253, 245); // Emerald-50
+          doc.setDrawColor(167, 243, 208); // Emerald-200
+          doc.roundedRect(rightColX, row2Y, boxW, row2H, 1.5, 1.5, 'FD');
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(7);
+          doc.setTextColor(4, 120, 87); // Emerald-700
+          doc.text('TINDAKAN PERBAIKAN (ACTION PLAN)', rightColX + 3, row2Y + 4.2);
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(7.8);
-          doc.setTextColor(0, 130, 145);
-          doc.text('Tindakan Perbaikan', rightColX + 2.2, row2Y + 4.2);
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(7.8);
-          doc.setTextColor(24, 24, 27);
-          const tindakanLines = doc.splitTextToSize(String(obs.tindakanPerbaikan || '-'), boxW - 4.5);
-          doc.text(tindakanLines.slice(0, 3), rightColX + 2.2, row2Y + 8.2);
+          doc.setTextColor(6, 78, 59); // Emerald-900
+          const tindakanLines = doc.splitTextToSize(String(obs.tindakanPerbaikan || '-'), boxW - 6);
+          doc.text(tindakanLines.slice(0, 3), rightColX + 3, row2Y + 8.5);
 
           // Left Row 3: Penyebab
-          doc.setFillColor(255, 255, 255);
-          doc.roundedRect(leftColX, row3Y, boxW, row3H, 1.2, 1.2, 'FD');
+          doc.setFillColor(248, 250, 252);
+          doc.setDrawColor(226, 232, 240);
+          doc.roundedRect(leftColX, row3Y, boxW, row3H, 1.5, 1.5, 'FD');
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7.8);
-          doc.setTextColor(0, 130, 145);
-          doc.text('Penyebab', leftColX + 2.2, row3Y + 4.2);
+          doc.setFontSize(7);
+          doc.setTextColor(0, 153, 166);
+          doc.text('PENYEBAB (ROOT CAUSE)', leftColX + 3, row3Y + 4.2);
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(7.8);
-          doc.setTextColor(24, 24, 27);
-          const penyebabLines = doc.splitTextToSize(String(obs.penyebab || '-'), boxW - 4.5);
-          doc.text(penyebabLines.slice(0, 3), leftColX + 2.2, row3Y + 8.2);
+          doc.setTextColor(51, 65, 85);
+          const penyebabLines = doc.splitTextToSize(String(obs.penyebab || '-'), boxW - 6);
+          doc.text(penyebabLines.slice(0, 3), leftColX + 3, row3Y + 8.5);
 
           // Right Row 3: Hasil
-          doc.setFillColor(255, 255, 255);
-          doc.roundedRect(rightColX, row3Y, boxW, row3H, 1.2, 1.2, 'FD');
+          doc.setFillColor(248, 250, 252);
+          doc.roundedRect(rightColX, row3Y, boxW, row3H, 1.5, 1.5, 'FD');
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7.8);
-          doc.setTextColor(0, 130, 145);
-          doc.text('Hasil', rightColX + 2.2, row3Y + 4.2);
+          doc.setFontSize(7);
+          doc.setTextColor(0, 153, 166);
+          doc.text('HASIL YANG DIHARAPKAN', rightColX + 3, row3Y + 4.2);
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(7.8);
-          doc.setTextColor(24, 24, 27);
-          const hasilLines = doc.splitTextToSize(String(obs.hasil || '-'), boxW - 4.5);
-          doc.text(hasilLines.slice(0, 3), rightColX + 2.2, row3Y + 8.2);
+          doc.setTextColor(51, 65, 85);
+          const hasilLines = doc.splitTextToSize(String(obs.hasil || '-'), boxW - 6);
+          doc.text(hasilLines.slice(0, 3), rightColX + 3, row3Y + 8.5);
         });
 
         this.drawPageFooter(doc, footerText);
@@ -873,36 +897,79 @@ window.FMCUPdf = {
     this.drawPageFooter(doc, footerText);
 
     // ========================================================================
-    // PAGE 11: MEKANISME PELAPORAN
+    // PAGE 11: MEKANISME PELAPORAN (Corporate Minimalist Design)
     // ========================================================================
     doc.addPage([320, 180], 'landscape');
     doc.setFillColor(255, 255, 255);
     doc.rect(0, 0, 320, 180, 'F');
 
+    // Title & Subtitle
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
-    doc.setTextColor(39, 39, 42);
-    doc.text('Mekanisme pelaporan', 10, 30);
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-    doc.setTextColor(0, 153, 166);
-    doc.text(caLink, 10, 47);
+    doc.setFontSize(20);
+    doc.setTextColor(15, 23, 42); // Slate-900
+    doc.text('Mekanisme Pelaporan & Tindak Lanjut Store', 12, 24);
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(12.5);
-    doc.setTextColor(39, 39, 42);
-    const rules = [
-      '1. Unduh file pada link di atas.',
-      '2. Tim store mengisi form tersebut berdasarkan temuan yang telah ditunjukkan pada file laporan ini.',
-      '3. Tindakan perbaikan WAJIB dilakukan sebelum deadline yang diberikan oleh FMCU / Regional Bestie.',
-      '4. Form tindakan perbaikan yang telah dibuat WAJIB dikirimkan kembali via email dengan terusan: Regional Manager, Area Manager, Regional Bestie,\ndan FMCU.'
+    doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139); // Slate-500
+    doc.text('Panduan resmi pengisian form rencana perbaikan (Corrective Action) hasil audit FMCU', 12, 30);
+
+    doc.setDrawColor(0, 153, 166);
+    doc.setLineWidth(0.35);
+    doc.line(12, 35, 308, 35);
+
+    // Modern CA Link Card
+    doc.setFillColor(240, 253, 250); // Teal-50
+    doc.setDrawColor(153, 246, 228); // Teal-200
+    doc.setLineWidth(0.25);
+    doc.roundedRect(12, 42, 296, 22, 3, 3, 'FD');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(15, 118, 110); // Teal-700
+    doc.text('LINK FILE FORM CA SPREADSHEET (GOOGLE DRIVE / LIVE EXCEL):', 18, 49.5);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(0, 153, 166); // Teal-600
+    doc.text(caLink, 18, 57.5);
+
+    // Corporate Step List Card
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(226, 232, 240); // Slate-200
+    doc.setLineWidth(0.25);
+    doc.roundedRect(12, 70, 296, 92, 3, 3, 'FD');
+
+    const steps = [
+      { num: '1', title: 'Unduh Formulir CA', desc: 'Buka dan unduh file formulir perbaikan toko melalui link di atas.' },
+      { num: '2', title: 'Isi Rencana & Bukti Perbaikan', desc: 'Tim Store mengisi kolom rencana perbaikan serta melampirkan foto bukti perbaikan sesuai nomor temuan pada laporan visit ini.' },
+      { num: '3', title: 'Patuhi Batas Waktu (Deadline)', desc: 'Seluruh tindakan perbaikan WAJIB diselesaikan sebelum tanggal deadline yang telah ditetapkan oleh auditor FMCU / Regional Bestie.' },
+      { num: '4', title: 'Konfirmasi Penyelesaian', desc: 'Formulir tindakan perbaikan yang telah dilengkapi diarsipkan kembali atau dikirimkan sebagai bukti tindak lanjut kepada Area Manager dan Regional Manager.' }
     ];
-    let ruleY = 64;
-    rules.forEach((r) => {
-      const lines = doc.splitTextToSize(r, 295);
-      doc.text(lines, 10, ruleY);
-      ruleY += lines.length * 6.5 + 4.7;
+
+    let stepY = 82;
+    steps.forEach((s) => {
+      // Step badge circle
+      doc.setFillColor(0, 153, 166);
+      doc.circle(23, stepY + 0.5, 4, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(255, 255, 255);
+      doc.text(s.num, 23, stepY + 3.2, { align: 'center' });
+
+      // Step Title & Description
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text(s.title, 32, stepY + 2);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.2);
+      doc.setTextColor(71, 85, 105);
+      const descLines = doc.splitTextToSize(s.desc, 260);
+      doc.text(descLines, 32, stepY + 7);
+
+      stepY += descLines.length * 4.2 + 13.5;
     });
 
     this.drawPageFooter(doc, footerText);

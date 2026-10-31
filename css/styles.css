@@ -760,3 +760,90 @@ input[type="date"]::-webkit-date-and-time-value {
 .form-subtab-pill.active .fm-toggle-switch input:checked + .fm-toggle-track .fm-toggle-knob {
   background-color: #009944;
 }
+
+
+/* ==========================================================================
+   RUNNING TEXT (MARQUEE) FOR PREVIEW DROPDOWN & LONG DOCUMENT TITLES
+   ========================================================================== */
+.running-text-container {
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  mask-image: linear-gradient(to right, transparent, black 3%, black 97%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 3%, black 97%, transparent);
+}
+
+.running-text-track {
+  display: inline-flex;
+  white-space: nowrap;
+  will-change: transform;
+}
+
+.running-text-track.is-running {
+  animation: fmcuMarqueeScroll 20s linear infinite;
+}
+
+.running-text-container:hover .running-text-track.is-running,
+.running-text-container:active .running-text-track.is-running {
+  animation-play-state: paused;
+}
+
+@keyframes fmcuMarqueeScroll {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* Custom Dropdown Trigger for Preview Report */
+.preview-report-custom-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.625rem;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #1e293b;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  min-height: 32px;
+  max-width: 100%;
+}
+
+.preview-report-custom-btn:hover {
+  border-color: #0099a6;
+  box-shadow: 0 1px 3px rgba(0, 153, 166, 0.15);
+}
+
+/* Responsive PDF Canvas Container for Mobile Fit */
+.pdf-canvas-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #f1f5f9;
+  border-radius: 1rem;
+  padding: 0.5rem;
+  overflow-x: hidden;
+}
+
+.pdf-canvas-container canvas {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  aspect-ratio: 16 / 9;
+  display: block;
+  border-radius: 0.75rem;
+  box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.15), 0 0 0 1px rgba(15, 23, 42, 0.08);
+}

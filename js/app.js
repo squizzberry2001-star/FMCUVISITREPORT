@@ -1294,6 +1294,12 @@ window.FMCUApp = {
     this._customUserSelectListenerBound = true;
 
     document.addEventListener('click', (e) => {
+      // Close preview report custom dropdown if clicked outside
+      const repMenu = document.getElementById('preview-report-dropdown-menu');
+      const repTrigger = document.getElementById('preview-report-custom-trigger');
+      if (repMenu && !repMenu.classList.contains('hidden') && repTrigger && !repTrigger.contains(e.target) && !repMenu.contains(e.target)) {
+        repMenu.classList.add('hidden');
+      }
       const container = document.getElementById('custom-user-select-container');
       if (container && !container.contains(e.target)) {
         this.closeCustomUserDropdown();
@@ -7450,7 +7456,8 @@ Instruksi:
   // ==========================================================================
   renderPreviewSelector() {
     const sel = document.getElementById('preview-report-selector');
-    if (!sel) return;
+    const labelEl = document.getElementById('preview-report-label');
+    const trackEl = document.getElementById('preview-report-running-track');
     const reports = window.FMCUData.getReports();
 
     // Urutkan laporan dari yang paling baru
@@ -7497,7 +7504,145 @@ Instruksi:
       )
       .join('');
 
-    sel.innerHTML = liveOptionHtml + reportsOptionsHtml;
+    if (sel) {
+      sel.innerHTML = liveOptionHtml + reportsOptionsHtml;
+      sel.value = this.activePreviewReportId;
+    }
+
+    // Tentukan Judul Laporan Aktif untuk Dropdown Trigger
+    let activeTitle = '';
+    if (this.activePreviewReportId === '__LIVE_FORM__') {
+      activeTitle = liveLabel;
+    } else {
+      const activeRep = reports.find((r) => r.id === this.activePreviewReportId);
+      if (activeRep) {
+        activeTitle = `${activeRep.storeName} (${activeRep.storeCode}) — ${activeRep.visitDateFormatted || activeRep.visitDate} [${activeRep.auditorName || 'FMCU'}]`;
+      } else {
+        activeTitle = liveLabel;
+      }
+    }
+
+    // Set Running Text / Marquee jika teks panjang (> 26 karakter)
+    if (labelEl && trackEl) {
+      if (activeTitle.length > 26) {
+        trackEl.classList.add('is-running');
+        trackEl.innerHTML = `
+          <span class="inline-block pr-6">${activeTitle}</span>
+          <span class="text-teal-500 font-extrabold pr-6">✦</span>
+          <span class="inline-block pr-6">${activeTitle}</span>
+          <span class="text-teal-500 font-extrabold pr-6">✦</span>
+        `;
+      } else {
+        trackEl.classList.remove('is-running');
+        trackEl.innerHTML = `<span>${activeTitle}</span>`;
+      }
+    }
+
+    // Render list items dalam custom dropdown modal/menu
+    this.renderPreviewReportDropdownItems(reports, liveLabel);
+  },
+
+  renderPreviewReportDropdownItems(reports = null, liveLabel = '') {
+    const listEl = document.getElementById('preview-report-options-list');
+    if (!listEl) return;
+    if (!reports) {
+      reports = window.FMCUData.getReports();
+      reports.sort((a, b) => String(b.createdAt || b.visitDate || '').localeCompare(String(a.createdAt || a.visitDate || '')));
+    }
+
+    const currentStoreName = document.getElementById('form-store-name')?.value.trim() || '';
+    const currentStoreCode = document.getElementById('form-store-code')?.value.trim() || '';
+    const hasCurrentStore = Boolean(currentStoreCode && currentStoreCode !== '-');
+    if (!liveLabel) {
+      liveLabel = hasCurrentStore
+        ? `🎯 [Draft Form Toko Aktif: ${currentStoreName} (${currentStoreCode})]`
+        : `🎯 [Draft Form Toko Saat Ini]`;
+    }
+
+    let itemsHtml = '';
+    if (this.hasActiveStoreForm || reports.length === 0) {
+      const isSel = this.activePreviewReportId === '__LIVE_FORM__';
+      itemsHtml += `
+        <button
+          type="button"
+          onclick="FMCUApp.selectPreviewReport('__LIVE_FORM__')"
+          class="w-full text-left p-2.5 rounded-xl transition flex items-center justify-between gap-2 cursor-pointer ${
+            isSel ? 'bg-teal-50 text-[#0099A6] font-extrabold' : 'hover:bg-slate-50 text-slate-700'
+          }"
+        >
+          <div class="min-w-0">
+            <div class="text-xs font-bold truncate">${liveLabel}</div>
+            <div class="text-[10px] text-slate-400">Data form kunjungan yang sedang aktif diedit</div>
+          </div>
+          ${isSel ? '<i class="fa-solid fa-check text-teal-600 shrink-0"></i>' : ''}
+        </button>
+      `;
+    }
+
+    reports.forEach((r) => {
+      const isSel = this.activePreviewReportId === r.id;
+      const title = `${r.storeName} (${r.storeCode})`;
+      const meta = `${r.visitDateFormatted || r.visitDate || '-'} • Visitor: ${r.auditorName || '-'}`;
+      itemsHtml += `
+        <button
+          type="button"
+          onclick="FMCUApp.selectPreviewReport('${r.id}')"
+          class="w-full text-left p-2.5 rounded-xl transition flex items-center justify-between gap-2 cursor-pointer ${
+            isSel ? 'bg-teal-50 text-[#0099A6] font-extrabold' : 'hover:bg-slate-50 text-slate-700'
+          }"
+        >
+          <div class="min-w-0">
+            <div class="text-xs font-bold truncate text-slate-900">${title}</div>
+            <div class="text-[10px] text-slate-500 truncate">${meta}</div>
+          </div>
+          ${isSel ? '<i class="fa-solid fa-check text-teal-600 shrink-0"></i>' : ''}
+        </button>
+      `;
+    });
+
+    listEl.innerHTML = itemsHtml || '<div class="p-3 text-center text-xs text-slate-400">Belum ada laporan visit tersimpan</div>';
+  },
+
+  togglePreviewReportDropdown() {
+    const menu = document.getElementById('preview-report-dropdown-menu');
+    if (!menu) return;
+    const isHidden = menu.classList.contains('hidden');
+    if (isHidden) {
+      menu.classList.remove('hidden');
+      const input = document.getElementById('preview-report-search-input');
+      if (input) {
+        input.value = '';
+        setTimeout(() => input.focus(), 80);
+      }
+      this.renderPreviewReportDropdownItems();
+    } else {
+      menu.classList.add('hidden');
+    }
+  },
+
+  closePreviewReportDropdown() {
+    const menu = document.getElementById('preview-report-dropdown-menu');
+    if (menu) menu.classList.add('hidden');
+  },
+
+  filterPreviewReports(query) {
+    const q = (query || '').toLowerCase().trim();
+    const reports = window.FMCUData.getReports();
+    reports.sort((a, b) => String(b.createdAt || b.visitDate || '').localeCompare(String(a.createdAt || a.visitDate || '')));
+
+    const filtered = !q
+      ? reports
+      : reports.filter((r) => {
+          const s = `${r.storeName || ''} ${r.storeCode || ''} ${r.visitDate || ''} ${r.auditorName || ''}`.toLowerCase();
+          return s.includes(q);
+        });
+
+    this.renderPreviewReportDropdownItems(filtered);
+  },
+
+  selectPreviewReport(reportId) {
+    this.closePreviewReportDropdown();
+    this.onChangePreviewReport(reportId);
   },
 
   getActivePreviewReport() {
@@ -7550,6 +7695,34 @@ Instruksi:
     }
   },
 
+  pdfCurrentPage: 1,
+  pdfTotalPages: 1,
+  pdfJsDoc: null,
+  pdfDisplayMode: 'canvas',
+
+  switchPdfDisplayMode(mode) {
+    this.pdfDisplayMode = mode;
+    const canvasCont = document.getElementById('preview-actual-pdf-canvas-container');
+    const frameCont = document.getElementById('preview-actual-pdf-frame-container');
+    const pager = document.getElementById('preview-pdf-canvas-pager');
+    const btnCanvas = document.getElementById('btn-pdf-view-canvas');
+    const btnFrame = document.getElementById('btn-pdf-view-frame');
+
+    if (canvasCont) canvasCont.classList.toggle('hidden', mode !== 'canvas');
+    if (frameCont) frameCont.classList.toggle('hidden', mode !== 'frame');
+    if (pager) pager.classList.toggle('hidden', mode !== 'canvas');
+
+    const activeBtnClass = 'px-2.5 py-1 rounded-lg text-xs font-bold bg-[#009944] text-white transition cursor-pointer';
+    const inactiveBtnClass = 'px-2.5 py-1 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition cursor-pointer';
+
+    if (btnCanvas) btnCanvas.className = mode === 'canvas' ? activeBtnClass : inactiveBtnClass;
+    if (btnFrame) btnFrame.className = mode === 'frame' ? activeBtnClass : inactiveBtnClass;
+
+    if (mode === 'canvas' && this.pdfJsDoc) {
+      this.renderPdfPageToCanvas(this.pdfCurrentPage);
+    }
+  },
+
   async renderActualPdfViewer() {
     const report = this.getActivePreviewReport();
     if (!report) return;
@@ -7561,13 +7734,44 @@ Instruksi:
       const doc = window.FMCUPdf.generatePdfDoc(report);
       const blobUrl = doc.output('bloburl');
       this.currentPdfBlobUrl = blobUrl;
+
+      // 1. Set iframe source
       const iframe = document.getElementById('preview-actual-pdf-iframe');
       if (iframe) {
         iframe.src = `${blobUrl}#view=FitH&toolbar=0&navpanes=0&scrollbar=1`;
       }
+
+      // 2. Update doc name banner with running text if long (> 30 chars)
+      const fileName = window.FMCUPdf.getFileName(report);
+      const docFullName = `Dokumen PDF Asli: ${fileName}`;
       const docNameEl = document.getElementById('preview-pdf-doc-name');
-      if (docNameEl) {
-        docNameEl.textContent = `Dokumen PDF Asli: ${window.FMCUPdf.getFileName(report)}`;
+      const docTrack = document.getElementById('preview-pdf-doc-name-track');
+      if (docNameEl && docTrack) {
+        if (docFullName.length > 30) {
+          docTrack.classList.add('is-running');
+          docTrack.innerHTML = `
+            <span class="inline-block pr-8 font-extrabold text-white">${docFullName}</span>
+            <span class="text-teal-400 font-extrabold pr-8">✦</span>
+            <span class="inline-block pr-8 font-extrabold text-white">${docFullName}</span>
+            <span class="text-teal-400 font-extrabold pr-8">✦</span>
+          `;
+        } else {
+          docTrack.classList.remove('is-running');
+          docTrack.innerHTML = `<span class="inline-block font-extrabold text-white">${docFullName}</span>`;
+        }
+      }
+
+      // 3. Render directly onto responsive canvas using PDF.js if available
+      if (window.pdfjsLib) {
+        const arrayBuffer = doc.output('arraybuffer');
+        const loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer });
+        this.pdfJsDoc = await loadingTask.promise;
+        this.pdfTotalPages = this.pdfJsDoc.numPages;
+        this.pdfCurrentPage = 1;
+        await this.renderPdfPageToCanvas(this.pdfCurrentPage);
+        this.switchPdfDisplayMode('canvas');
+      } else {
+        this.switchPdfDisplayMode('frame');
       }
     } catch (e) {
       console.warn('Error generating actual PDF preview:', e);
@@ -7575,6 +7779,48 @@ Instruksi:
       if (loadingEl) {
         setTimeout(() => loadingEl.classList.add('hidden'), 350);
       }
+    }
+  },
+
+  async renderPdfPageToCanvas(pageNumber = 1) {
+    if (!this.pdfJsDoc) return;
+    const canvas = document.getElementById('preview-actual-pdf-canvas');
+    if (!canvas) return;
+
+    this.pdfCurrentPage = Math.max(1, Math.min(pageNumber, this.pdfTotalPages));
+    const indicator = document.getElementById('preview-pdf-page-indicator');
+    if (indicator) {
+      indicator.textContent = `Hal ${this.pdfCurrentPage} / ${this.pdfTotalPages}`;
+    }
+
+    try {
+      const page = await this.pdfJsDoc.getPage(this.pdfCurrentPage);
+      const viewport = page.getViewport({ scale: 2.0 }); // High-DPI for crisp text on mobile Retina displays
+      const ctx = canvas.getContext('2d');
+
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+
+      const renderContext = {
+        canvasContext: ctx,
+        viewport: viewport
+      };
+
+      await page.render(renderContext).promise;
+    } catch (errRender) {
+      console.warn('Error rendering PDF page to canvas:', errRender);
+    }
+  },
+
+  prevPdfPage() {
+    if (this.pdfCurrentPage > 1) {
+      this.renderPdfPageToCanvas(this.pdfCurrentPage - 1);
+    }
+  },
+
+  nextPdfPage() {
+    if (this.pdfCurrentPage < this.pdfTotalPages) {
+      this.renderPdfPageToCanvas(this.pdfCurrentPage + 1);
     }
   },
 
@@ -11768,7 +12014,7 @@ Instruksi:
  * 4. Folder Toko: Kode & Nama Toko yang divisit (contoh: "0449 - PORIS PARADISE")
  * 5. Tiga Lampiran di dalam Folder Toko:
  *    a. PDF Laporan Visit ("Hasil Kunjungan-{Nama Store}-{DD-MM-YYYY}.pdf")
- *    b. Foto Lembar QSC ("Lembar QSC-FAMITRACK-{Nama Store}-{DD-MM-YYYY}.pdf") - Vertikal
+ *    b. Foto Lembar QSC ("Kolase Lembar QSC-{Nama Store}-{DD-MM-YYYY}.pdf") - Vertikal
  *    c. Spreadsheet CA Store Assignment (Auto generate link live online & lock Kolom A-D)
  * ============================================================================
  *
@@ -11901,8 +12147,16 @@ function doPost(e) {
       var photoBlob = Utilities.newBlob(decodedPhoto, 'image/jpeg', photoFileName);
 
       var rootFolderPhoto = getOrCreateTargetFolder_(payload.gdrivePhotoFolderId || DEFAULT_ROOT_GDRIVE_ID, 'FMCU_Visit_Database');
-      var storeFolderNamePhoto = ((payload.storeCode || 'STORE') + ' - ' + (payload.storeName || 'VISIT')).replace(/[\\\\/:*?"<>|]/g, ' ').trim();
-      var storeFolderPhoto = getOrCreateSubFolder_(rootFolderPhoto, storeFolderNamePhoto);
+      
+      // Simpan semua folder foto toko di dalam subfolder khusus database/arsip agar TIDAK SPAM di root folder GDrive
+      var PHOTO_DATABASE_FOLDER_NAME = '.DATABASE_FOTO_VISIT';
+      var photoDatabaseFolder = getOrCreateSubFolder_(rootFolderPhoto, PHOTO_DATABASE_FOLDER_NAME);
+
+      // Auto-organisasi: bersihkan folder foto toko yang tercecer di root GDrive ke dalam .DATABASE_FOTO_VISIT
+      cleanupSpamStoreFoldersFromRoot_(rootFolderPhoto, photoDatabaseFolder);
+
+      var storeFolderNamePhoto = ((payload.storeCode || 'STORE') + ' - ' + (payload.storeName || 'VISIT')).replace(/[\\/:*?"<>|]/g, ' ').trim();
+      var storeFolderPhoto = getOrCreateSubFolder_(photoDatabaseFolder, storeFolderNamePhoto);
 
       var photoFile = storeFolderPhoto.createFile(photoBlob);
       try {
@@ -11921,6 +12175,24 @@ function doPost(e) {
     }
 
     // ========================================================================
+    // ========================================================================
+    // ACTION 1B: BERSIHKAN & SEMBUNYIKAN SPAM FOLDER FOTO DARI ROOT GDRIVE
+    // ========================================================================
+    if (action === 'cleanupRootFolder') {
+      var rootFolderPhoto = getOrCreateTargetFolder_(payload.gdrivePhotoFolderId || payload.gdriveFolderId || DEFAULT_ROOT_GDRIVE_ID, 'FMCU_Visit_Database');
+      var PHOTO_DATABASE_FOLDER_NAME = '.DATABASE_FOTO_VISIT';
+      var photoDatabaseFolder = getOrCreateSubFolder_(rootFolderPhoto, PHOTO_DATABASE_FOLDER_NAME);
+      var movedCount = cleanupSpamStoreFoldersFromRoot_(rootFolderPhoto, photoDatabaseFolder);
+
+      return jsonResponse_({
+        status: 'SUCCESS',
+        action: 'cleanupRootFolder',
+        movedFolders: movedCount,
+        targetFolder: PHOTO_DATABASE_FOLDER_NAME,
+        message: 'Folder foto toko di root Google Drive berhasil dirapikan ke dalam subfolder ' + PHOTO_DATABASE_FOLDER_NAME
+      });
+    }
+
     // ACTION 2: AMBIL FOTO DARI GOOGLE DRIVE DALAM BENTUK BASE64
     // ========================================================================
     if (action === 'getPhotoBase64') {
@@ -11961,7 +12233,7 @@ function doPost(e) {
     var visitYear = '2026';
     var ddMmYyyy = '';
     if (rawDate) {
-      var yMatch = String(rawDate).match(/^(\\d{4})[-/](\\d{1,2})[-/](\\d{1,2})/);
+      var yMatch = String(rawDate).match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
       if (yMatch) {
         visitYear = yMatch[1];
         ddMmYyyy = ('0' + yMatch[3]).slice(-2) + '-' + ('0' + yMatch[2]).slice(-2) + '-' + visitYear;
@@ -11991,7 +12263,7 @@ function doPost(e) {
     var visitorFolder = getOrCreateSubFolder_(yearFolder, visitorName);
 
     // 4. Folder Toko yang divisit (di dalam folder visitor)
-    var storeFolderName = (storeCode ? (storeCode + ' - ' + storeName) : storeName).replace(/[\\\\/:*?"<>|]/g, ' ').trim();
+    var storeFolderName = (storeCode ? (storeCode + ' - ' + storeName) : storeName).replace(/[\\/:*?"<>|]/g, ' ').trim();
     var storeFolder = getOrCreateSubFolder_(visitorFolder, storeFolderName);
 
     // ------------------------------------------------------------------------
@@ -12032,7 +12304,7 @@ function doPost(e) {
       try {
         var b64Qsc = payload.qscPdfBase64.indexOf(',') !== -1 ? payload.qscPdfBase64.split(',')[1] : payload.qscPdfBase64;
         var decodedQsc = Utilities.base64Decode(b64Qsc);
-        var qscFileName = 'Lembar QSC-FAMITRACK-' + storeName + '-' + ddMmYyyy + '.pdf';
+        var qscFileName = 'Kolase Lembar QSC-' + storeName + '-' + ddMmYyyy + '.pdf';
         var qscBlob = Utilities.newBlob(decodedQsc, 'application/pdf', qscFileName);
 
         // Hapus versi lama jika ada nama file yang sama
@@ -12066,8 +12338,17 @@ function doPost(e) {
       } else {
         ss = SpreadsheetApp.create(ssTitle);
         var ssFile = DriveApp.getFileById(ss.getId());
-        ssFile.moveTo(storeFolder);
-        ssFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.EDIT);
+        try {
+          ssFile.moveTo(storeFolder);
+        } catch (eMove) {
+          try {
+            storeFolder.addFile(ssFile);
+            DriveApp.getRootFolder().removeFile(ssFile);
+          } catch (eFallback) {}
+        }
+        try {
+          ssFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.EDIT);
+        } catch (eShare) {}
       }
 
       var sheet = ss.getActiveSheet();
@@ -12137,7 +12418,7 @@ function doPost(e) {
 
       var r9Daftar = sheet.getRange('B9:D9');
       r9Daftar.merge();
-      r9Daftar.setValue('DAFTAR TEMUAN\\n(berdasarkan list pada visit report)');
+      r9Daftar.setValue('DAFTAR TEMUAN\n(berdasarkan list pada visit report)');
       r9Daftar.setBackground('#46BDC6');
       r9Daftar.setFontColor('#FFFFFF');
       r9Daftar.setFontWeight('bold');
@@ -12157,7 +12438,7 @@ function doPost(e) {
       r9Tgl.setWrap(true);
 
       var r9Bukti = sheet.getRange('F9');
-      r9Bukti.setValue('BUKTI PERBAIKAN\\n(isi dengan foto perbaikan)');
+      r9Bukti.setValue('BUKTI PERBAIKAN\n(isi dengan foto perbaikan)');
       r9Bukti.setBackground('#46BDC6');
       r9Bukti.setFontColor('#FFFFFF');
       r9Bukti.setFontWeight('bold');
@@ -12188,7 +12469,7 @@ function doPost(e) {
         var obsItem = (oi < observations.length) ? observations[oi] : null;
         var descText = obsItem ? (obsItem.temuan || obsItem.deskripsi || '') : '';
         if (obsItem && obsItem.tindakanPerbaikan) {
-          descText += '\\n(Action: ' + obsItem.tindakanPerbaikan + ')';
+          descText += '\n(Action: ' + obsItem.tindakanPerbaikan + ')';
         }
         var deadlineText = obsItem ? (obsItem.deadlineFormatted || obsItem.deadline || '') : '';
         tableValues.push([
@@ -12264,7 +12545,7 @@ function jsonResponse_(obj) {
 function extractDriveFolderId_(input) {
   if (!input) return '';
   var str = String(input).trim();
-  var folderMatch = str.match(/\\/folders\\/([a-zA-Z0-9_-]{20,})/);
+  var folderMatch = str.match(/\/folders\/([a-zA-Z0-9_-]{20,})/);
   if (folderMatch) return folderMatch[1];
   var idParamMatch = str.match(/[?&]id=([a-zA-Z0-9_-]{20,})/);
   if (idParamMatch) return idParamMatch[1];
@@ -12309,6 +12590,44 @@ function getOrCreateSubFolder_(parentFolder, subFolderName) {
   }
   return parentFolder.createFolder(subFolderName);
 }
+
+function cleanupSpamStoreFoldersFromRoot_(rootFolder, databaseFolder) {
+  if (!rootFolder || !databaseFolder) return 0;
+  var moved = 0;
+  try {
+    var subFolders = rootFolder.getFolders();
+    var dbFolderName = databaseFolder.getName().trim().toLowerCase();
+    while (subFolders.hasNext()) {
+      var f = subFolders.next();
+      var fname = f.getName().trim();
+      var fnameLower = fname.toLowerCase();
+
+      // Jangan sentuh folder database dan folder hierarki tahun laporan (e.g. "01. VISIT BESTIE 2026")
+      if (fnameLower === dbFolderName || /^01\.\s*VISIT\s*BESTIE/i.test(fname)) {
+        continue;
+      }
+
+      // Deteksi folder toko (e.g. "0003 - PEJATEN", "0014 - PTC", "0064 - MENTENG SQUARE...", atau yang diawali digit kode toko)
+      if (/^\d{3,5}\s*[-_]/i.test(fname) || fnameLower.indexOf('store') !== -1 || fnameLower.indexOf('visit') !== -1) {
+        try {
+          if (typeof f.moveTo === 'function') {
+            f.moveTo(databaseFolder);
+          } else {
+            databaseFolder.addFolder(f);
+            rootFolder.removeFolder(f);
+          }
+          moved++;
+          Logger.log('Memindahkan spam folder toko dari root ke database: ' + fname);
+        } catch (eMove) {
+          Logger.log('Gagal memindahkan folder ' + fname + ': ' + eMove.toString());
+        }
+      }
+    }
+  } catch (eClean) {
+    Logger.log('cleanupSpamStoreFoldersFromRoot_ error: ' + eClean.toString());
+  }
+  return moved;
+}
 `;
   },
 
@@ -12316,6 +12635,36 @@ function getOrCreateSubFolder_(parentFolder, subFolderName) {
     const text = document.getElementById('gas-code-preview')?.textContent || '';
     navigator.clipboard?.writeText(text);
     this.showToast('Kode Google Apps Script berhasil disalin ke Clipboard!', 'success');
+  },
+
+  async handleCleanupRootFolderClick() {
+    const settings = window.FMCUData ? window.FMCUData.getSettings() : {};
+    const gasUrl = (settings.gasWebhookUrl || '').trim();
+    if (!gasUrl || !gasUrl.startsWith('http')) {
+      this.showToast('Simpan Google Apps Script Web App URL di formulir terlebih dahulu.', 'warning');
+      return;
+    }
+    this.triggerHaptic('medium');
+    this.showToast('Sedang merapikan & memindahkan folder foto di root Google Drive...', 'info');
+    try {
+      const resp = await fetch(gasUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'cleanupRootFolder',
+          gdrivePhotoFolderId: settings.gdrivePhotoFolderId || settings.gdriveFolderId || ''
+        })
+      });
+      const data = await resp.json();
+      if (data && data.status === 'SUCCESS') {
+        this.showToast(`Berhasil! ${data.movedFolders || 0} folder foto toko dipindahkan ke ${data.targetFolder || '.DATABASE_FOTO_VISIT'}.`, 'success');
+      } else {
+        this.showToast(data?.message || 'Pembersihan selesai.', 'info');
+      }
+    } catch (err) {
+      console.warn('Gagal membersihkan root GDrive:', err);
+      this.showToast('Gagal menghubungi Google Apps Script. Pastikan URL benar & Web App memiliki akses Everyone.', 'error');
+    }
   },
 
   clearAllDataConfirm() {

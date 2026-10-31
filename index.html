@@ -65,6 +65,14 @@
   <!-- jsPDF (For 16:9 Vector + Image PDF Generation) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
+  <!-- PDF.js (For 100% Fit-to-Screen Mobile Actual PDF Rendering) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+  </script>
+
   <!-- Custom Styles -->
   <link rel="stylesheet" href="css/styles.css" />
 </head>
@@ -1670,9 +1678,50 @@
                 <h2 class="font-extrabold text-sm sm:text-lg text-slate-900 truncate">Preview & Download PDF</h2>
                 <span class="text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-[#0099A6] shrink-0">16:9 Landscape</span>
               </div>
-              <div class="flex items-center gap-2 mt-1">
+              <div class="flex items-center gap-2 mt-1 relative min-w-0 flex-1 max-w-[280px] sm:max-w-md">
                 <label class="text-[11px] sm:text-xs font-bold text-slate-500 shrink-0">Laporan:</label>
-                <select id="preview-report-selector" onchange="FMCUApp.onChangePreviewReport(this.value)" class="text-[11px] sm:text-xs font-bold border border-slate-300 rounded-lg px-2 py-1 bg-white text-slate-800 w-full sm:w-auto truncate max-w-[260px] sm:max-w-md">
+                
+                <!-- Interactive Report Selector with Running Text / Marquee -->
+                <div class="relative min-w-0 flex-1">
+                  <button
+                    type="button"
+                    id="preview-report-custom-trigger"
+                    onclick="FMCUApp.togglePreviewReportDropdown()"
+                    class="preview-report-custom-btn w-full"
+                    title="Klik untuk memilih laporan visit"
+                  >
+                    <div class="running-text-container">
+                      <div id="preview-report-running-track" class="running-text-track">
+                        <span id="preview-report-label">Memuat Laporan...</span>
+                      </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-down text-slate-400 text-[10px] shrink-0 ml-1"></i>
+                  </button>
+
+                  <!-- Custom Dropdown Menu for Report Selection -->
+                  <div
+                    id="preview-report-dropdown-menu"
+                    class="hidden absolute left-0 top-full mt-1.5 w-[290px] sm:w-[400px] bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden"
+                  >
+                    <div class="p-2.5 border-b border-slate-100 bg-slate-50">
+                      <div class="relative">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                        <input
+                          type="text"
+                          id="preview-report-search-input"
+                          oninput="FMCUApp.filterPreviewReports(this.value)"
+                          placeholder="Cari toko, kode, atau tanggal..."
+                          class="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-[#0099A6]"
+                        />
+                      </div>
+                    </div>
+                    <div id="preview-report-options-list" class="max-h-60 overflow-y-auto divide-y divide-slate-100 p-1">
+                      <!-- List pilihan laporan dinamis -->
+                    </div>
+                  </div>
+                </div>
+
+                <select id="preview-report-selector" onchange="FMCUApp.onChangePreviewReport(this.value)" class="hidden">
                 </select>
               </div>
             </div>
@@ -1746,9 +1795,13 @@
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 bg-slate-900 text-white rounded-2xl">
             <div class="flex items-center gap-2.5 min-w-0">
               <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
-              <div class="min-w-0">
+              <div class="min-w-0 flex-1">
                 <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Dokumen Asli (Direct jsPDF Output)</div>
-                <div id="preview-pdf-doc-name" class="text-xs sm:text-sm font-extrabold text-white truncate">Dokumen PDF Aktual (16:9 Landscape)</div>
+                <div class="running-text-container mt-0.5">
+                  <div id="preview-pdf-doc-name-track" class="running-text-track">
+                    <div id="preview-pdf-doc-name" class="text-xs sm:text-sm font-extrabold text-white">Dokumen PDF Aktual (16:9 Landscape)</div>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="flex items-center gap-2 shrink-0">
@@ -1779,12 +1832,48 @@
             </div>
           </div>
 
-          <!-- Embedded Native PDF Viewer Frame -->
-          <div class="w-full bg-slate-100 rounded-2xl border border-slate-300 overflow-hidden shadow-sm relative">
+          <!-- PDF Controls Bar: Canvas Fit Layar HP & Navigasi Halaman -->
+          <div class="flex items-center justify-between gap-2 p-2 sm:p-2.5 bg-slate-800 text-white rounded-xl text-xs">
+            <div id="preview-pdf-canvas-pager" class="flex items-center gap-1.5 sm:gap-2">
+              <button type="button" onclick="FMCUApp.prevPdfPage()" class="px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded-lg font-bold cursor-pointer text-xs flex items-center gap-1">
+                <i class="fa-solid fa-chevron-left text-[10px]"></i><span class="hidden sm:inline">Sebelumnya</span>
+              </button>
+              <span id="preview-pdf-page-indicator" class="font-extrabold px-2 py-0.5 rounded bg-teal-600 text-[11px]">Hal 1 / 10</span>
+              <button type="button" onclick="FMCUApp.nextPdfPage()" class="px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded-lg font-bold cursor-pointer text-xs flex items-center gap-1">
+                <span class="hidden sm:inline">Berikutnya</span><i class="fa-solid fa-chevron-right text-[10px]"></i>
+              </button>
+            </div>
+
+            <div class="flex items-center gap-1.5">
+              <button type="button" id="btn-pdf-view-canvas" onclick="FMCUApp.switchPdfDisplayMode('canvas')" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-[#009944] text-white transition cursor-pointer">
+                <i class="fa-solid fa-mobile-screen mr-1"></i><span>Fit Layar</span>
+              </button>
+              <button type="button" id="btn-pdf-view-frame" onclick="FMCUApp.switchPdfDisplayMode('frame')" class="px-2.5 py-1 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition cursor-pointer">
+                <i class="fa-solid fa-window-maximize mr-1"></i><span>Frame</span>
+              </button>
+              <button type="button" onclick="FMCUApp.openActualPdfInNewTab()" class="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-bold cursor-pointer ml-1" title="Buka PDF di tab baru browser">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- 1. Canvas Fit Layar Container (100% Responsive on Mobile & Desktop) -->
+          <div id="preview-actual-pdf-canvas-container" class="pdf-canvas-container relative min-h-[300px]">
             <div id="preview-pdf-loading" class="absolute inset-0 bg-white/80 backdrop-blur-xs flex flex-col items-center justify-center gap-2 z-10 hidden">
               <div class="w-8 h-8 rounded-full border-3 border-teal-600 border-t-transparent animate-spin"></div>
               <span class="text-xs font-bold text-slate-700">Merender Dokumen PDF Aktual...</span>
             </div>
+            <div class="w-full flex justify-center">
+              <canvas id="preview-actual-pdf-canvas" class="rounded-xl shadow-lg border border-slate-300 w-full max-w-full"></canvas>
+            </div>
+            <div class="text-[10px] sm:text-[11px] text-slate-500 font-semibold text-center mt-2.5 flex items-center justify-center gap-1.5">
+              <i class="fa-solid fa-circle-check text-emerald-600"></i>
+              <span>PDF 100% Fit Layar Ponsel & Bebas Terpotong. Gunakan tombol Sebelumnya / Berikutnya untuk navigasi slide.</span>
+            </div>
+          </div>
+
+          <!-- 2. Embedded Native PDF Viewer Frame (Fallback / Desktop Mode) -->
+          <div id="preview-actual-pdf-frame-container" class="hidden w-full bg-slate-100 rounded-2xl border border-slate-300 overflow-hidden shadow-sm relative">
             <iframe id="preview-actual-pdf-iframe" class="w-full h-[68vh] sm:h-[750px] border-0" style="width: 100%; max-width: 100%; min-height: 480px;" title="Actual PDF Preview"></iframe>
           </div>
         </div>
@@ -2768,6 +2857,19 @@ service cloud.firestore {
                 <button type="submit" class="w-full fm-gradient text-white font-bold py-3 rounded-xl shadow-md hover:opacity-95 transition text-xs sm:text-sm cursor-pointer">
                   <i class="fa-solid fa-floppy-disk mr-1.5"></i>Simpan Pengaturan Integrasi & Database Foto GDrive
                 </button>
+
+                <!-- One-Click Clean & Organize Root GDrive Photo Folders -->
+                <div class="pt-2">
+                  <button
+                    type="button"
+                    onclick="FMCUApp.handleCleanupRootFolderClick()"
+                    class="w-full py-2.5 px-4 rounded-xl border border-teal-300 bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                  >
+                    <i class="fa-solid fa-broom"></i>
+                    <span>Bersihkan & Sembunyikan Folder Foto di Root GDrive</span>
+                  </button>
+                  <p class="text-[10px] text-slate-400 mt-1 text-center">Memindahkan folder foto toko yang tercecer di root ke dalam folder tersembunyi <code>.DATABASE_FOTO_VISIT</code></p>
+                </div>
               </form>
             </div>
 

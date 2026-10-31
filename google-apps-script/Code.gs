@@ -141,8 +141,16 @@ function doPost(e) {
       var photoBlob = Utilities.newBlob(decodedPhoto, 'image/jpeg', photoFileName);
 
       var rootFolderPhoto = getOrCreateTargetFolder_(payload.gdrivePhotoFolderId || DEFAULT_ROOT_GDRIVE_ID, 'FMCU_Visit_Database');
+      
+      // Simpan semua folder foto toko di dalam subfolder khusus database/arsip agar TIDAK SPAM di root folder GDrive
+      var PHOTO_DATABASE_FOLDER_NAME = '.DATABASE_FOTO_VISIT';
+      var photoDatabaseFolder = getOrCreateSubFolder_(rootFolderPhoto, PHOTO_DATABASE_FOLDER_NAME);
+
+      // Auto-organisasi: bersihkan folder foto toko yang tercecer di root GDrive ke dalam .DATABASE_FOTO_VISIT
+      cleanupSpamStoreFoldersFromRoot_(rootFolderPhoto, photoDatabaseFolder);
+
       var storeFolderNamePhoto = ((payload.storeCode || 'STORE') + ' - ' + (payload.storeName || 'VISIT')).replace(/[\\/:*?"<>|]/g, ' ').trim();
-      var storeFolderPhoto = getOrCreateSubFolder_(rootFolderPhoto, storeFolderNamePhoto);
+      var storeFolderPhoto = getOrCreateSubFolder_(photoDatabaseFolder, storeFolderNamePhoto);
 
       var photoFile = storeFolderPhoto.createFile(photoBlob);
       try {
@@ -161,6 +169,24 @@ function doPost(e) {
     }
 
     // ========================================================================
+    // ========================================================================
+    // ACTION 1B: BERSIHKAN & SEMBUNYIKAN SPAM FOLDER FOTO DARI ROOT GDRIVE
+    // ========================================================================
+    if (action === 'cleanupRootFolder') {
+      var rootFolderPhoto = getOrCreateTargetFolder_(payload.gdrivePhotoFolderId || payload.gdriveFolderId || DEFAULT_ROOT_GDRIVE_ID, 'FMCU_Visit_Database');
+      var PHOTO_DATABASE_FOLDER_NAME = '.DATABASE_FOTO_VISIT';
+      var photoDatabaseFolder = getOrCreateSubFolder_(rootFolderPhoto, PHOTO_DATABASE_FOLDER_NAME);
+      var movedCount = cleanupSpamStoreFoldersFromRoot_(rootFolderPhoto, photoDatabaseFolder);
+
+      return jsonResponse_({
+        status: 'SUCCESS',
+        action: 'cleanupRootFolder',
+        movedFolders: movedCount,
+        targetFolder: PHOTO_DATABASE_FOLDER_NAME,
+        message: 'Folder foto toko di root Google Drive berhasil dirapikan ke dalam subfolder ' + PHOTO_DATABASE_FOLDER_NAME
+      });
+    }
+
     // ACTION 2: AMBIL FOTO DARI GOOGLE DRIVE DALAM BENTUK BASE64
     // ========================================================================
     if (action === 'getPhotoBase64') {
@@ -496,11 +522,6 @@ function doPost(e) {
       emailStatus: emailStatus,
       timestamp: new Date().toISOString()
     });
-      visitorFolderUrl: visitorFolder.getUrl(),
-      yearFolderUrl: yearFolder.getUrl(),
-      emailStatus: emailStatus,
-      timestamp: new Date().toISOString()
-    });
 
   } catch (error) {
     return jsonResponse_({
@@ -562,4 +583,42 @@ function getOrCreateSubFolder_(parentFolder, subFolderName) {
     return existing;
   }
   return parentFolder.createFolder(subFolderName);
+}
+
+function cleanupSpamStoreFoldersFromRoot_(rootFolder, databaseFolder) {
+  if (!rootFolder || !databaseFolder) return 0;
+  var moved = 0;
+  try {
+    var subFolders = rootFolder.getFolders();
+    var dbFolderName = databaseFolder.getName().trim().toLowerCase();
+    while (subFolders.hasNext()) {
+      var f = subFolders.next();
+      var fname = f.getName().trim();
+      var fnameLower = fname.toLowerCase();
+
+      // Jangan sentuh folder database dan folder hierarki tahun laporan (e.g. "01. VISIT BESTIE 2026")
+      if (fnameLower === dbFolderName || /^01\.\s*VISIT\s*BESTIE/i.test(fname)) {
+        continue;
+      }
+
+      // Deteksi folder toko (e.g. "0003 - PEJATEN", "0014 - PTC", "0064 - MENTENG SQUARE...", atau yang diawali digit kode toko)
+      if (/^\d{3,5}\s*[-_]/i.test(fname) || fnameLower.indexOf('store') !== -1 || fnameLower.indexOf('visit') !== -1) {
+        try {
+          if (typeof f.moveTo === 'function') {
+            f.moveTo(databaseFolder);
+          } else {
+            databaseFolder.addFolder(f);
+            rootFolder.removeFolder(f);
+          }
+          moved++;
+          Logger.log('Memindahkan spam folder toko dari root ke database: ' + fname);
+        } catch (eMove) {
+          Logger.log('Gagal memindahkan folder ' + fname + ': ' + eMove.toString());
+        }
+      }
+    }
+  } catch (eClean) {
+    Logger.log('cleanupSpamStoreFoldersFromRoot_ error: ' + eClean.toString());
+  }
+  return moved;
 }
