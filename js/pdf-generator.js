@@ -113,18 +113,18 @@ window.FMCUPdf = {
         const pageWidth = typeof doc.internal?.pageSize?.getWidth === 'function' ? doc.internal.pageSize.getWidth() : 320;
         const pageHeight = typeof doc.internal?.pageSize?.getHeight === 'function' ? doc.internal.pageSize.getHeight() : 180;
 
-        // Dimensi Watermark WTRMRK (lebar 28mm untuk landscape 320mm, rasio aspek 1.767)
+        // Dimensi Watermark WTRMRK dibuat mini / kecil dan proporsional (lebar 14mm untuk landscape 320mm, rasio aspek 1.767)
         const isPortrait = pageHeight > pageWidth;
-        const wtrW = isPortrait ? 22 : 28;
+        const wtrW = isPortrait ? 10 : 14;
         const wtrH = wtrW / 1.767;
-        const wtrX = pageWidth - wtrW - 5; // Pojok kanan bawah
-        const wtrY = pageHeight - wtrH - 4; // Margin bawah
+        const wtrX = pageWidth - wtrW - 4; // Pojok kanan bawah
+        const wtrY = pageHeight - wtrH - 3; // Margin bawah
 
-        // Render semi-transparan (opacity 0.65)
+        // Render semi-transparan halus (opacity 0.60)
         const hasGState = typeof doc.GState === 'function';
         if (hasGState) {
           doc.saveGraphicsState();
-          doc.setGState(new doc.GState({ opacity: 0.65 }));
+          doc.setGState(new doc.GState({ opacity: 0.60 }));
         }
 
         doc.addImage(watermarkSrc, 'PNG', wtrX, wtrY, wtrW, wtrH, undefined, 'FAST');
@@ -1918,10 +1918,10 @@ window.FMCUPdf = {
       `
     });
 
-    // Otomatis bubuhkan Watermark WTRMRK di pojok kanan bawah untuk seluruh slide HTML
+    // Otomatis bubuhkan Watermark WTRMRK di pojok kanan bawah untuk seluruh slide HTML (versi mini kecil)
     const watermarkSnippet = `
-      <div class="absolute bottom-[2%] right-[2%] pointer-events-none select-none z-30 opacity-70" title="WTRMRK">
-        <img src="${PA.watermark || PA.WTRMRK || 'WTRMRK_cropped.png'}" class="h-[clamp(14px,2.2cqw,28px)] w-auto object-contain" alt="WTRMRK" />
+      <div class="absolute bottom-[1.2%] right-[1.2%] pointer-events-none select-none z-30 opacity-60" title="WTRMRK">
+        <img src="${PA.watermark || PA.WTRMRK || 'WTRMRK_cropped.png'}" class="h-[clamp(8px,1.2cqw,15px)] w-auto object-contain" alt="WTRMRK" />
       </div>
     `;
 
