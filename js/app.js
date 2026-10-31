@@ -5200,6 +5200,18 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     if (sRm) sRm.value = st.regionalManager || '';
     const sEmail = document.getElementById('form-store-email');
     if (sEmail) sEmail.value = st.email || '';
+    const sCa = document.getElementById('form-ca-link');
+    if (sCa) {
+      let storeCa = st.caSpreadsheetUrl || st.caLink || '';
+      if (!storeCa) {
+        const pastReports = window.FMCUData ? window.FMCUData.getReports() : [];
+        const past = pastReports.find((r) => r.storeCode === st.code && (r.caSpreadsheetUrl || r.caLink));
+        if (past) {
+          storeCa = past.caSpreadsheetUrl || past.caLink;
+        }
+      }
+      sCa.value = storeCa || '';
+    }
 
     if (document.getElementById('form-banner-title')) {
       document.getElementById('form-banner-title').textContent = `FMCU Visit Store Report — ${st.name}`;
@@ -5351,7 +5363,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     document.getElementById('form-area-manager').value = '';
     document.getElementById('form-regional-manager').value = '';
     document.getElementById('form-store-email').value = '';
-    const caEl1 = document.getElementById('form-ca-link'); if (caEl1) caEl1.value = 'https://tinyurl.com/store-caassignment';
+    const caEl1 = document.getElementById('form-ca-link'); if (caEl1) caEl1.value = '';
     document.getElementById('form-actual-in').value = '';
     document.getElementById('form-actual-out').value = '';
 
@@ -5419,7 +5431,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     document.getElementById('form-area-manager').value = rep.areaManager || '';
     document.getElementById('form-regional-manager').value = rep.regionalManager || '';
     document.getElementById('form-store-email').value = rep.storeEmail || '';
-    const caEl2 = document.getElementById('form-ca-link'); if (caEl2) caEl2.value = rep.caLink || 'https://tinyurl.com/store-caassignment';
+    const caEl2 = document.getElementById('form-ca-link'); if (caEl2) caEl2.value = rep.caSpreadsheetUrl || rep.caLink || '';
     document.getElementById('form-actual-in').value = rep.actualIn || '';
     document.getElementById('form-actual-out').value = rep.actualOut || '';
 
@@ -7349,7 +7361,7 @@ Instruksi:
       evidencePhotos: JSON.parse(JSON.stringify(this.formEvidencePhotos)),
       caPhotos: JSON.parse(JSON.stringify(this.formCaPhotos || [])),
       correctiveActionPhotos: JSON.parse(JSON.stringify(this.formCaPhotos || [])),
-      caLink: document.getElementById('form-ca-link')?.value?.trim() || 'https://tinyurl.com/store-caassignment',
+      caLink: document.getElementById('form-ca-link')?.value?.trim() || '',
       createdAt: new Date().toISOString()
     };
   },
