@@ -178,7 +178,7 @@ window.FMCUApp = {
     // Pulihkan active view & subtab saat refresh (atau arahkan ke default view otoritas user)
     if (this.currentUser) {
       const savedSchSub = sessionStorage.getItem('fmcu_active_sch_subtab');
-      if (savedSchSub && (savedSchSub === 'create' || savedSchSub === 'list')) {
+      if (savedSchSub && (savedSchSub === 'create' || savedSchSub === 'list' || savedSchSub === 'calendar')) {
         this.currentScheduleSubSection = savedSchSub;
       }
       const savedAnalyticsSub = sessionStorage.getItem('fmcu_active_analytics_subtab');
@@ -1925,35 +1925,50 @@ window.FMCUApp = {
   },
 
   switchScheduleSubSection(subSec, scrollTop = true) {
-    const mode = subSec === 'list' ? 'list' : 'create';
+    const validModes = ['create', 'calendar', 'list'];
+    const mode = validModes.includes(subSec) ? subSec : 'create';
     this.currentScheduleSubSection = mode;
     try {
       sessionStorage.setItem('fmcu_active_sch_subtab', mode);
     } catch (e) {}
 
     const createSec = document.getElementById('schedule-section-create');
+    const calendarSec = document.getElementById('schedule-section-calendar');
     const listSec = document.getElementById('schedule-section-list');
     const btnCreate = document.getElementById('sch-subtab-btn-create');
+    const btnCalendar = document.getElementById('sch-subtab-btn-calendar');
     const btnList = document.getElementById('sch-subtab-btn-list');
     const countPill = document.getElementById('admin-schedule-count-pill');
 
-    if (createSec) createSec.classList.toggle('hidden', mode === 'list');
+    if (createSec) createSec.classList.toggle('hidden', mode !== 'create');
+    if (calendarSec) calendarSec.classList.toggle('hidden', mode !== 'calendar');
     if (listSec) listSec.classList.toggle('hidden', mode !== 'list');
 
-    this.switchScheduleCreateMode('weekly');
+    if (mode === 'create') {
+      this.switchScheduleCreateMode('weekly');
+    } else if (mode === 'calendar') {
+      this.renderAdminCalendarView();
+    }
 
     if (btnCreate) {
       btnCreate.className =
         mode === 'create'
-          ? 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-[#009944] text-white shadow-xs'
-          : 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white';
+          ? 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-[#009944] text-white shadow-xs whitespace-nowrap'
+          : 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white whitespace-nowrap';
+    }
+
+    if (btnCalendar) {
+      btnCalendar.className =
+        mode === 'calendar'
+          ? 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-amber-600 text-white shadow-xs whitespace-nowrap'
+          : 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white whitespace-nowrap';
     }
 
     if (btnList) {
       btnList.className =
         mode === 'list'
-          ? 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-[#0099A6] text-white shadow-xs'
-          : 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white';
+          ? 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-[#0099A6] text-white shadow-xs whitespace-nowrap'
+          : 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white whitespace-nowrap';
     }
 
     if (countPill) {
@@ -8424,6 +8439,9 @@ Instruksi:
 
     // 0. Render Interactive 5-Day Multi-Visitor Planner
     this.renderWeeklySchedulePlanner();
+    if (this.currentScheduleSubSection === 'calendar') {
+      this.renderAdminCalendarView();
+    }
 
     // 1. Render Admin Schedules Table & Visitor Recap Strip
     const schPillEl = document.getElementById('admin-schedule-count-pill');
@@ -10340,6 +10358,383 @@ Instruksi:
     window.FMCUData.saveSchedules(schedules);
     this.renderAllViews();
     this.showToast('Jadwal visit dihapus', 'info');
+  },
+
+  // ==========================================================================
+  // KALENDER PENUH JADWAL VISIT (FULL MONTH VIEW) UNTUK ADMIN
+  // ==========================================================================
+  adminCalendarState: {
+    year: new Date().getFullYear(),
+    month: new Date().getMonth(),
+    selectedAuditor: 'ALL',
+    selectedStatus: 'ALL',
+    selectedDateStr: null
+  },
+
+  renderAdminCalendarView() {
+    const gridEl = document.getElementById('admin-calendar-days-grid');
+    if (!gridEl) return;
+
+    if (!this.adminCalendarState) {
+      const now = new Date();
+      this.adminCalendarState = {
+        year: now.getFullYear(),
+        month: now.getMonth(),
+        selectedAuditor: 'ALL',
+        selectedStatus: 'ALL',
+        selectedDateStr: null
+      };
+    }
+
+    const year = this.adminCalendarState.year;
+    const month = this.adminCalendarState.month;
+    const indoMonths = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+
+    // 1. Update Month & Year Heading Label
+    const labelEl = document.getElementById('admin-calendar-month-label');
+    if (labelEl) {
+      labelEl.textContent = `${indoMonths[month]} ${year}`;
+    }
+
+    // 2. Populate Visitor Filter Dropdown
+    const audFilterSel = document.getElementById('admin-calendar-filter-auditor');
+    if (audFilterSel) {
+      const auditors = this.getSchedulableAuditors();
+      const curAud = this.adminCalendarState.selectedAuditor || 'ALL';
+      audFilterSel.innerHTML =
+        `<option value="ALL">Semua Visitor (${auditors.length})</option>` +
+        auditors.map((u) => `<option value="${u.id}" ${u.id === curAud ? 'selected' : ''}>${u.name}</option>`).join('');
+    }
+
+    // 3. Retrieve All Schedules & Reports
+    const allSchedules = window.FMCUData.getSchedules() || [];
+    const reports = window.FMCUData.getReports() || [];
+    const todayStr = this.getLocalDateISO();
+
+    // Monthly Metrics Calculation
+    const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`;
+    const monthlySchedules = allSchedules.filter((s) => String(s.scheduledDate || '').startsWith(monthPrefix));
+
+    let totalInMonth = 0;
+    let completedInMonth = 0;
+    let pendingInMonth = 0;
+    const uniqueStoresSet = new Set();
+
+    monthlySchedules.forEach((s) => {
+      totalInMonth++;
+      if (s.storeCode) uniqueStoresSet.add(s.storeCode);
+      const isDone = s.status === 'COMPLETED' || Boolean(s.reportId) || reports.some((r) => r.storeCode === s.storeCode && r.visitDate === s.scheduledDate);
+      if (isDone) completedInMonth++;
+      else pendingInMonth++;
+    });
+
+    const statTotalEl = document.getElementById('admin-cal-stat-total');
+    if (statTotalEl) statTotalEl.innerHTML = `Total: <strong>${totalInMonth}</strong> Jadwal`;
+    const statCompEl = document.getElementById('admin-cal-stat-completed');
+    if (statCompEl) statCompEl.innerHTML = `✓ Selesai: <strong>${completedInMonth}</strong>`;
+    const statPendEl = document.getElementById('admin-cal-stat-pending');
+    if (statPendEl) statPendEl.innerHTML = `⏳ Pending: <strong>${pendingInMonth}</strong>`;
+    const statStoresEl = document.getElementById('admin-cal-stat-stores');
+    if (statStoresEl) statStoresEl.innerHTML = `🏬 Toko: <strong>${uniqueStoresSet.size}</strong>`;
+
+    // 4. Calculate 7-day grid starting from Monday
+    const firstDay = new Date(year, month, 1);
+    const dayOfWeek = firstDay.getDay(); // 0 is Sunday, 1 is Monday...
+    const startOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Mon=0, Tue=1, ..., Sun=6
+
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+    const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
+
+    const selAuditor = this.adminCalendarState.selectedAuditor || 'ALL';
+    const selStatus = this.adminCalendarState.selectedStatus || 'ALL';
+
+    const cellHtmls = [];
+
+    for (let i = 0; i < totalCells; i++) {
+      let cellYear = year;
+      let cellMonth = month;
+      let cellDayNum = 0;
+      let isCurrentMonth = true;
+
+      if (i < startOffset) {
+        // Prev Month Padding
+        isCurrentMonth = false;
+        cellDayNum = daysInPrevMonth - startOffset + 1 + i;
+        if (month === 0) {
+          cellMonth = 11;
+          cellYear = year - 1;
+        } else {
+          cellMonth = month - 1;
+        }
+      } else if (i >= startOffset + daysInMonth) {
+        // Next Month Padding
+        isCurrentMonth = false;
+        cellDayNum = i - (startOffset + daysInMonth) + 1;
+        if (month === 11) {
+          cellMonth = 0;
+          cellYear = year + 1;
+        } else {
+          cellMonth = month + 1;
+        }
+      } else {
+        // Current Month
+        isCurrentMonth = true;
+        cellDayNum = i - startOffset + 1;
+      }
+
+      const cellDateStr = `${cellYear}-${String(cellMonth + 1).padStart(2, '0')}-${String(cellDayNum).padStart(2, '0')}`;
+      const isToday = cellDateStr === todayStr;
+
+      // Filter schedules on this date
+      let daySchedules = allSchedules.filter((s) => s.scheduledDate === cellDateStr);
+
+      if (selAuditor !== 'ALL') {
+        daySchedules = daySchedules.filter((s) => s.auditorId === selAuditor);
+      }
+
+      if (selStatus === 'COMPLETED') {
+        daySchedules = daySchedules.filter((s) => s.status === 'COMPLETED' || s.reportId || reports.some((r) => r.storeCode === s.storeCode && r.visitDate === s.scheduledDate));
+      } else if (selStatus === 'PENDING') {
+        daySchedules = daySchedules.filter((s) => s.status !== 'COMPLETED' && !s.reportId && !reports.some((r) => r.storeCode === s.storeCode && r.visitDate === s.scheduledDate));
+      }
+
+      const completedCount = daySchedules.filter((s) => s.status === 'COMPLETED' || s.reportId || reports.some((r) => r.storeCode === s.storeCode && r.visitDate === s.scheduledDate)).length;
+      const pendingCount = daySchedules.length - completedCount;
+
+      cellHtmls.push(`
+        <div onclick="FMCUApp.openAdminCalendarDayDetail('${cellDateStr}')"
+             class="min-h-[85px] sm:min-h-[115px] p-1.5 sm:p-2 rounded-xl flex flex-col justify-between transition cursor-pointer select-none group ${
+               !isCurrentMonth
+                 ? 'bg-slate-50/50 border border-slate-100 text-slate-400 opacity-60 hover:opacity-100 hover:bg-slate-50'
+                 : isToday
+                 ? 'bg-emerald-50/50 border-2 border-[#009944] shadow-xs ring-2 ring-emerald-500/20'
+                 : 'bg-white border border-slate-200/90 hover:border-amber-400 hover:shadow-xs'
+             }">
+          <!-- Header Cell: Tanggal & Badge Jumlah -->
+          <div class="flex items-center justify-between gap-1 mb-1">
+            <span class="text-xs font-black ${
+              isToday
+                ? 'w-6 h-6 rounded-full bg-[#009944] text-white flex items-center justify-center text-[11px] shadow-2xs'
+                : !isCurrentMonth
+                ? 'text-slate-400'
+                : 'text-slate-700 group-hover:text-amber-700'
+            }">${cellDayNum}</span>
+
+            ${daySchedules.length > 0 ? `
+              <div class="flex items-center gap-0.5">
+                ${completedCount > 0 ? `<span class="text-[9px] font-extrabold px-1 rounded-full bg-emerald-100 text-emerald-800" title="${completedCount} Selesai">✓${completedCount}</span>` : ''}
+                ${pendingCount > 0 ? `<span class="text-[9px] font-extrabold px-1 rounded-full bg-amber-100 text-amber-800" title="${pendingCount} Pending">⏳${pendingCount}</span>` : ''}
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- Body Cell: List Toko (Maksimal 2 kartu ringkas) -->
+          <div class="space-y-1 flex-1 overflow-hidden">
+            ${daySchedules.slice(0, 2).map((s) => {
+              const isDone = s.status === 'COMPLETED' || s.reportId || reports.some((r) => r.storeCode === s.storeCode && r.visitDate === s.scheduledDate);
+              return `
+                <div class="px-1.5 py-0.5 rounded text-[10px] leading-tight font-bold truncate flex items-center gap-1 ${
+                  isDone ? 'bg-emerald-100/90 text-emerald-900 border border-emerald-200' : 'bg-amber-100/90 text-amber-900 border border-amber-200'
+                }" title="${s.storeName} - ${s.auditorName || ''}">
+                  <span class="w-1.5 h-1.5 rounded-full shrink-0 ${isDone ? 'bg-emerald-600' : 'bg-amber-600'}"></span>
+                  <span class="truncate">${s.storeName}</span>
+                </div>
+              `;
+            }).join('')}
+
+            ${daySchedules.length > 2 ? `
+              <div class="text-[9px] font-extrabold text-amber-700 pt-0.5 group-hover:underline truncate">
+                +${daySchedules.length - 2} toko lagi...
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- Footer Cell -->
+          <div class="text-[9px] text-slate-400 font-medium text-right pt-0.5 hidden sm:block">
+            ${daySchedules.length > 0 ? `<span class="text-[9px] text-slate-500 font-semibold group-hover:text-amber-700">Detail &raquo;</span>` : ''}
+          </div>
+        </div>
+      `);
+    }
+
+    gridEl.innerHTML = cellHtmls.join('');
+  },
+
+  shiftAdminCalendarMonth(delta) {
+    this.triggerHaptic('light');
+    if (!this.adminCalendarState) {
+      const now = new Date();
+      this.adminCalendarState = { year: now.getFullYear(), month: now.getMonth(), selectedAuditor: 'ALL', selectedStatus: 'ALL', selectedDateStr: null };
+    }
+    this.adminCalendarState.month += delta;
+    if (this.adminCalendarState.month < 0) {
+      this.adminCalendarState.month = 11;
+      this.adminCalendarState.year -= 1;
+    } else if (this.adminCalendarState.month > 11) {
+      this.adminCalendarState.month = 0;
+      this.adminCalendarState.year += 1;
+    }
+    this.renderAdminCalendarView();
+  },
+
+  setAdminCalendarToCurrentMonth() {
+    this.triggerHaptic('light');
+    const now = new Date();
+    this.adminCalendarState = {
+      year: now.getFullYear(),
+      month: now.getMonth(),
+      selectedAuditor: this.adminCalendarState?.selectedAuditor || 'ALL',
+      selectedStatus: this.adminCalendarState?.selectedStatus || 'ALL',
+      selectedDateStr: null
+    };
+    this.renderAdminCalendarView();
+  },
+
+  onAdminCalendarFilterChange() {
+    if (!this.adminCalendarState) return;
+    const audSel = document.getElementById('admin-calendar-filter-auditor');
+    const statusSel = document.getElementById('admin-calendar-filter-status');
+    if (audSel) this.adminCalendarState.selectedAuditor = audSel.value;
+    if (statusSel) this.adminCalendarState.selectedStatus = statusSel.value;
+    this.renderAdminCalendarView();
+  },
+
+  openAdminCalendarDayDetail(dateStr) {
+    if (!dateStr) return;
+    this.triggerHaptic('light');
+    this.adminCalendarState.selectedDateStr = dateStr;
+
+    const modal = document.getElementById('modal-admin-calendar-day-detail');
+    const titleEl = document.getElementById('modal-cal-day-title');
+    const subtitleEl = document.getElementById('modal-cal-day-subtitle');
+    const bodyEl = document.getElementById('modal-cal-day-body');
+    const btnOpenPlanner = document.getElementById('modal-cal-btn-open-planner');
+    if (!modal || !bodyEl) return;
+
+    const dayFormatted = window.FMCUPdf.formatIndonesianDate(dateStr, true);
+    if (titleEl) titleEl.textContent = dayFormatted;
+
+    const schedules = window.FMCUData.getSchedules() || [];
+    const reports = window.FMCUData.getReports() || [];
+    const daySchedules = schedules.filter((s) => s.scheduledDate === dateStr);
+
+    if (subtitleEl) {
+      subtitleEl.textContent = `${daySchedules.length} Jadwal Kunjungan Toko`;
+    }
+
+    if (btnOpenPlanner) {
+      btnOpenPlanner.onclick = () => this.openPlannerForDate(dateStr);
+    }
+
+    if (daySchedules.length === 0) {
+      bodyEl.innerHTML = `
+        <div class="border border-dashed border-slate-200 rounded-2xl py-10 px-4 text-center space-y-2 bg-slate-50/50">
+          <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl mx-auto">
+            <i class="fa-regular fa-calendar-xmark"></i>
+          </div>
+          <div class="text-slate-800 font-extrabold text-sm">Tidak Ada Jadwal Visit</div>
+          <div class="text-slate-500 text-xs max-w-sm mx-auto">Belum ada kunjungan toko yang dijadwalkan untuk tanggal ${dayFormatted}.</div>
+          <div class="pt-3">
+            <button type="button" onclick="FMCUApp.openPlannerForDate('${dateStr}')" class="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-xs transition inline-flex items-center gap-1.5 cursor-pointer">
+              <i class="fa-solid fa-calendar-plus"></i>
+              <span>Jadwalkan Toko di Tanggal Ini</span>
+            </button>
+          </div>
+        </div>
+      `;
+    } else {
+      bodyEl.innerHTML = daySchedules.map((s) => {
+        const matchedRep = reports.find((r) => (s.reportId && r.id === s.reportId) || (r.storeCode === s.storeCode && r.visitDate === s.scheduledDate));
+        const isDone = s.status === 'COMPLETED' || Boolean(s.reportId) || Boolean(matchedRep);
+        const repId = s.reportId || matchedRep?.id || null;
+        return `
+          <div class="border ${isDone ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200 bg-white'} rounded-2xl p-4 space-y-3 shadow-2xs">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${isDone ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
+                    ${isDone ? '✓ Selesai' : '⏳ Terjadwal'}
+                  </span>
+                  <span class="text-xs font-black text-slate-900">${s.storeName} (${s.storeCode})</span>
+                </div>
+                <div class="text-[11px] text-slate-500 mt-0.5">
+                  <i class="fa-solid fa-user-check text-slate-400 mr-1"></i>Visitor: <strong class="text-slate-800">${s.auditorName || 'Belum Ditugaskan'}</strong>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-1.5">
+                ${isDone && repId ? `
+                  <button type="button" onclick="FMCUApp.openReportPreview('${repId}'); FMCUApp.closeAdminCalendarDayDetail();" class="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-2xs transition flex items-center gap-1 cursor-pointer">
+                    <i class="fa-solid fa-file-pdf"></i>
+                    <span>Lihat PDF</span>
+                  </button>
+                ` : `
+                  <button type="button" onclick="FMCUApp.openStoreVisitForm('${s.storeCode}', '${s.id}'); FMCUApp.closeAdminCalendarDayDetail();" class="px-3 py-1.5 rounded-xl fm-gradient text-white font-extrabold text-xs shadow-2xs transition flex items-center gap-1 cursor-pointer">
+                    <i class="fa-solid fa-file-waveform"></i>
+                    <span>Form Visit</span>
+                  </button>
+                  <button type="button" onclick="FMCUApp.deleteSchedule('${s.id}'); FMCUApp.openAdminCalendarDayDetail('${dateStr}');" class="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs transition cursor-pointer" title="Hapus Jadwal Ini">
+                    <i class="fa-solid fa-trash-can"></i>
+                  </button>
+                `}
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+              <div class="flex items-center gap-1.5 text-slate-600">
+                <i class="fa-regular fa-clock text-slate-400"></i>
+                <span>Window: <strong>${s.window || '08:30 - 17:30'}</strong></span>
+              </div>
+              <div class="flex items-center gap-1.5 text-slate-600">
+                <i class="fa-solid fa-crosshairs text-slate-400"></i>
+                <span>Fokus: <strong>${s.focus || 'Audit Standar'}</strong></span>
+              </div>
+              ${s.actualIn ? `
+                <div class="flex items-center gap-1.5 text-emerald-700 sm:col-span-2 font-semibold">
+                  <i class="fa-solid fa-location-dot text-emerald-600"></i>
+                  <span>Check-in: ${s.actualIn} ${s.actualOut ? `| Check-out: ${s.actualOut}` : ''}</span>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  },
+
+  closeAdminCalendarDayDetail() {
+    const modal = document.getElementById('modal-admin-calendar-day-detail');
+    if (modal) modal.classList.add('hidden');
+    document.body.style.overflow = '';
+  },
+
+  openPlannerForDate(dateStr) {
+    if (!dateStr) return;
+    this.closeAdminCalendarDayDetail();
+    // Calculate Monday of the week for dateStr
+    const parts = dateStr.split('-');
+    const dt = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    const day = dt.getDay(); // 0 Sun, 1 Mon ...
+    const diff = dt.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(dt.setDate(diff));
+    const yyyy = monday.getFullYear();
+    const mm = String(monday.getMonth() + 1).padStart(2, '0');
+    const dd = String(monday.getDate()).padStart(2, '0');
+    const mondayStr = `${yyyy}-${mm}-${dd}`;
+
+    this.weeklyMondayDate = mondayStr;
+    const mondayInput = document.getElementById('weekly-monday-input');
+    if (mondayInput) mondayInput.value = mondayStr;
+    this.onChangeWeeklyMonday(mondayStr);
+    this.switchScheduleSubSection('create');
+    this.showToast(`Membuka Planner 1 Week untuk periode minggu ${mondayStr}.`, 'info');
   },
 
   handleSaveStore(event) {
