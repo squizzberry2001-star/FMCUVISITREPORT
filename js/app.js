@@ -206,6 +206,7 @@ window.FMCUApp = {
     // Auto-request Mandatory GPS & Push Notification Permission on load
     this.initMandatoryGpsSystem();
     this.initMandatoryNotificationSystem();
+    this.initPwaInstallPrompt();
 
     // Listener visibility tab untuk re-check notifikasi saat kembali ke browser
     document.addEventListener('visibilitychange', () => {
@@ -2956,7 +2957,7 @@ window.FMCUApp = {
     let currentInVal = inInput?.value?.trim() || activeCheckIn?.actualIn || '';
     let currentOutVal = outInput?.value?.trim() || activeCheckIn?.actualOut || '';
 
-    const GEOFENCE_RADIUS = 15; // Kepatuhan radius lokasi toko <= 15 meter
+    const GEOFENCE_RADIUS = this.isMallToleranceActive ? 50 : 15; // Kepatuhan radius toko <= 15m (50m jika Mode Mall/Gedung aktif)
     const now = new Date();
     const currentTotalMins = now.getHours() * 60 + now.getMinutes();
     const CUTOFF_OUT_MINS = 17 * 60 + 30; // 17:30 WIB
@@ -5162,6 +5163,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     try {
       const draft = this.buildCurrentFormReportObject();
       window.FMCUData.saveStoreDraft(storeCode, draft);
+      this.updateLiveAutosaveBadge();
     } catch (e) {
       console.warn('Draft save error:', e);
     }
@@ -7420,22 +7422,27 @@ Instruksi:
   async handleSaveAndPreview(event) {
     if (event) event.preventDefault();
     if (!this.validateVisitForm()) return;
-    this.showToast('Menyimpan laporan ke Firestore & menyinkronkan foto ke Google Drive...', 'info');
-    const saved = await this.collectAndSaveFormReport();
-    this.activePreviewReportId = saved.id;
-    this.renderAllViews();
-    this.navigate('preview');
-    this.showToast(`Laporan Visit Toko ${saved.storeName} berhasil disimpan!`, 'success');
+    this.openPreSubmissionReviewModal('preview');
   },
 
   async handleSaveAndSendIntegration() {
     if (!this.validateVisitForm()) return;
+    this.openPreSubmissionReviewModal('send');
+  },
+
+  async proceedWithFormReportFinalize(targetAction = 'preview') {
+    this.closePreSubmissionReviewModal();
     this.showToast('Menyimpan laporan ke Firestore & menyinkronkan foto ke Google Drive...', 'info');
     const saved = await this.collectAndSaveFormReport();
     this.activePreviewReportId = saved.id;
     this.renderAllViews();
-    this.triggerConfetti();
-    this.openIntegrationSendModal(saved.id);
+    if (targetAction === 'send') {
+      this.triggerConfetti();
+      this.openIntegrationSendModal(saved.id);
+    } else {
+      this.navigate('preview');
+      this.showToast(`Laporan Visit Toko ${saved.storeName} berhasil disimpan!`, 'success');
+    }
   },
 
   // ==========================================================================
@@ -10429,6 +10436,244 @@ Instruksi:
       this.logScheduleAction('DELETE', `Menghapus jadwal visit toko ${target.storeName} (${target.storeCode}) untuk ${target.auditorName || '-'} tanggal ${target.scheduledDate}`, 'Daftar Jadwal');
     }
   },
+
+  // ==========================================================================
+  // FITUR IMPROVEMENT USER POINT 2-5
+  // ==========================================================================
+
+  // Point 2: PWA Install Prompt Banner
+  deferredPwaPrompt: null,
+
+  initPwaInstallPrompt() {
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      this.deferredPwaPrompt = e;
+      const dismissed = sessionStorage.getItem('fmcu_pwa_install_dismissed');
+      if (!dismissed) {
+        const banner = document.getElementById('pwa-install-banner');
+        if (banner) banner.classList.remove('hidden');
+      }
+    });
+
+    window.addEventListener('appinstalled', () => {
+      this.deferredPwaPrompt = null;
+      const banner = document.getElementById('pwa-install-banner');
+      if (banner) banner.classList.add('hidden');
+      this.showToast('🎉 Aplikasi FMCU-ONEGATESYSTEM berhasil dipasang di layar utama!', 'success');
+    });
+  },
+
+  async triggerPwaInstall() {
+    this.triggerHaptic('light');
+    if (this.deferredPwaPrompt) {
+      this.deferredPwaPrompt.prompt();
+      const choice = await this.deferredPwaPrompt.userChoice;
+      if (choice && choice.outcome === 'accepted') {
+        this.showToast('Memasang aplikasi ke layar utama...', 'info');
+      }
+      this.deferredPwaPrompt = null;
+      document.getElementById('pwa-install-banner')?.classList.add('hidden');
+    } else {
+      const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      if (isIos) {
+        alert('Untuk memasang di iPhone/iPad:\n1. Ketuk tombol Bagikan (Share ⎋) di Safari\n2. Gulir ke bawah lalu pilih "Tambahkan ke Layar Utama" (+)');
+      } else {
+        this.showToast('Buka menu browser (titik 3 di kanan atas) lalu pilih "Tambahkan ke Layar Utama" atau "Install App".', 'info', 5000);
+      }
+    }
+  },
+
+  dismissPwaInstallBanner() {
+    document.getElementById('pwa-install-banner')?.classList.add('hidden');
+    try {
+      sessionStorage.setItem('fmcu_pwa_install_dismissed', '1');
+    } catch (e) {}
+  },
+
+  // Point 3: Live Autosave Badge
+  updateLiveAutosaveBadge() {
+    const badge = document.getElementById('form-live-autosave-badge');
+    const textEl = document.getElementById('form-live-autosave-text');
+    if (!badge || !textEl) return;
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    textEl.textContent = `Tersimpan otomatis pk. ${timeStr}`;
+    badge.classList.remove('bg-white/15', 'text-emerald-200');
+    badge.classList.add('bg-emerald-400/30', 'text-white', 'border-emerald-300');
+    setTimeout(() => {
+      badge.classList.remove('bg-emerald-400/30', 'text-white', 'border-emerald-300');
+      badge.classList.add('bg-white/15', 'text-emerald-200');
+    }, 1500);
+  },
+
+  // Point 4: Refresh GPS & Mode Toleransi Mall / Gedung (50m)
+  isMallToleranceActive: false,
+
+  refreshGpsLocationWithTolerance() {
+    this.triggerHaptic('light');
+    const icon = document.getElementById('icon-refresh-gps');
+    if (icon) icon.classList.add('fa-spin');
+
+    if (!navigator.geolocation) {
+      this.showToast('Perangkat tidak mendukung sensor Geolocation GPS.', 'error');
+      if (icon) icon.classList.remove('fa-spin');
+      return;
+    }
+
+    this.isMallToleranceActive = true;
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        if (icon) icon.classList.remove('fa-spin');
+        this.liveGps = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy || 10
+        };
+
+        const targetStore = this.getActiveTargetStore();
+        let distMsg = '';
+        if (targetStore && targetStore.lat && targetStore.lng) {
+          const distM = this.calculateHaversineDistance(
+            this.liveGps.lat,
+            this.liveGps.lng,
+            targetStore.lat,
+            targetStore.lng
+          );
+          distMsg = `Jarak ke toko: ${Math.round(distM)}m. `;
+        }
+
+        const acc = Math.round(pos.coords.accuracy || 0);
+        this.checkAutomaticGeofenceInOut();
+        this.updateFormGuardVisibility();
+        this.showToast(`📍 GPS diperbarui (Akurasi ±${acc}m). ${distMsg}Mode Mall/Gedung (Toleransi 50m) Aktif.`, 'success', 5000);
+      },
+      (err) => {
+        if (icon) icon.classList.remove('fa-spin');
+        this.showToast(`Gagal membaca sinyal GPS: ${err.message}. Pastikan izin lokasi browser aktif.`, 'warning', 4000);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  },
+
+  // Point 5: Pre-Submission Review Modal
+  openPreSubmissionReviewModal(targetAction = 'preview') {
+    this.triggerHaptic('light');
+    const modal = document.getElementById('modal-visit-pre-submission-review');
+    const infoEl = document.getElementById('modal-review-store-info');
+    const container = document.getElementById('modal-review-checklist-container');
+    const warningsEl = document.getElementById('modal-review-warnings-container');
+    const btnConfirm = document.getElementById('modal-review-btn-confirm');
+    if (!modal || !container) return;
+
+    const storeName = document.getElementById('form-store-name')?.value.trim() || 'Toko';
+    const storeCode = document.getElementById('form-store-code')?.value.trim() || '-';
+    const visitDate = document.getElementById('form-visit-date')?.value.trim() || this.getLocalDateISO();
+    const dateFormatted = window.FMCUPdf.formatIndonesianDate(visitDate, true);
+
+    if (infoEl) infoEl.textContent = `${storeName} (${storeCode}) • ${dateFormatted}`;
+
+    const actualIn = document.getElementById('form-actual-in')?.value.trim() || '-';
+    const actualOut = document.getElementById('form-actual-out')?.value.trim() || this.getCurrentTimeWIB();
+    const auditorName = document.getElementById('form-auditor-name')?.value.trim() || this.currentUser?.name || '-';
+    const qscScoreVal = Number(document.getElementById('form-qsc-score')?.value || 0);
+
+    const qscUploaded = (this.formQscPhotos || []).filter((p) => Boolean(p.dataUrl)).length;
+    const obsCount = (this.formObservations || []).length;
+    const evidenceUploaded = (this.formEvidencePhotos || []).filter((p) => Boolean(p.dataUrl)).length;
+    const crewCount = (this.formCrew || []).filter((c) => Boolean(c.name && c.name.trim())).length;
+
+    const warnings = [];
+
+    // Validasi Kelengkapan
+    if (qscUploaded === 0) {
+      warnings.push('⚠️ Belum ada foto lembar QSC / FamiTrack yang diunggah (Wajib minimal 1 lembar).');
+    }
+    if (actualIn === '--:-- WIB' || actualIn === '-') {
+      warnings.push('⚠️ Jam Actual In belum terekam otomatis oleh geofence.');
+    }
+    if (crewCount === 0) {
+      warnings.push('⚠️ Belum ada data kru toko (Store Head / Shift Leader) yang diisi.');
+    }
+
+    container.innerHTML = `
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <div class="p-3 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-1">
+          <div class="text-[10px] font-black uppercase text-slate-400">Profil & PIC Kunjungan</div>
+          <div class="text-xs font-black text-slate-900">${storeName}</div>
+          <div class="text-[11px] text-slate-600">Visitor: <strong class="text-slate-800">${auditorName}</strong></div>
+          <div class="text-[10px] text-slate-500">${crewCount} Kru toko tercatat</div>
+        </div>
+
+        <div class="p-3 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-1">
+          <div class="text-[10px] font-black uppercase text-slate-400">Waktu Kunjungan (In / Out)</div>
+          <div class="text-xs font-black text-emerald-800 flex items-center gap-1.5">
+            <i class="fa-solid fa-clock text-emerald-600"></i>
+            <span>In: ${actualIn} &bull; Out: ${actualOut}</span>
+          </div>
+          <div class="text-[10px] text-slate-500">Radius Geofence: ${this.isMallToleranceActive ? 'Toleransi 50m' : 'Standar 15m'}</div>
+        </div>
+
+        <div class="p-3 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-1">
+          <div class="text-[10px] font-black uppercase text-slate-400">Audit QSC & FamiTrack</div>
+          <div class="text-xs font-black ${qscScoreVal >= 85 ? 'text-emerald-700' : qscScoreVal >= 70 ? 'text-amber-700' : 'text-rose-700'}">
+            Skor QSC: ${qscScoreVal > 0 ? qscScoreVal.toFixed(1) + '%' : 'Belum diisi'}
+          </div>
+          <div class="text-[11px] ${qscUploaded > 0 ? 'text-emerald-700' : 'text-rose-600 font-bold'}">
+            ${qscUploaded > 0 ? `✓ ${qscUploaded} Foto lembar QSC siap cetak` : '✗ Belum ada foto lembar QSC'}
+          </div>
+        </div>
+
+        <div class="p-3 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-1">
+          <div class="text-[10px] font-black uppercase text-slate-400">Temuan Defect & Evidence</div>
+          <div class="text-xs font-black text-slate-900">${obsCount} Temuan Observasi</div>
+          <div class="text-[11px] text-slate-600">${evidenceUploaded} Foto bukti temuan terunggah</div>
+        </div>
+      </div>
+    `;
+
+    if (warningsEl) {
+      if (warnings.length > 0) {
+        warningsEl.innerHTML = `
+          <div class="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-950 text-xs space-y-1">
+            <div class="font-extrabold flex items-center gap-1.5 text-amber-800">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <span>Perhatian Sebelum Mengirim:</span>
+            </div>
+            <ul class="list-disc list-inside space-y-0.5 text-[11px] text-amber-900 font-medium">
+              ${warnings.map((w) => `<li>${w}</li>`).join('')}
+            </ul>
+            <div class="text-[10px] text-amber-800 pt-1 font-semibold">Anda tetap dapat melanjutkan jika data darurat di lapangan sudah memadai.</div>
+          </div>
+        `;
+      } else {
+        warningsEl.innerHTML = `
+          <div class="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-950 text-xs flex items-center gap-2">
+            <i class="fa-solid fa-circle-check text-emerald-600 text-sm"></i>
+            <span><strong>Seluruh Data Lengkap:</strong> Laporan siap difinalisasi dan dicetak menjadi file PDF resmi FMCU.</span>
+          </div>
+        `;
+      }
+    }
+
+    if (btnConfirm) {
+      btnConfirm.onclick = () => this.proceedWithFormReportFinalize(targetAction);
+    }
+
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  },
+
+  closePreSubmissionReviewModal() {
+    const modal = document.getElementById('modal-visit-pre-submission-review');
+    if (modal) modal.classList.add('hidden');
+    document.body.style.overflow = '';
+  },
+
 
   // ==========================================================================
   // FITUR IMPROVEMENT ADMIN 1-5

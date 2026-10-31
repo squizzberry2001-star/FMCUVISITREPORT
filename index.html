@@ -718,6 +718,25 @@
           </div>
         </div>
 
+        <!-- BANNER PASANG APLIKASI DI LAYAR UTAMA (PWA INSTALL BANNER) -->
+        <div id="pwa-install-banner" class="hidden p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-teal-700 via-emerald-600 to-[#009944] text-white shadow-md flex items-center justify-between gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div class="flex items-center gap-3 min-w-0">
+            <img src="FMCUICON.png" alt="FMCU" class="w-10 h-10 rounded-xl bg-white p-1 shadow-xs shrink-0" />
+            <div class="min-w-0">
+              <h4 class="font-extrabold text-xs sm:text-sm leading-tight truncate">Pasang FMCU-ONEGATESYSTEM di HP</h4>
+              <p class="text-[10px] sm:text-[11px] text-emerald-100 truncate">Akses cepat layar penuh tanpa browser layaknya aplikasi Android / iOS</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button type="button" onclick="FMCUApp.triggerPwaInstall()" class="px-3.5 py-1.5 rounded-xl bg-white text-emerald-900 hover:bg-emerald-50 font-black text-xs shadow-xs transition cursor-pointer">
+              Pasang Aplikasi
+            </button>
+            <button type="button" onclick="FMCUApp.dismissPwaInstallBanner()" class="w-7 h-7 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center text-xs transition cursor-pointer">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        </div>
+
         <!-- ==============================================================
              SUB-SECTION 1: NEWS & MAPS
              ============================================================== -->
@@ -1290,9 +1309,15 @@
                     FMCU Visit Store Report
                   </h2>
                 </div>
-                <div id="form-banner-gps" class="text-[10px] sm:text-xs text-slate-300 font-mono flex items-center gap-1.5 truncate">
-                  <i class="fa-solid fa-location-dot text-emerald-400 text-[10px] shrink-0"></i>
-                  <span class="truncate">Live GPS: Mendeteksi koordinat...</span>
+                <div class="flex flex-wrap items-center gap-2">
+                  <div id="form-banner-gps" class="text-[10px] sm:text-xs text-slate-300 font-mono flex items-center gap-1.5 truncate">
+                    <i class="fa-solid fa-location-dot text-emerald-400 text-[10px] shrink-0"></i>
+                    <span class="truncate">Live GPS: Mendeteksi koordinat...</span>
+                  </div>
+                  <div id="form-live-autosave-badge" class="px-2 py-0.5 rounded-full bg-white/15 border border-white/25 text-[9.5px] font-extrabold text-emerald-200 flex items-center gap-1 shrink-0 transition-all duration-300">
+                    <i class="fa-solid fa-cloud-arrow-up text-[9px] text-emerald-300"></i>
+                    <span id="form-live-autosave-text">Draf tersimpan otomatis</span>
+                  </div>
                 </div>
               </div>
 
@@ -1328,12 +1353,18 @@
                 </div>
 
                 <!-- Row 2: Badge Radius Geofence (Tepat di Bawah Badge IN & OUT) -->
-                <div id="form-geofence-radar-pill" class="w-full bg-emerald-500/20 border border-emerald-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center gap-2">
-                  <div class="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0"></div>
-                  <div class="min-w-0 flex-1">
-                    <div id="form-geofence-radar-title" class="font-extrabold text-[10px] sm:text-[11px] text-emerald-200 leading-tight truncate">Radar Geofence 15m Aktif</div>
-                    <div id="form-geofence-radar-desc" class="text-[9px] sm:text-[9.5px] text-emerald-300/80 leading-tight truncate mt-0.5">Mendeteksi jarak toko...</div>
+                <div id="form-geofence-radar-pill" class="w-full bg-emerald-500/20 border border-emerald-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <div class="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0"></div>
+                    <div class="min-w-0 flex-1">
+                      <div id="form-geofence-radar-title" class="font-extrabold text-[10px] sm:text-[11px] text-emerald-200 leading-tight truncate">Radar Geofence 15m Aktif</div>
+                      <div id="form-geofence-radar-desc" class="text-[9px] sm:text-[9.5px] text-emerald-300/80 leading-tight truncate mt-0.5">Mendeteksi jarak toko...</div>
+                    </div>
                   </div>
+                  <button type="button" onclick="FMCUApp.refreshGpsLocationWithTolerance()" class="px-2.5 py-1 rounded-lg bg-white/20 hover:bg-white/30 text-white font-extrabold text-[10px] border border-white/25 shrink-0 flex items-center gap-1 transition cursor-pointer shadow-2xs" title="Segarkan koordinat GPS & aktifkan mode toleransi mall/gedung (50m)">
+                    <i class="fa-solid fa-arrows-rotate text-[10px]" id="icon-refresh-gps"></i>
+                    <span>Segarkan GPS</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -3897,6 +3928,51 @@ service cloud.firestore {
           </button>
           <button type="button" onclick="FMCUApp.closeAdminCalendarDayDetail()" class="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-extrabold text-xs transition cursor-pointer">
             Tutup
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         MODAL REVIEW PRA-KIRIM (PRE-SUBMISSION CHECKLIST MODAL)
+         ============================================================ -->
+    <div id="modal-visit-pre-submission-review" class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 hidden">
+      <div class="bg-white rounded-3xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+        <!-- Header -->
+        <div class="p-4 sm:p-5 bg-gradient-to-r from-emerald-600 to-[#009944] text-white flex items-center justify-between shrink-0">
+          <div class="flex items-center gap-2.5">
+            <div class="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-lg shrink-0">
+              <i class="fa-solid fa-clipboard-check"></i>
+            </div>
+            <div>
+              <h3 class="font-black text-sm sm:text-base leading-tight">Review Kelengkapan Laporan Visit</h3>
+              <p id="modal-review-store-info" class="text-xs text-emerald-100 font-medium">Periksa ringkasan sebelum finalisasi laporan PDF</p>
+            </div>
+          </div>
+          <button type="button" onclick="FMCUApp.closePreSubmissionReviewModal()" class="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition cursor-pointer">
+            <i class="fa-solid fa-xmark text-sm"></i>
+          </button>
+        </div>
+
+        <!-- Body -->
+        <div class="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1 bg-slate-50/50">
+          <!-- Summary Cards Grid -->
+          <div id="modal-review-checklist-container" class="space-y-2.5">
+            <!-- Dynamically populated with status pills -->
+          </div>
+
+          <!-- Alert warnings container -->
+          <div id="modal-review-warnings-container" class="space-y-2"></div>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-3 sm:p-4 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
+          <button type="button" onclick="FMCUApp.closePreSubmissionReviewModal()" class="px-4 py-2 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 font-extrabold text-xs transition cursor-pointer">
+            Periksa Kembali
+          </button>
+          <button type="button" id="modal-review-btn-confirm" class="px-5 py-2.5 rounded-xl fm-gradient hover:opacity-95 text-white font-extrabold text-xs sm:text-sm shadow-md transition flex items-center gap-1.5 cursor-pointer">
+            <i class="fa-solid fa-circle-check text-xs"></i>
+            <span>Konfirmasi & Buat Laporan PDF</span>
           </button>
         </div>
       </div>
