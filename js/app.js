@@ -909,6 +909,13 @@ window.FMCUApp = {
   setLoggedInUser(user) {
     this.currentUser = user;
     window.FMCUData.setSession(user);
+    if (this.liveGps && this.liveGps.lat !== null && this.liveGps.lng !== null && this.isAuditorUser(user)) {
+      window.FMCUData.updateUserLocation(
+        user.id || user.username,
+        this.liveGps.lat,
+        this.liveGps.lng
+      );
+    }
     this.populateHeaderRoleSwitcher();
     this.updateUserHeaderUI();
     this.renderAllViews();
@@ -1156,6 +1163,23 @@ window.FMCUApp = {
     return auths.includes(authKey);
   },
 
+  isPrivilegedAdmin(user = this.currentUser) {
+    if (!user) return false;
+    const role = String(user.role || '').toUpperCase();
+    const username = String(user.username || '').toLowerCase();
+    return Boolean(
+      role === 'SUPER_ADMIN' ||
+      role === 'ADMIN_SCHEDULE' ||
+      role === 'SCHEDULE_ADMIN' ||
+      role === 'AREA_MANAGER' ||
+      role === 'REGIONAL_MANAGER' ||
+      username === 'admin' ||
+      this.hasAuthority('manage_schedule', user) ||
+      this.hasAuthority('manage_users', user) ||
+      this.hasAuthority('view_live_maps', user)
+    );
+  },
+
   hasAdminAuthority(user = this.currentUser) {
     if (!user) return false;
     return (
@@ -1258,9 +1282,7 @@ window.FMCUApp = {
     });
 
     // 3. Sembunyikan label "18 Bestie / Visitor" di sisi User Biasa (Hanya tampil bagi Admin)
-    const isPrivilegedAdmin = Boolean(
-      u && (u.role === 'SUPER_ADMIN' || u.role === 'ADMIN_SCHEDULE' || u.username === 'admin')
-    );
+    const isPrivilegedAdmin = this.isPrivilegedAdmin(u);
     const homeLegendBestie = document.getElementById('home-legend-bestie-count');
     if (homeLegendBestie) homeLegendBestie.classList.toggle('hidden', !isPrivilegedAdmin);
 
@@ -2480,14 +2502,96 @@ window.FMCUApp = {
   // PINPOINT ACTUAL GPS UNTUK SETIAP BESTIE / VISITOR (SEMUA ORANG BISA LIHAT)
   // ==========================================================================
   getBestieFallbackLocation(bestie) {
-    // DUMMY GPS CLEARED: Hanya gunakan lokasi actual GPS dari perangkat visitor saat mengakses web
+    if (!bestie) return null;
+    const isMe = Boolean(
+      this.currentUser &&
+      String(bestie.id || bestie.username) === String(this.currentUser.id || this.currentUser.username)
+    );
+    if (isMe && this.liveGps && this.liveGps.lat !== null && this.liveGps.lng !== null) {
+      return {
+        lat: Number(this.liveGps.lat),
+        lng: Number(this.liveGps.lng),
+        updatedAt: new Date().toISOString(),
+        storeVisit: null,
+        status: 'LIVE_GPS',
+        isActualGps: true
+      };
+    }
+
+    // 1. Cek active checkin saat ini
+    try {
+      const activeCheckIn = window.FMCUData.getActiveCheckIn();
+      if (
+        activeCheckIn &&
+        (isMe ||
+          String(activeCheckIn.auditorId) === String(bestie.id) ||
+          String(activeCheckIn.auditorUsername || '').toLowerCase() === String(bestie.username || '').toLowerCase() ||
+          String(activeCheckIn.auditorNik || '') === String(bestie.nik || ''))
+      ) {
+        const cLat = activeCheckIn.latIn || activeCheckIn.storeLat;
+        const cLng = activeCheckIn.lngIn || activeCheckIn.storeLng;
+        if (cLat && cLng && !isNaN(Number(cLat)) && !isNaN(Number(cLng)) && Number(cLat) !== 0 && Number(cLng) !== 0) {
+          return {
+            lat: Number(cLat),
+            lng: Number(cLng),
+            updatedAt: new Date(activeCheckIn.startedAt || Date.now()).toISOString(),
+            storeVisit: activeCheckIn.storeName ? `FamilyMart ${activeCheckIn.storeName}` : null,
+            status: 'VISITING',
+            isActualGps: true
+          };
+        }
+      }
+    } catch (e) {}
+
+    // 2. Cek jadwal aktif hari ini (IN_PROGRESS atau sudah check-in actualIn)
+    try {
+      const schedules = window.FMCUData.getSchedules();
+      const todayStr = this.getLocalDateISO();
+      const myTodaySch = schedules.find((s) => s.scheduledDate === todayStr && this.isScheduleOwnedByUser(s, bestie));
+      if (myTodaySch && (myTodaySch.status === 'IN_PROGRESS' || myTodaySch.actualIn)) {
+        if (myTodaySch.latIn && myTodaySch.lngIn && !isNaN(Number(myTodaySch.latIn)) && Number(myTodaySch.latIn) !== 0) {
+          return {
+            lat: Number(myTodaySch.latIn),
+            lng: Number(myTodaySch.lngIn),
+            updatedAt: new Date().toISOString(),
+            storeVisit: myTodaySch.storeName ? `FamilyMart ${myTodaySch.storeName}` : null,
+            status: 'VISITING',
+            isActualGps: true
+          };
+        }
+        const stores = window.FMCUData.getStores();
+        const targetStore = stores.find((st) => String(st.code) === String(myTodaySch.storeCode));
+        if (targetStore && (targetStore.lat || targetStore.latitude)) {
+          const sLat = Number(targetStore.lat ?? targetStore.latitude);
+          const sLng = Number(targetStore.lng ?? targetStore.longitude);
+          if (!isNaN(sLat) && !isNaN(sLng) && sLat !== 0 && sLng !== 0) {
+            return {
+              lat: sLat,
+              lng: sLng,
+              updatedAt: new Date().toISOString(),
+              storeVisit: targetStore.name ? `FamilyMart ${targetStore.name}` : null,
+              status: 'VISITING',
+              isActualGps: true
+            };
+          }
+        }
+      }
+    } catch (e) {}
+
     return null;
   },
 
   // Helper terpusat untuk kalkulasi status aktual Bestie/Visitor (dipakai di Live Loc Maps & Analitik Performa)
   getBestieActualStatus(bestie) {
-    const lat = bestie.lastLocation?.lat ? Number(bestie.lastLocation.lat) : null;
-    const lng = bestie.lastLocation?.lng ? Number(bestie.lastLocation.lng) : null;
+    let lat = bestie.lastLocation?.lat ? Number(bestie.lastLocation.lat) : null;
+    let lng = bestie.lastLocation?.lng ? Number(bestie.lastLocation.lng) : null;
+    if (lat === null || lng === null || isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) {
+      const fallback = this.getBestieFallbackLocation(bestie);
+      if (fallback) {
+        lat = fallback.lat;
+        lng = fallback.lng;
+      }
+    }
     const hasActualLocation = Boolean(lat !== null && lng !== null && !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0);
     const isExited = Boolean(bestie.lastLocation?.isExited);
 
@@ -2600,14 +2704,7 @@ window.FMCUApp = {
     if (!map || !layerGroup || typeof L === 'undefined') return;
     layerGroup.clearLayers();
 
-    const isPrivilegedAdmin = Boolean(
-      this.currentUser &&
-      (this.currentUser.role === 'SUPER_ADMIN' ||
-       this.currentUser.role === 'SCHEDULE_ADMIN' ||
-       this.currentUser.role === 'AREA_MANAGER' ||
-       this.currentUser.role === 'REGIONAL_MANAGER' ||
-       this.currentUser.username === 'admin')
-    );
+    const isPrivilegedAdmin = this.isPrivilegedAdmin(this.currentUser);
 
     const users = window.FMCUData.getUsers();
     const besties = users.filter((u) => this.isAuditorUser(u));
@@ -2619,13 +2716,6 @@ window.FMCUApp = {
       let lng = bestie.lastLocation?.lng;
       let storeVisit = bestie.lastLocation?.storeVisit || null;
 
-      // HANYA RENDER JIKA MEMILIKI KOORDINAT GPS AKTUAL (TIDAK DUMMY)
-      if (!lat || !lng) return;
-
-      lat = Number(lat);
-      lng = Number(lng);
-      if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) return;
-
       const isMe = String(bestie.id || bestie.username) === String(currentUserId);
 
       // LIVE LOC SISI USER:
@@ -2634,6 +2724,24 @@ window.FMCUApp = {
       if (!isPrivilegedAdmin && !isMe) {
         return;
       }
+
+      // Fallback lokasi jika belum ada koordinat GPS di lastLocation
+      if (!lat || !lng) {
+        const fallback = this.getBestieFallbackLocation(bestie);
+        if (fallback) {
+          lat = fallback.lat;
+          lng = fallback.lng;
+          storeVisit = fallback.storeVisit || storeVisit;
+        }
+      }
+
+      // HANYA RENDER JIKA MEMILIKI KOORDINAT GPS AKTUAL (TIDAK DUMMY)
+      if (!lat || !lng) return;
+
+      lat = Number(lat);
+      lng = Number(lng);
+      if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) return;
+
       const initials = (bestie.name || 'RB')
         .split(' ')
         .filter(Boolean)
@@ -2750,12 +2858,13 @@ window.FMCUApp = {
       `);
 
       if (isModal && this._modalBestieMarkerMap) {
-        this._modalBestieMarkerMap.set(String(bestie.id || bestie.nik || bestie.username), {
-          marker: m,
-          bestie,
-          lat,
-          lng
-        });
+        const entry = { marker: m, bestie, lat, lng };
+        const bKey = String(bestie.id || bestie.username);
+        this._modalBestieMarkerMap.set(bKey, entry);
+        if (bestie.id) this._modalBestieMarkerMap.set(String(bestie.id), entry);
+        if (bestie.username) this._modalBestieMarkerMap.set(String(bestie.username).toLowerCase(), entry);
+        if (bestie.nik) this._modalBestieMarkerMap.set(String(bestie.nik), entry);
+        if (bestie.name) this._modalBestieMarkerMap.set(String(bestie.name).toLowerCase(), entry);
       }
     });
   },
@@ -3156,6 +3265,8 @@ window.FMCUApp = {
   isScheduleOwnedByUser(schedule, user = this.currentUser) {
     if (!schedule || !user) return false;
     if (schedule.auditorId && user.id && String(schedule.auditorId) === String(user.id)) return true;
+    if (schedule.auditorUsername && user.username && String(schedule.auditorUsername).toLowerCase() === String(user.username).toLowerCase()) return true;
+    if (schedule.auditorNik && user.nik && String(schedule.auditorNik) === String(user.nik)) return true;
     const sName = String(schedule.auditorName || '').trim().toLowerCase();
     const uName = String(user.name || '').trim().toLowerCase();
     return Boolean(sName && uName && sName === uName);
@@ -12954,14 +13065,7 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder, databaseFolder) {
     });
 
     // 2. Render Regional Besties & Route lines
-    const isPrivilegedAdmin = Boolean(
-      this.currentUser &&
-      (this.currentUser.role === 'SUPER_ADMIN' ||
-       this.currentUser.role === 'SCHEDULE_ADMIN' ||
-       this.currentUser.role === 'AREA_MANAGER' ||
-       this.currentUser.role === 'REGIONAL_MANAGER' ||
-       this.currentUser.username === 'admin')
-    );
+    const isPrivilegedAdmin = this.isPrivilegedAdmin(this.currentUser);
     const users = window.FMCUData.getUsers();
     const besties = users.filter((u) => this.isAuditorUser(u));
     const currentUserId = this.currentUser?.id || this.currentUser?.username;
@@ -12972,25 +13076,12 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder, databaseFolder) {
       let lng = bestie.lastLocation?.lng;
       let storeVisit = bestie.lastLocation?.storeVisit || null;
 
-      // HANYA RENDER JIKA MEMILIKI LOKASI GPS AKTUAL
-      if (!lat || !lng) return;
-
-      lat = Number(lat);
-      lng = Number(lng);
-      if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) return;
-
       const isMe = String(bestie.id || bestie.username) === String(currentUserId);
 
       // LIVE LOC SISI USER: Regular visitor only sees self!
       if (!isPrivilegedAdmin && !isMe) {
         return;
       }
-      const initials = (bestie.name || 'RB')
-        .split(' ')
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((p) => p[0].toUpperCase())
-        .join('');
 
       // Cek jadwal hari ini
       const myScheduleToday = todaySchedules.find((s) => this.isScheduleOwnedByUser(s, bestie));
@@ -12998,6 +13089,32 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder, databaseFolder) {
       if (myScheduleToday) {
         targetStore = stores.find((st) => String(st.code) === String(myScheduleToday.storeCode));
       }
+
+      // Fallback lokasi jika belum ada koordinat GPS di lastLocation
+      if (!lat || !lng) {
+        const fallback = this.getBestieFallbackLocation(bestie);
+        if (fallback) {
+          lat = fallback.lat;
+          lng = fallback.lng;
+          storeVisit = fallback.storeVisit || storeVisit;
+        }
+      }
+
+      // HANYA RENDER JIKA MEMILIKI LOKASI GPS AKTUAL
+      if (!lat || !lng) return;
+
+      lat = Number(lat);
+      lng = Number(lng);
+      if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) return;
+
+      const initials = (bestie.name || 'RB')
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((p) => p[0].toUpperCase())
+        .join('');
+
+
 
       // Jika ada target store, gambar rute garis putus-putus
       if (targetStore && targetStore.lat && targetStore.lng) {
@@ -13061,6 +13178,10 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder, databaseFolder) {
       const m = L.marker([lat, lng], { icon: bestieIcon, zIndexOffset: 1000 }).addTo(this.liveLocBestieLayer);
       const bKey = String(bestie.id || bestie.username);
       this._liveLocBestieMarkerMap.set(bKey, m);
+      if (bestie.id) this._liveLocBestieMarkerMap.set(String(bestie.id), m);
+      if (bestie.username) this._liveLocBestieMarkerMap.set(String(bestie.username).toLowerCase(), m);
+      if (bestie.nik) this._liveLocBestieMarkerMap.set(String(bestie.nik), m);
+      if (bestie.name) this._liveLocBestieMarkerMap.set(String(bestie.name).toLowerCase(), m);
 
       const gmapUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
       m.bindPopup(`
@@ -13126,14 +13247,7 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder, databaseFolder) {
     const container = document.getElementById('live-loc-bestie-list-container');
     if (!container) return;
 
-    const isPrivilegedAdmin = Boolean(
-      this.currentUser &&
-      (this.currentUser.role === 'SUPER_ADMIN' ||
-       this.currentUser.role === 'SCHEDULE_ADMIN' ||
-       this.currentUser.role === 'AREA_MANAGER' ||
-       this.currentUser.role === 'REGIONAL_MANAGER' ||
-       this.currentUser.username === 'admin')
-    );
+    const isPrivilegedAdmin = this.isPrivilegedAdmin(this.currentUser);
     const currentUserId = this.currentUser?.id || this.currentUser?.username;
 
     const users = window.FMCUData.getUsers();

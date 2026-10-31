@@ -932,10 +932,16 @@ window.FMCUData = {
         });
 
         if (cloudUsers.length > 0) {
-          // Bersihkan dummy GPS yang mungkin tersimpan di Firestore
+          // Bersihkan dummy GPS yang mungkin tersimpan di Firestore (pertahankan jika memiliki koordinat numerik valid)
           cloudUsers.forEach((u) => {
-            if (u.lastLocation && !u.lastLocation.isActualGps) {
-              u.lastLocation = null;
+            if (u.lastLocation) {
+              const latNum = Number(u.lastLocation.lat);
+              const lngNum = Number(u.lastLocation.lng);
+              if (isNaN(latNum) || isNaN(lngNum) || latNum === 0 || lngNum === 0) {
+                u.lastLocation = null;
+              } else {
+                u.lastLocation.isActualGps = true;
+              }
             }
           });
 
@@ -1329,10 +1335,16 @@ window.FMCUData = {
       if (Array.isArray(users) && users.length > 0) {
         let changed = false;
         users.forEach((u) => {
-          // Bersihkan dummy GPS (hanya pertahankan jika ada flag isActualGps aktual)
-          if (u.lastLocation && !u.lastLocation.isActualGps) {
-            u.lastLocation = null;
-            changed = true;
+          // Bersihkan dummy GPS (pertahankan jika koordinat numerik valid)
+          if (u.lastLocation) {
+            const latNum = Number(u.lastLocation.lat);
+            const lngNum = Number(u.lastLocation.lng);
+            if (isNaN(latNum) || isNaN(lngNum) || latNum === 0 || lngNum === 0) {
+              u.lastLocation = null;
+              changed = true;
+            } else {
+              u.lastLocation.isActualGps = true;
+            }
           }
         });
         if (changed) {
@@ -1371,7 +1383,7 @@ window.FMCUData = {
     const users = this.getUsers();
     const idx = users.findIndex(
       (u) =>
-        u.id === userId ||
+        String(u.id) === String(userId) ||
         String(u.nik) === String(userId) ||
         String(u.username).toLowerCase() === String(userId).toLowerCase()
     );
@@ -1392,6 +1404,11 @@ window.FMCUData = {
     if (this.db) {
       const docId = String(users[idx].id || users[idx].username);
       this.db.collection('users').doc(docId).set({ lastLocation: loc }, { merge: true }).catch(() => {});
+    }
+
+    // Segera beri notifikasi ke aplikasi agar pinpoint peta terupdate seketika
+    if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
+      window.FMCUApp.onCloudDataUpdated('users');
     }
   },
 
