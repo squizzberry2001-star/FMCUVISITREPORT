@@ -102,9 +102,40 @@ window.FMCUPdf = {
     });
   },
 
-  // Helper to draw footer on every PDF page (Watermark text omitted per user request)
+  // Helper to draw watermark in bottom-right corner of every PDF page
   drawPageFooter(doc, footerText) {
-    // Watermark / footer text intentionally omitted per user request
+    if (!doc) return;
+    const PA = window.PDF_ASSETS || {};
+    const watermarkSrc = PA.watermark || PA.WTRMRK;
+
+    if (watermarkSrc) {
+      try {
+        const pageWidth = typeof doc.internal?.pageSize?.getWidth === 'function' ? doc.internal.pageSize.getWidth() : 320;
+        const pageHeight = typeof doc.internal?.pageSize?.getHeight === 'function' ? doc.internal.pageSize.getHeight() : 180;
+
+        // Dimensi Watermark WTRMRK (lebar 28mm untuk landscape 320mm, rasio aspek 1.767)
+        const isPortrait = pageHeight > pageWidth;
+        const wtrW = isPortrait ? 22 : 28;
+        const wtrH = wtrW / 1.767;
+        const wtrX = pageWidth - wtrW - 5; // Pojok kanan bawah
+        const wtrY = pageHeight - wtrH - 4; // Margin bawah
+
+        // Render semi-transparan (opacity 0.65)
+        const hasGState = typeof doc.GState === 'function';
+        if (hasGState) {
+          doc.saveGraphicsState();
+          doc.setGState(new doc.GState({ opacity: 0.65 }));
+        }
+
+        doc.addImage(watermarkSrc, 'PNG', wtrX, wtrY, wtrW, wtrH, undefined, 'FAST');
+
+        if (hasGState) {
+          doc.restoreGraphicsState();
+        }
+      } catch (errWtr) {
+        console.warn('Gagal membubuhkan watermark WTRMRK pada PDF:', errWtr);
+      }
+    }
   },
 
   // Helper to draw image inside a bounding box while preserving natural aspect ratio (mencegah foto & timestamp tertarik)
@@ -1126,6 +1157,7 @@ window.FMCUPdf = {
       doc.setTextColor(148, 163, 184);
       doc.setFontSize(8);
       doc.text(`PT FamilyMart Indonesia • FMCU Regional Bestie Visit Report • ${dateFormatted}`, pageWidth / 2, pageHeight - 6, { align: 'center' });
+      this.drawPageFooter(doc, "");
     }
 
     return doc;
@@ -1663,6 +1695,22 @@ window.FMCUPdf = {
           
         </div>
       `
+    });
+
+    // Otomatis bubuhkan Watermark WTRMRK di pojok kanan bawah untuk seluruh slide HTML
+    const watermarkSnippet = `
+      <div class="absolute bottom-[2%] right-[2%] pointer-events-none select-none z-30 opacity-70" title="WTRMRK">
+        <img src="${PA.watermark || PA.WTRMRK || 'WTRMRK_cropped.png'}" class="h-[clamp(14px,2.2cqw,28px)] w-auto object-contain" alt="WTRMRK" />
+      </div>
+    `;
+
+    slides.forEach((s) => {
+      if (s && s.html) {
+        const lastDivIdx = s.html.lastIndexOf('</div>');
+        if (lastDivIdx !== -1) {
+          s.html = s.html.slice(0, lastDivIdx) + watermarkSnippet + s.html.slice(lastDivIdx);
+        }
+      }
     });
 
     return slides;
