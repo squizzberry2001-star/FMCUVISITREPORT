@@ -157,6 +157,13 @@ window.FMCUPdf = {
     if (photo.dataUrl && photo.dataUrl.startsWith('data:image')) {
       return photo.dataUrl;
     }
+    // Slot QSC generic kosong tidak boleh mengambil foto cache
+    if (photo.id && (photo.id === 'qsc-1' || photo.id === 'qsc-2')) {
+      return '';
+    }
+    if (!photo.dataUrl && !photo.driveFileId && !photo.driveUrl) {
+      return '';
+    }
     if (window.FMCUData && typeof window.FMCUData.getPhotoFromMemory === 'function') {
       const mem = window.FMCUData.getPhotoFromMemory(photo.id, photo.driveFileId);
       if (mem) return mem;
@@ -172,6 +179,12 @@ window.FMCUPdf = {
     if (photo.dataUrl && photo.dataUrl.startsWith('data:image')) {
       return photo.dataUrl;
     }
+    if (photo.id && (photo.id === 'qsc-1' || photo.id === 'qsc-2')) {
+      return '';
+    }
+    if (!photo.dataUrl && !photo.driveFileId && !photo.driveUrl) {
+      return '';
+    }
     if (window.FMCUData && typeof window.FMCUData.getPhotoFromMemory === 'function') {
       const mem = window.FMCUData.getPhotoFromMemory(photo.id, photo.driveFileId);
       if (mem && mem.startsWith('data:image')) return mem;
@@ -183,7 +196,7 @@ window.FMCUPdf = {
         ...(window.FMCUApp.formQscPhotos || [])
       ];
       const match = liveList.find(
-        (p) => p && ((photo.id && p.id === photo.id) || (photo.driveFileId && p.driveFileId === photo.driveFileId))
+        (p) => p && ((photo.id && p.id === photo.id && photo.id !== 'qsc-1' && photo.id !== 'qsc-2') || (photo.driveFileId && p.driveFileId === photo.driveFileId))
       );
       if (match && match.dataUrl && match.dataUrl.startsWith('data:image')) {
         return match.dataUrl;
@@ -227,6 +240,8 @@ window.FMCUPdf = {
     if (window.FMCUData && typeof window.FMCUData.getPhotoFromDb === 'function') {
       for (const p of allPhotos) {
         if (!p) continue;
+        if (p.id === 'qsc-1' || p.id === 'qsc-2') continue;
+        if (!p.dataUrl && !p.driveFileId && !p.driveUrl) continue;
         if (!this.getPhotoBase64ForPdf(p)) {
           if (p.id) {
             const b64 = await window.FMCUData.getPhotoFromDb(p.id);
@@ -381,8 +396,8 @@ window.FMCUPdf = {
     const qscPhotos = (report.qscPhotos && report.qscPhotos.length > 0)
       ? report.qscPhotos
       : [
-          { caption: 'Foto QSC / Famitrack 1', dataUrl: '' },
-          { caption: 'Foto QSC / Famitrack 2', dataUrl: '' }
+          { caption: 'Lembar Form QSC / FamiTrack #1 (Wajib)', dataUrl: '' },
+          { caption: 'Lembar Form QSC / FamiTrack #2 (Wajib)', dataUrl: '' }
         ];
 
     for (let i = 0; i < qscPhotos.length; i += 2) {
@@ -408,7 +423,7 @@ window.FMCUPdf = {
         doc.roundedRect(cardX, 42, 145, 119, 4, 4, 'FD');
 
         const qscImgBase64 = this.getPhotoBase64ForPdf(photo);
-        if (qscImgBase64) {
+        if (qscImgBase64 && qscImgBase64.startsWith('data:image')) {
           // Gambar proporsional di dalam kotak 139 x 104 mm agar tidak tertarik / gepeng
           this.drawImageProportional(doc, qscImgBase64, cardX + 3, 45, 139, 104, 'JPEG', 'FAST');
         } else {
@@ -417,13 +432,13 @@ window.FMCUPdf = {
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(10);
           doc.setTextColor(148, 163, 184);
-          doc.text('Tidak ada foto dilampirkan', cardX + 72.5, 97, { align: 'center' });
+          doc.text('Tidak ada foto dilampirkan (Kosong)', cardX + 72.5, 97, { align: 'center' });
         }
 
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8.5);
         doc.setTextColor(15, 23, 42);
-        doc.text(photo.caption || `Foto QSC / Famitrack ${i + idx + 1}`, cardX + 5, 155);
+        doc.text(photo.caption || `Lembar Form QSC / FamiTrack #${i + idx + 1}`, cardX + 5, 155);
       });
 
       this.drawPageFooter(doc, footerText);
@@ -936,7 +951,10 @@ window.FMCUPdf = {
     let rawQscPhotos = [];
     if (Array.isArray(report.qscPhotos) && report.qscPhotos.length > 0) {
       rawQscPhotos = report.qscPhotos;
-    } else if (window.FMCUApp && Array.isArray(window.FMCUApp.formQscPhotos) && window.FMCUApp.formQscPhotos.length > 0) {
+    } else if (
+      (report.id === '__LIVE_FORM__' || !report.id || (window.FMCUApp && report.storeCode === document.getElementById('form-store-code')?.value.trim())) &&
+      window.FMCUApp && Array.isArray(window.FMCUApp.formQscPhotos) && window.FMCUApp.formQscPhotos.length > 0
+    ) {
       rawQscPhotos = window.FMCUApp.formQscPhotos;
     }
 
@@ -948,12 +966,6 @@ window.FMCUPdf = {
       if (!base64 && p.dataUrl && p.dataUrl.startsWith('data:image')) {
         base64 = p.dataUrl;
       }
-      if (!base64 && window.FMCUApp?.formQscPhotos?.[idx]?.dataUrl?.startsWith('data:image')) {
-        base64 = window.FMCUApp.formQscPhotos[idx].dataUrl;
-      }
-      if (!base64 && window.FMCUData && typeof window.FMCUData.getPhotoFromMemory === 'function') {
-        base64 = window.FMCUData.getPhotoFromMemory(p.id, p.driveFileId);
-      }
       processedPhotos.push({
         ...p,
         resolvedBase64: base64 || '',
@@ -962,8 +974,8 @@ window.FMCUPdf = {
       });
     });
 
-    // Filter foto aktif (yang memiliki Base64 atau ID Drive)
-    const activePhotos = processedPhotos.filter(p => Boolean(p.resolvedBase64 || p.dataUrl || p.driveUrl || p.driveFileId));
+    // Filter foto aktif (yang benar-benar memiliki Base64 atau ID Drive)
+    const activePhotos = processedPhotos.filter(p => Boolean(p.resolvedBase64 || (p.dataUrl && p.dataUrl.startsWith('data:image')) || p.driveUrl || p.driveFileId));
 
     if (activePhotos.length === 0) {
       // Empty state single page
@@ -1062,7 +1074,8 @@ window.FMCUPdf = {
 
   async downloadVerticalQscPdf(report) {
     if (!report) return;
-    if ((!report.qscPhotos || report.qscPhotos.length === 0) && window.FMCUApp?.formQscPhotos?.length > 0) {
+    const isLive = !report.id || report.id === '__LIVE_FORM__' || (window.FMCUApp && report.storeCode === document.getElementById('form-store-code')?.value.trim());
+    if (isLive && (!report.qscPhotos || report.qscPhotos.length === 0) && window.FMCUApp?.formQscPhotos?.length > 0) {
       report.qscPhotos = JSON.parse(JSON.stringify(window.FMCUApp.formQscPhotos));
     }
     await this.hydrateReportPhotosFromGDrive(report);
@@ -1073,8 +1086,9 @@ window.FMCUPdf = {
 
   async getVerticalQscPdfBase64(report) {
     if (!report) return '';
+    const isLive = !report.id || report.id === '__LIVE_FORM__' || (window.FMCUApp && report.storeCode === document.getElementById('form-store-code')?.value.trim());
     // Sinkronkan lembar QSC Section 1 dari form jika belum ada di objek report
-    if ((!report.qscPhotos || report.qscPhotos.length === 0) && window.FMCUApp?.formQscPhotos?.length > 0) {
+    if (isLive && (!report.qscPhotos || report.qscPhotos.length === 0) && window.FMCUApp?.formQscPhotos?.length > 0) {
       report.qscPhotos = JSON.parse(JSON.stringify(window.FMCUApp.formQscPhotos));
     }
     await this.hydrateReportPhotosFromGDrive(report);
@@ -1278,7 +1292,10 @@ window.FMCUPdf = {
     // 2. QSC / Famitrack Result
     const qscPhotos = (report.qscPhotos && report.qscPhotos.length > 0)
       ? report.qscPhotos
-      : [{ caption: 'Foto QSC / Famitrack 1', dataUrl: '' }, { caption: 'Foto QSC / Famitrack 2', dataUrl: '' }];
+      : [
+          { caption: 'Lembar Form QSC / FamiTrack #1 (Wajib)', dataUrl: '' },
+          { caption: 'Lembar Form QSC / FamiTrack #2 (Wajib)', dataUrl: '' }
+        ];
 
     for (let i = 0; i < qscPhotos.length; i += 2) {
       const pair = qscPhotos.slice(i, i + 2);
@@ -1294,13 +1311,17 @@ window.FMCUPdf = {
               ${pair.map((p, idx) => {
                 const src = this.getPhotoDisplaySrc(p);
                 return `
-                <div class="border border-slate-300 rounded-xl p-[1cqw] flex flex-col justify-between bg-white h-full overflow-hidden">
+                <div class="border ${src ? 'border-slate-300' : 'border-dashed border-slate-300'} rounded-xl p-[1cqw] flex flex-col justify-between bg-white h-full overflow-hidden">
                   <div class="w-full h-[88%] bg-slate-50 rounded-lg overflow-hidden flex items-center justify-center">
                     ${src
                       ? `<img src="${src}" class="w-full h-full object-contain" alt="QSC" />`
-                      : `<span class="text-slate-400 text-xs">Tidak ada foto</span>`}
+                      : `<div class="flex flex-col items-center justify-center text-slate-400 p-2 text-center">
+                           <i class="fa-solid fa-file-invoice text-3xl mb-1.5 text-slate-300"></i>
+                           <span class="text-[clamp(7px,0.9cqw,12px)] font-bold text-slate-600">Foto Lembar QSC #${i + idx + 1}</span>
+                           <span class="text-[clamp(6px,0.75cqw,10px)] text-slate-400 mt-0.5">Belum ada foto diunggah (Default Kosong)</span>
+                         </div>`}
                   </div>
-                  <div class="text-[clamp(6.5px,0.85cqw,11px)] text-slate-800 pt-1">${p.caption || `Foto QSC / Famitrack ${i + idx + 1}`}</div>
+                  <div class="text-[clamp(6.5px,0.85cqw,11px)] text-slate-700 font-semibold pt-1 truncate">${p.caption || `Lembar Form QSC / FamiTrack #${i + idx + 1}`}</div>
                 </div>
               `;
               }).join('')}

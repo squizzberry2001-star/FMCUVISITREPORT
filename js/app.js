@@ -5187,15 +5187,6 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     if (!existingRep) {
       existingRep = reports.find((r) => r.storeCode === targetStoreCode && r.visitDate === todayStr);
     }
-    if (!existingRep) {
-      // Cari laporan arsip riwayat visit toko ini (diurutkan paling mutakhir)
-      const storeReports = reports
-        .filter((r) => r.storeCode === targetStoreCode)
-        .sort((a, b) => String(b.createdAt || b.visitDate || '').localeCompare(String(a.createdAt || a.visitDate || '')));
-      if (storeReports.length > 0) {
-        existingRep = storeReports[0];
-      }
-    }
 
     // Jika ada laporan di arsip dan TIDAK ADA draft aktif baru, muat data laporan arsip toko ini
     if (existingRep && (!hasMeaningfulDraft || existingRep.id === draft?.id)) {
@@ -5332,9 +5323,10 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       { role: 'Crew Store 2', name: '', jobLevel: '' }
     ];
 
+    const qscTs = Date.now();
     this.formQscPhotos = [
-      { id: 'qsc-1', caption: 'Lembar Form QSC / FamiTrack #1 (Wajib)', dataUrl: '' },
-      { id: 'qsc-2', caption: 'Lembar Form QSC / FamiTrack #2 (Wajib)', dataUrl: '' }
+      { id: `qsc-${qscTs}-1`, caption: 'Lembar Form QSC / FamiTrack #1 (Wajib)', dataUrl: '', driveFileId: '', driveUrl: '' },
+      { id: `qsc-${qscTs}-2`, caption: 'Lembar Form QSC / FamiTrack #2 (Wajib)', dataUrl: '', driveFileId: '', driveUrl: '' }
     ];
 
     // Default card temuan kosong sesuai permintaan user
@@ -5405,6 +5397,12 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
 
     const hydratePhoto = (p) => {
       if (!p) return p;
+      if (p.id === 'qsc-1' || p.id === 'qsc-2') {
+        if (!p.dataUrl || !p.dataUrl.startsWith('data:image')) {
+          p.dataUrl = '';
+          return p;
+        }
+      }
       const mem = window.FMCUData?.getPhotoFromMemory?.(p.id, p.driveFileId);
       if ((!p.dataUrl || !p.dataUrl.startsWith('data:image')) && mem) {
         p.dataUrl = mem;
@@ -5412,7 +5410,27 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       return p;
     };
     this.formCrew = JSON.parse(JSON.stringify(rep.crewList || []));
-    this.formQscPhotos = JSON.parse(JSON.stringify(rep.qscPhotos || [])).map(hydratePhoto);
+    let qscList = JSON.parse(JSON.stringify(rep.qscPhotos || []));
+    if (!Array.isArray(qscList) || qscList.length === 0) {
+      const qscTs = Date.now();
+      qscList = [
+        { id: `qsc-${qscTs}-1`, caption: 'Lembar Form QSC / FamiTrack #1 (Wajib)', dataUrl: '', driveFileId: '', driveUrl: '' },
+        { id: `qsc-${qscTs}-2`, caption: 'Lembar Form QSC / FamiTrack #2 (Wajib)', dataUrl: '', driveFileId: '', driveUrl: '' }
+      ];
+    } else {
+      qscList = qscList.map(hydratePhoto);
+      while (qscList.length < 2) {
+        const nextIdx = qscList.length;
+        qscList.push({
+          id: `qsc-${Date.now()}-${nextIdx + 1}`,
+          caption: nextIdx === 0 ? 'Lembar Form QSC / FamiTrack #1 (Wajib)' : 'Lembar Form QSC / FamiTrack #2 (Wajib)',
+          dataUrl: '',
+          driveFileId: '',
+          driveUrl: ''
+        });
+      }
+    }
+    this.formQscPhotos = qscList;
     this.formOpiObservations = JSON.parse(JSON.stringify(rep.opiObservations || []));
     this.formObservations = JSON.parse(JSON.stringify(rep.qscObservations || rep.observations || []));
     this.formEvidencePhotos = JSON.parse(JSON.stringify(rep.evidencePhotos || [])).map(hydratePhoto);
@@ -5436,7 +5454,10 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     // Asynchronous IndexedDB photo hydration (apabila tab sempat di-refresh atau memory cache kosong)
     if (window.FMCUData && typeof window.FMCUData.getPhotoFromDb === 'function') {
       const allFormPhotos = [...this.formQscPhotos, ...this.formEvidencePhotos, ...this.formCaPhotos];
-      const needsHydration = allFormPhotos.filter((p) => p && (!p.dataUrl || !p.dataUrl.startsWith('data:image')));
+      // Hanya hydrate foto yang memang memiliki driveFileId atau driveUrl (bukan slot kosong)
+      const needsHydration = allFormPhotos.filter(
+        (p) => p && (!p.dataUrl || !p.dataUrl.startsWith('data:image')) && p.id !== 'qsc-1' && p.id !== 'qsc-2' && (p.driveFileId || p.driveUrl)
+      );
       if (needsHydration.length > 0) {
         Promise.all(
           needsHydration.map(async (p) => {
@@ -5928,13 +5949,18 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
 
     // Pastikan selalu fix tepat 2 slot (wajib 2)
     if (!Array.isArray(this.formQscPhotos) || this.formQscPhotos.length !== 2) {
-      const p0 = this.formQscPhotos?.[0] || { id: 'qsc-1', caption: 'Lembar Form QSC / FamiTrack #1 (Wajib)', dataUrl: '' };
-      const p1 = this.formQscPhotos?.[1] || { id: 'qsc-2', caption: 'Lembar Form QSC / FamiTrack #2 (Wajib)', dataUrl: '' };
+      const qscTs = Date.now();
+      const p0 = this.formQscPhotos?.[0] || { id: `qsc-${qscTs}-1`, caption: 'Lembar Form QSC / FamiTrack #1 (Wajib)', dataUrl: '', driveFileId: '', driveUrl: '' };
+      const p1 = this.formQscPhotos?.[1] || { id: `qsc-${qscTs}-2`, caption: 'Lembar Form QSC / FamiTrack #2 (Wajib)', dataUrl: '', driveFileId: '', driveUrl: '' };
       this.formQscPhotos = [p0, p1];
     }
 
     grid.innerHTML = this.formQscPhotos
       .map((p, idx) => {
+        // Jika slot belum memiliki dataUrl/driveFileId tetapi memiliki id legacy qsc-1/qsc-2, perbarui id-nya
+        if ((!p.dataUrl || !p.dataUrl.startsWith('data:image')) && !p.driveFileId && (p.id === 'qsc-1' || p.id === 'qsc-2')) {
+          p.id = `qsc-${Date.now()}-${idx + 1}`;
+        }
         const displaySrc = window.FMCUPdf.getPhotoDisplaySrc(p);
         const statusBadge = p._uploading
           ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800"><i class="fa-solid fa-spinner fa-spin mr-1"></i>Upload ke Google Drive...</span>`
@@ -5969,16 +5995,54 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
                    </div>`
             }
             ${statusBadge ? `<div class="absolute top-2 left-2 shadow-sm">${statusBadge}</div>` : ''}
-            <label class="absolute bottom-2.5 right-2.5 bg-slate-900/85 hover:bg-slate-950 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl cursor-pointer shadow-md transition flex items-center gap-1.5">
-              <i class="fa-solid fa-camera text-emerald-400"></i>
-              <span>${displaySrc ? 'Ganti Foto' : 'Pilih Foto / Kamera'}</span>
-              <input type="file" accept="image/*" onchange="FMCUApp.handleQscPhotoUpload(event, ${idx})" class="hidden" />
-            </label>
+            <div class="absolute bottom-2.5 right-2.5 flex items-center gap-1.5">
+              ${
+                displaySrc
+                  ? `<button type="button" onclick="FMCUApp.removeQscPhoto(${idx})" class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl cursor-pointer shadow-md transition flex items-center gap-1">
+                      <i class="fa-solid fa-trash-can text-xs"></i>
+                      <span>Hapus</span>
+                     </button>`
+                  : ''
+              }
+              <label class="bg-slate-900/85 hover:bg-slate-950 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl cursor-pointer shadow-md transition flex items-center gap-1.5">
+                <i class="fa-solid fa-camera text-emerald-400"></i>
+                <span>${displaySrc ? 'Ganti Foto' : 'Pilih Foto / Kamera'}</span>
+                <input type="file" accept="image/*" onchange="FMCUApp.handleQscPhotoUpload(event, ${idx})" class="hidden" />
+              </label>
+            </div>
           </div>
         </div>
       `;
       })
       .join('');
+  },
+
+  removeQscPhoto(idx) {
+    if (!this.formQscPhotos || !this.formQscPhotos[idx]) return;
+    const oldPhoto = this.formQscPhotos[idx];
+    if (oldPhoto.id && window.FMCUData) {
+      delete window.FMCUData.photoMemoryCache[oldPhoto.id];
+      if (typeof window.FMCUData.deletePhotoFromDb === 'function') {
+        window.FMCUData.deletePhotoFromDb(oldPhoto.id);
+      }
+    }
+    if (oldPhoto.driveFileId && window.FMCUData) {
+      delete window.FMCUData.photoMemoryCache[oldPhoto.driveFileId];
+      if (typeof window.FMCUData.deletePhotoFromDb === 'function') {
+        window.FMCUData.deletePhotoFromDb(oldPhoto.driveFileId);
+      }
+    }
+    this.formQscPhotos[idx] = {
+      id: `qsc-${Date.now()}-${idx + 1}`,
+      caption: idx === 0 ? 'Lembar Form QSC / FamiTrack #1 (Wajib)' : 'Lembar Form QSC / FamiTrack #2 (Wajib)',
+      dataUrl: '',
+      driveFileId: '',
+      driveUrl: '',
+      _uploading: false
+    };
+    this.renderQscPhotosGrid();
+    this.saveCurrentFormDraft();
+    this.showToast(`Foto lembar QSC #${idx + 1} berhasil dikosongkan.`, 'info');
   },
 
   async handleQscPhotoUpload(event, idx) {
@@ -5997,6 +6061,9 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         applyWatermark: applyWm
       });
       const photoObj = this.formQscPhotos[idx];
+      if (!photoObj.id || photoObj.id === 'qsc-1' || photoObj.id === 'qsc-2') {
+        photoObj.id = `qsc-${Date.now()}-${idx + 1}`;
+      }
       photoObj.dataUrl = dataUrl;
       photoObj.driveFileId = '';
       photoObj.driveUrl = '';
@@ -7206,7 +7273,14 @@ Instruksi:
       gpsLng: this.liveGps.lng,
       qscScore: Number(document.getElementById('form-qsc-score')?.value || 0),
       crewList: JSON.parse(JSON.stringify(this.formCrew)),
-      qscPhotos: JSON.parse(JSON.stringify(this.formQscPhotos)),
+      qscPhotos: (this.formQscPhotos || []).map((p, idx) => ({
+        id: p.id || `qsc-${Date.now()}-${idx + 1}`,
+        caption: p.caption || (idx === 0 ? 'Lembar Form QSC / FamiTrack #1 (Wajib)' : 'Lembar Form QSC / FamiTrack #2 (Wajib)'),
+        dataUrl: p.dataUrl || '',
+        driveFileId: p.driveFileId || '',
+        driveUrl: p.driveUrl || '',
+        driveViewUrl: p.driveViewUrl || ''
+      })),
       opiObservations: (this.formOpiObservations || []).map((o) => ({
         ...o,
         deadlineFormatted: o.deadlineFormatted || window.FMCUPdf.formatIndonesianDate(o.deadline, false)
@@ -7750,8 +7824,10 @@ Instruksi:
     }
 
     try {
-      // Pastikan lembar QSC Section 1 disinkronkan dengan live formQscPhotos jika tersedia
-      if (Array.isArray(this.formQscPhotos) && this.formQscPhotos.length > 0) {
+      const isLiveReport = !rep.id || rep.id === '__LIVE_FORM__' || (this.hasActiveStoreForm && rep.storeCode === document.getElementById('form-store-code')?.value.trim());
+
+      // Pastikan lembar QSC Section 1 disinkronkan dengan live formQscPhotos jika laporan aktif saat ini
+      if (isLiveReport && Array.isArray(this.formQscPhotos) && this.formQscPhotos.length > 0) {
         if (!rep.qscPhotos || rep.qscPhotos.length === 0) {
           rep.qscPhotos = JSON.parse(JSON.stringify(this.formQscPhotos));
         } else {
@@ -7764,7 +7840,7 @@ Instruksi:
       }
 
       // Pastikan Foto Bukti Temuan (Evidence) disinkronkan dengan formEvidencePhotos live jika tersedia
-      if (Array.isArray(this.formEvidencePhotos) && this.formEvidencePhotos.length > 0) {
+      if (isLiveReport && Array.isArray(this.formEvidencePhotos) && this.formEvidencePhotos.length > 0) {
         if (!rep.evidencePhotos || rep.evidencePhotos.length === 0) {
           rep.evidencePhotos = JSON.parse(JSON.stringify(this.formEvidencePhotos));
         } else {
@@ -7777,7 +7853,7 @@ Instruksi:
       }
 
       // Pastikan Foto Hasil Perbaikan (CA) disinkronkan dengan formCaPhotos live jika tersedia
-      if (Array.isArray(this.formCaPhotos) && this.formCaPhotos.length > 0) {
+      if (isLiveReport && Array.isArray(this.formCaPhotos) && this.formCaPhotos.length > 0) {
         if (!rep.caPhotos || rep.caPhotos.length === 0) {
           rep.caPhotos = JSON.parse(JSON.stringify(this.formCaPhotos));
           rep.correctiveActionPhotos = JSON.parse(JSON.stringify(this.formCaPhotos));

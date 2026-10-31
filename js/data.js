@@ -509,6 +509,10 @@ window.FMCUData = {
     // Bersihkan dummy location GPS Regional Bestie
     this.clearDummyBestieLocations();
 
+    // Hapus legacy cache key slot qsc statis agar foto lembar QSC default kosong
+    delete this.photoMemoryCache['qsc-1'];
+    delete this.photoMemoryCache['qsc-2'];
+
     if (!localStorage.getItem(STORAGE_KEYS.NEWS)) {
       localStorage.setItem(STORAGE_KEYS.NEWS, JSON.stringify(DEFAULT_NEWS_ITEMS));
     }
@@ -1534,6 +1538,16 @@ window.FMCUData = {
     }
   },
 
+  async deletePhotoFromDb(key) {
+    if (!key) return;
+    try {
+      const db = await this.getPhotoDb();
+      if (!db) return;
+      const tx = db.transaction('photos', 'readwrite');
+      tx.objectStore('photos').delete(String(key));
+    } catch (e) {}
+  },
+
   async saveDraftInDb(storeCode, draftData) {
     if (!storeCode || !draftData) return;
     try {
@@ -1613,13 +1627,24 @@ window.FMCUData = {
 
       // 1. Preload semua binary foto dari IndexedDB ke photoMemoryCache di RAM
       if (db.objectStoreNames.contains('photos')) {
+        // Bersihkan key legacy qsc-1 dan qsc-2 dari IndexedDB & memory
+        try {
+          const cleanupTx = db.transaction('photos', 'readwrite');
+          cleanupTx.objectStore('photos').delete('qsc-1');
+          cleanupTx.objectStore('photos').delete('qsc-2');
+        } catch (e) {}
+        delete this.photoMemoryCache['qsc-1'];
+        delete this.photoMemoryCache['qsc-2'];
+
         const photoTx = db.transaction('photos', 'readonly');
         const photoStore = photoTx.objectStore('photos');
         const cursorReq = photoStore.openCursor();
         cursorReq.onsuccess = (e) => {
           const cursor = e.target.result;
           if (cursor) {
-            if (cursor.key && cursor.value && typeof cursor.value === 'string' && cursor.value.startsWith('data:image')) {
+            if (cursor.key === 'qsc-1' || cursor.key === 'qsc-2') {
+              try { cursor.delete(); } catch(e) {}
+            } else if (cursor.key && cursor.value && typeof cursor.value === 'string' && cursor.value.startsWith('data:image')) {
               this.photoMemoryCache[cursor.key] = cursor.value;
             }
             cursor.continue();
@@ -1666,7 +1691,7 @@ window.FMCUData = {
 
   cachePhotoInMemory(photoId, driveFileId, dataUrl) {
     if (!dataUrl || !dataUrl.startsWith('data:image')) return;
-    if (photoId) {
+    if (photoId && photoId !== 'qsc-1' && photoId !== 'qsc-2') {
       this.photoMemoryCache[photoId] = dataUrl;
       this.setPhotoInDb(photoId, dataUrl);
     }
@@ -1680,7 +1705,7 @@ window.FMCUData = {
     if (driveFileId && this.photoMemoryCache[driveFileId]) {
       return this.photoMemoryCache[driveFileId];
     }
-    if (photoId && this.photoMemoryCache[photoId]) {
+    if (photoId && photoId !== 'qsc-1' && photoId !== 'qsc-2' && this.photoMemoryCache[photoId]) {
       return this.photoMemoryCache[photoId];
     }
     return '';
