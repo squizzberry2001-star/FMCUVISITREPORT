@@ -8837,6 +8837,318 @@ Instruksi:
     this.assignStoreToWeeklySlot(code, auditorId, dayIndex, false);
   },
 
+  // ==========================================================================
+  // CUSTOM STORE PICKER MODAL (PENGGANTI NATIVE DROPDOWN SYSTEM PADA CARD HARI)
+  // ==========================================================================
+  weeklyPickerTarget: { auditorId: null, dayIndex: null },
+  weeklyPickerSearch: '',
+  weeklyPickerCity: 'ALL',
+
+  openWeeklyStorePickerModal(auditorId, dayIndex) {
+    this.weeklyPickerTarget = { auditorId, dayIndex: Number(dayIndex) };
+    this.weeklyPickerSearch = '';
+    this.weeklyPickerCity = 'ALL';
+
+    const modal = document.getElementById('modal-weekly-store-picker');
+    if (!modal) return;
+
+    // Reset search input & clear button
+    const sInput = document.getElementById('weekly-picker-search-input');
+    if (sInput) sInput.value = '';
+    const sClear = document.getElementById('weekly-picker-search-clear');
+    if (sClear) sClear.classList.add('hidden');
+
+    // Populate City filter
+    const stores = window.FMCUData.getStores();
+    const citySel = document.getElementById('weekly-picker-city-select');
+    if (citySel) {
+      const cities = Array.from(new Set(stores.map((s) => s.city).filter(Boolean))).sort();
+      citySel.innerHTML =
+        `<option value="ALL">Semua Kota / Wilayah (${stores.length} Toko)</option>` +
+        cities.map((c) => `<option value="${c}">${c}</option>`).join('');
+      citySel.value = 'ALL';
+    }
+
+    // Set Header info
+    const users = this.getSchedulableAuditors();
+    const au = users.find((u) => u.id === auditorId);
+    const days = this.getFiveWorkDays(this.weeklyMondayDate);
+    const dayObj = days[Number(dayIndex)] || { dayName: 'Hari', shortDate: '' };
+
+    const nameEl = document.getElementById('weekly-picker-auditor-name');
+    if (nameEl) nameEl.textContent = au ? `${au.name} (@${au.username || au.nik || ''})` : 'Visitor';
+
+    const dayBadge = document.getElementById('weekly-picker-day-badge');
+    if (dayBadge) dayBadge.textContent = `${dayObj.dayName}, ${dayObj.shortDate}`;
+
+    this.renderWeeklyStorePickerModalContent();
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+
+    // Auto-focus search input
+    setTimeout(() => {
+      sInput?.focus();
+    }, 120);
+  },
+
+  closeWeeklyStorePickerModal() {
+    const modal = document.getElementById('modal-weekly-store-picker');
+    if (modal) modal.classList.add('hidden');
+    document.body.style.overflow = '';
+    this.renderWeeklySchedulePlanner();
+  },
+
+  onWeeklyStorePickerSearch(val) {
+    this.weeklyPickerSearch = (val || '').trim().toLowerCase();
+    const sClear = document.getElementById('weekly-picker-search-clear');
+    if (sClear) {
+      sClear.classList.toggle('hidden', !this.weeklyPickerSearch);
+    }
+    this.renderWeeklyStorePickerModalContent();
+  },
+
+  clearWeeklyStorePickerSearch() {
+    this.weeklyPickerSearch = '';
+    const sInput = document.getElementById('weekly-picker-search-input');
+    if (sInput) {
+      sInput.value = '';
+      sInput.focus();
+    }
+    const sClear = document.getElementById('weekly-picker-search-clear');
+    if (sClear) sClear.classList.add('hidden');
+    this.renderWeeklyStorePickerModalContent();
+  },
+
+  onWeeklyStorePickerCityFilter(val) {
+    this.weeklyPickerCity = val || 'ALL';
+    this.renderWeeklyStorePickerModalContent();
+  },
+
+  toggleStoreInWeeklyPicker(storeCode) {
+    const { auditorId, dayIndex } = this.weeklyPickerTarget;
+    if (!auditorId || dayIndex === null) return;
+
+    const items = this.getWeeklySlotItems(auditorId, dayIndex);
+    const exists = items.some((it) => String(it.storeCode) === String(storeCode));
+
+    if (exists) {
+      this.removeStoreFromWeeklySlot(auditorId, dayIndex, storeCode);
+    } else {
+      this.assignStoreToWeeklySlot(storeCode, auditorId, dayIndex, false);
+    }
+
+    this.renderWeeklyStorePickerModalContent();
+  },
+
+  renderWeeklyStorePickerModalContent() {
+    const { auditorId, dayIndex } = this.weeklyPickerTarget;
+    if (!auditorId || dayIndex === null) return;
+
+    const stores = window.FMCUData.getStores();
+    const items = this.getWeeklySlotItems(auditorId, dayIndex);
+    const assignedCodes = new Set(items.map((it) => String(it.storeCode)));
+
+    // 1. Render Assigned Strip at Top
+    const stripEl = document.getElementById('weekly-picker-assigned-strip');
+    if (stripEl) {
+      if (items.length === 0) {
+        stripEl.innerHTML = `
+          <div class="flex items-center gap-2 py-0.5 text-[11px] text-slate-500">
+            <i class="fa-regular fa-calendar-xmark text-slate-400"></i>
+            <span>Belum ada toko yang ditugaskan pada hari ini. Pilih dari daftar di bawah.</span>
+          </div>
+        `;
+      } else {
+        const storeMap = new Map(stores.map((s) => [String(s.code), s]));
+        stripEl.innerHTML = `
+          <div class="flex items-center gap-1.5 shrink-0">
+            <span class="w-5 h-5 rounded-md bg-[#009944] text-white flex items-center justify-center text-[10px] font-bold">
+              ${items.length}
+            </span>
+            <span class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-900 shrink-0">
+              Terpilih Hari Ini:
+            </span>
+          </div>
+          <div class="flex items-center gap-1.5 overflow-x-auto py-0.5">
+            ${items
+              .map((it) => {
+                const st = storeMap.get(String(it.storeCode));
+                const name = st ? st.name : it.storeCode;
+                return `
+                  <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-white text-emerald-950 border border-emerald-300 shadow-2xs shrink-0">
+                    <span class="font-mono text-[10px] text-[#0099A6]">${it.storeCode}</span>
+                    <span class="truncate max-w-[130px] sm:max-w-[180px]">${name}</span>
+                    <button
+                      type="button"
+                      onclick="FMCUApp.toggleStoreInWeeklyPicker('${it.storeCode}')"
+                      class="ml-1 text-slate-400 hover:text-rose-600 cursor-pointer p-0.5"
+                      title="Hapus toko dari hari ini"
+                    >
+                      <i class="fa-solid fa-xmark text-[11px]"></i>
+                    </button>
+                  </span>
+                `;
+              })
+              .join('')}
+          </div>
+        `;
+      }
+    }
+
+    // 2. Filter Stores
+    const q = this.weeklyPickerSearch;
+    const city = this.weeklyPickerCity;
+
+    let filtered = stores.filter((s) => {
+      if (city !== 'ALL' && s.city !== city) return false;
+      if (!q) return true;
+      return (
+        String(s.code || '').toLowerCase().includes(q) ||
+        String(s.name || '').toLowerCase().includes(q) ||
+        String(s.address || '').toLowerCase().includes(q) ||
+        String(s.city || '').toLowerCase().includes(q) ||
+        String(s.areaManager || '').toLowerCase().includes(q) ||
+        String(s.storeHead || '').toLowerCase().includes(q)
+      );
+    });
+
+    // Urutkan: Toko yang sudah dipilih diletakkan di paling atas, lalu urut kode toko
+    filtered.sort((a, b) => {
+      const aAssigned = assignedCodes.has(String(a.code));
+      const bAssigned = assignedCodes.has(String(b.code));
+      if (aAssigned && !bAssigned) return -1;
+      if (!aAssigned && bAssigned) return 1;
+      return String(a.code || '').localeCompare(String(b.code || ''), undefined, { numeric: true });
+    });
+
+    // Update stats counter
+    const statsEl = document.getElementById('weekly-picker-stats');
+    if (statsEl) {
+      statsEl.textContent = `Menampilkan ${filtered.length} dari ${stores.length} Toko`;
+    }
+
+    // 3. Render Store Cards List
+    const listEl = document.getElementById('weekly-picker-list-container');
+    if (!listEl) return;
+
+    if (filtered.length === 0) {
+      listEl.innerHTML = `
+        <div class="py-12 text-center text-slate-400 space-y-2">
+          <i class="fa-solid fa-store-slash text-3xl text-slate-300"></i>
+          <p class="text-xs font-semibold text-slate-600">Tidak ada toko yang cocok dengan pencarian "${q}".</p>
+          <p class="text-[11px] text-slate-400">Gunakan formulir Tambah Toko Manual di bawah jika toko belum terdaftar.</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Tampilkan hingga 150 baris per pencarian (agar sangat responsif)
+    const displayList = filtered.slice(0, 150);
+
+    listEl.innerHTML = displayList
+      .map((st) => {
+        const isAssigned = assignedCodes.has(String(st.code));
+        return `
+          <div class="p-2.5 sm:p-3 rounded-xl border transition ${
+            isAssigned
+              ? 'bg-emerald-50/90 border-emerald-300 ring-1 ring-emerald-300/40 shadow-2xs'
+              : 'bg-white border-slate-200 hover:border-emerald-300 hover:bg-slate-50/80 shadow-2xs'
+          } flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5 min-w-0 flex-1">
+              <div class="w-9 h-9 rounded-xl ${
+                isAssigned ? 'bg-[#009944] text-white shadow-xs' : 'bg-slate-100 text-slate-700'
+              } flex items-center justify-center font-mono font-black text-xs shrink-0 shadow-2xs">
+                ${isAssigned ? '<i class="fa-solid fa-check"></i>' : (st.code ? st.code.slice(-3) : 'FM')}
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="font-mono font-extrabold text-xs ${isAssigned ? 'text-emerald-800' : 'text-[#0099A6]'}">Site ${st.code}</span>
+                  <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-slate-100 text-slate-600">${st.type || 'CVS'}</span>
+                  ${st.city ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-100 text-slate-500">${st.city}</span>` : ''}
+                  ${isAssigned ? `<span class="px-2 py-0.2 rounded-full text-[9px] font-extrabold bg-emerald-200 text-emerald-900">✓ Terjadwal Hari Ini</span>` : ''}
+                </div>
+                <h5 class="font-extrabold text-xs sm:text-sm text-slate-900 truncate leading-snug mt-0.5" title="${st.name}">${st.name}</h5>
+                <p class="text-[10px] text-slate-500 truncate mt-0.5">${st.address || '-'} ${st.areaManager ? ' • AM: ' + st.areaManager : ''}</p>
+              </div>
+            </div>
+            <div class="shrink-0">
+              ${
+                isAssigned
+                  ? `<button
+                       type="button"
+                       onclick="FMCUApp.toggleStoreInWeeklyPicker('${st.code}')"
+                       class="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-extrabold transition cursor-pointer flex items-center gap-1 shadow-2xs"
+                       title="Hapus toko dari hari ini"
+                     >
+                       <i class="fa-solid fa-trash-can text-[10px]"></i>
+                       <span>Hapus</span>
+                     </button>`
+                  : `<button
+                       type="button"
+                       onclick="FMCUApp.toggleStoreInWeeklyPicker('${st.code}')"
+                       class="px-3.5 py-1.5 rounded-xl bg-[#009944] hover:bg-emerald-700 text-white text-xs font-extrabold shadow-2xs transition cursor-pointer flex items-center gap-1"
+                       title="Tambahkan toko ke jadwal hari ini"
+                     >
+                       <i class="fa-solid fa-plus text-[10px]"></i>
+                       <span>Pilih</span>
+                     </button>`
+              }
+            </div>
+          </div>
+        `;
+      })
+      .join('');
+  },
+
+  submitManualStoreFromPicker() {
+    const { auditorId, dayIndex } = this.weeklyPickerTarget;
+    if (!auditorId || dayIndex === null) return;
+
+    const nameInput = document.getElementById('weekly-picker-manual-name');
+    const codeInput = document.getElementById('weekly-picker-manual-code');
+    const nameVal = (nameInput?.value || '').trim();
+    let codeVal = (codeInput?.value || '').trim();
+
+    if (!nameVal) {
+      this.showToast('Ketik nama toko yang ingin ditambahkan.', 'warning');
+      nameInput?.focus();
+      return;
+    }
+
+    if (!codeVal) {
+      codeVal = 'M-' + Math.floor(1000 + Math.random() * 9000);
+    }
+
+    let stores = window.FMCUData.getStores();
+    let existing = stores.find(
+      (s) =>
+        String(s.code).toLowerCase() === String(codeVal).toLowerCase() ||
+        String(s.name).toLowerCase() === nameVal.toLowerCase()
+    );
+
+    if (!existing) {
+      existing = {
+        code: codeVal,
+        name: nameVal,
+        type: 'CVS',
+        city: 'Manual Add',
+        address: 'Input Manual dari Atur Jadwal',
+        lat: null,
+        lng: null,
+        radiusMeters: 50
+      };
+      stores.push(existing);
+      window.FMCUData.saveStores(stores, existing);
+    }
+
+    this.assignStoreToWeeklySlot(existing.code, auditorId, dayIndex, false);
+    if (nameInput) nameInput.value = '';
+    if (codeInput) codeInput.value = '';
+
+    this.renderWeeklyStorePickerModalContent();
+    this.showToast(`Toko manual "${existing.name}" (${existing.code}) berhasil ditambahkan ke jadwal!`, 'success');
+  },
+
   removeStoreFromWeeklySlot(auditorId, dayIndex, storeCode) {
     const key = this.getWeeklySlotKey(auditorId, dayIndex);
     const items = this.getWeeklySlotItems(auditorId, dayIndex);
@@ -9290,15 +9602,6 @@ Instruksi:
         </div>
       `;
     } else {
-      const sortedStores = [...stores].sort((a, b) =>
-        String(a.code || '').localeCompare(String(b.code || ''), undefined, { numeric: true })
-      );
-      const compactStoreOptions =
-        `<option value="">+ Pilih Toko (${sortedStores.length})...</option>` +
-        sortedStores
-          .map((s) => `<option value="${s.code}">${s.code} - ${s.name} (${s.city || s.type || 'CVS'})</option>`)
-          .join('');
-
       boardEl.innerHTML = this.weeklySelectedAuditors
         .map((audId) => {
           const u = users.find((x) => x.id === audId);
@@ -9422,21 +9725,29 @@ Instruksi:
                     </div>
                   </div>
 
-                  <!-- Inline Quick Dropdown Add & Manual Add Button -->
-                  <div onclick="event.stopPropagation()" class="space-y-1.5">
-                    <select
-                      onchange="FMCUApp.onInlineAddStoreToDay('${u.id}', ${dayObj.dayIndex}, this)"
-                      class="w-full px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[10px] font-bold text-slate-700 focus:outline-none focus:border-[#009944]"
+                  <!-- Custom Store Picker Action Button (Tanpa Native Dropdown System) -->
+                  <div onclick="event.stopPropagation()" class="space-y-1.5 pt-1">
+                    <button
+                      type="button"
+                      onclick="FMCUApp.openWeeklyStorePickerModal('${u.id}', ${dayObj.dayIndex})"
+                      class="w-full py-2 px-2.5 rounded-xl border border-emerald-300 hover:border-[#009944] bg-emerald-50/70 hover:bg-emerald-100/90 text-emerald-900 text-[11px] font-extrabold flex items-center justify-between shadow-2xs transition group cursor-pointer"
+                      title="Buka pemilih toko khusus untuk ${dayObj.dayName}"
                     >
-                      ${compactStoreOptions}
-                    </select>
+                      <span class="flex items-center gap-1.5 truncate">
+                        <i class="fa-solid fa-store text-emerald-600 text-xs"></i>
+                        <span>Pilih Toko...</span>
+                      </span>
+                      <span class="w-5 h-5 rounded-lg bg-white text-[#009944] group-hover:bg-[#009944] group-hover:text-white flex items-center justify-center text-[10px] shadow-2xs transition shrink-0">
+                        <i class="fa-solid fa-plus"></i>
+                      </span>
+                    </button>
                     <button
                       type="button"
                       onclick="FMCUApp.promptAddManualStoreToWeeklySlot('${u.id}', ${dayObj.dayIndex})"
-                      class="w-full py-1 px-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#009944] border border-emerald-200 text-[10px] font-extrabold transition flex items-center justify-center gap-1 cursor-pointer"
+                      class="w-full py-1 px-2 rounded-lg bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200 text-[10px] font-bold transition flex items-center justify-center gap-1 cursor-pointer"
                       title="Tambah toko secara manual jika belum ada di master toko"
                     >
-                      <i class="fa-solid fa-plus text-[9px]"></i>
+                      <i class="fa-solid fa-pencil text-[9px] text-slate-400"></i>
                       <span>+ Toko Manual</span>
                     </button>
                   </div>

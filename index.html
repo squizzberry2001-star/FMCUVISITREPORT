@@ -3547,6 +3547,126 @@ service cloud.firestore {
       </div>
     </div>
 
+    <!-- ============================================================
+         MODAL: CUSTOM STORE PICKER (ATUR JADWAL MULTI-VISITOR PLANNER)
+         ============================================================ -->
+    <div id="modal-weekly-store-picker" onclick="if(event.target === this) FMCUApp.closeWeeklyStorePickerModal()" class="hidden fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
+      <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+        <!-- Header -->
+        <div class="p-4 sm:px-5 sm:py-4 bg-gradient-to-r from-emerald-50 via-white to-teal-50 border-b border-slate-200 flex items-start justify-between gap-3 shrink-0">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#009944] to-teal-600 text-white flex items-center justify-center text-lg font-bold shadow-sm shrink-0">
+              <i class="fa-solid fa-store"></i>
+            </div>
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <h3 class="font-extrabold text-slate-900 text-sm sm:text-base truncate">Pilih Toko Kunjungan</h3>
+                <span id="weekly-picker-day-badge" class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#009944] text-white shrink-0">Senin</span>
+              </div>
+              <p class="text-xs text-slate-500 mt-0.5 truncate">Visitor: <strong class="text-slate-800" id="weekly-picker-auditor-name">-</strong></p>
+            </div>
+          </div>
+          <button type="button" onclick="FMCUApp.closeWeeklyStorePickerModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition cursor-pointer shrink-0">
+            <i class="fa-solid fa-xmark text-sm"></i>
+          </button>
+        </div>
+
+        <!-- Search & Filter Controls -->
+        <div class="p-3 sm:p-4 border-b border-slate-100 bg-slate-50/70 space-y-2.5 shrink-0">
+          <div class="relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+            <input
+              type="text"
+              id="weekly-picker-search-input"
+              oninput="FMCUApp.onWeeklyStorePickerSearch(this.value)"
+              placeholder="Cari Site (0001), Nama Toko, Alamat, Kota, atau Area Manager..."
+              class="w-full pl-9 pr-9 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#009944] focus:ring-2 focus:ring-[#009944]/20 shadow-2xs font-semibold"
+            />
+            <button
+              type="button"
+              id="weekly-picker-search-clear"
+              onclick="FMCUApp.clearWeeklyStorePickerSearch()"
+              class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer p-1"
+            >
+              <i class="fa-solid fa-circle-xmark"></i>
+            </button>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-1.5 flex-1 min-w-[200px]">
+              <select
+                id="weekly-picker-city-select"
+                onchange="FMCUApp.onWeeklyStorePickerCityFilter(this.value)"
+                class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-700 focus:outline-none focus:border-[#009944] cursor-pointer"
+              >
+                <option value="ALL">Semua Kota / Wilayah</option>
+              </select>
+            </div>
+            <div class="flex items-center gap-1">
+              <span id="weekly-picker-stats" class="text-[11px] font-bold text-slate-500">Memuat toko...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Currently Assigned Chips on this Day -->
+        <div id="weekly-picker-assigned-strip" class="px-3 sm:px-4 py-2 bg-emerald-50/60 border-b border-emerald-100 flex items-center gap-2 overflow-x-auto shrink-0">
+          <!-- Populated dynamically with chips -->
+        </div>
+
+        <!-- Store List Results -->
+        <div id="weekly-picker-list-container" class="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2 min-h-[260px] max-h-[420px]">
+          <!-- Populated dynamically with store cards -->
+        </div>
+
+        <!-- Quick Manual Store Add -->
+        <div class="p-3 bg-slate-50 border-t border-slate-200 shrink-0">
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-xs font-extrabold text-slate-800 flex items-center gap-1">
+              <i class="fa-solid fa-plus-circle text-[#009944]"></i>
+              <span>Tambah Toko Manual</span>
+            </span>
+            <span class="text-[10px] text-slate-500">Jika toko belum ada di Master</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <input
+              type="text"
+              id="weekly-picker-manual-name"
+              placeholder="Nama Toko (contoh: FamilyMart Sudirman)"
+              class="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-800 focus:outline-none focus:border-[#009944]"
+            />
+            <input
+              type="text"
+              id="weekly-picker-manual-code"
+              placeholder="Kode (opsional)"
+              class="w-28 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-[#009944]"
+            />
+            <button
+              type="button"
+              onclick="FMCUApp.submitManualStoreFromPicker()"
+              class="px-3.5 py-1.5 rounded-xl bg-[#009944] hover:bg-emerald-700 text-white font-extrabold text-xs transition cursor-pointer shadow-xs shrink-0 flex items-center gap-1"
+            >
+              <i class="fa-solid fa-plus text-[10px]"></i>
+              <span>Tambah</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-4 py-3 bg-white border-t border-slate-200 flex items-center justify-between gap-3 shrink-0">
+          <div class="text-[11px] text-slate-500 font-semibold" id="weekly-picker-footer-info">
+            Klik tombol <strong class="text-emerald-700">+ Pilih</strong> pada toko untuk memasukkan ke jadwal.
+          </div>
+          <button
+            type="button"
+            onclick="FMCUApp.closeWeeklyStorePickerModal()"
+            class="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs transition cursor-pointer shadow-sm"
+          >
+            Selesai / Tutup
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Floating Action Button for Section 2: Observation (Quick Jump & Add Observation '+') -->
           <div id="floating-obs-actions" class="hidden fixed bottom-20 sm:bottom-8 right-4 sm:right-8 z-40 flex items-center gap-2.5">
             <!-- Quick Jump Navigator FAB -->
