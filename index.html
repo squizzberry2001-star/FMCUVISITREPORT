@@ -766,9 +766,9 @@
 
                 <!-- Quick Action Buttons: 2 Tombol Berdampingan Horizontal -->
                 <div class="pt-0.5 grid grid-cols-2 gap-2 sm:gap-3 w-full">
-                  <button type="button" onclick="FMCUApp.handleVisitTodaySchedule()" class="fm-gradient hover:opacity-95 text-white font-extrabold p-2.5 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm shadow-sm transition flex items-center justify-center text-center gap-1.5 sm:gap-2 cursor-pointer">
+                  <button type="button" id="btn-visit-today-schedule" onclick="FMCUApp.handleVisitTodaySchedule()" class="fm-gradient hover:opacity-95 text-white font-extrabold p-2.5 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm shadow-sm transition flex items-center justify-center text-center gap-1.5 sm:gap-2 cursor-pointer">
                     <i class="fa-solid fa-calendar-day text-xs sm:text-sm shrink-0"></i>
-                    <span class="leading-tight">Visit Jadwal Toko Hari Ini</span>
+                    <span id="btn-visit-today-label" class="leading-tight">Visit Jadwal Toko Hari Ini</span>
                   </button>
                   <button type="button" onclick="FMCUApp.switchHomeSubSection('schedule')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-extrabold p-2.5 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm shadow-xs transition flex items-center justify-center text-center gap-1.5 sm:gap-2 cursor-pointer">
                     <i class="fa-solid fa-calendar-days text-[#009944] text-xs sm:text-sm shrink-0"></i>

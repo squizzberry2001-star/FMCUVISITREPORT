@@ -3151,17 +3151,19 @@ window.FMCUApp = {
     this.triggerHaptic('light');
     const todayStr = this.getLocalDateISO();
     const todayFormatted = window.FMCUPdf.formatIndonesianDate(todayStr, true);
-    const schedules = window.FMCUData.getSchedules();
-    const reports = window.FMCUData.getReports();
+    const schedules = window.FMCUData.getSchedules() || [];
+    const reports = window.FMCUData.getReports() || [];
 
-    // 1. If already checked in to a store, verify if it was already completed today
+    // 1. If already checked in to a store, verify if it was already completed today and belongs to today
     const activeCheckIn = window.FMCUData.getActiveCheckIn();
     if (activeCheckIn && activeCheckIn.storeCode) {
+      const sch = schedules.find((s) => s.id === activeCheckIn.scheduleId);
+      const isTodaySchedule = sch ? (sch.scheduledDate === todayStr) : (activeCheckIn.checkInDate === todayStr);
       const isAlreadyCompleted = reports.some(
         (r) => r.storeCode === activeCheckIn.storeCode && r.visitDate === todayStr
       );
-      if (isAlreadyCompleted) {
-        // Toko yang dicek-in sebelumnya sudah selesai, hapus agar visitor tidak terkunci di toko yang sama
+      if (isAlreadyCompleted || !isTodaySchedule) {
+        // Toko yang dicek-in sebelumnya sudah selesai atau bukan jadwal hari ini, hapus agar visitor tidak terkunci
         window.FMCUData.setActiveCheckIn(null);
       } else {
         this.openStoreVisitForm(activeCheckIn.storeCode, activeCheckIn.scheduleId);
@@ -3200,19 +3202,48 @@ window.FMCUApp = {
       return;
     }
 
-    // 4. If user has NO assigned schedule today: Auto redirect to Form Visit with today's actual date
-    this.resetVisitForm(true);
-    this.hasActiveStoreForm = true;
-    this.activePreviewReportId = '__LIVE_FORM__';
-    this.updateFormGuardVisibility();
-    const dateInput = document.getElementById('form-visit-date');
-    if (dateInput) dateInput.value = todayStr;
-    if (this.currentUser) {
-      const audInput = document.getElementById('form-auditor-name');
-      if (audInput) audInput.value = this.currentUser.name || '';
+    // 4. Jika hari aktual tidak ada jadwal visit: FORM VISIT TIDAK BISA DIBUKA
+    this.triggerHaptic('warning');
+    const isVisitor = this.isAuditorUser(this.currentUser) || !this.hasAuthority('manage_schedule');
+    const warningMsg = isVisitor
+      ? `⛔ Akses Ditolak: Anda tidak memiliki jadwal visit yang ditugaskan untuk hari ini (${todayFormatted}). Form visit tidak dapat dibuka karena tidak ada jadwal kunjungan aktif di hari aktual.`
+      : `⛔ Tidak Ada Jadwal Hari Ini: Tidak ada jadwal visit untuk tanggal aktual (${todayFormatted}). Silakan atur atau tambahkan jadwal terlebih dahulu di menu Jadwal Visit.`;
+    this.showToast(warningMsg, 'warning', 6000);
+    this.switchHomeSubSection('schedule');
+  },
+
+  // Update button visual state & label on Home according to today's schedule availability
+  updateHomeTodayVisitButtonUI() {
+    const btn = document.getElementById('btn-visit-today-schedule');
+    const label = document.getElementById('btn-visit-today-label');
+    if (!btn || !label) return;
+
+    const todayStr = this.getLocalDateISO();
+    const schedules = window.FMCUData.getSchedules() || [];
+    const reports = window.FMCUData.getReports() || [];
+
+    const myTodaySchedules = schedules.filter(
+      (s) => s.scheduledDate === todayStr && this.isScheduleOwnedByUser(s, this.currentUser)
+    );
+
+    const pendingToday = myTodaySchedules.filter((s) => {
+      const hasReport = s.reportId || reports.some((r) => r.storeCode === s.storeCode && r.visitDate === s.scheduledDate);
+      return s.status !== 'COMPLETED' && !hasReport;
+    });
+
+    if (myTodaySchedules.length === 0) {
+      btn.className = 'bg-slate-100 hover:bg-slate-200 text-slate-500 border border-slate-200 font-extrabold p-2.5 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm shadow-none transition flex items-center justify-center text-center gap-1.5 sm:gap-2 cursor-pointer';
+      label.textContent = 'Visit Jadwal Hari Ini (Tidak Ada Jadwal)';
+      btn.title = 'Tidak ada jadwal visit yang ditugaskan untuk hari ini';
+    } else if (pendingToday.length > 0) {
+      btn.className = 'fm-gradient hover:opacity-95 text-white font-extrabold p-2.5 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm shadow-sm transition flex items-center justify-center text-center gap-1.5 sm:gap-2 cursor-pointer';
+      label.textContent = `Visit Jadwal Hari Ini (${pendingToday.length} Toko)`;
+      btn.title = `Ada ${pendingToday.length} toko pada jadwal hari ini yang siap divisit`;
+    } else {
+      btn.className = 'bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold p-2.5 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm shadow-sm transition flex items-center justify-center text-center gap-1.5 sm:gap-2 cursor-pointer';
+      label.textContent = 'Visit Jadwal Hari Ini (✓ Selesai)';
+      btn.title = 'Semua jadwal visit hari ini telah selesai dilaksanakan';
     }
-    this.navigate('form');
-    this.showToast(`Membuka Form Visit tanggal aktual (${todayFormatted}). Silakan pilih toko yang dikunjungi.`, 'info');
   },
 
   restoreActiveCheckInToForm(checkInObj) {
@@ -3476,6 +3507,7 @@ window.FMCUApp = {
     this.initOrUpdateHomeMap();
     this.updateHomeSubSectionPills();
     this.initHomeSubtabAutoSlide();
+    this.updateHomeTodayVisitButtonUI();
   },
 
   renderAnalyticsView() {
@@ -3826,6 +3858,7 @@ window.FMCUApp = {
           <div class="text-slate-400 text-xs font-medium">Belum ada jadwal visit toko yang tersedia pada filter ini.</div>
         </div>
       `;
+      this.updateHomeTodayVisitButtonUI();
       return;
     }
 
@@ -3926,6 +3959,7 @@ window.FMCUApp = {
         `;
       })
       .join('');
+    this.updateHomeTodayVisitButtonUI();
   },
 
 
