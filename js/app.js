@@ -8437,6 +8437,9 @@ Instruksi:
       schWinInput.value = '08:30 - 17:30';
     }
 
+    // 0. Render Food Safety & Critical Findings Widget
+    this.renderAdminCriticalFindingsWidget();
+
     // 0. Render Interactive 5-Day Multi-Visitor Planner
     this.renderWeeklySchedulePlanner();
     if (this.currentScheduleSubSection === 'calendar') {
@@ -8895,6 +8898,12 @@ Instruksi:
   weeklyPickerTarget: { auditorId: null, dayIndex: null },
   weeklyPickerSearch: '',
   weeklyPickerCity: 'ALL',
+  weeklyPickerType: 'ALL',
+
+  onWeeklyStorePickerTypeFilter(val) {
+    this.weeklyPickerType = val || 'ALL';
+    this.renderWeeklyStorePickerModalContent();
+  },
 
   openWeeklyStorePickerModal(auditorId, dayIndex) {
     this.weeklyPickerTarget = { auditorId, dayIndex: Number(dayIndex) };
@@ -8909,6 +8918,9 @@ Instruksi:
     if (sInput) sInput.value = '';
     const sClear = document.getElementById('weekly-picker-search-clear');
     if (sClear) sClear.classList.add('hidden');
+    const sType = document.getElementById('weekly-picker-type-select');
+    if (sType) sType.value = 'ALL';
+    this.weeklyPickerType = 'ALL';
 
     // Populate City filter
     const stores = window.FMCUData.getStores();
@@ -9053,6 +9065,7 @@ Instruksi:
 
     let filtered = stores.filter((s) => {
       if (city !== 'ALL' && s.city !== city) return false;
+      if (this.weeklyPickerType && this.weeklyPickerType !== 'ALL' && (s.type || 'CVS') !== this.weeklyPickerType) return false;
       if (!q) return true;
       return (
         String(s.code || '').toLowerCase().includes(q) ||
@@ -9733,12 +9746,39 @@ Instruksi:
                               <span>Klik hari ini lalu pilih toko di atas</span>
                             </div>`
                           : draftItems
-                              .map((item) => {
+                              .map((item, itemIdx) => {
                                 const st = storeMap.get(String(item.storeCode));
                                 const stName = st ? st.name : item.storeCode;
                                 const stCity = st ? st.city || st.type || 'CVS' : 'CVS';
+
+                                // Deteksi Bentrok & Jarak Antar-Toko
+                                const conflict = this.checkStoreConflictOnDay(item.storeCode, u.id, dayObj.dayIndex, dayObj.dateStr);
+                                let distWarningHtml = '';
+                                if (itemIdx > 0) {
+                                  const prevItem = draftItems[itemIdx - 1];
+                                  const prevSt = storeMap.get(String(prevItem.storeCode));
+                                  if (st && prevSt && st.lat && prevSt.lat && st.lng && prevSt.lng) {
+                                    const distKm = this.calculateDistanceKm(prevSt.lat, prevSt.lng, st.lat, st.lng);
+                                    if (distKm && distKm > 25) {
+                                      distWarningHtml = `
+                                        <div class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 text-[9px] font-bold flex items-center gap-1 border border-amber-200 mt-1" title="Jarak dari toko sebelumnya (${prevSt.name}) adalah ${distKm.toFixed(1)} km">
+                                          <i class="fa-solid fa-route text-amber-600"></i>
+                                          <span>Jarak ${distKm.toFixed(1)} km (>25km)</span>
+                                        </div>
+                                      `;
+                                    }
+                                  }
+                                }
+
                                 return `
-                                  <div onclick="event.stopPropagation()" class="p-2 rounded-xl bg-white border border-emerald-200 shadow-2xs space-y-1">
+                                  <div onclick="event.stopPropagation()" class="p-2 rounded-xl bg-white border ${conflict ? 'border-rose-400 ring-1 ring-rose-400/40' : 'border-emerald-200'} shadow-2xs space-y-1">
+                                    ${conflict ? `
+                                      <div class="px-1.5 py-0.5 rounded bg-rose-50 text-rose-800 text-[9px] font-extrabold flex items-center gap-1 border border-rose-200 mb-1" title="Toko ini juga dijadwalkan untuk ${conflict.auditorName} pada hari yang sama!">
+                                        <i class="fa-solid fa-triangle-exclamation text-rose-600"></i>
+                                        <span>Bentrok: ${conflict.auditorName}</span>
+                                      </div>
+                                    ` : ''}
+                                    ${distWarningHtml}
                                     <div class="flex items-start justify-between gap-1">
                                       <div class="min-w-0">
                                         <div class="font-mono font-extrabold text-[10px] text-[#0099A6]">Site ${item.storeCode}</div>
@@ -9947,8 +9987,33 @@ Instruksi:
       return;
     }
 
+    // Cek Bentrok Antar-Jadwal Baru
+    const storeDateMap = {};
+    const conflictList = [];
+    newSchedules.forEach((ns) => {
+      const k = `${ns.storeCode}__${ns.scheduledDate}`;
+      if (storeDateMap[k]) {
+        conflictList.push(`${ns.storeName} (${ns.scheduledDate}): ${storeDateMap[k]} & ${ns.auditorName}`);
+      } else {
+        storeDateMap[k] = ns.auditorName;
+      }
+    });
+
+    if (conflictList.length > 0) {
+      const confirmMsg = `⚠️ Terdeteksi ${conflictList.length} jadwal bentrok (toko yang sama dijadwalkan ke beberapa visitor di hari yang sama):\n- ${conflictList.slice(0, 3).join('\n- ')}\n\nTetap terapkan dan simpan jadwal ini?`;
+      if (!confirm(confirmMsg)) {
+        return;
+      }
+    }
+
     const updatedSchedules = [...newSchedules, ...schedules];
     window.FMCUData.saveSchedules(updatedSchedules);
+
+    this.logScheduleAction(
+      'BATCH_APPLY',
+      `Menerapkan ${newSchedules.length} jadwal visit 1 week untuk ${involvedAuditors.size} visitor pada periode minggu ${this.weeklyMondayDate}`,
+      'Planner 1 Week'
+    );
 
     this.weeklyDraftMatrix = {};
     this.renderAllViews();
@@ -10354,10 +10419,320 @@ Instruksi:
   },
 
   deleteSchedule(id) {
-    const schedules = window.FMCUData.getSchedules().filter((s) => s.id !== id);
-    window.FMCUData.saveSchedules(schedules);
+    const schedules = window.FMCUData.getSchedules() || [];
+    const target = schedules.find((s) => s.id === id);
+    const updated = schedules.filter((s) => s.id !== id);
+    window.FMCUData.saveSchedules(updated);
     this.renderAllViews();
     this.showToast('Jadwal visit dihapus', 'info');
+    if (target) {
+      this.logScheduleAction('DELETE', `Menghapus jadwal visit toko ${target.storeName} (${target.storeCode}) untuk ${target.auditorName || '-'} tanggal ${target.scheduledDate}`, 'Daftar Jadwal');
+    }
+  },
+
+  // ==========================================================================
+  // FITUR IMPROVEMENT ADMIN 1-5
+  // ==========================================================================
+
+  // 1. Duplikasi Susunan Jadwal Minggu Ini ke Minggu Depan
+  duplicateCurrentWeekToNextWeek() {
+    this.ensureWeeklyPlannerInitialized();
+    const curMonday = this.weeklyMondayDate;
+    const curFiveDays = this.getFiveWorkDays(curMonday);
+    const curDates = curFiveDays.map((d) => d.isoDate);
+
+    // Kumpulkan seluruh item jadwal minggu aktif (dari draft matrix atau database tersimpan)
+    const allSchedules = window.FMCUData.getSchedules() || [];
+    const savedInCurWeek = allSchedules.filter((s) => curDates.includes(s.scheduledDate));
+
+    let hasDraft = false;
+    for (const k in this.weeklyDraftMatrix) {
+      if (Array.isArray(this.weeklyDraftMatrix[k]) && this.weeklyDraftMatrix[k].length > 0) {
+        hasDraft = true;
+        break;
+      }
+    }
+
+    if (!hasDraft && savedInCurWeek.length === 0) {
+      this.showToast('Tidak ada jadwal (draft atau tersimpan) pada minggu aktif untuk disalin.', 'warning');
+      return;
+    }
+
+    // Tentukan hari Senin minggu depan (+7 hari)
+    const dt = new Date(curMonday + 'T00:00:00');
+    dt.setDate(dt.getDate() + 7);
+    const nextMonday = this.getMondayOfWeek(this.getLocalDateISO(dt));
+
+    const newDraftMatrix = {};
+    const involvedAuditors = new Set();
+
+    if (hasDraft) {
+      for (const k in this.weeklyDraftMatrix) {
+        if (Array.isArray(this.weeklyDraftMatrix[k]) && this.weeklyDraftMatrix[k].length > 0) {
+          newDraftMatrix[k] = this.weeklyDraftMatrix[k].map((item) => ({ ...item }));
+          const audId = k.split('__')[0];
+          if (audId) involvedAuditors.add(audId);
+        }
+      }
+    } else {
+      savedInCurWeek.forEach((s) => {
+        const dayIdx = curDates.indexOf(s.scheduledDate);
+        if (dayIdx !== -1 && s.auditorId) {
+          const key = this.getWeeklySlotKey(s.auditorId, dayIdx);
+          if (!newDraftMatrix[key]) newDraftMatrix[key] = [];
+          newDraftMatrix[key].push({
+            storeCode: s.storeCode,
+            storeName: s.storeName,
+            window: s.window || '08:30 - 17:30',
+            focus: s.focus || 'Audit Standar',
+            priority: s.priority || 'NORMAL'
+          });
+          involvedAuditors.add(s.auditorId);
+        }
+      });
+    }
+
+    this.weeklyMondayDate = nextMonday;
+    this.weeklyDraftMatrix = newDraftMatrix;
+
+    involvedAuditors.forEach((aId) => {
+      if (!this.weeklySelectedAuditors.includes(aId)) {
+        this.weeklySelectedAuditors.push(aId);
+      }
+    });
+
+    const monInput = document.getElementById('weekly-monday-input');
+    if (monInput) monInput.value = nextMonday;
+
+    this.renderWeeklySchedulePlanner();
+    const nextFormatted = window.FMCUPdf.formatIndonesianDate(nextMonday, false);
+    this.showToast(`📋 Berhasil menyalin jadwal ke minggu berikutnya (${nextFormatted})! Silakan tinjau dan klik "Terapkan & Simpan Jadwal".`, 'success', 6000);
+    this.logScheduleAction('DUPLICATE', `Menduplikasi susunan jadwal dari minggu ${curMonday} ke minggu ${nextMonday}`, 'Planner 1 Week');
+  },
+
+  // 2. Haversine Distance & Conflict Detection
+  calculateDistanceKm(lat1, lon1, lat2, lon2) {
+    if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return null;
+    const R = 6371; // Radius bumi dalam km
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  },
+
+  checkStoreConflictOnDay(storeCode, currentAuditorId, dayIndex, dateStr) {
+    const users = this.getSchedulableAuditors();
+    // A. Cek di slot draft auditor lain pada hari yang sama
+    for (const aud of users) {
+      if (aud.id === currentAuditorId) continue;
+      const otherItems = this.getWeeklySlotItems(aud.id, dayIndex);
+      const match = otherItems.find((it) => String(it.storeCode) === String(storeCode));
+      if (match) {
+        return { auditorName: aud.name, type: 'DRAFT' };
+      }
+    }
+    // B. Cek di jadwal database tersimpan pada tanggal yang sama
+    const schedules = window.FMCUData.getSchedules() || [];
+    const savedMatch = schedules.find(
+      (s) => s.scheduledDate === dateStr && String(s.storeCode) === String(storeCode) && s.auditorId !== currentAuditorId
+    );
+    if (savedMatch) {
+      return { auditorName: savedMatch.auditorName || 'Visitor Lain', type: 'SAVED' };
+    }
+    return null;
+  },
+
+  // 4. Widget Temuan Kritis & Food Safety Alert
+  renderAdminCriticalFindingsWidget() {
+    const container = document.getElementById('admin-critical-findings-widget');
+    if (!container) return;
+
+    const reports = window.FMCUData.getReports() || [];
+    const criticalItems = [];
+
+    reports.forEach((r) => {
+      const score = Number(r.qscScore || r.finalScore || 0);
+      const isLowScore = score > 0 && score < 75;
+
+      const obs = r.observations || r.findings || [];
+      const criticalObs = obs.filter(
+        (o) =>
+          o.severity === 'CRITICAL' ||
+          o.isCritical ||
+          String(o.category || '').toLowerCase().includes('food safety') ||
+          String(o.finding || '').toLowerCase().includes('expired') ||
+          String(o.finding || '').toLowerCase().includes('chiller')
+      );
+
+      if (isLowScore || criticalObs.length > 0) {
+        criticalItems.push({
+          reportId: r.id,
+          storeCode: r.storeCode,
+          storeName: r.storeName || r.storeCode,
+          visitDate: r.visitDate || '-',
+          auditorName: r.auditorName || r.creatorName || '-',
+          score: score > 0 ? `${score.toFixed(1)}%` : '-',
+          criticalFindingsCount: criticalObs.length,
+          criticalDetail: criticalObs.length > 0 ? criticalObs[0].finding : 'Skor QSC di bawah batas standar (<75%)'
+        });
+      }
+    });
+
+    if (criticalItems.length === 0) {
+      container.innerHTML = `
+        <div class="px-4 py-2.5 rounded-2xl bg-emerald-50 border border-emerald-200/80 text-emerald-900 flex items-center justify-between gap-3 text-xs shadow-2xs">
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
+              <i class="fa-solid fa-shield-check"></i>
+            </span>
+            <span><strong>Food Safety & QC Alert:</strong> Seluruh toko yang diaudit terpantau aman dan mematuhi standar QSC. Zero critical finding.</span>
+          </div>
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-200 text-emerald-900 shrink-0">AMAN</span>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="rounded-2xl bg-gradient-to-r from-rose-50 via-white to-amber-50 border border-rose-200 p-4 space-y-3 shadow-xs">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-rose-100 pb-2.5">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center text-base shrink-0 shadow-xs">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div>
+              <h4 class="font-black text-xs sm:text-sm text-rose-950 flex items-center gap-2">
+                <span>Peringatan Temuan Kritis & Food Safety</span>
+                <span class="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-black">${criticalItems.length} Toko</span>
+              </h4>
+              <p class="text-[11px] text-rose-700">Toko dengan skor rendah atau temuan defect prioritas tinggi yang memerlukan tindak lanjut cepat</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+          ${criticalItems.slice(0, 6).map((item) => `
+            <div class="p-3 rounded-xl bg-white border border-rose-200 shadow-2xs flex flex-col justify-between gap-2">
+              <div class="space-y-1">
+                <div class="flex items-center justify-between gap-1">
+                  <span class="font-black text-xs text-slate-900 truncate">${item.storeName}</span>
+                  <span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-rose-100 text-rose-800 shrink-0">Skor: ${item.score}</span>
+                </div>
+                <div class="text-[10px] text-slate-500">
+                  <span>${item.visitDate}</span> • <span>${item.auditorName}</span>
+                </div>
+                <div class="text-[11px] text-rose-700 font-semibold line-clamp-2">
+                  <i class="fa-solid fa-circle-exclamation text-rose-500 mr-1 text-[10px]"></i>${item.criticalDetail}
+                </div>
+              </div>
+
+              <div class="pt-1.5 border-t border-slate-100 flex items-center justify-end">
+                <button type="button" onclick="FMCUApp.openReportPreview('${item.reportId}')" class="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-800 text-[10px] font-extrabold border border-rose-200 transition flex items-center gap-1 cursor-pointer">
+                  <i class="fa-solid fa-file-pdf"></i>
+                  <span>Buka Laporan</span>
+                </button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  },
+
+  // 5. Audit Trail & Log Riwayat Perubahan Jadwal
+  logScheduleAction(action, details, target = 'Jadwal Mingguan') {
+    try {
+      const logs = window.FMCUData.getScheduleAuditLogs() || [];
+      const newEntry = {
+        id: 'LOG_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+        timestamp: new Date().toISOString(),
+        adminName: this.currentUser?.name || 'Admin',
+        adminRole: this.currentUser?.roleBadge || this.currentUser?.role || 'Admin Jadwal',
+        action,
+        details,
+        target
+      };
+      logs.unshift(newEntry);
+      if (logs.length > 100) logs.pop();
+      window.FMCUData.saveScheduleAuditLogs(logs);
+    } catch (e) {
+      console.warn('Failed to save schedule audit log', e);
+    }
+  },
+
+  openScheduleAuditLogsModal() {
+    this.triggerHaptic('light');
+    const modal = document.getElementById('modal-schedule-audit-logs');
+    const container = document.getElementById('modal-schedule-audit-logs-body');
+    if (!modal || !container) return;
+
+    const logs = window.FMCUData.getScheduleAuditLogs() || [];
+    if (logs.length === 0) {
+      container.innerHTML = `
+        <div class="border border-dashed border-slate-200 rounded-2xl py-12 px-4 text-center space-y-2 bg-slate-50/50">
+          <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl mx-auto">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+          </div>
+          <div class="text-slate-800 font-extrabold text-sm">Belum Ada Riwayat Perubahan</div>
+          <div class="text-slate-500 text-xs max-w-sm mx-auto">Aktivitas penambahan, penerapan batch, duplikasi, dan penghapusan jadwal akan otomatis dicatat di sini.</div>
+        </div>
+      `;
+    } else {
+      container.innerHTML = logs.map((log) => {
+        const dt = new Date(log.timestamp);
+        const timeFormatted = dt.toLocaleDateString('id-ID', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        const actionBadges = {
+          CREATE: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+          BATCH_APPLY: 'bg-teal-100 text-teal-800 border-teal-200',
+          DUPLICATE: 'bg-amber-100 text-amber-800 border-amber-200',
+          DELETE: 'bg-rose-100 text-rose-800 border-rose-200',
+          UPDATE: 'bg-blue-100 text-blue-800 border-blue-200'
+        };
+        const badgeCls = actionBadges[log.action] || 'bg-slate-100 text-slate-800 border-slate-200';
+
+        return `
+          <div class="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-1.5">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase border ${badgeCls}">${log.action}</span>
+                <span class="text-xs font-black text-slate-800">${log.adminName}</span>
+                <span class="text-[10px] text-slate-500">(${log.adminRole})</span>
+              </div>
+              <span class="text-[10px] font-semibold text-slate-400">${timeFormatted}</span>
+            </div>
+            <div class="text-xs text-slate-700 font-medium pl-1">
+              ${log.details}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  },
+
+  closeScheduleAuditLogsModal() {
+    const modal = document.getElementById('modal-schedule-audit-logs');
+    if (modal) modal.classList.add('hidden');
+    document.body.style.overflow = '';
+  },
+
+  clearScheduleAuditLogs() {
+    if (!confirm('Apakah Anda yakin ingin membersihkan seluruh log riwayat perubahan jadwal?')) return;
+    window.FMCUData.saveScheduleAuditLogs([]);
+    this.openScheduleAuditLogsModal();
+    this.showToast('Log riwayat jadwal berhasil dibersihkan.', 'info');
   },
 
   // ==========================================================================

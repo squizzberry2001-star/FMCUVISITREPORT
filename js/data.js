@@ -1447,6 +1447,27 @@ window.FMCUData = {
     }
   },
 
+  getScheduleAuditLogs() {
+    try {
+      const raw = localStorage.getItem('fmcu_schedule_audit_logs_v1');
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  saveScheduleAuditLogs(logs) {
+    try {
+      localStorage.setItem('fmcu_schedule_audit_logs_v1', JSON.stringify(logs || []));
+      if (this.db) {
+        this.db.collection('settings').doc('schedule_audit_logs').set({
+          logs: (logs || []).slice(0, 50),
+          updatedAt: new Date().toISOString()
+        }).catch(() => {});
+      }
+    } catch (e) {}
+  },
+
   getSchedules() {
     const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.SCHEDULES) || '[]');
     // Urutkan jadwal toko dimulai dari tanggal terdekat secara kronologis

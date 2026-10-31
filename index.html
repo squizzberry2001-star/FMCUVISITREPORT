@@ -1914,6 +1914,9 @@ service cloud.firestore {
               </div>
             </div>
 
+            <!-- WIDGET REKAP TEMUAN KRITIS & FOOD SAFETY ALERT DI DASHBOARD ADMIN -->
+            <div id="admin-critical-findings-widget"></div>
+
             <!-- SUB-SECTION HALAMAN 1: PLANNER 1 WEEK (SENIN-MINGGU) MULTI-VISITOR -->
             <div id="schedule-section-create" class="space-y-4">
               <div id="sch-create-mode-weekly" class="space-y-4">
@@ -1943,6 +1946,10 @@ service cloud.firestore {
                       </button>
                       <button type="button" onclick="FMCUApp.setWeeklyMondayToCurrentWeek(7)" class="px-2.5 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 text-[11px] font-bold cursor-pointer">
                         +1 Minggu
+                      </button>
+                      <button type="button" onclick="FMCUApp.duplicateCurrentWeekToNextWeek()" class="px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-[11px] font-extrabold cursor-pointer flex items-center gap-1 shadow-2xs transition" title="Salin seluruh susunan jadwal minggu ini ke minggu berikutnya">
+                        <i class="fa-solid fa-copy text-amber-600"></i>
+                        <span>Salin ke Minggu Depan</span>
                       </button>
                     </div>
                   </div>
@@ -2214,10 +2221,16 @@ service cloud.firestore {
                     </h4>
                     <p class="text-[11px] text-slate-500">Klik kartu nama visitor di bawah untuk memfilter tabel jadwal, atau unduh rekap lengkap 4 sheet Excel</p>
                   </div>
-                  <button type="button" onclick="FMCUApp.exportSchedulesAndAuditorRecapExcel()" class="self-start sm:self-center px-3.5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer">
-                    <i class="fa-solid fa-file-excel"></i>
-                    <span>Export Rekap Jadwal & Visitor (.xlsx)</span>
-                  </button>
+                  <div class="flex flex-wrap items-center gap-2 self-start sm:self-center">
+                    <button type="button" onclick="FMCUApp.openScheduleAuditLogsModal()" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs border border-slate-200 shadow-2xs transition flex items-center gap-1.5 cursor-pointer">
+                      <i class="fa-solid fa-clock-rotate-left text-amber-600"></i>
+                      <span>Log Riwayat Jadwal</span>
+                    </button>
+                    <button type="button" onclick="FMCUApp.exportSchedulesAndAuditorRecapExcel()" class="px-3.5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                      <i class="fa-solid fa-file-excel"></i>
+                      <span>Export Rekap Jadwal & Visitor (.xlsx)</span>
+                    </button>
+                  </div>
                 </div>
                 <div id="admin-auditor-recap-strip" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5"></div>
               </div>
@@ -3703,6 +3716,17 @@ service cloud.firestore {
               >
                 <option value="ALL">Semua Kota / Wilayah</option>
               </select>
+              <select
+                id="weekly-picker-type-select"
+                onchange="FMCUApp.onWeeklyStorePickerTypeFilter(this.value)"
+                class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-700 focus:outline-none focus:border-[#009944] cursor-pointer"
+              >
+                <option value="ALL">Semua Tipe Toko</option>
+                <option value="CVS">CVS</option>
+                <option value="FamiSuper">FamiSuper</option>
+                <option value="Housing">Housing</option>
+                <option value="Rest Area">Rest Area</option>
+              </select>
             </div>
             <div class="flex items-center gap-1">
               <span id="weekly-picker-stats" class="text-[11px] font-bold text-slate-500">Memuat toko...</span>
@@ -3798,6 +3822,45 @@ service cloud.firestore {
             <!-- Hidden file inputs triggered programmatically -->
             <input type="file" id="fab-camera-input" accept="image/*" capture="environment" onchange="FMCUApp.handleFloatingCameraUpload(event)" class="hidden" />
             <input type="file" id="fab-gallery-input" accept="image/*" multiple onchange="FMCUApp.handleFloatingGalleryUpload(event)" class="hidden" />
+    </div>
+
+    <!-- ============================================================
+         MODAL LOG RIWAYAT PERUBAHAN JADWAL (AUDIT TRAIL)
+         ============================================================ -->
+    <div id="modal-schedule-audit-logs" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 hidden">
+      <div class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[88vh] animate-in fade-in zoom-in-95 duration-200">
+        <!-- Header -->
+        <div class="p-4 sm:p-5 bg-gradient-to-r from-slate-900 to-slate-800 text-white flex items-center justify-between shrink-0">
+          <div class="flex items-center gap-2.5">
+            <div class="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-lg shrink-0 border border-amber-500/30">
+              <i class="fa-solid fa-clock-rotate-left"></i>
+            </div>
+            <div>
+              <h3 class="font-black text-sm sm:text-base leading-tight">Log Riwayat Perubahan Jadwal</h3>
+              <p class="text-xs text-slate-300 font-medium">Rekam jejak transparan seluruh aktivitas pengaturan jadwal</p>
+            </div>
+          </div>
+          <button type="button" onclick="FMCUApp.closeScheduleAuditLogsModal()" class="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer">
+            <i class="fa-solid fa-xmark text-sm"></i>
+          </button>
+        </div>
+
+        <!-- Body -->
+        <div id="modal-schedule-audit-logs-body" class="p-4 sm:p-6 overflow-y-auto space-y-2.5 flex-1 bg-slate-50/50">
+          <!-- Populated dynamically -->
+        </div>
+
+        <!-- Footer -->
+        <div class="p-3 sm:p-4 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
+          <button type="button" onclick="FMCUApp.clearScheduleAuditLogs()" class="px-3 py-1.5 rounded-xl text-rose-700 hover:bg-rose-50 text-xs font-bold transition flex items-center gap-1 cursor-pointer">
+            <i class="fa-solid fa-trash-can text-xs"></i>
+            <span>Bersihkan Log</span>
+          </button>
+          <button type="button" onclick="FMCUApp.closeScheduleAuditLogsModal()" class="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-extrabold text-xs transition cursor-pointer">
+            Tutup
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- ============================================================
