@@ -1457,19 +1457,42 @@ window.FMCUApp = {
     const t = this._deleteAuthTarget;
     const typePill = document.getElementById('modal-del-auth-type-pill');
     if (typePill) {
-      typePill.textContent = t.type === 'report' ? 'RIWAYAT VISIT / LAPORAN' : 'JADWAL VISIT TOKO';
-      typePill.className = t.type === 'report'
-        ? 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800'
-        : 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800';
+      if (t.type === 'bulk_schedule') {
+        typePill.textContent = `HAPUS MASSAL (${t.ids.length} JADWAL)`;
+        typePill.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800';
+      } else {
+        typePill.textContent = t.type === 'report' ? 'RIWAYAT VISIT / LAPORAN' : 'JADWAL VISIT TOKO';
+        typePill.className = t.type === 'report'
+          ? 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800'
+          : 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800';
+      }
     }
     const storeEl = document.getElementById('modal-del-auth-store');
-    if (storeEl) storeEl.textContent = `FamilyMart ${t.storeName} (${t.storeCode})`;
+    if (storeEl) {
+      if (t.type === 'bulk_schedule') {
+        storeEl.textContent = `${t.ids.length} Jadwal Visit Toko Terpilih`;
+      } else {
+        storeEl.textContent = `FamilyMart ${t.storeName} (${t.storeCode})`;
+      }
+    }
 
     const dateEl = document.getElementById('modal-del-auth-date');
-    if (dateEl) dateEl.textContent = t.date;
+    if (dateEl) {
+      if (t.type === 'bulk_schedule') {
+        dateEl.textContent = 'Seluruh Tanggal Terpilih';
+      } else {
+        dateEl.textContent = t.date;
+      }
+    }
 
     const visitorEl = document.getElementById('modal-del-auth-visitor');
-    if (visitorEl) visitorEl.innerHTML = `<i class="fa-regular fa-user text-slate-400"></i><span>Visitor: <strong>${t.visitor}</strong></span>`;
+    if (visitorEl) {
+      if (t.type === 'bulk_schedule') {
+        visitorEl.innerHTML = `<i class="fa-solid fa-layer-group text-slate-400"></i><span>Total <strong>${t.ids.length} jadwal visit toko</strong> akan dihapus permanen dari sistem.</span>`;
+      } else {
+        visitorEl.innerHTML = `<i class="fa-regular fa-user text-slate-400"></i><span>Visitor: <strong>${t.visitor}</strong></span>`;
+      }
+    }
 
     const pwdInput = document.getElementById('modal-del-auth-password');
     if (pwdInput) {
@@ -1562,6 +1585,9 @@ window.FMCUApp = {
       this.showToast(`Laporan visit Toko ${target.storeName} (${target.storeCode}) berhasil dihapus permanen!`, 'success');
     } else if (target.type === 'schedule') {
       this.deleteSchedule(target.id);
+      this.closeDeleteAuthorityModal();
+    } else if (target.type === 'bulk_schedule') {
+      this.deleteBulkSchedules(target.ids);
       this.closeDeleteAuthorityModal();
     }
   },
@@ -9757,6 +9783,34 @@ Instruksi:
     }
   },
 
+  getFilteredAdminSchedules(schedules) {
+    if (!schedules) schedules = window.FMCUData.getSchedules() || [];
+    const listSearchQ = (document.getElementById('adm-sch-list-search')?.value || '').trim().toLowerCase();
+    const listAuditorFilter = document.getElementById('adm-sch-list-auditor')?.value || 'ALL';
+    const listStatusFilter = document.getElementById('adm-sch-list-status')?.value || 'ALL';
+
+    const filtered = schedules.filter((s) => {
+      if (listAuditorFilter !== 'ALL' && s.auditorId !== listAuditorFilter) return false;
+      if (listStatusFilter !== 'ALL' && s.status !== listStatusFilter) return false;
+      if (!listSearchQ) return true;
+      return (
+        String(s.storeName || '').toLowerCase().includes(listSearchQ) ||
+        String(s.storeCode || '').toLowerCase().includes(listSearchQ) ||
+        String(s.auditorName || '').toLowerCase().includes(listSearchQ) ||
+        String(s.scheduledDate || '').toLowerCase().includes(listSearchQ) ||
+        String(s.auditFocus || '').toLowerCase().includes(listSearchQ)
+      );
+    });
+
+    filtered.sort((a, b) => {
+      const dateA = String(a.scheduledDate || '');
+      const dateB = String(b.scheduledDate || '');
+      if (dateA !== dateB) return dateA.localeCompare(dateB);
+      return String(a.storeCode || '').localeCompare(String(b.storeCode || ''));
+    });
+    return filtered;
+  },
+
   renderAdminView() {
     const users = window.FMCUData.getUsers();
     const auditorsOnly = this.getSchedulableAuditors();
@@ -9844,53 +9898,83 @@ Instruksi:
     const schTbody = document.getElementById('admin-schedules-tbody');
     if (schTbody) {
       if (filteredSchedules.length === 0) {
-        schTbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">Tidak ada jadwal visit toko yang sesuai filter.</td></tr>`;
+        schTbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400 font-semibold">Tidak ada jadwal visit toko yang sesuai filter pencarian.</td></tr>`;
       } else {
         schTbody.innerHTML = filteredSchedules
           .map(
-            (s) => `
-            <tr class="hover:bg-slate-50">
-              <td class="py-2.5 px-3">
-                <div class="font-bold text-slate-900">${window.FMCUPdf.formatIndonesianDate(s.scheduledDate, true)}</div>
-                <div class="text-[10px] font-mono text-slate-400">${s.shiftWindow || '08:30 - 17:30'}</div>
-              </td>
-              <td class="py-2.5 px-3">
-                <div class="font-bold text-slate-900 flex items-center gap-1.5 flex-wrap">
-                  <span>${s.storeName}</span>
-                  ${this.renderStoreVisitBadgeHtml(s.storeCode)}
-                </div>
-                <div class="text-[10px] font-mono text-slate-400">Site: ${s.storeCode} (${s.storeType || 'CVS'})</div>
-              </td>
-              <td class="py-2.5 px-3 font-bold text-slate-800">${s.auditorName}</td>
-              <td class="py-2.5 px-3">
-                <span class="px-2 py-0.5 rounded text-[10px] font-extrabold ${
-                  s.priority === 'HIGH' ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'
-                }">${s.priority || 'NORMAL'}</span>
-                <div class="text-[10px] text-slate-500 mt-0.5 max-w-[180px] truncate" title="${s.auditFocus || '-'}">${s.auditFocus || '-'}</div>
-              </td>
-              <td class="py-2.5 px-3 text-[11px] font-mono">
-                ${s.actualIn ? `<span class="text-emerald-700 font-bold">${s.actualIn} - ${s.actualOut || '-'}</span>` : '<span class="text-slate-400">Belum Check-In</span>'}
-              </td>
-              <td class="py-2.5 px-3">
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                  s.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                }">${s.status}</span>
-              </td>
-              <td class="py-2.5 px-3 text-right whitespace-nowrap space-x-1.5">
-                ${
-                  s.status === 'COMPLETED' || s.reportId
-                    ? `<button type="button" onclick="FMCUApp.openReportPreview('${s.reportId || ''}')" class="px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-extrabold text-[11px] transition cursor-pointer">Lihat PDF</button>`
-                    : this.isScheduleOwnedByUser(s, this.currentUser)
-                    ? `<button type="button" onclick="FMCUApp.checkInAndOpenForm('${s.storeCode}', '${s.id}')" class="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#009944] font-extrabold text-[11px] transition cursor-pointer">Mulai Visit</button>`
-                    : `<span class="px-2 py-0.5 rounded text-[10px] font-bold text-slate-400 bg-slate-50 border border-slate-200">Belum Visit</span>`
-                }
-                <button type="button" onclick="FMCUApp.promptDeleteSchedule('${s.id}')" class="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-extrabold text-[11px] transition cursor-pointer">Hapus</button>
-              </td>
-            </tr>
-          `
+            (s) => {
+              const isChecked = this.selectedScheduleIds.has(String(s.id));
+              return `
+              <tr class="hover:bg-slate-50 transition ${isChecked ? 'bg-emerald-50/60' : ''}">
+                <td class="py-2.5 px-3 text-center">
+                  <input
+                    type="checkbox"
+                    class="sch-bulk-item-cb w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                    value="${s.id}"
+                    ${isChecked ? 'checked' : ''}
+                    onchange="FMCUApp.toggleSelectSchedule('${s.id}', this.checked)"
+                  />
+                </td>
+                <td class="py-2.5 px-3">
+                  <div class="font-bold text-slate-900 leading-tight">${window.FMCUPdf.formatIndonesianDate(s.scheduledDate, true)}</div>
+                  <div class="text-[10px] font-mono text-slate-400 mt-0.5">${s.shiftWindow || s.window || '08:30 - 17:30'}</div>
+                </td>
+                <td class="py-2.5 px-3">
+                  <div class="font-bold text-slate-900 flex items-center gap-1.5 flex-wrap">
+                    <span>${s.storeName}</span>
+                    ${this.renderStoreVisitBadgeHtml(s.storeCode)}
+                  </div>
+                  <div class="text-[10px] font-mono text-slate-400 mt-0.5">Site: ${s.storeCode} (${s.storeType || 'CVS'})</div>
+                </td>
+                <td class="py-2.5 px-3">
+                  <div class="font-bold text-slate-800 leading-tight">${s.auditorName}</div>
+                  <div class="text-[10px] text-slate-400 mt-0.5">${s.auditorNik ? '@' + s.auditorNik : ''}</div>
+                </td>
+                <td class="py-2.5 px-3">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-extrabold ${
+                    s.priority === 'HIGH' ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'
+                  }">${s.priority || 'NORMAL'}</span>
+                  <div class="text-[10px] text-slate-500 mt-0.5 max-w-[150px] truncate" title="${s.auditFocus || s.focus || '-'}">${s.auditFocus || s.focus || '-'}</div>
+                </td>
+                <td class="py-2.5 px-3">
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                    s.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                  }">${s.status}</span>
+                  ${s.actualIn ? `<div class="text-[9.5px] font-mono text-emerald-700 mt-0.5 font-bold">${s.actualIn}${s.actualOut ? ' - ' + s.actualOut : ''}</div>` : ''}
+                </td>
+                <td class="py-2.5 px-3 text-right whitespace-nowrap space-x-1">
+                  ${
+                    s.status === 'COMPLETED' || s.reportId
+                      ? `<button type="button" onclick="FMCUApp.openReportPreview('${s.reportId || ''}')" class="px-2 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-[10.5px] transition cursor-pointer">Lihat PDF</button>`
+                      : this.isScheduleOwnedByUser(s, this.currentUser)
+                      ? `<button type="button" onclick="FMCUApp.checkInAndOpenForm('${s.storeCode}', '${s.id}')" class="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#009944] border border-emerald-200 font-extrabold text-[10.5px] transition cursor-pointer">Mulai Visit</button>`
+                      : ''
+                  }
+                  <button
+                    type="button"
+                    onclick="FMCUApp.openEditScheduleModal('${s.id}')"
+                    class="px-2 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-extrabold text-[10.5px] transition cursor-pointer inline-flex items-center gap-1 shadow-2xs"
+                    title="Sunting Jadwal Ini"
+                  >
+                    <i class="fa-solid fa-pencil text-[9.5px]"></i>
+                    <span>Edit</span>
+                  </button>
+                  <button
+                    type="button"
+                    onclick="FMCUApp.promptDeleteSchedule('${s.id}')"
+                    class="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-extrabold text-[10.5px] transition cursor-pointer inline-flex items-center gap-1 shadow-2xs"
+                    title="Hapus Jadwal Ini"
+                  >
+                    <i class="fa-solid fa-trash-can text-[9.5px]"></i>
+                  </button>
+                </td>
+              </tr>
+            `;
+            }
           )
           .join('');
       }
+      this.updateBulkScheduleUI();
     }
 
     // 2. Render Admin Master Stores Table (610+ Stores with Search & Filter)
@@ -11688,8 +11772,7 @@ Instruksi:
     const stripEl = document.getElementById('admin-auditor-recap-strip');
     if (!stripEl) return;
     const users = this.getSchedulableAuditors();
-    const schedules = window.FMCUData.getSchedules();
-    const reports = window.FMCUData.getReports();
+    const schedules = window.FMCUData.getSchedules() || [];
     const currentFilter = document.getElementById('adm-sch-list-auditor')?.value || 'ALL';
 
     stripEl.innerHTML = users
@@ -11698,49 +11781,47 @@ Instruksi:
         const completed = mySch.filter((s) => s.status === 'COMPLETED').length;
         const pending = mySch.length - completed;
         const pct = mySch.length > 0 ? Math.round((completed / mySch.length) * 100) : 0;
-        const myReports = reports.filter((r) => r.auditorId === u.id || r.auditorName === u.name);
-        const avgQsc =
-          myReports.length > 0
-            ? Math.round(myReports.reduce((acc, r) => acc + Number(r.qscScore || 0), 0) / myReports.length)
-            : 0;
         const isFiltered = currentFilter === u.id;
+        const initials = u.name
+          .split(' ')
+          .map((n) => n[0])
+          .join('')
+          .slice(0, 2)
+          .toUpperCase();
+        const ownedCount = (window.FMCUData && typeof window.FMCUData.getStoreCodesOwnedByBestie === 'function')
+          ? window.FMCUData.getStoreCodesOwnedByBestie(u.name).size
+          : 0;
 
         return `
           <div
             onclick="FMCUApp.filterScheduleListByAuditor('${u.id}')"
-            class="p-3 rounded-xl border transition cursor-pointer ${
+            class="p-2 sm:p-2.5 rounded-xl border transition cursor-pointer flex items-center justify-between gap-2 ${
               isFiltered
-                ? 'bg-teal-50/90 border-[#0099A6] ring-1 ring-[#0099A6]'
-                : 'bg-slate-50/70 hover:bg-white border-slate-200'
+                ? 'bg-teal-50 border-[#0099A6] ring-1 ring-[#0099A6]/40 shadow-xs'
+                : 'bg-white hover:bg-slate-50 border-slate-200/90 shadow-2xs'
             }"
-            title="Klik untuk memfilter daftar jadwal berdasarkan ${u.name}"
+            title="Klik untuk filter jadwal berdasarkan ${u.name}"
           >
-            <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="w-7 h-7 rounded-lg text-white font-extrabold text-[10px] flex items-center justify-center shrink-0 shadow-2xs" style="background:${u.avatarColor || '#0099A6'}">
+                ${initials}
+              </div>
               <div class="min-w-0">
-                <div class="font-extrabold text-xs text-slate-900 truncate">${u.name}</div>
-                <div class="text-[10px] text-slate-500 truncate">${u.roleBadge || u.role} • ${u.region || '-'}</div>
+                <div class="font-extrabold text-xs text-slate-900 truncate leading-tight">${u.name}</div>
+                <div class="text-[9.5px] text-slate-500 truncate flex items-center gap-1 mt-0.5">
+                  <span>${u.region || 'Nasional'}</span>
+                  ${ownedCount > 0 ? `• <span class="text-amber-700 font-bold"><i class="fa-solid fa-star text-[8px] text-amber-500"></i> ${ownedCount}</span>` : ''}
+                </div>
               </div>
-              <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                pct >= 80 ? 'bg-emerald-100 text-emerald-800' : 'bg-teal-100 text-teal-800'
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0 text-right">
+              <div class="flex flex-col items-end">
+                <span class="text-xs font-black ${mySch.length > 0 ? 'text-slate-900' : 'text-slate-400'}">${mySch.length} Visit</span>
+                <span class="text-[9px] font-bold text-slate-500">${completed} Sel • ${pending} Pnd</span>
+              </div>
+              <span class="w-8 py-0.5 rounded-md text-[9.5px] font-black text-center ${
+                pct >= 80 ? 'bg-emerald-100 text-emerald-800' : pct > 0 ? 'bg-teal-100 text-teal-800' : 'bg-slate-100 text-slate-500'
               }">${pct}%</span>
-            </div>
-            <div class="grid grid-cols-3 gap-1.5 mt-2.5 text-center text-[10px]">
-              <div class="bg-white p-1.5 rounded-lg border border-slate-200/80">
-                <div class="text-slate-400 font-bold">Total</div>
-                <div class="font-extrabold text-slate-900 text-xs">${mySch.length}</div>
-              </div>
-              <div class="bg-white p-1.5 rounded-lg border border-slate-200/80">
-                <div class="text-emerald-600 font-bold">Selesai</div>
-                <div class="font-extrabold text-emerald-700 text-xs">${completed}</div>
-              </div>
-              <div class="bg-white p-1.5 rounded-lg border border-slate-200/80">
-                <div class="text-amber-600 font-bold">Pending</div>
-                <div class="font-extrabold text-amber-700 text-xs">${pending}</div>
-              </div>
-            </div>
-            <div class="mt-2 flex items-center justify-between text-[10px] text-slate-500">
-              <span>Laporan: <strong>${myReports.length}</strong></span>
-              <span>Avg QSC: <strong>${avgQsc}%</strong></span>
             </div>
           </div>
         `;
@@ -11751,7 +11832,11 @@ Instruksi:
   filterScheduleListByAuditor(auditorId) {
     const sel = document.getElementById('adm-sch-list-auditor');
     if (!sel) return;
-    sel.value = sel.value === auditorId ? 'ALL' : auditorId;
+    if (auditorId === 'ALL') {
+      sel.value = 'ALL';
+    } else {
+      sel.value = sel.value === auditorId ? 'ALL' : auditorId;
+    }
     this.renderAdminView();
   },
 
@@ -12103,6 +12188,252 @@ Instruksi:
   },
 
   // ==========================================================================
+  // BULKY DELETE & EDIT JADWAL VISIT (DAFTAR JADWAL SUB SECTION)
+  // ==========================================================================
+  selectedScheduleIds: new Set(),
+
+  toggleSelectAllSchedules(checked) {
+    const schedules = window.FMCUData.getSchedules() || [];
+    const filtered = this.getFilteredAdminSchedules(schedules);
+    if (checked) {
+      filtered.forEach((s) => this.selectedScheduleIds.add(String(s.id)));
+    } else {
+      filtered.forEach((s) => this.selectedScheduleIds.delete(String(s.id)));
+    }
+    this.updateBulkScheduleUI();
+    this.renderAdminView();
+  },
+
+  toggleSelectSchedule(id, checked) {
+    if (checked) {
+      this.selectedScheduleIds.add(String(id));
+    } else {
+      this.selectedScheduleIds.delete(String(id));
+    }
+    this.updateBulkScheduleUI();
+    const rowEl = document.querySelector(`input[type="checkbox"][value="${id}"]`)?.closest('tr');
+    if (rowEl) {
+      rowEl.classList.toggle('bg-emerald-50/60', checked);
+    }
+  },
+
+  clearSelectedSchedules() {
+    this.selectedScheduleIds.clear();
+    this.updateBulkScheduleUI();
+    this.renderAdminView();
+  },
+
+  updateBulkScheduleUI() {
+    const count = this.selectedScheduleIds.size;
+    const badge = document.getElementById('sch-bulk-count-badge');
+    const delBtn = document.getElementById('btn-bulk-delete-sch');
+    const clearBtn = document.getElementById('btn-bulk-clear-sch');
+    const delCountEl = document.getElementById('sch-bulk-del-count');
+    const selectAllCb = document.getElementById('sch-bulk-select-all');
+
+    if (badge) {
+      badge.textContent = `${count} Dipilih`;
+      badge.classList.toggle('hidden', count === 0);
+    }
+    if (delBtn) {
+      delBtn.classList.toggle('hidden', count === 0);
+      delBtn.classList.toggle('inline-flex', count > 0);
+    }
+    if (clearBtn) {
+      clearBtn.classList.toggle('hidden', count === 0);
+    }
+    if (delCountEl) {
+      delCountEl.textContent = String(count);
+    }
+
+    if (selectAllCb) {
+      const schedules = window.FMCUData.getSchedules() || [];
+      const filtered = this.getFilteredAdminSchedules(schedules);
+      if (filtered.length > 0 && count >= filtered.length) {
+        selectAllCb.checked = true;
+        selectAllCb.indeterminate = false;
+      } else if (count > 0) {
+        selectAllCb.checked = false;
+        selectAllCb.indeterminate = true;
+      } else {
+        selectAllCb.checked = false;
+        selectAllCb.indeterminate = false;
+      }
+    }
+  },
+
+  promptBulkDeleteSchedules() {
+    if (!this.isPrivilegedAdmin()) {
+      this.showToast('Hanya Admin Jadwal dan Super Admin yang memiliki otoritas untuk menghapus jadwal visit.', 'warning');
+      return;
+    }
+    if (this.selectedScheduleIds.size === 0) {
+      this.showToast('Pilih minimal 1 jadwal dengan mencentang kotak checkbox.', 'warning');
+      return;
+    }
+    const ids = Array.from(this.selectedScheduleIds);
+    this._deleteAuthTarget = {
+      type: 'bulk_schedule',
+      ids: ids,
+      count: ids.length
+    };
+    this.openDeleteAuthorityModal();
+  },
+
+  deleteBulkSchedules(ids = []) {
+    if (!ids || ids.length === 0) return;
+    const idSet = new Set(ids.map(String));
+    const schedules = window.FMCUData.getSchedules() || [];
+    const removedSchedules = schedules.filter((s) => idSet.has(String(s.id)));
+    const remaining = schedules.filter((s) => !idSet.has(String(s.id)));
+
+    window.FMCUData.saveSchedules(remaining);
+    this.selectedScheduleIds.clear();
+    this.renderAllViews();
+    this.showToast(`Berhasil menghapus ${removedSchedules.length} jadwal visit toko!`, 'success');
+    this.logScheduleAction(
+      'DELETE',
+      `Menghapus massal (bulk delete) ${removedSchedules.length} jadwal visit toko`,
+      'Daftar Jadwal'
+    );
+  },
+
+  // ==========================================================================
+  // EDIT JADWAL VISIT (MODAL & UPDATE HANDLER)
+  // ==========================================================================
+  openEditScheduleModal(scheduleId) {
+    if (!this.isPrivilegedAdmin()) {
+      this.showToast('Hanya Admin Jadwal dan Super Admin yang memiliki otoritas untuk menyunting jadwal.', 'warning');
+      return;
+    }
+    const schedules = window.FMCUData.getSchedules() || [];
+    const sch = schedules.find((s) => String(s.id) === String(scheduleId));
+    if (!sch) {
+      this.showToast('Jadwal visit tidak ditemukan.', 'error');
+      return;
+    }
+
+    const modal = document.getElementById('modal-edit-schedule');
+    if (!modal) return;
+
+    // Set hidden ID
+    const idInput = document.getElementById('edit-sch-id');
+    if (idInput) idInput.value = sch.id;
+
+    // Populate stores dropdown
+    const storeSel = document.getElementById('edit-sch-store');
+    if (storeSel) {
+      const stores = window.FMCUData.getStores() || [];
+      storeSel.innerHTML = stores
+        .map((st) => `<option value="${st.code}" ${String(st.code) === String(sch.storeCode) ? 'selected' : ''}>Site ${st.code} - ${st.name} (${st.city || st.type || 'CVS'})</option>`)
+        .join('');
+    }
+
+    // Populate Date & Shift Window
+    const dateInput = document.getElementById('edit-sch-date');
+    if (dateInput) dateInput.value = sch.scheduledDate || '';
+
+    const windowInput = document.getElementById('edit-sch-window');
+    if (windowInput) windowInput.value = sch.shiftWindow || sch.window || '08:30 - 17:30';
+
+    // Populate Auditor dropdown
+    const audSel = document.getElementById('edit-sch-auditor');
+    if (audSel) {
+      const auditors = this.getSchedulableAuditors() || [];
+      audSel.innerHTML = auditors
+        .map((u) => `<option value="${u.id}" ${u.id === sch.auditorId || u.name === sch.auditorName ? 'selected' : ''}>${u.name} (@${u.nik || u.username})</option>`)
+        .join('');
+    }
+
+    // Populate Priority & Status
+    const prioSel = document.getElementById('edit-sch-priority');
+    if (prioSel) prioSel.value = sch.priority || 'NORMAL';
+
+    const statSel = document.getElementById('edit-sch-status');
+    if (statSel) statSel.value = sch.status || 'PENDING';
+
+    // Populate Focus
+    const focusInput = document.getElementById('edit-sch-focus');
+    if (focusInput) focusInput.value = sch.auditFocus || sch.focus || '';
+
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  },
+
+  closeEditScheduleModal() {
+    const modal = document.getElementById('modal-edit-schedule');
+    if (modal) modal.classList.add('hidden');
+    document.body.style.overflow = '';
+  },
+
+  saveScheduleEdit() {
+    const id = document.getElementById('edit-sch-id')?.value;
+    if (!id) return;
+
+    const schedules = window.FMCUData.getSchedules() || [];
+    const idx = schedules.findIndex((s) => String(s.id) === String(id));
+    if (idx === -1) {
+      this.showToast('Jadwal tidak ditemukan di database.', 'error');
+      return;
+    }
+
+    const storeCode = document.getElementById('edit-sch-store')?.value;
+    const scheduledDate = document.getElementById('edit-sch-date')?.value;
+    const shiftWindow = document.getElementById('edit-sch-window')?.value.trim() || '08:30 - 17:30';
+    const auditorId = document.getElementById('edit-sch-auditor')?.value;
+    const priority = document.getElementById('edit-sch-priority')?.value || 'NORMAL';
+    const status = document.getElementById('edit-sch-status')?.value || 'PENDING';
+    const auditFocus = document.getElementById('edit-sch-focus')?.value.trim() || '-';
+
+    if (!scheduledDate) {
+      this.showToast('Tanggal kunjungan tidak boleh kosong.', 'warning');
+      return;
+    }
+
+    const stores = window.FMCUData.getStores() || [];
+    const st = stores.find((x) => String(x.code) === String(storeCode));
+    const auditors = this.getSchedulableAuditors() || [];
+    const au = auditors.find((x) => String(x.id) === String(auditorId));
+
+    const sch = schedules[idx];
+    const oldStoreName = sch.storeName;
+    const oldAuditorName = sch.auditorName;
+    const oldDate = sch.scheduledDate;
+
+    if (st) {
+      sch.storeCode = st.code;
+      sch.storeName = st.name;
+      sch.storeType = st.type || 'CVS';
+      sch.storeAddress = st.address || '';
+      sch.areaManager = st.areaManager || '';
+      sch.regionalManager = st.regionalManager || '';
+    }
+    if (au) {
+      sch.auditorId = au.id;
+      sch.auditorName = au.name;
+      sch.auditorNik = au.nik || au.username;
+    }
+    sch.scheduledDate = scheduledDate;
+    sch.shiftWindow = shiftWindow;
+    sch.window = shiftWindow;
+    sch.priority = priority;
+    sch.status = status;
+    sch.auditFocus = auditFocus;
+    sch.focus = auditFocus;
+    sch.updatedAt = new Date().toISOString();
+
+    window.FMCUData.saveSchedules(schedules);
+    this.closeEditScheduleModal();
+    this.renderAllViews();
+    this.showToast(`Jadwal visit ${sch.storeName} berhasil diperbarui!`, 'success');
+    this.logScheduleAction(
+      'UPDATE',
+      `Mengubah jadwal visit toko ${sch.storeName} (${sch.storeCode}) untuk ${sch.auditorName} tanggal ${sch.scheduledDate} (Sebelumnya: ${oldStoreName} / ${oldAuditorName} / ${oldDate})`,
+      'Daftar Jadwal'
+    );
+  },
+
+    // ==========================================================================
   // FITUR IMPROVEMENT USER POINT 2-5
   // ==========================================================================
 
