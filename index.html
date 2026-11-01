@@ -3623,11 +3623,11 @@ service cloud.firestore {
             <i class="fa-solid fa-clock-rotate-left"></i>
           </div>
           <div class="min-w-0">
-            <div class="flex items-center gap-2">
-              <h3 class="font-black text-sm sm:text-base text-slate-900 truncate">Standar Holding Time Resmi</h3>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h3 class="font-black text-sm sm:text-base text-slate-900 leading-snug">Standar Holding Time Resmi</h3>
               <span id="modal-holding-version-pill" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500 text-white leading-none">R23</span>
             </div>
-            <p id="modal-holding-meta-text" class="text-[11px] text-slate-500 truncate">STD/FMI/PD-QC/001/R23 • Efektif: 23 September 2026</p>
+            <p id="modal-holding-meta-text" class="text-[11px] text-slate-500 mt-0.5 break-words leading-tight">STD/FMI/PD-QC/001/R23 • Efektif: 23 September 2026</p>
           </div>
         </div>
         <button type="button" onclick="FMCUApp.closeHoldingTimeModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition cursor-pointer shrink-0">
@@ -3660,7 +3660,7 @@ service cloud.firestore {
           </div>
           <i id="holding-rules-chevron" class="fa-solid fa-chevron-down text-amber-700 text-xs transition-transform duration-200"></i>
         </div>
-        <div id="holding-rules-body" class="hidden mt-2 pt-2 border-t border-amber-200/60 text-[11px] text-amber-900 space-y-1 leading-relaxed max-h-36 overflow-y-auto pr-1">
+        <div id="holding-rules-body" class="hidden mt-2 pt-2 border-t border-amber-200/60 text-[11px] text-amber-900 space-y-1.5 leading-relaxed max-h-60 sm:max-h-72 overflow-y-auto pr-2">
           <!-- Populated dynamically -->
         </div>
       </div>

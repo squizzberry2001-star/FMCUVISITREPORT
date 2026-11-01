@@ -65,6 +65,19 @@ window.FMCUApp = {
     document.body.classList.remove('has-hud');
     window.FMCUData.init();
 
+    // Listener otomatis saat tab dibuka kembali / kembali dari background
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        this.checkAndDispatchScheduledHourReminders();
+        this.checkAndDispatchUserVisitNotifications();
+        this.syncNotificationStateToServiceWorker();
+      }
+    });
+    window.addEventListener('focus', () => {
+      this.checkAndDispatchScheduledHourReminders();
+      this.syncNotificationStateToServiceWorker();
+    });
+
     // Setup Login Form Listener
     const loginForm = document.getElementById('login-form');
     if (loginForm) {
@@ -549,6 +562,10 @@ window.FMCUApp = {
         .register('sw.js')
         .then((reg) => {
           this.swRegistration = reg;
+          this.syncNotificationStateToServiceWorker();
+          if ('periodicSync' in reg) {
+            reg.periodicSync.register('fmcu-visit-reminder', { minInterval: 15 * 60 * 1000 }).catch(() => {});
+          }
         })
         .catch((err) => {
           console.warn('Gagal registrasi sw.js:', err);
@@ -670,11 +687,180 @@ window.FMCUApp = {
 
   startNotificationInterval() {
     if (this._notifCheckInterval) clearInterval(this._notifCheckInterval);
-    // Jalankan interval pemantauan status jadwal & visit tiap 10 menit
+    // Jalankan interval pemantauan status jadwal, ketentuan jam pengingat, & sinkronisasi SW
     this._notifCheckInterval = setInterval(() => {
       this.checkAndDispatchUserVisitNotifications();
-    }, 10 * 60 * 1000);
+      this.checkAndDispatchScheduledHourReminders();
+      this.syncNotificationStateToServiceWorker();
+    }, 3 * 60 * 1000); // Tiap 3 menit
+    // Segera jalankan sekali
+    this.checkAndDispatchScheduledHourReminders();
+    this.syncNotificationStateToServiceWorker();
   },
+  async syncNotificationStateToServiceWorker() {
+    if (!this.currentUser) return;
+    try {
+      const schedules = window.FMCUData.getSchedules();
+      const reports = window.FMCUData.getReports();
+      const todayStr = this.getLocalDateISO();
+      const mySchedules = schedules.filter((s) => this.isScheduleOwnedByUser(s, this.currentUser));
+      const todayList = mySchedules
+        .filter((s) => s.scheduledDate === todayStr)
+        .map((s) => ({
+          id: s.id,
+          storeName: s.storeName,
+          storeCode: s.storeCode,
+          status: s.status,
+          hasReport: Boolean(s.reportId || reports.some((r) => r.storeCode === s.storeCode && r.visitDate === todayStr))
+        }));
+
+      const activeCheckIn = window.FMCUData.getActiveCheckIn();
+      const overdueList = mySchedules.filter((s) => {
+        const isPast = String(s.scheduledDate || '') < todayStr;
+        const hasReport = s.reportId || reports.some((r) => r.storeCode === s.storeCode && r.visitDate === s.scheduledDate);
+        return isPast && s.status !== 'COMPLETED' && !hasReport;
+      });
+
+      const payload = {
+        currentUser: {
+          id: this.currentUser.id || this.currentUser.username,
+          name: this.currentUser.name,
+          username: this.currentUser.username,
+          nik: this.currentUser.nik,
+          role: this.currentUser.role
+        },
+        todayDate: todayStr,
+        todaySchedules: todayList,
+        activeCheckIn: activeCheckIn || null,
+        overdueCount: overdueList.length,
+        updatedAt: Date.now()
+      };
+
+      // 1. Simpan ke Cache Storage agar SW tetap bisa mengakses data saat browser/tab ditutup
+      if ('caches' in window) {
+        try {
+          const cache = await caches.open('fmcu-notif-state-v1');
+          await cache.put(
+            '/__fmcu_notif_state__.json',
+            new Response(JSON.stringify(payload), {
+              headers: { 'Content-Type': 'application/json' }
+            })
+          );
+        } catch (cErr) {}
+      }
+
+      // 2. Post message ke Service Worker yang sedang aktif
+      if (navigator.serviceWorker) {
+        if (navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({
+            type: 'SYNC_NOTIF_DATA',
+            payload
+          });
+        } else if (this.swRegistration && this.swRegistration.active) {
+          this.swRegistration.active.postMessage({
+            type: 'SYNC_NOTIF_DATA',
+            payload
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('syncNotificationStateToServiceWorker error:', e);
+    }
+  },
+
+  checkAndDispatchScheduledHourReminders() {
+    if (!this.currentUser) return;
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+    // Hitung waktu WIB (UTC+7)
+    const now = new Date();
+    const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+    const wibDate = new Date(utcMs + 7 * 3600000);
+    const totalMins = wibDate.getHours() * 60 + wibDate.getMinutes();
+    const todayStr = this.getLocalDateISO();
+
+    const schedules = window.FMCUData.getSchedules();
+    const reports = window.FMCUData.getReports();
+    const mySchedules = schedules.filter((s) => this.isScheduleOwnedByUser(s, this.currentUser));
+    const pendingToday = mySchedules.filter((s) => {
+      const hasReport = s.reportId || reports.some((r) => r.storeCode === s.storeCode && r.visitDate === todayStr);
+      return s.scheduledDate === todayStr && s.status !== 'COMPLETED' && !hasReport;
+    });
+    const activeCheckIn = window.FMCUData.getActiveCheckIn();
+    const hasActive = Boolean(activeCheckIn && activeCheckIn.storeCode);
+
+    // KETENTUAN 1: Pagi (08:00 - 08:50 WIB)
+    const morningKey = 'fmcu_notif_sent_morning_' + todayStr;
+    if (totalMins >= 8 * 60 && totalMins <= 8 * 60 + 50 && !localStorage.getItem(morningKey)) {
+      if (pendingToday.length > 0) {
+        const storeNames = pendingToday.map((s) => s.storeName).slice(0, 2).join(', ');
+        const extra = pendingToday.length > 2 ? ` (+ ${pendingToday.length - 2} lainnya)` : '';
+        this.dispatchPushNotification(
+          '🌅 Pengingat Jadwal Visit Toko (08:30 WIB)',
+          `Selamat pagi! Jadwal visit Anda hari ini: ${storeNames}${extra}. Segera buka aplikasi dan lakukan check-in di toko.`,
+          'fmcu-remind-morning-' + todayStr
+        );
+        localStorage.setItem(morningKey, String(Date.now()));
+      }
+    }
+
+    // KETENTUAN 2: Siang (11:30 - 12:45 WIB)
+    const noonKey = 'fmcu_notif_sent_noon_' + todayStr;
+    if (totalMins >= 11 * 60 + 30 && totalMins <= 12 * 60 + 45 && !localStorage.getItem(noonKey)) {
+      if (hasActive || pendingToday.length > 0) {
+        const targetStore = hasActive ? activeCheckIn.storeName : (pendingToday[0]?.storeName || 'Toko');
+        this.dispatchPushNotification(
+          '📋 Pengingat Observasi Siang & Form QSC',
+          `FamilyMart ${targetStore}: Pastikan checklist QSC, food safety, suhu chiller, dan display hot snack/thawing terisi lengkap.`,
+          'fmcu-remind-noon-' + todayStr
+        );
+        localStorage.setItem(noonKey, String(Date.now()));
+      }
+    }
+
+    // KETENTUAN 3: Sore (14:30 - 15:45 WIB)
+    const afternoonKey = 'fmcu_notif_sent_afternoon_' + todayStr;
+    if (totalMins >= 14 * 60 + 30 && totalMins <= 15 * 60 + 45 && !localStorage.getItem(afternoonKey)) {
+      if (hasActive || pendingToday.length > 0) {
+        const targetStore = hasActive ? activeCheckIn.storeName : (pendingToday[0]?.storeName || 'Toko');
+        this.dispatchPushNotification(
+          '📸 Pengingat Dokumentasi Evidence & CA',
+          `FamilyMart ${targetStore}: Lengkapi foto bukti temuan dan foto verifikasi tindakan perbaikan (Corrective Action) sebelum kunjungan selesai.`,
+          'fmcu-remind-afternoon-' + todayStr
+        );
+        localStorage.setItem(afternoonKey, String(Date.now()));
+      }
+    }
+
+    // KETENTUAN 4: Menjelang OUT (17:00 - 17:50 WIB)
+    const outKey = 'fmcu_notif_sent_out_' + todayStr;
+    if (totalMins >= 17 * 60 && totalMins <= 17 * 60 + 50 && !localStorage.getItem(outKey)) {
+      if (hasActive || pendingToday.length > 0) {
+        const targetStore = hasActive ? activeCheckIn.storeName : (pendingToday[0]?.storeName || 'Toko');
+        this.dispatchPushNotification(
+          '🏁 Pengingat Check-Out Actual OUT (17:30 WIB)',
+          `Waktu operasional visit mencapai 17:30 WIB. Pastikan Anda berada di area FamilyMart ${targetStore} untuk merekam Actual OUT & finalisasi laporan.`,
+          'fmcu-remind-out-' + todayStr
+        );
+        localStorage.setItem(outKey, String(Date.now()));
+      }
+    }
+
+    // KETENTUAN 5: Evaluasi Malam (19:00 - 20:30 WIB)
+    const nightKey = 'fmcu_notif_sent_night_' + todayStr;
+    if (totalMins >= 19 * 60 && totalMins <= 20 * 60 + 30 && !localStorage.getItem(nightKey)) {
+      if (pendingToday.length > 0 || hasActive) {
+        const pendingCount = pendingToday.length + (hasActive ? 1 : 0);
+        this.dispatchPushNotification(
+          '⚠️ Evaluasi Visit Harian FamilyMart',
+          `Terdapat ${pendingCount} jadwal visit/draft laporan yang belum disubmit hari ini. Buka aplikasi untuk meninjau status kunjungan.`,
+          'fmcu-remind-night-' + todayStr
+        );
+        localStorage.setItem(nightKey, String(Date.now()));
+      }
+    }
+  },
+
 
   async dispatchPushNotification(title, body, tag = 'fmcu-notif', data = {}) {
     if (!('Notification' in window) || Notification.permission !== 'granted') {
@@ -6370,13 +6556,19 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
                    </div>`
             }
             ${statusBadge ? `<div class="absolute top-2 left-2 shadow-sm">${statusBadge}</div>` : ''}
-            <div class="absolute bottom-2.5 right-2.5 flex items-center gap-1.5">
+            <div class="absolute bottom-2.5 right-2.5 flex items-center gap-1.5 flex-wrap justify-end">
               ${
                 displaySrc
-                  ? `<button type="button" onclick="FMCUApp.removeQscPhoto(${idx})" class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl cursor-pointer shadow-md transition flex items-center gap-1">
+                  ? `
+                    <button type="button" onclick="FMCUApp.editQscPhoto(${idx})" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl cursor-pointer shadow-md transition flex items-center gap-1.5" title="Sunting & Potong Foto">
+                      <i class="fa-solid fa-pen text-xs"></i>
+                      <span>Sunting</span>
+                    </button>
+                    <button type="button" onclick="FMCUApp.removeQscPhoto(${idx})" class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl cursor-pointer shadow-md transition flex items-center gap-1">
                       <i class="fa-solid fa-trash-can text-xs"></i>
                       <span>Hapus</span>
-                     </button>`
+                    </button>
+                  `
                   : ''
               }
               <label class="bg-slate-900/85 hover:bg-slate-950 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl cursor-pointer shadow-md transition flex items-center gap-1.5">
@@ -6418,6 +6610,51 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     this.renderQscPhotosGrid();
     this.saveCurrentFormDraft();
     this.showToast(`Foto lembar QSC #${idx + 1} berhasil dikosongkan.`, 'info');
+  },
+
+  editQscPhoto(idx) {
+    if (!this.formQscPhotos || !this.formQscPhotos[idx]) return;
+    const photoObj = this.formQscPhotos[idx];
+    const currentSrc = window.FMCUPdf.getPhotoDisplaySrc(photoObj);
+    if (!currentSrc) {
+      this.showToast('Belum ada foto yang dapat disunting.', 'warning');
+      return;
+    }
+    this.promptPhotoEdit(currentSrc, async (editedDataUrl) => {
+      const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
+      const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
+      const applyWm = true;
+      const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
+        storeName,
+        gpsLat: this.liveGps.lat,
+        gpsLng: this.liveGps.lng,
+        applyWatermark: applyWm
+      });
+      if (!photoObj.id || photoObj.id === 'qsc-1' || photoObj.id === 'qsc-2') {
+        photoObj.id = `qsc-${Date.now()}-${idx + 1}`;
+      }
+      photoObj.dataUrl = dataUrl;
+      photoObj.driveFileId = '';
+      photoObj.driveUrl = '';
+      photoObj._uploading = true;
+      window.FMCUData.cachePhotoInMemory(photoObj.id, null, dataUrl);
+      this.renderQscPhotosGrid();
+
+      await window.FMCUData.uploadPhotoToGDrive(photoObj, {
+        storeCode,
+        storeName,
+        photoType: 'QSC'
+      });
+      photoObj._uploading = false;
+      this.renderQscPhotosGrid();
+      this.saveCurrentFormDraft();
+      this.showToast(
+        photoObj.driveFileId
+          ? `Foto lembar QSC #${idx + 1} berhasil diperbarui & disimpan ke Google Drive!`
+          : `Foto lembar QSC #${idx + 1} berhasil diperbarui.`,
+        'success'
+      );
+    });
   },
 
   async handleQscPhotoUpload(event, idx) {
@@ -7281,11 +7518,32 @@ Instruksi:
                 : `<div class="text-center p-2"><i class="fa-solid fa-camera text-slate-300 text-xl block mb-1"></i><span class="text-[9px] text-slate-400 font-bold block leading-tight">Panduan: Rak tegak lurus</span></div>`
             }
             <div class="absolute inset-0 viewfinder-grid pointer-events-none opacity-20 group-hover:opacity-40 transition"></div>
-            <label class="absolute bottom-1.5 inset-x-1.5 bg-slate-900/85 hover:bg-slate-900 text-white text-[10px] font-bold py-1 rounded text-center cursor-pointer flex items-center justify-center gap-1 shadow-sm">
-              <i class="fa-solid fa-camera text-[10px]"></i>
-              <span>Pilih / Foto</span>
-              <input type="file" accept="image/*" capture="environment" onchange="FMCUApp.handleSingleEvidenceUpload(event, ${idx})" class="hidden" />
-            </label>
+            ${
+              displaySrc
+                ? `
+                <button type="button" onclick="FMCUApp.editEvidencePhoto(${idx})" class="absolute top-1.5 left-1.5 z-10 w-7 h-7 rounded-lg bg-amber-500 hover:bg-amber-600 text-white flex items-center justify-center text-xs shadow-md cursor-pointer transition" title="Sunting & Beri Marker Foto">
+                  <i class="fa-solid fa-pen text-[10px]"></i>
+                </button>
+              `
+                : ''
+            }
+            <div class="absolute bottom-1.5 inset-x-1.5 flex items-center gap-1">
+              ${
+                displaySrc
+                  ? `
+                  <button type="button" onclick="FMCUApp.editEvidencePhoto(${idx})" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold py-1 rounded text-center cursor-pointer flex items-center justify-center gap-1 shadow-sm transition">
+                    <i class="fa-solid fa-pen text-[9px]"></i>
+                    <span>Sunting</span>
+                  </button>
+                `
+                  : ''
+              }
+              <label class="${displaySrc ? 'flex-1' : 'w-full'} bg-slate-900/85 hover:bg-slate-900 text-white text-[10px] font-bold py-1 rounded text-center cursor-pointer flex items-center justify-center gap-1 shadow-sm transition">
+                <i class="fa-solid fa-camera text-[10px]"></i>
+                <span>${displaySrc ? 'Ganti' : 'Pilih / Foto'}</span>
+                <input type="file" accept="image/*" capture="environment" onchange="FMCUApp.handleSingleEvidenceUpload(event, ${idx})" class="hidden" />
+              </label>
+            </div>
           </div>
 
           <div class="col-span-7 flex flex-col justify-between pr-4">
@@ -7363,6 +7621,49 @@ Instruksi:
         evObj.driveFileId
           ? `Foto bukti #${idx + 1} berhasil disimpan ke Google Drive!`
           : `Foto bukti #${idx + 1} berhasil disesuaikan & diproses`,
+        'success'
+      );
+    });
+  },
+
+  editEvidencePhoto(idx) {
+    if (!this.formEvidencePhotos || !this.formEvidencePhotos[idx]) return;
+    const evObj = this.formEvidencePhotos[idx];
+    const currentSrc = window.FMCUPdf.getPhotoDisplaySrc(evObj);
+    if (!currentSrc) {
+      this.showToast('Belum ada foto yang dapat disunting.', 'warning');
+      return;
+    }
+    this.promptPhotoEdit(currentSrc, async (editedDataUrl) => {
+      const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
+      const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
+      const applyWm = true;
+      const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
+        storeName,
+        gpsLat: this.liveGps.lat,
+        gpsLng: this.liveGps.lng,
+        applyWatermark: applyWm
+      });
+      evObj.id = evObj.id || 'ev-' + Date.now();
+      evObj.dataUrl = dataUrl;
+      evObj.driveFileId = '';
+      evObj.driveUrl = '';
+      evObj._uploading = true;
+      window.FMCUData.cachePhotoInMemory(evObj.id, null, dataUrl);
+      this.renderEvidenceGrid();
+
+      await window.FMCUData.uploadPhotoToGDrive(evObj, {
+        storeCode,
+        storeName,
+        photoType: 'EVIDENCE'
+      });
+      evObj._uploading = false;
+      this.renderEvidenceGrid();
+      this.saveCurrentFormDraft();
+      this.showToast(
+        evObj.driveFileId
+          ? `Foto bukti #${idx + 1} berhasil diperbarui & disimpan ke Google Drive!`
+          : `Foto bukti #${idx + 1} berhasil diperbarui.`,
         'success'
       );
     });
@@ -7470,11 +7771,32 @@ Instruksi:
                 : `<div class="text-center p-2"><i class="fa-solid fa-camera text-slate-300 text-xl block mb-1"></i><span class="text-[9px] text-purple-500 font-bold block leading-tight">Foto Bukti Perbaikan</span></div>`
             }
             <div class="absolute inset-0 viewfinder-grid pointer-events-none opacity-20 group-hover:opacity-40 transition"></div>
-            <label class="absolute bottom-1.5 inset-x-1.5 bg-purple-900/85 hover:bg-purple-900 text-white text-[10px] font-bold py-1 rounded text-center cursor-pointer flex items-center justify-center gap-1 shadow-sm">
-              <i class="fa-solid fa-camera text-[10px]"></i>
-              <span>Pilih / Foto</span>
-              <input type="file" accept="image/*" capture="environment" onchange="FMCUApp.handleSingleCaUpload(event, ${idx})" class="hidden" />
-            </label>
+            ${
+              displaySrc
+                ? `
+                <button type="button" onclick="FMCUApp.editCaPhoto(${idx})" class="absolute top-1.5 left-1.5 z-10 w-7 h-7 rounded-lg bg-amber-500 hover:bg-amber-600 text-white flex items-center justify-center text-xs shadow-md cursor-pointer transition" title="Sunting & Beri Marker Foto">
+                  <i class="fa-solid fa-pen text-[10px]"></i>
+                </button>
+              `
+                : ''
+            }
+            <div class="absolute bottom-1.5 inset-x-1.5 flex items-center gap-1">
+              ${
+                displaySrc
+                  ? `
+                  <button type="button" onclick="FMCUApp.editCaPhoto(${idx})" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold py-1 rounded text-center cursor-pointer flex items-center justify-center gap-1 shadow-sm transition">
+                    <i class="fa-solid fa-pen text-[9px]"></i>
+                    <span>Sunting</span>
+                  </button>
+                `
+                  : ''
+              }
+              <label class="${displaySrc ? 'flex-1' : 'w-full'} bg-purple-900/85 hover:bg-purple-900 text-white text-[10px] font-bold py-1 rounded text-center cursor-pointer flex items-center justify-center gap-1 shadow-sm transition">
+                <i class="fa-solid fa-camera text-[10px]"></i>
+                <span>${displaySrc ? 'Ganti' : 'Pilih / Foto'}</span>
+                <input type="file" accept="image/*" capture="environment" onchange="FMCUApp.handleSingleCaUpload(event, ${idx})" class="hidden" />
+              </label>
+            </div>
           </div>
 
           <div class="col-span-7 flex flex-col justify-between pr-4">
@@ -7556,6 +7878,49 @@ Instruksi:
         caObj.driveFileId
           ? `Foto perbaikan #${idx + 1} berhasil disimpan ke Google Drive!`
           : `Foto perbaikan #${idx + 1} berhasil disesuaikan & diproses`,
+        'success'
+      );
+    });
+  },
+
+  editCaPhoto(idx) {
+    if (!this.formCaPhotos || !this.formCaPhotos[idx]) return;
+    const caObj = this.formCaPhotos[idx];
+    const currentSrc = window.FMCUPdf.getPhotoDisplaySrc(caObj);
+    if (!currentSrc) {
+      this.showToast('Belum ada foto yang dapat disunting.', 'warning');
+      return;
+    }
+    this.promptPhotoEdit(currentSrc, async (editedDataUrl) => {
+      const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
+      const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
+      const applyWm = true;
+      const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
+        storeName,
+        gpsLat: this.liveGps.lat,
+        gpsLng: this.liveGps.lng,
+        applyWatermark: applyWm
+      });
+      caObj.id = caObj.id || 'ca-' + Date.now();
+      caObj.dataUrl = dataUrl;
+      caObj.driveFileId = '';
+      caObj.driveUrl = '';
+      caObj._uploading = true;
+      window.FMCUData.cachePhotoInMemory(caObj.id, null, dataUrl);
+      this.renderCaPhotosGrid();
+
+      await window.FMCUData.uploadPhotoToGDrive(caObj, {
+        storeCode,
+        storeName,
+        photoType: 'CORRECTIVE_ACTION'
+      });
+      caObj._uploading = false;
+      this.renderCaPhotosGrid();
+      this.saveCurrentFormDraft();
+      this.showToast(
+        caObj.driveFileId
+          ? `Foto perbaikan #${idx + 1} berhasil diperbarui & disimpan ke Google Drive!`
+          : `Foto perbaikan #${idx + 1} berhasil diperbarui.`,
         'success'
       );
     });
@@ -14435,7 +14800,7 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder, databaseFolder) {
       rulesBody.innerHTML = standards.generalRules.map((r, i) => `
         <div class="flex items-start gap-2">
           <span class="w-4 h-4 rounded-full bg-amber-200 text-amber-900 font-extrabold flex items-center justify-center text-[9px] shrink-0 mt-0.5">${i + 1}</span>
-          <p class="flex-1">${r}</p>
+          <p class="flex-1 break-words leading-relaxed">${r}</p>
         </div>
       `).join('');
     }
@@ -14527,38 +14892,38 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder, databaseFolder) {
                   <span>${p.categoryName}</span>
                   ${p.machineTemp ? `<span class="text-amber-600 font-mono">(${p.machineTemp})</span>` : ''}
                 </span>
-                <h4 class="font-extrabold text-sm text-slate-900 leading-snug">${p.name}</h4>
+                <h4 class="font-extrabold text-sm text-slate-900 leading-snug break-words">${p.name}</h4>
               </div>
             </div>
 
-            <!-- Holding Time Highlight Badge -->
-            <div class="p-2 sm:p-2.5 rounded-xl bg-amber-500/10 border border-amber-300/80 flex items-center justify-between gap-2">
+            <!-- Holding Time Highlight Box (Spacious, Clear & Never Cut Off) -->
+            <div class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-300/80 space-y-1">
               <div class="flex items-center gap-1.5 text-xs text-amber-900 font-extrabold">
-                <i class="fa-solid fa-stopwatch text-amber-600"></i>
-                <span>Holding Time:</span>
+                <i class="fa-solid fa-stopwatch text-amber-600 text-xs shrink-0"></i>
+                <span>Standar Holding Time:</span>
               </div>
-              <div class="text-xs font-black text-amber-800 text-right">
+              <div class="text-xs font-black text-amber-900 break-words leading-relaxed pl-4">
                 ${p.holding}
               </div>
             </div>
 
-            <!-- 4 Grid Specs -->
+            <!-- Specs Grid (All Text Fully Visible & Word Wrapped) -->
             <div class="grid grid-cols-2 gap-2 text-[11px]">
-              <div class="p-2 rounded-lg bg-slate-50 border border-slate-100">
+              <div class="p-2 rounded-lg bg-slate-50 border border-slate-100 flex flex-col justify-between">
                 <div class="text-slate-400 font-bold uppercase text-[9px]">Thawing</div>
-                <div class="font-semibold text-slate-800 mt-0.5">${p.thawing || '-'}</div>
+                <div class="font-semibold text-slate-800 mt-0.5 break-words leading-snug">${p.thawing || '-'}</div>
               </div>
-              <div class="p-2 rounded-lg bg-slate-50 border border-slate-100">
+              <div class="p-2 rounded-lg bg-slate-50 border border-slate-100 flex flex-col justify-between">
                 <div class="text-slate-400 font-bold uppercase text-[9px]">Umur Chiller</div>
-                <div class="font-semibold text-slate-800 mt-0.5">${p.shelfLife || '-'}</div>
+                <div class="font-semibold text-slate-800 mt-0.5 break-words leading-snug">${p.shelfLife || '-'}</div>
               </div>
-              <div class="p-2 rounded-lg bg-slate-50 border border-slate-100">
+              <div class="p-2 rounded-lg bg-slate-50 border border-slate-100 flex flex-col justify-between">
                 <div class="text-slate-400 font-bold uppercase text-[9px]">Pemanasan</div>
-                <div class="font-semibold text-slate-800 mt-0.5">${p.cooking || '-'}</div>
+                <div class="font-semibold text-slate-800 mt-0.5 break-words leading-snug">${p.cooking || '-'}</div>
               </div>
-              <div class="p-2 rounded-lg bg-slate-50 border border-slate-100">
-                <div class="text-slate-400 font-bold uppercase text-[9px]">Wadah / Tempat</div>
-                <div class="font-semibold text-slate-800 mt-0.5 truncate" title="${p.storage || '-'}">${p.storage || '-'}</div>
+              <div class="p-2 rounded-lg bg-slate-50 border border-slate-100 flex flex-col justify-between col-span-2">
+                <div class="text-slate-400 font-bold uppercase text-[9px]">Wadah / Tempat Penyimpanan</div>
+                <div class="font-semibold text-slate-800 mt-0.5 break-words leading-snug">${p.storage || '-'}</div>
               </div>
             </div>
           </div>
@@ -14683,12 +15048,12 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder, databaseFolder) {
                 <span>${cat.name}</span>
               </span>
             </td>
-            <td class="py-2.5 px-3 font-bold text-slate-900">${item.name}</td>
-            <td class="py-2.5 px-3 text-slate-600">${item.thawing || '-'}</td>
-            <td class="py-2.5 px-3 text-slate-600">${item.shelfLife || '-'}</td>
-            <td class="py-2.5 px-3 text-slate-600">${item.cooking || '-'}</td>
-            <td class="py-2.5 px-3 font-extrabold text-amber-700 whitespace-nowrap">${item.holding}</td>
-            <td class="py-2.5 px-3 text-slate-500 max-w-xs truncate" title="${item.storage || '-'}">${item.storage || '-'}</td>
+            <td class="py-2.5 px-3 font-bold text-slate-900 break-words">${item.name}</td>
+            <td class="py-2.5 px-3 text-slate-600 break-words">${item.thawing || '-'}</td>
+            <td class="py-2.5 px-3 text-slate-600 break-words">${item.shelfLife || '-'}</td>
+            <td class="py-2.5 px-3 text-slate-600 break-words">${item.cooking || '-'}</td>
+            <td class="py-2.5 px-3 font-extrabold text-amber-700 break-words min-w-[130px] leading-snug">${item.holding}</td>
+            <td class="py-2.5 px-3 text-slate-600 break-words min-w-[140px] leading-relaxed">${item.storage || '-'}</td>
             <td class="py-2.5 px-3 text-center whitespace-nowrap">
               <button type="button" onclick="FMCUApp.openEditHoldingProductModal('${cat.id}', ${itemIdx})" class="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition cursor-pointer" title="Edit Produk">
                 <i class="fa-solid fa-pen-to-square"></i>
