@@ -138,14 +138,14 @@ window.FMCUPdf = {
     }
   },
 
-  // Helper to render high-DPI elegant minimalist corporate divider slide with vector typography
-  drawCorporateDividerSlide(doc, bgImage, sectionTag, title, subtitle, footerText) {
+  // Helper to render divider slide persis seperti PDF awal (gambar divider penuh tanpa teks narasi/meta buatan)
+  drawCorporateDividerSlide(doc, bgImage, title, footerText) {
     if (!doc) return;
     doc.addPage([320, 180], 'landscape');
     doc.setFillColor(255, 255, 255);
     doc.rect(0, 0, 320, 180, 'F');
 
-    // 1. Gambar latar belakang divider (ilustrasi di sebelah kanan)
+    // 1. Gambar latar belakang divider asli (seperti PDF awal)
     if (bgImage) {
       try {
         doc.addImage(bgImage, 'JPEG', 0, 0, 320, 180, undefined, 'FAST');
@@ -154,56 +154,44 @@ window.FMCUPdf = {
       }
     }
 
-    // 2. Masking area teks kiri (0 s.d 146mm) dengan warna putih murni agar teks lama yang pecah/blur tertutup sempurna
-    doc.setFillColor(255, 255, 255);
-    doc.rect(0, 0, 146, 180, 'F');
-
-    // 3. Render Tipografi Vektor Korporat Elegan & Minimalis
-    const leftX = 22;
-
-    // A. Section Pill Tag
-    doc.setFillColor(240, 253, 250); // Teal-50
-    doc.setDrawColor(153, 246, 228); // Teal-200
-    doc.setLineWidth(0.25);
-    doc.roundedRect(leftX, 48, 98, 8.5, 4.25, 4.25, 'FD');
-
-    doc.setFillColor(0, 153, 166); // Teal dot
-    doc.circle(leftX + 4.5, 52.25, 1.2, 'F');
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.5);
-    doc.setTextColor(15, 118, 110); // Teal-700
-    doc.text(sectionTag.toUpperCase(), leftX + 8.5, 54.8);
-
-    // B. Judul Utama (Bold, Modern Corporate)
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(26);
-    doc.setTextColor(15, 23, 42); // Slate-900
-    const titleLines = doc.splitTextToSize(title, 118);
-    doc.text(titleLines, leftX, 72);
-
-    const afterTitleY = 72 + (titleLines.length - 1) * 11 + 6;
-
-    // C. Garis Aksen FamilyMart Green
-    doc.setDrawColor(0, 153, 68); // FamilyMart Green
-    doc.setLineWidth(0.8);
-    doc.line(leftX, afterTitleY, leftX + 46, afterTitleY);
-
-    // D. Subtitle Deskriptif
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.setTextColor(100, 116, 139); // Slate-500
-    const subLines = doc.splitTextToSize(subtitle, 118);
-    doc.text(subLines, leftX, afterTitleY + 8);
-
-    // E. Micro Brand Meta
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.2);
-    doc.setTextColor(148, 163, 184); // Slate-400
-    doc.text('FAMILYMART CENTRAL UNIT • VISIT STORE REPORT', leftX, 162);
-
-    // F. Page Footer & Watermark
+    // 2. Page Footer & Watermark WTRMRK (pojok kanan bawah)
     this.drawPageFooter(doc, footerText);
+  },
+
+  // Helper untuk membelah 1 foto lembar QSC menjadi 2 (bagian atas & bagian bawah)
+  async splitImageTopBottom(fullDataUrl) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const w = img.width;
+        const h = img.height;
+        const halfH = Math.floor(h / 2);
+        // Overlap margin 2.5% agar baris teks di tengah potongan tidak terpotong
+        const overlap = Math.floor(h * 0.025);
+
+        // 1. Canvas Bagian Atas
+        const cTop = document.createElement('canvas');
+        cTop.width = w;
+        cTop.height = halfH + overlap;
+        const ctxTop = cTop.getContext('2d');
+        ctxTop.drawImage(img, 0, 0, w, halfH + overlap, 0, 0, w, halfH + overlap);
+        const topDataUrl = cTop.toDataURL('image/jpeg', 0.90);
+
+        // 2. Canvas Bagian Bawah
+        const srcY = Math.max(0, halfH - overlap);
+        const srcH = h - srcY;
+        const cBottom = document.createElement('canvas');
+        cBottom.width = w;
+        cBottom.height = srcH;
+        const ctxBottom = cBottom.getContext('2d');
+        ctxBottom.drawImage(img, 0, srcY, w, srcH, 0, 0, w, srcH);
+        const bottomDataUrl = cBottom.toDataURL('image/jpeg', 0.90);
+
+        resolve({ topDataUrl, bottomDataUrl });
+      };
+      img.onerror = (err) => reject(err);
+      img.src = fullDataUrl;
+    });
   },
 
   // Helper to draw image inside a bounding box while preserving natural aspect ratio (mencegah foto & timestamp tertarik)
@@ -901,9 +889,7 @@ window.FMCUPdf = {
       this.drawCorporateDividerSlide(
         doc,
         PA.dividerOpiProjectObservation,
-        'SECTION 01 • OPERATIONAL IMPROVEMENT',
         'OPI Project Observation',
-        'Operational Performance Initiative, Focus Area & Execution Progress',
         footerText
       );
       drawObservationPages(opiObservations, 'OPI Project Observation');
@@ -922,9 +908,7 @@ window.FMCUPdf = {
       this.drawCorporateDividerSlide(
         doc,
         PA.dividerQscObservation,
-        'SECTION 02 • QUALITY & SERVICE AUDIT',
         'QSC Observation',
-        'Quality, Service & Cleanliness Detailed Inspection & Findings',
         footerText
       );
       drawObservationPages(qscObservations, 'QSC Observation');
@@ -948,9 +932,7 @@ window.FMCUPdf = {
       this.drawCorporateDividerSlide(
         doc,
         PA.dividerFindingEvidence,
-        'SECTION 03 • DOCUMENTATION & EVIDENCE',
         'Finding Evidence',
-        'Visual Photographic Evidence of Audit Findings & Non-Compliance Items',
         footerText
       );
       drawEvidencePhotoPages(evPhotos, 'Finding Evidence - Evidence Photos');
@@ -974,9 +956,7 @@ window.FMCUPdf = {
       this.drawCorporateDividerSlide(
         doc,
         PA.dividerCorrectiveAction,
-        'SECTION 04 • REMEDIATION & RESULTS',
         'Corrective Action',
-        'Post-Visit Resolution, Evidence of Action & Improvement Results',
         footerText
       );
       drawEvidencePhotoPages(caPhotos, 'Corrective Action Evidence & Result - Evidence Photos');
@@ -988,9 +968,7 @@ window.FMCUPdf = {
     this.drawCorporateDividerSlide(
       doc,
       PA.dividerStoreAssignment,
-      'SECTION 05 • FOLLOW-UP & ACTION PLAN',
       'Store Assignment',
-      'Action Item Delegation, Responsibility Tracking & Mandatory Deliverables',
       footerText
     );
 
@@ -1446,31 +1424,9 @@ window.FMCUPdf = {
       ? `KHUSUS ${report.storeName.toUpperCase()} (${report.storeCode}):`
       : 'HASIL VISIT AUDIT:';
 
-    const buildDividerSlideHtml = (imageSrc, sectionTag, title, subtitle) => `
-      <div class="w-full h-full bg-white relative overflow-hidden flex">
-        <!-- Left Half: Elegant Minimalist Corporate Typography -->
-        <div class="w-[45.8%] h-full flex flex-col justify-between p-[5.5%] z-10 bg-white">
-          <div>
-            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 border border-teal-200/60 text-[#0099A6] text-[clamp(7px,0.85cqw,12px)] font-extrabold uppercase tracking-widest mb-4">
-              <span class="w-1.5 h-1.5 rounded-full bg-[#0099A6]"></span>
-              ${sectionTag}
-            </div>
-            <h1 class="text-slate-900 font-extrabold text-[clamp(16px,2.8cqw,36px)] leading-[1.12] tracking-tight mb-4">
-              ${title}
-            </h1>
-            <div class="w-12 h-1 bg-[#009944] rounded-full mb-4"></div>
-            <p class="text-slate-500 font-medium text-[clamp(8px,1.1cqw,15px)] leading-relaxed">
-              ${subtitle}
-            </p>
-          </div>
-          <div class="text-[clamp(6.5px,0.75cqw,11px)] font-bold tracking-wider uppercase text-slate-400">
-            FamilyMart Central Unit • Visit Store Report
-          </div>
-        </div>
-        <!-- Right Half: Illustration from divider image -->
-        <div class="w-[54.2%] h-full relative overflow-hidden bg-white">
-          <img src="${imageSrc || ''}" class="absolute right-0 top-0 h-full w-[184%] max-w-none object-cover object-right" alt="${title}" />
-        </div>
+    const buildDividerSlideHtml = (imageSrc, title) => `
+      <div class="w-full h-full bg-white relative overflow-hidden flex items-center justify-center">
+        <img src="${imageSrc || ''}" class="w-full h-full object-cover" alt="${title || 'Divider'}" />
       </div>
     `;
     const visitDateText = report.visitDateFormatted || this.formatIndonesianDate(report.visitDate, false);

@@ -1770,7 +1770,9 @@ window.FMCUData = {
 
   async uploadPhotoToGDrive(photoObj, meta = {}) {
     if (!photoObj) return photoObj;
+    // Jika foto memiliki foto utuh (full un-split photo untuk QSC), utamakan foto utuh untuk disimpan ke Google Drive
     const rawDataUrl =
+      photoObj.fullPhotoDataUrl ||
       (photoObj.dataUrl && photoObj.dataUrl.startsWith('data:image') ? photoObj.dataUrl : '') ||
       this.getPhotoFromMemory(photoObj.id, photoObj.driveFileId);
 
@@ -1792,7 +1794,9 @@ window.FMCUData = {
     const storeCode = meta.storeCode || 'STORE';
     const storeName = meta.storeName || 'VISIT';
     const photoType = meta.photoType || 'EVIDENCE';
-    const cleanCaption = String(photoObj.caption || photoObj.description || photoType)
+    const cleanCaption = String(
+      photoObj.fullPhotoDataUrl ? 'Lembar_Form_QSC_Full' : (photoObj.caption || photoObj.description || photoType)
+    )
       .replace(/[^a-zA-Z0-9_-]/g, '_')
       .slice(0, 35);
     const fileName = `FMCU_${storeCode}_${photoType}_${cleanCaption}_${Date.now()}.jpg`;

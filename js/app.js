@@ -6508,17 +6508,45 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     const grid = document.getElementById('form-qsc-photos-grid');
     if (!grid) return;
 
-    // Pastikan selalu fix tepat 2 slot (wajib 2)
+    // Pastikan selalu fix tepat 2 slot (wajib 2: bagian atas & bagian bawah)
     if (!Array.isArray(this.formQscPhotos) || this.formQscPhotos.length !== 2) {
       const qscTs = Date.now();
-      const p0 = this.formQscPhotos?.[0] || { id: `qsc-${qscTs}-1`, caption: 'Lembar Form QSC / FamiTrack #1 (Wajib)', dataUrl: '', driveFileId: '', driveUrl: '' };
-      const p1 = this.formQscPhotos?.[1] || { id: `qsc-${qscTs}-2`, caption: 'Lembar Form QSC / FamiTrack #2 (Wajib)', dataUrl: '', driveFileId: '', driveUrl: '' };
+      const p0 = this.formQscPhotos?.[0] || { id: `qsc-${qscTs}-1`, caption: 'Lembar Form QSC / FamiTrack #1 (Bagian Atas)', dataUrl: '', driveFileId: '', driveUrl: '' };
+      const p1 = this.formQscPhotos?.[1] || { id: `qsc-${qscTs}-2`, caption: 'Lembar Form QSC / FamiTrack #2 (Bagian Bawah)', dataUrl: '', driveFileId: '', driveUrl: '' };
       this.formQscPhotos = [p0, p1];
     }
 
-    grid.innerHTML = this.formQscPhotos
+    const hasAnyPhoto = this.formQscPhotos.some((p) => p && (p.dataUrl || p.driveFileId));
+    const allUploaded = this.formQscPhotos.every((p) => p && (p.dataUrl || p.driveFileId));
+
+    // 1. Hero Action Banner: Ambil 1x Foto Lembar Form QSC (Auto Split 2 Bagian Atas & Bawah)
+    const headerBannerHtml = `
+      <div class="col-span-full bg-gradient-to-r from-emerald-50 via-teal-50 to-white border-2 border-emerald-300 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-2xs mb-1">
+        <div class="flex items-center gap-3.5 min-w-0">
+          <div class="w-12 h-12 rounded-2xl bg-[#009944] text-white flex items-center justify-center text-xl shrink-0 shadow-xs">
+            <i class="fa-solid fa-camera"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h4 class="font-black text-sm sm:text-base text-slate-900">Upload 1x Foto Lembar Form QSC / FamiTrack</h4>
+              <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">Auto-Split 2 Bagian</span>
+            </div>
+            <p class="text-xs text-slate-600 mt-0.5 leading-relaxed">
+              Visitor cukup <strong>foto 1x lembar QSC penuh</strong>. Sistem secara otomatis membelah foto menjadi <strong>2 bagian (Atas & Bawah)</strong> untuk slide PDF, dan menyimpan <strong>foto penuh utuh</strong> di Google Drive.
+            </p>
+          </div>
+        </div>
+        <label class="fm-gradient hover:opacity-95 text-white font-extrabold text-xs sm:text-sm px-5 py-2.5 rounded-xl cursor-pointer shadow-md transition flex items-center gap-2 shrink-0 self-stretch sm:self-auto justify-center">
+          <i class="fa-solid fa-camera text-base"></i>
+          <span>${hasAnyPhoto ? 'Ambil Ulang 1x Foto Form QSC' : 'Ambil 1x Foto Form QSC'}</span>
+          <input type="file" accept="image/*" onchange="FMCUApp.handleQscSingleFullUpload(event)" class="hidden" />
+        </label>
+      </div>
+    `;
+
+    // 2. Render 2 Slot (Lembar Bagian Atas & Lembar Bagian Bawah)
+    const slotsHtml = this.formQscPhotos
       .map((p, idx) => {
-        // Jika slot belum memiliki dataUrl/driveFileId tetapi memiliki id legacy qsc-1/qsc-2, perbarui id-nya
         if ((!p.dataUrl || !p.dataUrl.startsWith('data:image')) && !p.driveFileId && (p.id === 'qsc-1' || p.id === 'qsc-2')) {
           p.id = `qsc-${Date.now()}-${idx + 1}`;
         }
@@ -6526,22 +6554,23 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         const statusBadge = p._uploading
           ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800"><i class="fa-solid fa-spinner fa-spin mr-1"></i>Upload ke Google Drive...</span>`
           : p.driveFileId
-          ? `<a href="${p.driveViewUrl || p.driveUrl || '#'}" target="_blank" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 hover:underline"><i class="fa-brands fa-google-drive mr-1"></i>Tersimpan di Google Drive</a>`
+          ? `<a href="${p.driveViewUrl || p.driveUrl || '#'}" target="_blank" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 hover:underline"><i class="fa-brands fa-google-drive mr-1"></i>Tersimpan di Google Drive (Foto Penuh)</a>`
           : displaySrc
           ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-[#0099A6]"><i class="fa-solid fa-cloud-arrow-up mr-1"></i>Siap Sync ke Google Drive</span>`
           : '';
 
-        const slotTitle = idx === 0 ? 'Lembar Form QSC / FamiTrack #1 (Wajib)' : 'Lembar Form QSC / FamiTrack #2 (Wajib)';
+        const slotLabel = idx === 0 ? 'Lembar #1 (Bagian Atas - Auto Split)' : 'Lembar #2 (Bagian Bawah - Auto Split)';
+        const guideText = idx === 0 ? 'Potongan otomatis bagian atas lembar QSC' : 'Potongan otomatis bagian bawah lembar QSC';
 
         return `
         <div class="border-2 ${displaySrc ? 'border-emerald-300 bg-white' : 'border-dashed border-slate-300 bg-slate-50/70'} rounded-2xl p-4 space-y-3 transition">
           <div class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-2 min-w-0">
               <span class="w-6 h-6 rounded-lg ${displaySrc ? 'bg-[#009944]' : 'bg-slate-400'} text-white text-xs font-extrabold flex items-center justify-center shrink-0 shadow-2xs">${idx + 1}</span>
-              <span class="text-xs font-extrabold text-slate-800 truncate">${slotTitle}</span>
+              <span class="text-xs font-extrabold text-slate-800 truncate">${slotLabel}</span>
             </div>
             <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full shrink-0 ${displaySrc ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-50 text-rose-700 border border-rose-200'}">
-              ${displaySrc ? '✓ Foto Terunggah' : '* Wajib Diisi'}
+              ${displaySrc ? '✓ Split Terpasang' : '* Menunggu 1x Foto'}
             </span>
           </div>
 
@@ -6551,8 +6580,8 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
                 ? `<img src="${displaySrc}" class="w-full h-full object-contain p-1 bg-slate-900/5" alt="QSC Form ${idx + 1}" />`
                 : `<div class="text-center text-slate-400 text-xs p-4">
                     <i class="fa-solid fa-file-invoice text-3xl mb-1.5 text-slate-300 block"></i>
-                    <span class="font-bold text-slate-600 block">Foto Lembar QSC #${idx + 1}</span>
-                    <span class="text-[11px] text-slate-400">Ketuk tombol di bawah untuk mengambil foto / unggah</span>
+                    <span class="font-bold text-slate-600 block">${slotLabel}</span>
+                    <span class="text-[11px] text-slate-400">${guideText}</span>
                    </div>`
             }
             ${statusBadge ? `<div class="absolute top-2 left-2 shadow-sm">${statusBadge}</div>` : ''}
@@ -6560,7 +6589,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
               ${
                 displaySrc
                   ? `
-                    <button type="button" onclick="FMCUApp.editQscPhoto(${idx})" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl cursor-pointer shadow-md transition flex items-center gap-1.5" title="Sunting & Potong Foto">
+                    <button type="button" onclick="FMCUApp.editQscPhoto(${idx})" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl cursor-pointer shadow-md transition flex items-center gap-1.5" title="Sunting & Potong Bagian Ini">
                       <i class="fa-solid fa-pen text-xs"></i>
                       <span>Sunting</span>
                     </button>
@@ -6573,7 +6602,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
               }
               <label class="bg-slate-900/85 hover:bg-slate-950 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl cursor-pointer shadow-md transition flex items-center gap-1.5">
                 <i class="fa-solid fa-camera text-emerald-400"></i>
-                <span>${displaySrc ? 'Ganti Foto' : 'Pilih Foto / Kamera'}</span>
+                <span>${displaySrc ? 'Ganti Potongan' : 'Pilih Foto'}</span>
                 <input type="file" accept="image/*" onchange="FMCUApp.handleQscPhotoUpload(event, ${idx})" class="hidden" />
               </label>
             </div>
@@ -6582,6 +6611,8 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       `;
       })
       .join('');
+
+    grid.innerHTML = headerBannerHtml + slotsHtml;
   },
 
   removeQscPhoto(idx) {
@@ -6654,6 +6685,97 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
           : `Foto lembar QSC #${idx + 1} berhasil diperbarui.`,
         'success'
       );
+    });
+  },
+
+  // Handler untuk mengunggah 1x foto penuh Form QSC dan otomatis membelah jadi 2 (atas & bawah)
+  async handleQscSingleFullUpload(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    event.target.value = '';
+
+    this.promptPhotoEdit(file, async (editedFullDataUrl) => {
+      const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
+      const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
+      this.showToast('Memproses & membelah foto Form QSC menjadi 2 bagian...', 'info', 2500);
+
+      try {
+        // 1. Watermark & GPS pada foto penuh (utuh)
+        const fullStampedDataUrl = await window.FMCUPdf.processAndStampImage(editedFullDataUrl, {
+          storeName,
+          gpsLat: this.liveGps.lat,
+          gpsLng: this.liveGps.lng,
+          applyWatermark: true
+        });
+
+        // 2. Split otomatis menjadi 2 bagian: atas & bawah
+        const { topDataUrl, bottomDataUrl } = await window.FMCUPdf.splitImageTopBottom(fullStampedDataUrl);
+
+        const qscTs = Date.now();
+        const p0 = {
+          id: `qsc-${qscTs}-1`,
+          caption: 'Lembar Form QSC / FamiTrack #1 (Bagian Atas)',
+          dataUrl: topDataUrl,
+          fullPhotoDataUrl: fullStampedDataUrl,
+          driveFileId: '',
+          driveUrl: '',
+          _uploading: true
+        };
+        const p1 = {
+          id: `qsc-${qscTs}-2`,
+          caption: 'Lembar Form QSC / FamiTrack #2 (Bagian Bawah)',
+          dataUrl: bottomDataUrl,
+          fullPhotoDataUrl: fullStampedDataUrl,
+          driveFileId: '',
+          driveUrl: '',
+          _uploading: true
+        };
+
+        this.formQscPhotos = [p0, p1];
+        window.FMCUData.cachePhotoInMemory(p0.id, null, topDataUrl);
+        window.FMCUData.cachePhotoInMemory(p1.id, null, bottomDataUrl);
+        this.renderQscPhotosGrid();
+        this.saveCurrentFormDraft();
+
+        // 3. Simpan foto penuh (foto kolasi utuh) ke Google Drive
+        const fullPhotoObj = {
+          id: `qsc-full-${qscTs}`,
+          caption: 'Lembar_Form_QSC_Full',
+          dataUrl: fullStampedDataUrl,
+          fullPhotoDataUrl: fullStampedDataUrl
+        };
+
+        await window.FMCUData.uploadPhotoToGDrive(fullPhotoObj, {
+          storeCode,
+          storeName,
+          photoType: 'QSC'
+        });
+
+        // Bagikan ID & URL Drive foto utuh ke kedua slot
+        if (fullPhotoObj.driveFileId) {
+          p0.driveFileId = fullPhotoObj.driveFileId;
+          p0.driveUrl = fullPhotoObj.driveUrl;
+          p0.driveViewUrl = fullPhotoObj.driveViewUrl;
+          p1.driveFileId = fullPhotoObj.driveFileId;
+          p1.driveUrl = fullPhotoObj.driveUrl;
+          p1.driveViewUrl = fullPhotoObj.driveViewUrl;
+        }
+        p0._uploading = false;
+        p1._uploading = false;
+
+        this.renderQscPhotosGrid();
+        this.saveCurrentFormDraft();
+        this.updateFormProgress();
+        this.showToast(
+          fullPhotoObj.driveFileId
+            ? 'Foto Form QSC berhasil di-split jadi 2 bagian & foto utuh tersimpan di Google Drive!'
+            : 'Foto Form QSC berhasil diunggah & di-split jadi 2 bagian.',
+          'success'
+        );
+      } catch (err) {
+        console.error('Gagal memproses split foto QSC:', err);
+        this.showToast('Gagal memproses split foto QSC: ' + err.message, 'error');
+      }
     });
   },
 
