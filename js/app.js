@@ -2320,7 +2320,7 @@ window.FMCUApp = {
   },
 
   switchScheduleSubSection(subSec, scrollTop = true) {
-    const validModes = ['create', 'calendar', 'list'];
+    const validModes = ['create', 'calendar', 'list', 'history'];
     const mode = validModes.includes(subSec) ? subSec : 'create';
     this.currentScheduleSubSection = mode;
     try {
@@ -2330,19 +2330,25 @@ window.FMCUApp = {
     const createSec = document.getElementById('schedule-section-create');
     const calendarSec = document.getElementById('schedule-section-calendar');
     const listSec = document.getElementById('schedule-section-list');
+    const historySec = document.getElementById('schedule-section-history');
     const btnCreate = document.getElementById('sch-subtab-btn-create');
     const btnCalendar = document.getElementById('sch-subtab-btn-calendar');
     const btnList = document.getElementById('sch-subtab-btn-list');
+    const btnHistory = document.getElementById('sch-subtab-btn-history');
     const countPill = document.getElementById('admin-schedule-count-pill');
+    const histPill = document.getElementById('admin-schedule-history-count-pill');
 
     if (createSec) createSec.classList.toggle('hidden', mode !== 'create');
     if (calendarSec) calendarSec.classList.toggle('hidden', mode !== 'calendar');
     if (listSec) listSec.classList.toggle('hidden', mode !== 'list');
+    if (historySec) historySec.classList.toggle('hidden', mode !== 'history');
 
     if (mode === 'create') {
       this.switchScheduleCreateMode('weekly');
     } else if (mode === 'calendar') {
       this.renderAdminCalendarView();
+    } else if (mode === 'history') {
+      this.renderAdminScheduleHistory();
     }
 
     if (btnCreate) {
@@ -2366,11 +2372,25 @@ window.FMCUApp = {
           : 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white whitespace-nowrap';
     }
 
+    if (btnHistory) {
+      btnHistory.className =
+        mode === 'history'
+          ? 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-[#0099A6] text-white shadow-xs whitespace-nowrap'
+          : 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white whitespace-nowrap';
+    }
+
     if (countPill) {
       countPill.className =
         mode === 'list'
           ? 'px-1.5 py-0.2 rounded-full text-[10px] bg-white/25 text-white font-extrabold'
           : 'px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-extrabold';
+    }
+
+    if (histPill) {
+      histPill.className =
+        mode === 'history'
+          ? 'px-1.5 py-0.2 rounded-full text-[10px] bg-white/25 text-white font-extrabold'
+          : 'px-1.5 py-0.2 rounded-full text-[10px] bg-teal-100 text-teal-800 font-extrabold';
     }
 
     if (scrollTop) {
@@ -4326,19 +4346,23 @@ window.FMCUApp = {
               ${
                 isAdmin
                   ? `
-                <a href="${r.storeFolderUrl || r.visitorFolderUrl || 'https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8'}" target="_blank" rel="noopener noreferrer" class="px-3 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs">
+                <!-- 1. Folder toko -->
+                <a href="${r.storeFolderUrl || r.visitorFolderUrl || 'https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8'}" target="_blank" rel="noopener noreferrer" class="px-3 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Buka Folder Toko di Google Drive">
                   <i class="fa-solid fa-folder-open text-[#009944]"></i>
                   <span>Folder Toko</span>
                 </a>
-                <button type="button" onclick="FMCUApp.openReportPreview('${r.id}')" class="px-3 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition flex items-center gap-1.5 cursor-pointer">
-                  <i class="fa-solid fa-display"></i>
-                  <span>Preview Slide</span>
+                <!-- 2. Preview PDF (langsung pdf yang tersimpan di gdrive) -->
+                <button type="button" onclick="FMCUApp.previewReportPdfFromGDrive('${r.id}')" class="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Preview PDF langsung yang tersimpan di Google Drive">
+                  <i class="fa-solid fa-file-pdf text-rose-600"></i>
+                  <span>Preview PDF</span>
                 </button>
-                <button type="button" onclick="FMCUApp.downloadReportById('${r.id}')" class="fm-gradient hover:opacity-95 text-white font-bold px-3 py-2 rounded-xl text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                <!-- 3. Unduh PDF -->
+                <button type="button" onclick="FMCUApp.downloadReportById('${r.id}')" class="px-3 py-2 rounded-xl fm-gradient hover:opacity-95 text-white font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Unduh file PDF laporan lengkap">
                   <i class="fa-solid fa-file-arrow-down"></i>
                   <span>Unduh PDF</span>
                 </button>
-                <button type="button" onclick="FMCUApp.promptDeleteVisitReport('${r.id}')" class="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer">
+                <!-- 4. Hapus -->
+                <button type="button" onclick="FMCUApp.promptDeleteVisitReport('${r.id}')" class="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Hapus riwayat laporan visit toko ini">
                   <i class="fa-solid fa-trash-can"></i>
                   <span>Hapus</span>
                 </button>
@@ -5792,19 +5816,23 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
               ${
                 isAdmin
                   ? `
-                <a href="${r.storeFolderUrl || r.visitorFolderUrl || 'https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8'}" target="_blank" rel="noopener noreferrer" class="px-3.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs">
+                <!-- 1. Folder toko -->
+                <a href="${r.storeFolderUrl || r.visitorFolderUrl || 'https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8'}" target="_blank" rel="noopener noreferrer" class="px-3.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Buka Folder Toko di Google Drive">
                   <i class="fa-solid fa-folder-open text-[#009944]"></i>
                   <span>Folder Toko</span>
                 </a>
-                <button type="button" onclick="FMCUApp.openReportPreview('${r.id}')" class="px-3 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition flex items-center gap-1.5 cursor-pointer">
-                  <i class="fa-solid fa-display"></i>
-                  <span>Lihat PDF</span>
+                <!-- 2. Preview PDF (langsung pdf yang tersimpan di gdrive) -->
+                <button type="button" onclick="FMCUApp.previewReportPdfFromGDrive('${r.id}')" class="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Preview PDF langsung yang tersimpan di Google Drive">
+                  <i class="fa-solid fa-file-pdf text-rose-600"></i>
+                  <span>Preview PDF</span>
                 </button>
-                <button type="button" onclick="FMCUApp.downloadReportById('${r.id}')" class="fm-gradient hover:opacity-95 text-white font-bold px-3 py-2 rounded-xl text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                <!-- 3. Unduh PDF -->
+                <button type="button" onclick="FMCUApp.downloadReportById('${r.id}')" class="px-3 py-2 rounded-xl fm-gradient hover:opacity-95 text-white font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Unduh file PDF laporan lengkap">
                   <i class="fa-solid fa-file-arrow-down"></i>
                   <span>Unduh PDF</span>
                 </button>
-                <button type="button" onclick="FMCUApp.promptDeleteVisitReport('${r.id}')" class="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer">
+                <!-- 4. Hapus -->
+                <button type="button" onclick="FMCUApp.promptDeleteVisitReport('${r.id}')" class="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Hapus riwayat laporan visit toko ini">
                   <i class="fa-solid fa-trash-can"></i>
                   <span>Hapus</span>
                 </button>
@@ -9105,6 +9133,225 @@ Instruksi:
     this.showToast(`PDF ${window.FMCUPdf.getFileName(report)} berhasil diunduh!`, 'success');
   },
 
+  // ==========================================================================
+  // PREVIEW PDF LANGSUNG DARI GOOGLE DRIVE / BROWSER PDF VIEWER
+  // ==========================================================================
+  async previewReportPdfFromGDrive(reportId) {
+    const reports = window.FMCUData.getReports();
+    const rep = reports.find((r) => String(r.id) === String(reportId));
+    if (!rep) {
+      this.showToast('Laporan visit toko tidak ditemukan.', 'warning');
+      return;
+    }
+
+    // 1. Cek apakah tautan file PDF di Google Drive sudah tersedia
+    const drivePdfUrl = rep.pdfDriveUrl || rep.pdfUrl || rep.drivePdfUrl || rep.gdrivePdfUrl;
+    if (drivePdfUrl) {
+      this.showToast(`Membuka PDF FamilyMart ${rep.storeName} langsung dari Google Drive...`, 'info', 2500);
+      window.open(drivePdfUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    // 2. Jika tautan file PDF belum tercatat di data lokal, buka Folder Toko di Google Drive jika ada
+    if (rep.storeFolderUrl) {
+      this.showToast(`Membuka folder Google Drive FamilyMart ${rep.storeName}...`, 'info', 3000);
+      window.open(rep.storeFolderUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    // 3. Fallback: Generate dokumen PDF secara instan dan buka di tab viewer PDF browser
+    try {
+      this.showToast(`Menyiapkan berkas PDF FamilyMart ${rep.storeName}...`, 'info', 3000);
+      if (window.FMCUPdf && typeof window.FMCUPdf.hydrateReportPhotosFromGDrive === 'function') {
+        await window.FMCUPdf.hydrateReportPhotosFromGDrive(rep);
+      }
+      if (window.FMCUPdf && typeof window.FMCUPdf.generatePdfDoc === 'function') {
+        const doc = window.FMCUPdf.generatePdfDoc(rep);
+        const blobUrl = doc.output('bloburl');
+        const pdfWin = window.open(blobUrl, '_blank');
+        if (!pdfWin) {
+          window.location.href = blobUrl;
+        }
+        return;
+      }
+    } catch (err) {
+      console.warn('Gagal generate blob PDF preview:', err);
+    }
+
+    // 4. Fallback terakhir: buka modal slide preview
+    this.openReportPreview(reportId);
+  },
+
+  // ==========================================================================
+  // SUB-SECTION: HISTORY VISIT & ARSIP LAPORAN TOKO (ADMIN JADWAL)
+  // Menampilkan 4 Button di masing-masing card toko:
+  // 1. Folder toko
+  // 2. Preview PDF (langsung pdf yang tersimpan di gdrive)
+  // 3. Unduh PDF
+  // 4. Hapus
+  // ==========================================================================
+  renderAdminScheduleHistory() {
+    const container = document.getElementById('admin-sch-history-list');
+    const badgeEl = document.getElementById('admin-sch-history-count-badge');
+    const pillEl = document.getElementById('admin-schedule-history-count-pill');
+
+    const allReports = (window.FMCUData.getReports() || []).filter((r) => r && r.id && r.storeCode);
+    if (pillEl) {
+      pillEl.textContent = String(allReports.length);
+    }
+    if (!container) return;
+
+    // Populate dropdown filter visitor
+    const visFilterEl = document.getElementById('admin-sch-history-visitor-filter');
+    if (visFilterEl) {
+      const auditors = this.getSchedulableAuditors();
+      const curVal = visFilterEl.value || 'ALL';
+      visFilterEl.innerHTML =
+        `<option value="ALL">Semua Visitor / Regional Bestie (${allReports.length} Laporan)</option>` +
+        auditors
+          .map((u) => {
+            const count = allReports.filter((r) => r.auditorId === u.id || r.auditorName === u.name).length;
+            return `<option value="${u.id}" ${u.id === curVal ? 'selected' : ''}>${u.name} (${count})</option>`;
+          })
+          .join('');
+    }
+
+    const searchQ = (document.getElementById('admin-sch-history-search')?.value || '').trim().toLowerCase();
+    const selectedVis = document.getElementById('admin-sch-history-visitor-filter')?.value || 'ALL';
+
+    const filtered = allReports.filter((r) => {
+      if (selectedVis !== 'ALL' && r.auditorId !== selectedVis && r.auditorName !== selectedVis) {
+        return false;
+      }
+      if (!searchQ) return true;
+      return (
+        String(r.storeName || '').toLowerCase().includes(searchQ) ||
+        String(r.storeCode || '').toLowerCase().includes(searchQ) ||
+        String(r.auditorName || '').toLowerCase().includes(searchQ) ||
+        String(r.storeHead || '').toLowerCase().includes(searchQ) ||
+        String(r.visitDate || '').toLowerCase().includes(searchQ)
+      );
+    });
+
+    if (badgeEl) {
+      badgeEl.textContent = `${filtered.length} Laporan`;
+    }
+
+    if (filtered.length === 0) {
+      container.innerHTML = `
+        <div class="border border-dashed border-slate-200 rounded-2xl py-12 px-4 text-center space-y-2 bg-slate-50/50">
+          <div class="text-3xl text-slate-300"><i class="fa-solid fa-file-circle-question"></i></div>
+          <div class="text-slate-600 text-xs sm:text-sm font-bold">Tidak ada riwayat visit yang sesuai filter / pencarian.</div>
+          <p class="text-xs text-slate-400">Silakan ubah filter Visitor atau kata kunci pencarian toko.</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Urutkan laporan dari tanggal visit terbaru
+    filtered.sort((a, b) => String(b.createdAt || b.visitDate || '').localeCompare(String(a.createdAt || a.visitDate || '')));
+
+    container.innerHTML = filtered
+      .map((r) => {
+        const obsCount = (r.observations || []).length;
+        const evCount = (r.evidencePhotos || []).length;
+        const dateText = r.visitDayDateFormatted || window.FMCUPdf.formatIndonesianDate(r.visitDate, true);
+        const folderUrl = r.storeFolderUrl || r.visitorFolderUrl || 'https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8';
+        const hasDrivePdf = Boolean(r.pdfDriveUrl || r.pdfUrl || r.drivePdfUrl || r.gdrivePdfUrl);
+
+        return `
+          <div class="border border-slate-200 hover:border-teal-400 rounded-2xl p-4 sm:p-5 bg-white flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition shadow-xs hover:shadow-sm">
+            <div class="space-y-1.5 min-w-0">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="px-2.5 py-0.5 rounded-md bg-teal-50 text-[#0099A6] font-extrabold text-xs">
+                  Site ${r.storeCode} • ${r.storeType || 'CVS'}
+                </span>
+                <h4 class="font-extrabold text-base sm:text-lg text-slate-900">FamilyMart ${r.storeName}</h4>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
+                  <i class="fa-solid fa-circle-check mr-1"></i>VISIT SELESAI
+                </span>
+                <span class="text-xs text-slate-400">•</span>
+                <span class="text-xs font-semibold text-slate-600">${dateText}</span>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+                <span><i class="fa-regular fa-user text-[#0099A6] mr-1"></i>Visitor: <strong>${r.auditorName || '-'}</strong></span>
+                <span><i class="fa-solid fa-user-tie text-emerald-600 mr-1"></i>Store Head: <strong>${r.storeHead || '-'}</strong></span>
+                <span><i class="fa-regular fa-clock text-amber-600 mr-1"></i>Actual In-Out: <strong>${r.actualIn || '-'} s/d ${r.actualOut || '-'}</strong></span>
+                <span><i class="fa-solid fa-location-dot text-rose-500 mr-1"></i>GPS: <span class="font-mono text-[11px]">${r.gpsLat || '-'}, ${r.gpsLng || '-'}</span></span>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-2 pt-1">
+                <span class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  Skor QSC: ${r.qscScore ? `${r.qscScore}%` : '-'}
+                </span>
+                <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                  ${obsCount} Temuan Observasi
+                </span>
+                <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-800 border border-sky-200">
+                  ${evCount} Foto Bukti Evidence
+                </span>
+                ${
+                  hasDrivePdf
+                    ? `<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-teal-50 text-[#0099A6] border border-teal-200"><i class="fa-brands fa-google-drive mr-1"></i>PDF Terhubung GDrive</span>`
+                    : ''
+                }
+              </div>
+            </div>
+
+            <!-- 4 BUTTONS PADA MASING-MASING CARD TOKO -->
+            <div class="flex flex-wrap items-center gap-2 shrink-0">
+              <!-- 1. Folder toko -->
+              <a
+                href="${folderUrl}"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="px-3 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                title="Buka Folder Toko di Google Drive"
+              >
+                <i class="fa-solid fa-folder-open text-[#009944]"></i>
+                <span>Folder Toko</span>
+              </a>
+
+              <!-- 2. Preview PDF (langsung pdf yang tersimpan di gdrive) -->
+              <button
+                type="button"
+                onclick="FMCUApp.previewReportPdfFromGDrive('${r.id}')"
+                class="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                title="Buka & Preview PDF langsung dari Google Drive"
+              >
+                <i class="fa-solid fa-file-pdf text-rose-600"></i>
+                <span>Preview PDF</span>
+              </button>
+
+              <!-- 3. Unduh PDF -->
+              <button
+                type="button"
+                onclick="FMCUApp.downloadReportById('${r.id}')"
+                class="px-3 py-2 rounded-xl fm-gradient hover:opacity-95 text-white font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                title="Unduh file PDF laporan lengkap ke perangkat"
+              >
+                <i class="fa-solid fa-file-arrow-down"></i>
+                <span>Unduh PDF</span>
+              </button>
+
+              <!-- 4. Hapus -->
+              <button
+                type="button"
+                onclick="FMCUApp.promptDeleteVisitReport('${r.id}')"
+                class="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                title="Hapus riwayat visit toko ini"
+              >
+                <i class="fa-solid fa-trash-can"></i>
+                <span>Hapus</span>
+              </button>
+            </div>
+          </div>
+        `;
+      })
+      .join('');
+  },
+
   async downloadReportById(reportId) {
     const reports = window.FMCUData.getReports();
     const rep = reports.find((r) => r.id === reportId);
@@ -9882,6 +10129,13 @@ Instruksi:
     this.renderWeeklySchedulePlanner();
     if (this.currentScheduleSubSection === 'calendar') {
       this.renderAdminCalendarView();
+    } else if (this.currentScheduleSubSection === 'history') {
+      this.renderAdminScheduleHistory();
+    } else {
+      // Pastikan pill counter history selalu terisi
+      const histReports = (window.FMCUData.getReports() || []).filter((r) => r && r.id && r.storeCode);
+      const histPill = document.getElementById('admin-schedule-history-count-pill');
+      if (histPill) histPill.textContent = String(histReports.length);
     }
 
     // 1. Render Admin Schedules Table & Visitor Recap Strip

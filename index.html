@@ -2039,6 +2039,11 @@ service cloud.firestore {
                   <span>Daftar Jadwal</span>
                   <span id="admin-schedule-count-pill" class="px-1.5 py-0.2 rounded-full text-[9px] bg-slate-200 text-slate-700 font-extrabold">0</span>
                 </button>
+                <button type="button" id="sch-subtab-btn-history" onclick="FMCUApp.switchScheduleSubSection('history')" class="flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-900 whitespace-nowrap" title="Riwayat Kunjungan Toko & Arsip Laporan PDF">
+                  <i class="fa-solid fa-clock-rotate-left text-xs text-[#0099A6]"></i>
+                  <span>History Visit</span>
+                  <span id="admin-schedule-history-count-pill" class="px-1.5 py-0.2 rounded-full text-[9px] bg-teal-100 text-teal-800 font-extrabold">0</span>
+                </button>
                 <button type="button" onclick="FMCUApp.navigate('live-maps')" class="flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer text-[#0099A6] hover:bg-white whitespace-nowrap">
                   <i class="fa-solid fa-map-location-dot text-xs"></i>
                   <span>Live Maps</span>
@@ -2538,6 +2543,74 @@ service cloud.firestore {
                   </div>
                 </div>
 
+              </div>
+            </div>
+
+            <!-- SUB-SECTION HALAMAN 3: HISTORY VISIT & ARSIP LAPORAN TOKO (ADMIN JADWAL) -->
+            <div id="schedule-section-history" class="space-y-4 hidden">
+              <div class="fm-card p-4 sm:p-5 space-y-4 border border-slate-200">
+                <!-- Header Panel -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-9 h-9 rounded-xl bg-teal-50 text-[#0099A6] flex items-center justify-center text-base font-bold shrink-0 shadow-2xs">
+                      <i class="fa-solid fa-clock-rotate-left"></i>
+                    </div>
+                    <div class="min-w-0">
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <h3 class="font-extrabold text-sm sm:text-base text-slate-900 leading-tight">History Visit & Arsip Laporan Toko</h3>
+                        <span id="admin-sch-history-count-badge" class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-teal-50 text-[#0099A6] border border-teal-200">0 Laporan</span>
+                      </div>
+                      <p class="text-[11px] text-slate-500 truncate">Riwayat hasil visit seluruh toko FamilyMart lengkap dengan akses Folder Toko, Preview PDF, Unduh PDF, dan Hapus</p>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onclick="FMCUApp.exportWeeklyScheduleToTemplateExcel()"
+                      class="px-2.5 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-xs shadow-2xs transition flex items-center gap-1 cursor-pointer"
+                      title="Export Format Excel Templete Jadwal (.xlsx)"
+                    >
+                      <i class="fa-solid fa-file-excel"></i>
+                      <span>Template Excel</span>
+                    </button>
+                    <button
+                      type="button"
+                      onclick="FMCUApp.exportSchedulesAndAuditorRecapExcel()"
+                      class="px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#009944] border border-emerald-200 font-extrabold text-xs shadow-2xs transition flex items-center gap-1 cursor-pointer"
+                      title="Export Rekap Lengkap Excel (.xlsx)"
+                    >
+                      <i class="fa-solid fa-table-cells"></i>
+                      <span>Rekap Full</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Filter & Search Controls -->
+                <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                  <div class="sm:col-span-7 relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input
+                      type="text"
+                      id="admin-sch-history-search"
+                      oninput="FMCUApp.renderAdminScheduleHistory()"
+                      placeholder="Cari Toko, Site, Visitor, Store Head, atau Tanggal..."
+                      class="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-slate-800 placeholder-slate-400 text-xs font-semibold focus:outline-none focus:border-[#009944] focus:bg-white"
+                    />
+                  </div>
+                  <div class="sm:col-span-5">
+                    <select
+                      id="admin-sch-history-visitor-filter"
+                      onchange="FMCUApp.renderAdminScheduleHistory()"
+                      class="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-slate-700 text-xs font-semibold focus:outline-none focus:border-[#009944] focus:bg-white cursor-pointer"
+                    >
+                      <option value="ALL">Semua Visitor / Regional Bestie</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Container List Card Toko History Visit -->
+                <div id="admin-sch-history-list" class="space-y-3 pt-1"></div>
               </div>
             </div>
           </div>
