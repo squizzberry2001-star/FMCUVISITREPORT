@@ -2249,6 +2249,10 @@ window.FMCUApp = {
       this.showAdminSectionPanel('schedules');
       this.switchScheduleSubSection(this.currentScheduleSubSection || 'create', false);
       this.renderAdminView();
+      // Auto-update master toko kepemilikan Bestie dari Google Spreadsheet secara hening di background
+      if (window.FMCUData && typeof window.FMCUData.syncBestieInChargeFromSheet === 'function') {
+        window.FMCUData.syncBestieInChargeFromSheet(false).catch(() => {});
+      }
     } else if (viewName === 'stores') {
       this.checkAdminGateUI();
       const ctrlHeader = document.getElementById('admin-control-center-header');
@@ -10261,6 +10265,12 @@ Instruksi:
   weeklyPickerSearch: '',
   weeklyPickerCity: 'ALL',
   weeklyPickerType: 'ALL',
+  weeklyPickerScope: 'ALL',
+
+  setWeeklyPickerScope(scope) {
+    this.weeklyPickerScope = scope || 'ALL';
+    this.renderWeeklyStorePickerModalContent();
+  },
 
   onWeeklyStorePickerTypeFilter(val) {
     this.weeklyPickerType = val || 'ALL';
@@ -10306,6 +10316,12 @@ Instruksi:
 
     const dayBadge = document.getElementById('weekly-picker-day-badge');
     if (dayBadge) dayBadge.textContent = `${dayObj.dayName}, ${dayObj.shortDate}`;
+
+    // Cek toko kepemilikan Bestie: jika memiliki toko, defaultkan scope ke 'OWNED'
+    const ownedStoreCodes = (window.FMCUData && au)
+      ? window.FMCUData.getStoreCodesOwnedByBestie(au.name)
+      : new Set();
+    this.weeklyPickerScope = ownedStoreCodes.size > 0 ? 'OWNED' : 'ALL';
 
     this.renderWeeklyStorePickerModalContent();
     modal.classList.remove('hidden');
@@ -10421,11 +10437,16 @@ Instruksi:
       }
     }
 
-    // 2. Filter Stores
+    // 2. Filter Stores (Mendukung filter Toko Milik Bestie & Semua Master Toko)
     const q = this.weeklyPickerSearch;
     const city = this.weeklyPickerCity;
+    const au = window.FMCUData.getUsers().find((u) => u.id === auditorId);
+    const ownedStoreCodes = (window.FMCUData && au)
+      ? window.FMCUData.getStoreCodesOwnedByBestie(au.name)
+      : new Set();
 
     let filtered = stores.filter((s) => {
+      if (this.weeklyPickerScope === 'OWNED' && !ownedStoreCodes.has(String(s.code))) return false;
       if (city !== 'ALL' && s.city !== city) return false;
       if (this.weeklyPickerType && this.weeklyPickerType !== 'ALL' && (s.type || 'CVS') !== this.weeklyPickerType) return false;
       if (!q) return true;
@@ -10439,6 +10460,40 @@ Instruksi:
       );
     });
 
+    // Render Tab Scope Controls: [⭐ Toko Milik Bestie Ini] vs [Semua Master Toko]
+    const scopeContainer = document.getElementById('weekly-picker-scope-controls');
+    if (scopeContainer) {
+      scopeContainer.innerHTML = `
+        <div class="inline-flex rounded-xl bg-slate-200/80 p-0.5 border border-slate-300 text-xs shadow-2xs">
+          <button
+            type="button"
+            onclick="FMCUApp.setWeeklyPickerScope('OWNED')"
+            class="px-2.5 py-1 rounded-lg font-extrabold text-[11px] transition cursor-pointer flex items-center gap-1 ${
+              this.weeklyPickerScope === 'OWNED'
+                ? 'bg-amber-400 text-amber-950 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }"
+            ${ownedStoreCodes.size === 0 ? 'disabled title="Visitor ini bebas (tidak memiliki toko kepemilikan di spreadsheet)"' : ''}
+          >
+            <i class="fa-solid fa-star text-amber-700 text-[10px]"></i>
+            <span>Milik Bestie Ini (${ownedStoreCodes.size})</span>
+          </button>
+          <button
+            type="button"
+            onclick="FMCUApp.setWeeklyPickerScope('ALL')"
+            class="px-2.5 py-1 rounded-lg font-extrabold text-[11px] transition cursor-pointer flex items-center gap-1 ${
+              this.weeklyPickerScope === 'ALL'
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }"
+          >
+            <i class="fa-solid fa-store text-emerald-600 text-[10px]"></i>
+            <span>Semua Master Toko (${stores.length})</span>
+          </button>
+        </div>
+      `;
+    }
+
     // Urutkan: Toko yang sudah dipilih diletakkan di paling atas, lalu urut kode toko
     filtered.sort((a, b) => {
       const aAssigned = assignedCodes.has(String(a.code));
@@ -10451,7 +10506,11 @@ Instruksi:
     // Update stats counter
     const statsEl = document.getElementById('weekly-picker-stats');
     if (statsEl) {
-      statsEl.textContent = `Menampilkan seluruh ${filtered.length} dari ${stores.length} Master Toko`;
+      if (this.weeklyPickerScope === 'OWNED') {
+        statsEl.textContent = `Menampilkan ${filtered.length} dari ${ownedStoreCodes.size} Toko Milik ${au ? au.name : 'Bestie'}`;
+      } else {
+        statsEl.textContent = `Menampilkan ${filtered.length} dari ${stores.length} Master Toko (Bebas Input)`;
+      }
     }
 
     // 3. Render Store Cards List
@@ -10507,8 +10566,9 @@ Instruksi:
                   <span class="font-mono font-extrabold text-xs ${isAssigned ? 'text-emerald-800' : 'text-[#0099A6]'}">Site ${st.code}</span>
                   <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-slate-100 text-slate-600">${st.type || 'CVS'}</span>
                   ${st.city ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-100 text-slate-500">${st.city}</span>` : ''}
+                  ${ownedStoreCodes.has(String(st.code)) ? `<span class="px-2 py-0.2 rounded-full text-[9px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs"><i class="fa-solid fa-star text-amber-500 mr-0.5"></i> Milik Bestie Ini</span>` : ((window.FMCUData && typeof window.FMCUData.getBestieByStoreCode === 'function' && window.FMCUData.getBestieByStoreCode(st.code)) ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">PIC: ${window.FMCUData.getBestieByStoreCode(st.code)}</span>` : '')}
                   ${isAssigned ? `<span class="px-2 py-0.2 rounded-full text-[9px] font-extrabold bg-emerald-200 text-emerald-900">✓ Terjadwal Hari Ini</span>` : ''}
-                  ${assignedToOtherName ? `<span class="px-2 py-0.2 rounded-full text-[9px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200">[Dipilih ${assignedToOtherName}]</span>` : ''}
+                  ${assignedToOtherName ? `<span class="px-2 py-0.2 rounded-full text-[9px] font-extrabold bg-rose-100 text-rose-800 border border-rose-200">[Dipilih ${assignedToOtherName}]</span>` : ''}
                   ${this.renderStoreVisitBadgeHtml(st.code)}
                 </div>
                 <h5 class="font-extrabold text-xs sm:text-sm text-slate-900 truncate leading-snug mt-0.5" title="${st.name}">${st.name}</h5>
@@ -10636,17 +10696,17 @@ Instruksi:
     this.ensureWeeklyPlannerInitialized();
     const targets = this.weeklySelectedAuditors.filter((id) => id !== sourceAuditorId);
     if (targets.length === 0) {
-      this.showToast('Pilih minimal 2 Visitor di Langkah 2 untuk menyalin jadwal mingguan.', 'warning');
+      this.showToast('Pilih minimal 2 Visitor di Langkah 2 untuk menyusun jadwal mingguan.', 'warning');
       return;
     }
+    // Agar tidak terjadi bentrok dan tetap mematuhi toko kepemilikan masing-masing Bestie:
+    // Isi otomatis target visitor dengan toko kepemilikan mereka masing-masing
+    let totalAdded = 0;
     targets.forEach((tId) => {
-      for (let d = 0; d < 7; d++) {
-        const srcItems = this.getWeeklySlotItems(sourceAuditorId, d);
-        this.weeklyDraftMatrix[this.getWeeklySlotKey(tId, d)] = srcItems.map((it) => ({ ...it }));
-      }
+      totalAdded += this.autoFillFiveDaysForAuditor(tId, { idx: 0 }, true);
     });
     this.renderWeeklySchedulePlanner();
-    this.showToast(`Jadwal 1 minggu (Senin–Minggu) berhasil disalin ke ${targets.length} visitor lainnya!`, 'success');
+    this.showToast(`Jadwal 1 minggu untuk ${targets.length} visitor lainnya berhasil disusun sesuai toko kepemilikan masing-masing (Bebas Bentrok)! `, 'success');
   },
 
   getFilteredStoresForWeeklyPicker() {
@@ -10758,7 +10818,20 @@ Instruksi:
       });
     }
 
-    // 4. Algoritma Fisher-Yates Shuffle untuk pengacakan alami (Auto Acak sejati)
+    // 4. Deteksi Profil Visitor & Toko Kepemilikan (Bestie in Charge Google Spreadsheet)
+    const currentVisitor = auditors.find((x) => x.id === auditorId);
+    const visitorName = currentVisitor ? currentVisitor.name : '';
+    const ownedStoreCodes = (window.FMCUData && typeof window.FMCUData.getStoreCodesOwnedByBestie === 'function')
+      ? window.FMCUData.getStoreCodesOwnedByBestie(visitorName)
+      : new Set();
+    const hasOwnedStores = ownedStoreCodes.size > 0;
+
+    // Filter toko milik Bestie yang bersangkutan
+    const ownedStoresList = hasOwnedStores
+      ? filteredStores.filter((st) => ownedStoreCodes.has(String(st.code)))
+      : [];
+
+    // 5. Algoritma Fisher-Yates Shuffle untuk pengacakan alami (Auto Acak sejati)
     const shuffleArray = (arr) => {
       const copy = [...arr];
       for (let i = copy.length - 1; i > 0; i--) {
@@ -10768,15 +10841,28 @@ Instruksi:
       return copy;
     };
 
-    // Pool Tier 1: Toko yang 100% BELUM PERNAH DIPILIH oleh visitor manapun di minggu ini
-    let poolTier1 = shuffleArray(
+    // Tier 1: Toko kepemilikan Bestie yang 100% BELUM PERNAH DIPILIH siapapun di minggu ini
+    let poolTier1Owned = shuffleArray(
+      ownedStoresList.filter(
+        (st) => !usedByThisVisitor.has(String(st.code)) && !usedByOtherVisitorsInWeek.has(String(st.code))
+      )
+    );
+
+    // Tier 2: Toko kepemilikan Bestie yang belum dipakai visitor ini di minggu ini (fallback jika Tier 1 habis)
+    let poolTier2Owned = shuffleArray(
+      ownedStoresList.filter((st) => !usedByThisVisitor.has(String(st.code)))
+    );
+
+    // Tier 3: Master Toko Umum (digunakan jika Bestie tidak punya toko kepemilikan ATAU toko kepemilikan sudah habis)
+    // "dan jika ada user yang tidak memiliki toko maka dibebaskan"
+    let poolTier3General = shuffleArray(
       filteredStores.filter(
         (st) => !usedByThisVisitor.has(String(st.code)) && !usedByOtherVisitorsInWeek.has(String(st.code))
       )
     );
 
-    // Pool Tier 2: Fallback jika Tier 1 habis, toko yang belum dipakai oleh visitor ini dan tidak bentrok di hari yang sama
-    let poolTier2 = shuffleArray(
+    // Tier 4: Master Toko Umum fallback (belum dipakai visitor ini)
+    let poolTier4General = shuffleArray(
       filteredStores.filter((st) => !usedByThisVisitor.has(String(st.code)))
     );
 
@@ -10787,19 +10873,44 @@ Instruksi:
         const dateStr = fiveDays[d]?.dateStr || '';
         let picked = null;
 
-        // Prioritas 1: Ambil dari Tier 1 (Toko yang belum pernah dipilih visitor manapun di minggu ini)
-        const idx1 = poolTier1.findIndex((st) => !isConflictOnDay(st.code, d, dateStr));
-        if (idx1 !== -1) {
-          picked = poolTier1[idx1];
-          poolTier1.splice(idx1, 1);
-        } else {
-          // Prioritas 2 (Fallback): Ambil dari Tier 2 asalkan TIDAK BENTROK pada hari d dengan visitor lain
-          const idx2 = poolTier2.findIndex(
+        // Pilihan 1: Milik Bestie (Tier 1 - Belum dipakai siapapun di minggu ini)
+        if (hasOwnedStores && poolTier1Owned.length > 0) {
+          const idx = poolTier1Owned.findIndex((st) => !isConflictOnDay(st.code, d, dateStr));
+          if (idx !== -1) {
+            picked = poolTier1Owned[idx];
+            poolTier1Owned.splice(idx, 1);
+          }
+        }
+
+        // Pilihan 2: Milik Bestie (Tier 2 - Tidak bentrok di hari d)
+        if (!picked && hasOwnedStores && poolTier2Owned.length > 0) {
+          const idx = poolTier2Owned.findIndex(
             (st) => !usedByThisVisitor.has(String(st.code)) && !isConflictOnDay(st.code, d, dateStr)
           );
-          if (idx2 !== -1) {
-            picked = poolTier2[idx2];
-            poolTier2.splice(idx2, 1);
+          if (idx !== -1) {
+            picked = poolTier2Owned[idx];
+            poolTier2Owned.splice(idx, 1);
+          }
+        }
+
+        // Pilihan 3: Master Toko Umum Bebas (Tier 3 - Belum dipakai siapapun di minggu ini)
+        // Dipakai jika user bebas/tidak punya toko ATAU toko milik Bestie sudah habis terjadwal
+        if (!picked) {
+          const idx = poolTier3General.findIndex((st) => !isConflictOnDay(st.code, d, dateStr));
+          if (idx !== -1) {
+            picked = poolTier3General[idx];
+            poolTier3General.splice(idx, 1);
+          }
+        }
+
+        // Pilihan 4: Master Toko Umum Bebas (Tier 4 - Fallback akhir tidak bentrok di hari d)
+        if (!picked) {
+          const idx = poolTier4General.findIndex(
+            (st) => !usedByThisVisitor.has(String(st.code)) && !isConflictOnDay(st.code, d, dateStr)
+          );
+          if (idx !== -1) {
+            picked = poolTier4General[idx];
+            poolTier4General.splice(idx, 1);
           }
         }
 
@@ -10815,7 +10926,13 @@ Instruksi:
     if (!silent) {
       this.renderWeeklySchedulePlanner();
       if (added > 0) {
-        this.showToast(`Berhasil mengisi otomatis ${added} hari (Senin–Minggu) dengan toko acak unik bebas bentrok!`, 'success');
+        const sourceDesc = hasOwnedStores
+          ? `${ownedStoreCodes.size} Toko Kepemilikan Bestie In Charge`
+          : 'Master Toko Umum (Bebas)';
+        this.showToast(
+          `Berhasil mengisi otomatis ${added} hari (Senin–Minggu) untuk ${visitorName || 'Visitor'} berbasis ${sourceDesc} (100% Bebas Bentrok)!`,
+          'success'
+        );
       } else {
         this.showToast('Semua slot hari sudah terisi lengkap dan tidak ada jadwal bentrok.', 'info');
       }
@@ -11153,7 +11270,13 @@ Instruksi:
                   ${initials}
                 </div>
                 <div class="min-w-0">
-                  <div class="font-extrabold text-xs text-slate-900 truncate">${u.name}</div>
+                  <div class="font-extrabold text-xs text-slate-900 truncate flex items-center gap-1.5">
+                    <span>${u.name}</span>
+                    ${(window.FMCUData && window.FMCUData.getStoreCodesOwnedByBestie(u.name).size > 0)
+                      ? `<span class="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-amber-100 text-amber-800" title="${window.FMCUData.getStoreCodesOwnedByBestie(u.name).size} Toko Kepemilikan Bestie In Charge"><i class="fa-solid fa-star text-amber-500 mr-0.5"></i>${window.FMCUData.getStoreCodesOwnedByBestie(u.name).size}</span>`
+                      : `<span class="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-slate-100 text-slate-500" title="Bebas Master Toko">Bebas</span>`
+                    }
+                  </div>
                   <div class="text-[10px] text-slate-500 truncate">${u.roleBadge || u.role} ${u.region ? '• ' + u.region : ''}</div>
                 </div>
               </div>
@@ -11393,8 +11516,12 @@ Instruksi:
                       <h4 class="font-extrabold text-sm sm:text-base text-slate-900">${u.name}</h4>
                       <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-50 text-[#0099A6] border border-teal-200">${u.roleBadge || u.role}</span>
                       <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800">${audDraftTotal} Toko di Minggu Ini</span>
+                      ${(window.FMCUData && window.FMCUData.getStoreCodesOwnedByBestie(u.name).size > 0)
+                        ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-900 border border-amber-300" title="Toko kepemilikan Bestie sesuai Google Spreadsheet Bestie In Charge"><i class="fa-solid fa-star text-amber-500 mr-1"></i>${window.FMCUData.getStoreCodesOwnedByBestie(u.name).size} Toko Milik Bestie</span>`
+                        : `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200" title="Visitor bebas memilih dari master toko umum"><i class="fa-solid fa-store mr-1"></i>Bebas Master Toko</span>`
+                      }
                     </div>
-                    <p class="text-[11px] text-slate-500">@${u.username} • Wilayah: ${u.region || 'Nasional'} • Klik kolom hari untuk mengisi toko</p>
+                    <p class="text-[11px] text-slate-500">@${u.username} • Wilayah: ${u.region || 'Nasional'} • ${(window.FMCUData && window.FMCUData.getStoreCodesOwnedByBestie(u.name).size > 0) ? 'Auto-Klasifikasi: ' + window.FMCUData.getStoreCodesOwnedByBestie(u.name).size + ' toko kepemilikan' : 'Auto-Klasifikasi: Bebas master data toko'}</p>
                   </div>
                 </div>
 
@@ -12218,6 +12345,31 @@ Instruksi:
   // ==========================================================================
 
   // 1. Duplikasi Susunan Jadwal Minggu Ini ke Minggu Depan
+  async syncBestieInChargeLive() {
+    const icon = document.getElementById('icon-sync-bestie');
+    if (icon) icon.classList.add('fa-spin');
+    this.triggerHaptic('medium');
+    this.showToast('Menghubungkan & sinkronisasi data toko kepemilikan Bestie dari Google Spreadsheet...', 'info');
+
+    try {
+      const res = await window.FMCUData.syncBestieInChargeFromSheet(true);
+      if (res && res.success) {
+        this.showToast(
+          `✓ Berhasil sinkronisasi ${res.count} data toko kepemilikan Bestie dari Google Spreadsheet (${res.source === 'LIVE_GOOGLE_SHEETS' ? 'Live Online' : 'Cache'})!`,
+          'success'
+        );
+      } else {
+        this.showToast('Gagal menarik spreadsheet terbaru, menggunakan master data lokal.', 'warning');
+      }
+    } catch (err) {
+      console.warn('Sync bestie in charge error:', err);
+      this.showToast('Koneksi spreadsheet gagal, menggunakan master lokal.', 'warning');
+    } finally {
+      if (icon) icon.classList.remove('fa-spin');
+      this.renderWeeklySchedulePlanner();
+    }
+  },
+
   duplicateCurrentWeekToNextWeek() {
     this.ensureWeeklyPlannerInitialized();
     const curMonday = this.weeklyMondayDate;

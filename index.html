@@ -2083,6 +2083,10 @@ service cloud.firestore {
                         <i class="fa-solid fa-copy text-amber-600"></i>
                         <span>Salin ke Minggu Depan</span>
                       </button>
+                      <button type="button" onclick="FMCUApp.syncBestieInChargeLive()" class="px-2.5 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 text-[11px] font-extrabold cursor-pointer flex items-center gap-1 shadow-2xs transition" title="Sinkronisasi data toko kepemilikan Bestie langsung dari Google Spreadsheet">
+                        <i id="icon-sync-bestie" class="fa-solid fa-arrows-rotate text-xs"></i>
+                        <span>Sync Bestie In Charge</span>
+                      </button>
                     </div>
                   </div>
                   <div id="weekly-nearest-monday-info" class="text-[10px] font-semibold text-emerald-700 -mt-2"></div>
@@ -3609,6 +3613,7 @@ service cloud.firestore {
   <script src="js/holding-time-standards.js"></script>
   <script src="js/pdf-assets.js"></script>
   <script src="js/master-stores-seed.js"></script>
+  <script src="js/bestie-in-charge-seed.js"></script>
   <script src="js/data.js"></script>
   <script src="js/pdf-generator.js"></script>
   <script src="js/app.js"></script>
@@ -3877,7 +3882,8 @@ service cloud.firestore {
                 <option value="Rest Area">Rest Area</option>
               </select>
             </div>
-            <div class="flex items-center gap-1">
+            <div class="flex flex-wrap items-center gap-2">
+              <div id="weekly-picker-scope-controls"></div>
               <span id="weekly-picker-stats" class="text-[11px] font-bold text-slate-500">Memuat toko...</span>
             </div>
           </div>

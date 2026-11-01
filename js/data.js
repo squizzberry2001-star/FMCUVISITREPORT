@@ -161,7 +161,8 @@ const STORAGE_KEYS = {
   SETTINGS: 'fmcu_settings_v2',
   ATTENDANCE_LOGS: 'fmcu_attendance_logs_v2',
   NEWS: 'fmcu_news_v2',
-  HOLDING_TIME_STANDARDS: 'fmcu_holding_time_standards_v1'
+  HOLDING_TIME_STANDARDS: 'fmcu_holding_time_standards_v1',
+  BESTIE_IN_CHARGE: 'fmcu_bestie_in_charge_v1'
 };
 
 // Generic Standard SOP Templates (Tanpa data/tanggal dummy)
@@ -2107,6 +2108,151 @@ window.FMCUData = {
       this.db.collection('reports').doc(String(reportId)).delete().catch((e) => console.warn('Delete report error:', e));
     }
     return reports;
+  },
+
+  // ==========================================================================
+  // MASTER DATA TOKO KEPEMILIKAN BESTIE (BESTIE IN CHARGE GOOGLE SPREADSHEET)
+  // URL: https://docs.google.com/spreadsheets/d/1XAAfV0Pa6bU3CVH3umJBBSbNObOHorLcWl8UzLPtFp4/edit?gid=1813325087
+  // ==========================================================================
+  getBestieInChargeAssignments() {
+    let list = JSON.parse(localStorage.getItem(STORAGE_KEYS.BESTIE_IN_CHARGE) || '[]');
+    if (!Array.isArray(list) || list.length === 0) {
+      list = Array.isArray(window.FMCU_BESTIE_IN_CHARGE_SEED) ? [...window.FMCU_BESTIE_IN_CHARGE_SEED] : [];
+      localStorage.setItem(STORAGE_KEYS.BESTIE_IN_CHARGE, JSON.stringify(list));
+    }
+    return list;
+  },
+
+  getStoreCodesOwnedByBestie(bestieName) {
+    if (!bestieName) return new Set();
+    const cleanTarget = String(bestieName).trim().toLowerCase();
+    const assignments = this.getBestieInChargeAssignments();
+    const codes = new Set();
+    assignments.forEach((item) => {
+      const bName = String(item.bestieName || '').trim().toLowerCase();
+      if (bName === cleanTarget || cleanTarget.includes(bName) || bName.includes(cleanTarget)) {
+        if (item.storeCode) codes.add(String(item.storeCode));
+      }
+    });
+    return codes;
+  },
+
+  getStoresOwnedByBestie(bestieName) {
+    if (!bestieName) return [];
+    const cleanTarget = String(bestieName).trim().toLowerCase();
+    const assignments = this.getBestieInChargeAssignments();
+    return assignments.filter((item) => {
+      const bName = String(item.bestieName || '').trim().toLowerCase();
+      return bName === cleanTarget || cleanTarget.includes(bName) || bName.includes(cleanTarget);
+    });
+  },
+
+  getBestieByStoreCode(storeCode) {
+    if (!storeCode) return null;
+    const sCode = String(storeCode);
+    const assignments = this.getBestieInChargeAssignments();
+    const found = assignments.find((it) => String(it.storeCode) === sCode);
+    return found ? found.bestieName : null;
+  },
+
+  async syncBestieInChargeFromSheet(force = false) {
+    const sheetUrl = 'https://docs.google.com/spreadsheets/d/1XAAfV0Pa6bU3CVH3umJBBSbNObOHorLcWl8UzLPtFp4/gviz/tq?tqx=out:csv&gid=1813325087';
+    try {
+      const resp = await fetch(sheetUrl);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const csvText = await resp.text();
+      const parsed = this.parseBestieInChargeCsv(csvText);
+      if (parsed && parsed.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.BESTIE_IN_CHARGE, JSON.stringify(parsed));
+        if (this.db) {
+          this.db.collection('settings').doc('bestie_in_charge').set({
+            assignments: parsed,
+            totalRows: parsed.length,
+            updatedAt: new Date().toISOString()
+          }, { merge: true }).catch(() => {});
+        }
+        return { success: true, count: parsed.length, source: 'LIVE_GOOGLE_SHEETS' };
+      }
+    } catch (err) {
+      console.warn('Sync bestie in charge from sheet warning:', err);
+    }
+    const current = this.getBestieInChargeAssignments();
+    return { success: current.length > 0, count: current.length, source: 'LOCAL_CACHE' };
+  },
+
+  parseBestieInChargeCsv(csvText) {
+    if (!csvText) return [];
+    const lines = csvText.split(/\r?\n/).filter(Boolean);
+    if (lines.length <= 1) return [];
+
+    function parseCsvLine(text) {
+      const result = [];
+      let cur = '';
+      let inQuotes = false;
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (c === '"') {
+          if (inQuotes && text[i + 1] === '"') {
+            cur += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (c === ',' && !inQuotes) {
+          result.push(cur.trim());
+          cur = '';
+        } else {
+          cur += c;
+        }
+      }
+      result.push(cur.trim());
+      return result;
+    }
+
+    function norm(s) {
+      return String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    }
+
+    const masterStores = this.getStores();
+    const masterMap = new Map();
+    masterStores.forEach((s) => {
+      masterMap.set(norm(s.name), s);
+    });
+
+    const rows = lines.map(parseCsvLine);
+    const result = [];
+
+    for (let i = 1; i < rows.length; i++) {
+      const [bestieName, storeName, address, areaManager, regionalManager] = rows[i];
+      if (!bestieName || !storeName) continue;
+      if (bestieName.includes('Satrio Handoyo') || bestieName.includes(',Aisyah,')) continue;
+
+      const nStore = norm(storeName);
+      let match = masterMap.get(nStore);
+      if (!match) {
+        for (const [mNorm, s] of masterMap.entries()) {
+          if (mNorm.includes(nStore) || nStore.includes(mNorm)) {
+            match = s;
+            break;
+          }
+        }
+      }
+
+      const storeCode = match ? match.code : '';
+      const resolvedStoreName = match ? match.name : storeName.trim();
+
+      result.push({
+        bestieName: bestieName.trim(),
+        storeCode: storeCode,
+        storeName: resolvedStoreName,
+        originalStoreName: storeName.trim(),
+        address: address ? address.trim() : (match ? match.address : ''),
+        areaManager: areaManager ? areaManager.trim() : (match ? match.areaManager : ''),
+        regionalManager: regionalManager ? regionalManager.trim() : (match ? match.regionalManager : '')
+      });
+    }
+
+    return result;
   },
 
   getSettings() {
