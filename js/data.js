@@ -1791,8 +1791,11 @@ window.FMCUData = {
       return photoObj;
     }
 
-    const storeCode = meta.storeCode || 'STORE';
-    const storeName = meta.storeName || 'VISIT';
+    const storeCode = meta.storeCode || (typeof document !== 'undefined' ? document.getElementById('form-store-code')?.value.trim() : '') || 'STORE';
+    const storeName = meta.storeName || (typeof document !== 'undefined' ? document.getElementById('form-store-name')?.value.trim() : '') || 'VISIT';
+    const visitorName = meta.visitorName || (typeof document !== 'undefined' ? document.getElementById('form-auditor-name')?.value.trim() : '') || (this.getCurrentUser()?.name) || 'Visitor';
+    const visitDate = meta.visitDate || (typeof document !== 'undefined' ? document.getElementById('form-visit-date')?.value.trim() : '') || new Date().toISOString().slice(0, 10);
+    const visitYear = meta.visitYear || String(visitDate).slice(0, 4) || '2026';
     const photoType = meta.photoType || 'EVIDENCE';
     const now = new Date();
     const dd = String(now.getDate()).padStart(2, '0');
@@ -1824,6 +1827,9 @@ window.FMCUData = {
           photoBase64: rawDataUrl.split(',')[1] || rawDataUrl,
           storeCode,
           storeName,
+          visitorName,
+          visitDate,
+          visitYear,
           photoType,
           gdrivePhotoFolderId: settings.gdrivePhotoFolderId || settings.gdriveFolderId || ''
         })
@@ -2028,15 +2034,28 @@ window.FMCUData = {
   },
 
   saveReport(report) {
-    if (!report) return false;
+    if (!report || !report.id) return false;
     const reports = this.getReports();
     const idx = reports.findIndex((r) => String(r.id) === String(report.id));
+    let merged = { ...report };
     if (idx !== -1) {
-      reports[idx] = { ...reports[idx], ...report };
+      merged = { ...reports[idx], ...report };
+      reports[idx] = merged;
     } else {
-      reports.unshift(report);
+      reports.unshift(merged);
     }
-    return this.saveReports(reports);
+    const ok = this.saveReportsLocalOnly(reports);
+
+    // Single-document atomic update ke Cloud Firestore agar cepat, ringan & hemat kuota
+    if (this.db && merged.id) {
+      const docId = String(merged.id);
+      this.db
+        .collection('reports')
+        .doc(docId)
+        .set(prepareReportForFirestore(merged), { merge: true })
+        .catch((e) => console.warn('Save report error:', e));
+    }
+    return ok;
   },
 
   saveReports(reports) {
