@@ -1677,6 +1677,7 @@ window.FMCUApp = {
       if (e.key === 'Escape') {
         this.closeCustomUserDropdown();
         this.closePhotoPreviewModal();
+        this.closeInAppPdfModal();
       }
     });
   },
@@ -9186,52 +9187,154 @@ Instruksi:
   },
 
   // ==========================================================================
-  // PREVIEW PDF LANGSUNG DARI GOOGLE DRIVE / BROWSER PDF VIEWER
+  // PREVIEW PDF LANGSUNG DI HALAMAN WEB (IN-PAGE MODAL / MULTI-PAGE VIEWER)
+  // Tidak mengunduh, tidak pindah tab baru, tidak membuka aplikasi eksternal
   // ==========================================================================
+  currentModalReportId: null,
+  currentModalPdfBlobUrl: null,
+
   async previewReportPdfFromGDrive(reportId) {
-    const reports = window.FMCUData.getReports();
+    await this.openInAppPdfModal(reportId);
+  },
+
+  async openInAppPdfModal(reportId) {
+    this.triggerHaptic('light');
+    const reports = window.FMCUData.getReports() || [];
     const rep = reports.find((r) => String(r.id) === String(reportId));
     if (!rep) {
       this.showToast('Laporan visit toko tidak ditemukan.', 'warning');
       return;
     }
 
-    // 1. Cek apakah tautan file PDF di Google Drive sudah tersedia
-    const drivePdfUrl = rep.pdfDriveUrl || rep.pdfUrl || rep.drivePdfUrl || rep.gdrivePdfUrl;
-    if (drivePdfUrl) {
-      this.showToast(`Membuka PDF FamilyMart ${rep.storeName} langsung dari Google Drive...`, 'info', 2500);
-      window.open(drivePdfUrl, '_blank', 'noopener,noreferrer');
+    this.currentModalReportId = reportId;
+    const modalEl = document.getElementById('modal-in-page-pdf-preview');
+    const titleEl = document.getElementById('modal-pdf-title');
+    const subtitleEl = document.getElementById('modal-pdf-subtitle');
+    const pagesBadge = document.getElementById('modal-pdf-page-badge');
+    const loadingEl = document.getElementById('modal-pdf-loading');
+    const pagesContainer = document.getElementById('modal-pdf-pages-container');
+    const frameContainer = document.getElementById('modal-pdf-frame-container');
+    const iframe = document.getElementById('modal-pdf-iframe');
+
+    if (!modalEl) {
+      // Fallback ke halaman preview jika elemen modal tidak ada
+      this.openReportPreview(reportId);
       return;
     }
 
-    // 2. Jika tautan file PDF belum tercatat di data lokal, buka Folder Toko di Google Drive jika ada
-    if (rep.storeFolderUrl) {
-      this.showToast(`Membuka folder Google Drive FamilyMart ${rep.storeName}...`, 'info', 3000);
-      window.open(rep.storeFolderUrl, '_blank', 'noopener,noreferrer');
-      return;
-    }
+    // Set header info
+    if (titleEl) titleEl.textContent = `${rep.storeName || 'Toko'} (Site ${rep.storeCode || '-'})`;
+    if (subtitleEl) subtitleEl.textContent = `Visitor: ${rep.auditorName || '-'} • Tanggal: ${window.FMCUPdf.formatIndonesianDate(rep.visitDate, true)}`;
+    if (pagesBadge) pagesBadge.textContent = 'Memuat Dokumen...';
 
-    // 3. Fallback: Generate dokumen PDF secara instan dan buka di tab viewer PDF browser
+    // Buka modal & reset state tampilan
+    modalEl.classList.remove('hidden');
+    if (loadingEl) loadingEl.classList.remove('hidden');
+    if (pagesContainer) {
+      pagesContainer.innerHTML = '';
+      pagesContainer.classList.remove('hidden');
+    }
+    if (frameContainer) frameContainer.classList.add('hidden');
+
     try {
-      this.showToast(`Menyiapkan berkas PDF FamilyMart ${rep.storeName}...`, 'info', 3000);
-      if (window.FMCUPdf && typeof window.FMCUPdf.hydrateReportPhotosFromGDrive === 'function') {
-        await window.FMCUPdf.hydrateReportPhotosFromGDrive(rep);
+      // 1. Ekstrak file ID dari Google Drive jika ada
+      const drivePdfUrl = rep.pdfDriveUrl || rep.pdfUrl || rep.drivePdfUrl || rep.gdrivePdfUrl || '';
+      let driveFileId = '';
+      if (drivePdfUrl) {
+        const m = drivePdfUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || drivePdfUrl.match(/id=([a-zA-Z0-9_-]+)/);
+        if (m && m[1]) driveFileId = m[1];
       }
-      if (window.FMCUPdf && typeof window.FMCUPdf.generatePdfDoc === 'function') {
-        const doc = window.FMCUPdf.generatePdfDoc(rep);
-        const blobUrl = doc.output('bloburl');
-        const pdfWin = window.open(blobUrl, '_blank');
-        if (!pdfWin) {
-          window.location.href = blobUrl;
+
+      // 2. Hydrate foto dan generate PDF lokal via FMCUPdf
+      await window.FMCUPdf.hydrateReportPhotosFromGDrive(rep);
+      const doc = window.FMCUPdf.generatePdfDoc(rep);
+      const blobUrl = doc.output('bloburl');
+      this.currentModalPdfBlobUrl = blobUrl;
+
+      // 3. Render all pages secara in-page langsung di web via PDF.js
+      if (window.pdfjsLib && pagesContainer) {
+        const arrayBuffer = doc.output('arraybuffer');
+        const loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer });
+        const pdfDoc = await loadingTask.promise;
+        const totalPages = pdfDoc.numPages;
+
+        if (pagesBadge) pagesBadge.textContent = `Hal 1 s/d ${totalPages} (Dokumen PDF Asli)`;
+
+        for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+          const page = await pdfDoc.getPage(pageNum);
+          const viewport = page.getViewport({ scale: 2.0 });
+
+          const card = document.createElement('div');
+          card.className = 'pdf-page-card bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden p-2 sm:p-4 mb-4';
+
+          const header = document.createElement('div');
+          header.className = 'flex items-center justify-between text-xs font-bold text-slate-500 pb-2 mb-2 border-b border-slate-100';
+          header.innerHTML = `<span>Halaman ${pageNum} dari ${totalPages}</span><span class="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200"><i class="fa-solid fa-circle-check mr-1"></i>Dokumen PDF Asli</span>`;
+          card.appendChild(header);
+
+          const canvasWrapper = document.createElement('div');
+          canvasWrapper.className = 'w-full flex justify-center overflow-x-auto';
+          const canvas = document.createElement('canvas');
+          canvas.className = 'rounded-lg shadow-sm border border-slate-100 w-full max-w-full';
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          canvasWrapper.appendChild(canvas);
+          card.appendChild(canvasWrapper);
+
+          pagesContainer.appendChild(card);
+
+          const ctx = canvas.getContext('2d');
+          await page.render({ canvasContext: ctx, viewport }).promise;
         }
-        return;
+
+        if (frameContainer) frameContainer.classList.add('hidden');
+        pagesContainer.classList.remove('hidden');
+      } else {
+        // Fallback ke iframe in-page (Google Drive preview atau blobUrl)
+        const frameSrc = driveFileId
+          ? `https://drive.google.com/file/d/${driveFileId}/preview`
+          : `${blobUrl}#view=FitH&toolbar=0&navpanes=0&scrollbar=1`;
+        if (iframe) iframe.src = frameSrc;
+        if (frameContainer) frameContainer.classList.remove('hidden');
+        if (pagesContainer) pagesContainer.classList.add('hidden');
+        if (pagesBadge) pagesBadge.textContent = 'Dokumen PDF Asli (In-Page)';
       }
     } catch (err) {
-      console.warn('Gagal generate blob PDF preview:', err);
+      console.warn('In-page modal PDF render error:', err);
+      if (this.currentModalPdfBlobUrl && iframe) {
+        iframe.src = `${this.currentModalPdfBlobUrl}#view=FitH&toolbar=0&navpanes=0&scrollbar=1`;
+        if (frameContainer) frameContainer.classList.remove('hidden');
+        if (pagesContainer) pagesContainer.classList.add('hidden');
+      }
+    } finally {
+      if (loadingEl) loadingEl.classList.add('hidden');
     }
+  },
 
-    // 4. Fallback terakhir: buka modal slide preview
-    this.openReportPreview(reportId);
+  closeInAppPdfModal() {
+    this.triggerHaptic('light');
+    const modalEl = document.getElementById('modal-in-page-pdf-preview');
+    if (modalEl) modalEl.classList.add('hidden');
+    const pagesContainer = document.getElementById('modal-pdf-pages-container');
+    if (pagesContainer) pagesContainer.innerHTML = '';
+    const iframe = document.getElementById('modal-pdf-iframe');
+    if (iframe) iframe.src = 'about:blank';
+  },
+
+  openReportPreviewFromModal() {
+    const repId = this.currentModalReportId;
+    this.closeInAppPdfModal();
+    if (repId) {
+      this.openReportPreview(repId);
+    }
+  },
+
+  downloadCurrentModalPdf() {
+    this.triggerHaptic('medium');
+    const repId = this.currentModalReportId;
+    if (repId) {
+      this.downloadReportById(repId);
+    }
   },
 
   // ==========================================================================

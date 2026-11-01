@@ -1682,6 +1682,15 @@
         <!-- Top PDF Control Bar (Mobile-Optimized & Responsive) -->
         <div class="fm-card p-3.5 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 sm:gap-4">
           <div class="flex items-center gap-3">
+            <button
+              type="button"
+              onclick="FMCUApp.navigate('admin')"
+              class="px-2.5 sm:px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
+              title="Kembali ke Atur Jadwal & Riwayat Visit"
+            >
+              <i class="fa-solid fa-arrow-left text-slate-500"></i>
+              <span class="hidden sm:inline">Kembali</span>
+            </button>
             <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-lg sm:text-xl shrink-0">
               <i class="fa-solid fa-file-pdf"></i>
             </div>
@@ -4636,6 +4645,80 @@ service cloud.firestore {
       <!-- Footer / Helper -->
       <div class="w-full px-4 py-2 bg-slate-900/80 border-t border-slate-800 text-center text-[11px] text-slate-400">
         <span>Klik di luar gambar atau tombol silang di kanan atas untuk menutup.</span>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         MODAL: IN-PAGE PDF PREVIEW (LANGSUNG TAMPIL DI HALAMAN WEB)
+         ============================================================ -->
+    <div
+      id="modal-in-page-pdf-preview"
+      class="hidden fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-sm transition-all duration-200"
+      onclick="if(event.target === this) FMCUApp.closeInAppPdfModal()"
+    >
+      <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-5xl max-h-[96vh] flex flex-col overflow-hidden">
+        <!-- Header Modal -->
+        <div class="p-3 sm:p-4 border-b border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-2.5 shrink-0">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <div class="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-lg shrink-0 shadow-2xs">
+              <i class="fa-solid fa-file-pdf"></i>
+            </div>
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <h3 id="modal-pdf-title" class="font-extrabold text-xs sm:text-sm text-slate-900 truncate">Preview Dokumen PDF</h3>
+                <span id="modal-pdf-page-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-100 text-teal-800 shrink-0">Memuat...</span>
+              </div>
+              <p id="modal-pdf-subtitle" class="text-[10px] sm:text-[11px] text-slate-500 truncate">FamilyMart FMCU Visit Report</p>
+            </div>
+          </div>
+
+          <!-- Tombol Aksi di Modal -->
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onclick="FMCUApp.openReportPreviewFromModal()"
+              class="px-2.5 sm:px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer"
+              title="Buka di Halaman Preview Lengkap"
+            >
+              <i class="fa-solid fa-expand text-xs"></i>
+              <span class="hidden sm:inline">Halaman Penuh</span>
+            </button>
+            <button
+              type="button"
+              onclick="FMCUApp.downloadCurrentModalPdf()"
+              class="px-2.5 sm:px-3 py-1.5 rounded-xl fm-gradient hover:opacity-95 text-white font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+              title="Unduh file PDF"
+            >
+              <i class="fa-solid fa-download text-xs"></i>
+              <span class="hidden sm:inline">Unduh PDF</span>
+            </button>
+            <button
+              type="button"
+              onclick="FMCUApp.closeInAppPdfModal()"
+              class="w-8 h-8 rounded-xl bg-slate-200 hover:bg-rose-100 text-slate-600 hover:text-rose-600 flex items-center justify-center transition cursor-pointer ml-1"
+              title="Tutup Preview PDF"
+            >
+              <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Body / Konten Halaman PDF (Scrollable Vertikal Seluruh Halaman) -->
+        <div id="modal-pdf-content" class="flex-1 overflow-y-auto p-3 sm:p-5 bg-slate-100/80 space-y-4">
+          <!-- Loading Spinner -->
+          <div id="modal-pdf-loading" class="py-16 flex flex-col items-center justify-center gap-3">
+            <div class="w-10 h-10 rounded-full border-3 border-teal-600 border-t-transparent animate-spin"></div>
+            <span class="text-xs font-bold text-slate-700">Merender Dokumen PDF Asli (Seluruh Halaman)...</span>
+          </div>
+
+          <!-- Container Seluruh Halaman PDF -->
+          <div id="modal-pdf-pages-container" class="space-y-4 max-w-4xl mx-auto w-full"></div>
+
+          <!-- Fallback Embedded Frame -->
+          <div id="modal-pdf-frame-container" class="hidden w-full h-[75vh] rounded-xl overflow-hidden border border-slate-200 bg-white">
+            <iframe id="modal-pdf-iframe" class="w-full h-full border-0" title="PDF Preview"></iframe>
+          </div>
+        </div>
       </div>
     </div>
 
