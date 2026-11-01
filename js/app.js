@@ -10667,6 +10667,7 @@ Instruksi:
   },
 
   autoFillFiveDaysForAuditor(auditorId, startCursor = { idx: 0 }, silent = false) {
+    this.ensureWeeklyPlannerInitialized();
     const filteredStores = this.getFilteredStoresForWeeklyPicker();
     if (filteredStores.length === 0) {
       if (!silent) this.showToast('Tidak ada toko yang cocok dengan filter saat ini.', 'warning');
@@ -10674,31 +10675,137 @@ Instruksi:
     }
 
     const defaultPriority = document.getElementById('weekly-default-priority')?.value || 'NORMAL';
-    const usedCodes = new Set();
+    const fiveDays = this.getFiveWorkDays(this.weeklyMondayDate);
+    const schedules = window.FMCUData.getSchedules() || [];
+    const auditors = this.getSchedulableAuditors();
+    const weekDateStrs = new Set(fiveDays.map((d) => d.dateStr));
+
+    // Helper: Periksa apakah toko bentrok pada hari d (tanggal dateStr) dengan visitor lain
+    const isConflictOnDay = (stCode, dayIdx, dateStr) => {
+      const codeStr = String(stCode);
+      // 1. Cek di draft slot visitor lain pada hari yang sama
+      for (const aud of auditors) {
+        if (aud.id === auditorId) continue;
+        const otherItems = this.getWeeklySlotItems(aud.id, dayIdx);
+        if (otherItems.some((it) => String(it.storeCode) === codeStr)) {
+          return true;
+        }
+      }
+      // 2. Cek di database jadwal tersimpan pada tanggal yang sama untuk visitor lain
+      if (schedules.some((s) => s.scheduledDate === dateStr && String(s.storeCode) === codeStr && s.auditorId !== auditorId)) {
+        return true;
+      }
+      return false;
+    };
+
+    // 1. Kumpulkan semua toko yang sudah terpilih di visitor lain di minggu ini (draft & database tersimpan)
+    const usedByOtherVisitorsInWeek = new Set();
+    auditors.forEach((aud) => {
+      if (aud.id === auditorId) return;
+      for (let d = 0; d < 7; d++) {
+        this.getWeeklySlotItems(aud.id, d).forEach((it) => {
+          if (it.storeCode) usedByOtherVisitorsInWeek.add(String(it.storeCode));
+        });
+      }
+    });
+    schedules.forEach((s) => {
+      if (weekDateStrs.has(s.scheduledDate) && s.auditorId !== auditorId && s.storeCode) {
+        usedByOtherVisitorsInWeek.add(String(s.storeCode));
+      }
+    });
+
+    // 2. Deteksi apakah slot visitor saat ini sudah terisi penuh atau ada yang bentrok
+    let totalFilled = 0;
+    let conflictCount = 0;
     for (let d = 0; d < 7; d++) {
-      this.getWeeklySlotItems(auditorId, d).forEach((it) => usedCodes.add(String(it.storeCode)));
+      const items = this.getWeeklySlotItems(auditorId, d);
+      if (items.length > 0) {
+        totalFilled++;
+        const dateStr = fiveDays[d]?.dateStr || '';
+        items.forEach((it) => {
+          if (isConflictOnDay(it.storeCode, d, dateStr)) conflictCount++;
+        });
+      }
     }
+
+    // Jika seluruh 7 hari sudah terisi ATAU terdapat bentrok, bersihkan slot yang bentrok / kocok ulang agar bebas bentrok
+    const shouldResetConflicts = conflictCount > 0 || totalFilled === 7;
+    if (shouldResetConflicts) {
+      for (let d = 0; d < 7; d++) {
+        const slotKey = this.getWeeklySlotKey(auditorId, d);
+        const dateStr = fiveDays[d]?.dateStr || '';
+        if (totalFilled === 7 && conflictCount > 0) {
+          // Penuh dan bentrok -> reset total untuk menyusun 7 hari baru yang 100% bebas bentrok
+          this.weeklyDraftMatrix[slotKey] = [];
+        } else if (conflictCount > 0) {
+          // Hanya bersihkan hari-hari yang bentrok dengan visitor lain
+          this.weeklyDraftMatrix[slotKey] = (this.weeklyDraftMatrix[slotKey] || []).filter(
+            (it) => !isConflictOnDay(it.storeCode, d, dateStr)
+          );
+        } else if (totalFilled === 7) {
+          // Penuh tanpa bentrok tapi user sengaja klik Isi Otomatis lagi -> kocok ulang jadwal
+          this.weeklyDraftMatrix[slotKey] = [];
+        }
+      }
+    }
+
+    // 3. Kumpulkan toko yang saat ini sudah dipakai oleh visitor ini sendiri
+    const usedByThisVisitor = new Set();
+    for (let d = 0; d < 7; d++) {
+      this.getWeeklySlotItems(auditorId, d).forEach((it) => {
+        if (it.storeCode) usedByThisVisitor.add(String(it.storeCode));
+      });
+    }
+
+    // 4. Algoritma Fisher-Yates Shuffle untuk pengacakan alami (Auto Acak sejati)
+    const shuffleArray = (arr) => {
+      const copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    };
+
+    // Pool Tier 1: Toko yang 100% BELUM PERNAH DIPILIH oleh visitor manapun di minggu ini
+    let poolTier1 = shuffleArray(
+      filteredStores.filter(
+        (st) => !usedByThisVisitor.has(String(st.code)) && !usedByOtherVisitorsInWeek.has(String(st.code))
+      )
+    );
+
+    // Pool Tier 2: Fallback jika Tier 1 habis, toko yang belum dipakai oleh visitor ini dan tidak bentrok di hari yang sama
+    let poolTier2 = shuffleArray(
+      filteredStores.filter((st) => !usedByThisVisitor.has(String(st.code)))
+    );
 
     let added = 0;
     for (let d = 0; d < 7; d++) {
       const slotItems = this.getWeeklySlotItems(auditorId, d);
       if (slotItems.length === 0) {
+        const dateStr = fiveDays[d]?.dateStr || '';
         let picked = null;
-        for (let tries = 0; tries < filteredStores.length; tries++) {
-          const candidate = filteredStores[(startCursor.idx + tries) % filteredStores.length];
-          if (!usedCodes.has(String(candidate.code))) {
-            picked = candidate;
-            startCursor.idx = (startCursor.idx + tries + 1) % filteredStores.length;
-            break;
+
+        // Prioritas 1: Ambil dari Tier 1 (Toko yang belum pernah dipilih visitor manapun di minggu ini)
+        const idx1 = poolTier1.findIndex((st) => !isConflictOnDay(st.code, d, dateStr));
+        if (idx1 !== -1) {
+          picked = poolTier1[idx1];
+          poolTier1.splice(idx1, 1);
+        } else {
+          // Prioritas 2 (Fallback): Ambil dari Tier 2 asalkan TIDAK BENTROK pada hari d dengan visitor lain
+          const idx2 = poolTier2.findIndex(
+            (st) => !usedByThisVisitor.has(String(st.code)) && !isConflictOnDay(st.code, d, dateStr)
+          );
+          if (idx2 !== -1) {
+            picked = poolTier2[idx2];
+            poolTier2.splice(idx2, 1);
           }
         }
-        if (!picked) {
-          picked = filteredStores[startCursor.idx % filteredStores.length];
-          startCursor.idx = (startCursor.idx + 1) % filteredStores.length;
-        }
+
         if (picked) {
           slotItems.push({ storeCode: picked.code, priority: defaultPriority });
-          usedCodes.add(String(picked.code));
+          usedByThisVisitor.add(String(picked.code));
+          usedByOtherVisitorsInWeek.add(String(picked.code));
           added++;
         }
       }
@@ -10706,7 +10813,11 @@ Instruksi:
 
     if (!silent) {
       this.renderWeeklySchedulePlanner();
-      this.showToast(`Berhasil mengisi otomatis ${added} hari (Senin–Minggu)!`, 'success');
+      if (added > 0) {
+        this.showToast(`Berhasil mengisi otomatis ${added} hari (Senin–Minggu) dengan toko acak unik bebas bentrok!`, 'success');
+      } else {
+        this.showToast('Semua slot hari sudah terisi lengkap dan tidak ada jadwal bentrok.', 'info');
+      }
     }
     return added;
   },
