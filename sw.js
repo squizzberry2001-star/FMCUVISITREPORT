@@ -87,105 +87,47 @@ async function checkAndTriggerBackgroundReminders() {
 
   let stateModified = false;
 
-  // --------------------------------------------------------------------------
-  // KETENTUAN 1: PENGINGAT PAGI (08:00 - 08:50 WIB)
-  // Menjelang jam 08:30 WIB batas check-in kedatangan
-  // --------------------------------------------------------------------------
-  const morningKey = `morning_${todayStr}`;
-  if (totalMins >= 8 * 60 && totalMins <= 8 * 60 + 50 && !state.sent[morningKey]) {
-    if (pendingSchedules.length > 0) {
-      const storeNames = pendingSchedules.map((s) => s.storeName).slice(0, 2).join(', ');
-      const extra = pendingSchedules.length > 2 ? ` (+${pendingSchedules.length - 2} lainnya)` : '';
-      await showNotification(
-        '🌅 Pengingat Jadwal Visit Toko (08:30 WIB)',
-        `Selamat pagi! Jadwal visit Anda hari ini: ${storeNames}${extra}. Segera buka aplikasi dan lakukan check-in di toko.`,
-        `fmcu-remind-morning-${todayStr}`
-      );
-      state.sent[morningKey] = Date.now();
-      stateModified = true;
-    }
+  // ==========================================================================
+  // ATURAN NOTIFIKASI TERORGANISIR SERVICE WORKER (HANYA 3 KONDISI, 0% SPAM):
+  // 1. Jadwal Baru
+  // 2. Jadwal Terlewat (Overdue)
+  // 3. Form Visit Belum Selesai (Sesi Aktif)
+  // ==========================================================================
+
+  // KONDISI 1: PENUGASAN JADWAL BARU
+  if (Array.isArray(state.newlyAssigned) && state.newlyAssigned.length > 0) {
+    const newItems = state.newlyAssigned;
+    const storeNames = newItems.map((s) => s.storeName).slice(0, 2).join(', ');
+    const extra = newItems.length > 2 ? ` (+${newItems.length - 2} lainnya)` : '';
+    await showNotification(
+      `🆕 Penugasan Jadwal Visit Baru (${newItems.length} Toko)`,
+      `Anda mendapatkan penugasan visit baru: ${storeNames}${extra}. Buka aplikasi untuk meninjau detailnya.`,
+      `fmcu-new-sch-${Date.now()}`
+    );
+    state.newlyAssigned = [];
+    stateModified = true;
   }
 
-  // --------------------------------------------------------------------------
-  // KETENTUAN 2: PENGINGAT OBSERVASI SIANG & FORM QSC (11:30 - 12:45 WIB)
-  // --------------------------------------------------------------------------
-  const noonKey = `noon_${todayStr}`;
-  if (totalMins >= 11 * 60 + 30 && totalMins <= 12 * 60 + 45 && !state.sent[noonKey]) {
-    if (hasActiveCheckIn || pendingSchedules.length > 0) {
-      const targetStore = hasActiveCheckIn ? activeCheckIn.storeName : (pendingSchedules[0]?.storeName || 'Toko');
-      await showNotification(
-        '📋 Pengingat Observasi Siang & Form QSC',
-        `FamilyMart ${targetStore}: Pastikan checklist QSC, food safety, suhu chiller, dan display hot snack/thawing terisi lengkap.`,
-        `fmcu-remind-noon-${todayStr}`
-      );
-      state.sent[noonKey] = Date.now();
-      stateModified = true;
-    }
+  // KONDISI 2: JADWAL TERLEWAT (OVERDUE) - Maksimal 1x per hari
+  const overdueKey = `overdue_${todayStr}`;
+  if (overdueCount > 0 && !state.sent[overdueKey]) {
+    await showNotification(
+      `⏰ ${overdueCount} Jadwal Visit Terlewat`,
+      `Terdapat ${overdueCount} jadwal kunjungan lampau yang belum selesai. Buka aplikasi untuk memeriksa status kunjungan Anda.`,
+      `fmcu-overdue-${todayStr}`
+    );
+    state.sent[overdueKey] = Date.now();
+    stateModified = true;
   }
 
-  // --------------------------------------------------------------------------
-  // KETENTUAN 3: PENGINGAT DOKUMENTASI EVIDENCE & CA (14:30 - 15:45 WIB)
-  // --------------------------------------------------------------------------
-  const afternoonKey = `afternoon_${todayStr}`;
-  if (totalMins >= 14 * 60 + 30 && totalMins <= 15 * 60 + 45 && !state.sent[afternoonKey]) {
-    if (hasActiveCheckIn || pendingSchedules.length > 0) {
-      const targetStore = hasActiveCheckIn ? activeCheckIn.storeName : (pendingSchedules[0]?.storeName || 'Toko');
-      await showNotification(
-        '📸 Pengingat Dokumentasi Evidence & CA',
-        `FamilyMart ${targetStore}: Lengkapi foto bukti temuan dan foto verifikasi tindakan perbaikan (Corrective Action) sebelum kunjungan selesai.`,
-        `fmcu-remind-afternoon-${todayStr}`
-      );
-      state.sent[afternoonKey] = Date.now();
-      stateModified = true;
-    }
-  }
-
-  // --------------------------------------------------------------------------
-  // KETENTUAN 4: PENGINGAT CHECK-OUT ACTUAL OUT (17:00 - 17:50 WIB)
-  // Menjelang batas out 17:30 WIB
-  // --------------------------------------------------------------------------
-  const outKey = `out_${todayStr}`;
-  if (totalMins >= 17 * 60 && totalMins <= 17 * 60 + 50 && !state.sent[outKey]) {
-    if (hasActiveCheckIn || pendingSchedules.length > 0) {
-      const targetStore = hasActiveCheckIn ? activeCheckIn.storeName : (pendingSchedules[0]?.storeName || 'Toko');
-      await showNotification(
-        '🏁 Pengingat Check-Out Actual OUT (17:30 WIB)',
-        `Waktu operasional visit mencapai 17:30 WIB. Pastikan Anda berada di area FamilyMart ${targetStore} untuk merekam Actual OUT & finalisasi laporan.`,
-        `fmcu-remind-out-${todayStr}`
-      );
-      state.sent[outKey] = Date.now();
-      stateModified = true;
-    }
-  }
-
-  // --------------------------------------------------------------------------
-  // KETENTUAN 5: EVALUASI MALAM / LAPORAN PENDING (19:00 - 20:30 WIB)
-  // --------------------------------------------------------------------------
-  const nightKey = `night_${todayStr}`;
-  if (totalMins >= 19 * 60 && totalMins <= 20 * 60 + 30 && !state.sent[nightKey]) {
-    if (pendingSchedules.length > 0 || hasActiveCheckIn || overdueCount > 0) {
-      const pendingCount = pendingSchedules.length + (hasActiveCheckIn ? 1 : 0);
-      await showNotification(
-        '⚠️ Evaluasi Visit Harian FamilyMart',
-        `Terdapat ${pendingCount} jadwal visit/draft laporan yang belum disubmit hari ini. Buka aplikasi untuk meninjau status kunjungan.`,
-        `fmcu-remind-night-${todayStr}`
-      );
-      state.sent[nightKey] = Date.now();
-      stateModified = true;
-    }
-  }
-
-  // --------------------------------------------------------------------------
-  // KETENTUAN 6: PENGINGAT BERKALA SESI VISIT AKTIF (Tiap 90 Menit)
-  // Berjalan jika visitor check-in namun belum mengirimkan laporan
-  // --------------------------------------------------------------------------
+  // KONDISI 3: FORM VISIT BELUM SELESAI (SESI AKTIF) - Maksimal 1x per 90 Menit
   if (hasActiveCheckIn) {
     const lastActiveSent = Number(state.sent.lastActiveReminderTs || 0);
     const nowTs = Date.now();
     if (nowTs - lastActiveSent >= 90 * 60 * 1000) {
       await showNotification(
-        `⏳ Sesi Visit Masih Aktif: FamilyMart ${activeCheckIn.storeName || activeCheckIn.storeCode}`,
-        `Sesi kunjungan masih aktif berjalan. Pastikan data observasi dan dokumentasi foto telah disimpan sebelum meninggalkan toko.`,
+        `⏳ Form Visit Belum Selesai: FamilyMart ${activeCheckIn.storeName || activeCheckIn.storeCode}`,
+        `Sesi kunjungan masih aktif berjalan. Pastikan data checklist, foto QSC, dan observasi dikirimkan sebelum meninggalkan toko.`,
         `fmcu-active-visit-${Math.floor(nowTs / (90 * 60 * 1000))}`
       );
       state.sent.lastActiveReminderTs = nowTs;

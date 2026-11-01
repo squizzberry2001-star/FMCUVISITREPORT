@@ -676,11 +676,6 @@ window.FMCUApp = {
         this.isNotificationUnlocked = true;
         this.unlockNotificationGate();
         this.showToast('Push notifikasi berhasil diaktifkan!', 'success');
-        this.dispatchPushNotification(
-          '🔔 Notifikasi FMCU Aktif',
-          'Sistem siap mengirimkan pengingat kunjungan, jadwal pending, dan tugas baru secara real-time.',
-          'notif-welcome'
-        );
         this.checkAndDispatchUserVisitNotifications(true);
         this.startNotificationInterval();
       } else if (permission === 'denied') {
@@ -805,96 +800,12 @@ window.FMCUApp = {
   },
 
   checkAndDispatchScheduledHourReminders() {
-    if (!this.currentUser) return;
-    if (!('Notification' in window) || Notification.permission !== 'granted') return;
-
-    // Hitung waktu WIB (UTC+7)
-    const now = new Date();
-    const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
-    const wibDate = new Date(utcMs + 7 * 3600000);
-    const totalMins = wibDate.getHours() * 60 + wibDate.getMinutes();
-    const todayStr = this.getLocalDateISO();
-
-    const schedules = window.FMCUData.getSchedules();
-    const reports = window.FMCUData.getReports();
-    const mySchedules = schedules.filter((s) => this.isScheduleOwnedByUser(s, this.currentUser));
-    const pendingToday = mySchedules.filter((s) => {
-      const hasReport = s.reportId || reports.some((r) => r.storeCode === s.storeCode && r.visitDate === todayStr);
-      return s.scheduledDate === todayStr && s.status !== 'COMPLETED' && !hasReport;
-    });
-    const activeCheckIn = window.FMCUData.getActiveCheckIn();
-    const hasActive = Boolean(activeCheckIn && activeCheckIn.storeCode);
-
-    // KETENTUAN 1: Pagi (08:00 - 08:50 WIB)
-    const morningKey = 'fmcu_notif_sent_morning_' + todayStr;
-    if (totalMins >= 8 * 60 && totalMins <= 8 * 60 + 50 && !localStorage.getItem(morningKey)) {
-      if (pendingToday.length > 0) {
-        const storeNames = pendingToday.map((s) => s.storeName).slice(0, 2).join(', ');
-        const extra = pendingToday.length > 2 ? ` (+ ${pendingToday.length - 2} lainnya)` : '';
-        this.dispatchPushNotification(
-          '🌅 Pengingat Jadwal Visit Toko (08:30 WIB)',
-          `Selamat pagi! Jadwal visit Anda hari ini: ${storeNames}${extra}. Segera buka aplikasi dan lakukan check-in di toko.`,
-          'fmcu-remind-morning-' + todayStr
-        );
-        localStorage.setItem(morningKey, String(Date.now()));
-      }
-    }
-
-    // KETENTUAN 2: Siang (11:30 - 12:45 WIB)
-    const noonKey = 'fmcu_notif_sent_noon_' + todayStr;
-    if (totalMins >= 11 * 60 + 30 && totalMins <= 12 * 60 + 45 && !localStorage.getItem(noonKey)) {
-      if (hasActive || pendingToday.length > 0) {
-        const targetStore = hasActive ? activeCheckIn.storeName : (pendingToday[0]?.storeName || 'Toko');
-        this.dispatchPushNotification(
-          '📋 Pengingat Observasi Siang & Form QSC',
-          `FamilyMart ${targetStore}: Pastikan checklist QSC, food safety, suhu chiller, dan display hot snack/thawing terisi lengkap.`,
-          'fmcu-remind-noon-' + todayStr
-        );
-        localStorage.setItem(noonKey, String(Date.now()));
-      }
-    }
-
-    // KETENTUAN 3: Sore (14:30 - 15:45 WIB)
-    const afternoonKey = 'fmcu_notif_sent_afternoon_' + todayStr;
-    if (totalMins >= 14 * 60 + 30 && totalMins <= 15 * 60 + 45 && !localStorage.getItem(afternoonKey)) {
-      if (hasActive || pendingToday.length > 0) {
-        const targetStore = hasActive ? activeCheckIn.storeName : (pendingToday[0]?.storeName || 'Toko');
-        this.dispatchPushNotification(
-          '📸 Pengingat Dokumentasi Evidence & CA',
-          `FamilyMart ${targetStore}: Lengkapi foto bukti temuan dan foto verifikasi tindakan perbaikan (Corrective Action) sebelum kunjungan selesai.`,
-          'fmcu-remind-afternoon-' + todayStr
-        );
-        localStorage.setItem(afternoonKey, String(Date.now()));
-      }
-    }
-
-    // KETENTUAN 4: Menjelang OUT (17:00 - 17:50 WIB)
-    const outKey = 'fmcu_notif_sent_out_' + todayStr;
-    if (totalMins >= 17 * 60 && totalMins <= 17 * 60 + 50 && !localStorage.getItem(outKey)) {
-      if (hasActive || pendingToday.length > 0) {
-        const targetStore = hasActive ? activeCheckIn.storeName : (pendingToday[0]?.storeName || 'Toko');
-        this.dispatchPushNotification(
-          '🏁 Pengingat Check-Out Actual OUT (17:30 WIB)',
-          `Waktu operasional visit mencapai 17:30 WIB. Pastikan Anda berada di area FamilyMart ${targetStore} untuk merekam Actual OUT & finalisasi laporan.`,
-          'fmcu-remind-out-' + todayStr
-        );
-        localStorage.setItem(outKey, String(Date.now()));
-      }
-    }
-
-    // KETENTUAN 5: Evaluasi Malam (19:00 - 20:30 WIB)
-    const nightKey = 'fmcu_notif_sent_night_' + todayStr;
-    if (totalMins >= 19 * 60 && totalMins <= 20 * 60 + 30 && !localStorage.getItem(nightKey)) {
-      if (pendingToday.length > 0 || hasActive) {
-        const pendingCount = pendingToday.length + (hasActive ? 1 : 0);
-        this.dispatchPushNotification(
-          '⚠️ Evaluasi Visit Harian FamilyMart',
-          `Terdapat ${pendingCount} jadwal visit/draft laporan yang belum disubmit hari ini. Buka aplikasi untuk meninjau status kunjungan.`,
-          'fmcu-remind-night-' + todayStr
-        );
-        localStorage.setItem(nightKey, String(Date.now()));
-      }
-    }
+    // Dinonaktifkan sesuai aturan notifikasi terorganisir bebas spam:
+    // Push notifikasi HANYA muncul jika:
+    // 1. Ada Jadwal Baru
+    // 2. Ada Jadwal Terlewat (Overdue)
+    // 3. Ada Form Visit yang Belum Selesai
+    return;
   },
 
 
@@ -950,86 +861,86 @@ window.FMCUApp = {
     if (!this.currentUser) return;
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
-    // Throttle check agar tidak memborbardir notifikasi berulang kali dalam jeda singkat (< 5 menit)
     const now = Date.now();
     const lastCheck = Number(sessionStorage.getItem('fmcu_last_notif_check_ts') || 0);
-    if (!forceCheck && now - lastCheck < 5 * 60 * 1000) {
+    if (!forceCheck && now - lastCheck < 2 * 60 * 1000) {
       return;
     }
     sessionStorage.setItem('fmcu_last_notif_check_ts', String(now));
 
-    const schedules = window.FMCUData.getSchedules();
-    const reports = window.FMCUData.getReports();
+    const schedules = window.FMCUData.getSchedules() || [];
+    const reports = window.FMCUData.getReports() || [];
     const todayStr = this.getLocalDateISO();
     const mySchedules = schedules.filter((s) => this.isScheduleOwnedByUser(s, this.currentUser));
 
-    // 1. Notifikasi Status Visit yang Belum Selesai (Active Check-In / In-Progress Form)
-    const activeCheckIn = window.FMCUData.getActiveCheckIn();
-    if (activeCheckIn && activeCheckIn.storeCode) {
-      const isCompleted = reports.some(
-        (r) => r.storeCode === activeCheckIn.storeCode && r.visitDate === todayStr
-      );
-      if (!isCompleted) {
-        this.dispatchPushNotification(
-          `⚠️ Visit Belum Selesai: FamilyMart ${activeCheckIn.storeName || activeCheckIn.storeCode}`,
-          `Sesi visit Anda saat ini masih aktif. Pastikan data form, foto QSC, dan observasi dikirimkan sebelum meninggalkan toko.`,
-          `visit-active-${activeCheckIn.storeCode}`
-        );
-      }
-    }
+    // ========================================================================
+    // ATURAN NOTIFIKASI TERORGANISIR (HANYA 3 KONDISI, 0% SPAM):
+    // 1. Jadwal Baru
+    // 2. Jadwal Terlewat (Overdue)
+    // 3. Form Visit yang Belum Selesai (Sesi Aktif / In-Progress)
+    // ========================================================================
 
-    // 2. Notifikasi Jadwal Pending Hari Ini
-    const myPendingToday = mySchedules.filter((s) => {
-      const hasReport = s.reportId || reports.some((r) => r.storeCode === s.storeCode && r.visitDate === s.scheduledDate);
-      return s.scheduledDate === todayStr && s.status !== 'COMPLETED' && !hasReport;
-    });
-
-    if (myPendingToday.length > 0) {
-      const storeNames = myPendingToday.map((s) => s.storeName).slice(0, 3).join(', ');
-      const extra = myPendingToday.length > 3 ? ` (+${myPendingToday.length - 3} lainnya)` : '';
-      this.dispatchPushNotification(
-        `📅 ${myPendingToday.length} Jadwal Visit Pending Hari Ini`,
-        `Toko: ${storeNames}${extra}. Segera lakukan check-in dan mulai kunjungan.`,
-        `pending-today-${todayStr}`
-      );
-    }
-
-    // 3. Notifikasi Jadwal Terlewat (Overdue / Missed Schedules)
-    const myOverdue = mySchedules.filter((s) => {
-      const isPast = String(s.scheduledDate || '') < todayStr;
-      const hasReport = s.reportId || reports.some((r) => r.storeCode === s.storeCode && r.visitDate === s.scheduledDate);
-      return isPast && s.status !== 'COMPLETED' && !hasReport;
-    });
-
-    if (myOverdue.length > 0) {
-      const overdueNames = myOverdue.map((s) => `${s.storeName} (${s.scheduledDate})`).slice(0, 2).join(', ');
-      const extra = myOverdue.length > 2 ? ` (+${myOverdue.length - 2} lainnya)` : '';
-      this.dispatchPushNotification(
-        `⏰ ${myOverdue.length} Jadwal Visit Terlewat`,
-        `Terdapat jadwal yang belum selesai: ${overdueNames}${extra}. Harap segera periksa status kunjungan Anda.`,
-        `overdue-schedules`
-      );
-    }
-
-    // 4. Notifikasi Penugasan Jadwal Baru
+    // KONDISI 1: PENUGASAN JADWAL BARU
     const storageKey = `fmcu_known_schedules_${this.currentUser.id || this.currentUser.username || 'usr'}`;
     const knownIds = JSON.parse(localStorage.getItem(storageKey) || '[]');
     const currentIds = mySchedules.map((s) => s.id);
 
     if (knownIds.length > 0) {
       const newlyAssigned = mySchedules.filter(
-        (s) => !knownIds.includes(s.id) && String(s.scheduledDate || '') >= todayStr
+        (s) => !knownIds.includes(s.id) && String(s.scheduledDate || '') >= todayStr && s.status !== 'CUTI' && s.status !== 'OFF'
       );
       if (newlyAssigned.length > 0) {
         const newStoreNames = newlyAssigned.map((s) => s.storeName).slice(0, 2).join(', ');
+        const extra = newlyAssigned.length > 2 ? ` (+${newlyAssigned.length - 2} lainnya)` : '';
         this.dispatchPushNotification(
-          `🆕 ${newlyAssigned.length} Penugasan Jadwal Visit Baru`,
-          `Anda mendapatkan jadwal kunjungan baru: ${newStoreNames}. Buka menu Jadwal untuk melihat detailnya.`,
+          `🆕 Penugasan Jadwal Visit Baru (${newlyAssigned.length} Toko)`,
+          `Anda mendapatkan penugasan visit baru: ${newStoreNames}${extra}. Buka menu Jadwal untuk meninjau detailnya.`,
           `new-schedule-${newlyAssigned[0].id}`
         );
       }
     }
     localStorage.setItem(storageKey, JSON.stringify(currentIds));
+
+    // KONDISI 2: JADWAL TERLEWAT (OVERDUE) - Maksimal 1x per hari
+    const overdueSentKey = `fmcu_notif_overdue_sent_${todayStr}`;
+    if (!localStorage.getItem(overdueSentKey)) {
+      const myOverdue = mySchedules.filter((s) => {
+        const isPast = String(s.scheduledDate || '') < todayStr;
+        const isExcluded = s.status === 'COMPLETED' || s.status === 'CUTI' || s.status === 'OFF';
+        const hasReport = s.reportId || reports.some((r) => r.storeCode === s.storeCode && r.visitDate === s.scheduledDate);
+        return isPast && !isExcluded && !hasReport;
+      });
+
+      if (myOverdue.length > 0) {
+        const overdueNames = myOverdue.map((s) => `${s.storeName} (${s.scheduledDate})`).slice(0, 2).join(', ');
+        const extra = myOverdue.length > 2 ? ` (+${myOverdue.length - 2} lainnya)` : '';
+        this.dispatchPushNotification(
+          `⏰ ${myOverdue.length} Jadwal Visit Terlewat`,
+          `Terdapat jadwal yang belum diselesaikan: ${overdueNames}${extra}. Harap periksa status kunjungan Anda.`,
+          `overdue-schedules-${todayStr}`
+        );
+        localStorage.setItem(overdueSentKey, String(now));
+      }
+    }
+
+    // KONDISI 3: FORM VISIT YANG BELUM SELESAI (Aktif Check-In) - Maksimal 1x per 90 Menit
+    const activeCheckIn = window.FMCUData.getActiveCheckIn();
+    if (activeCheckIn && activeCheckIn.storeCode) {
+      const isCompleted = reports.some(
+        (r) => r.storeCode === activeCheckIn.storeCode && r.visitDate === todayStr
+      );
+      if (!isCompleted) {
+        const lastActiveNotif = Number(localStorage.getItem('fmcu_notif_active_form_ts') || 0);
+        if (now - lastActiveNotif >= 90 * 60 * 1000) {
+          this.dispatchPushNotification(
+            `⏳ Form Visit Belum Selesai: FamilyMart ${activeCheckIn.storeName || activeCheckIn.storeCode}`,
+            `Sesi kunjungan masih aktif berjalan. Pastikan data checklist, foto QSC, dan observasi dikirimkan sebelum meninggalkan toko.`,
+            `visit-active-${activeCheckIn.storeCode}`
+          );
+          localStorage.setItem('fmcu_notif_active_form_ts', String(now));
+        }
+      }
+    }
   },
 
   // ==========================================================================
@@ -10753,6 +10664,26 @@ Instruksi:
     this.renderWeeklySchedulePlanner();
   },
 
+  setWeeklySlotStatus(auditorId, dayIndex, status) {
+    this.ensureWeeklyPlannerInitialized();
+    const key = this.getWeeklySlotKey(auditorId, dayIndex);
+    const cleanStatus = (status || 'CUTI').toUpperCase();
+    const isCuti = cleanStatus === 'CUTI';
+    const label = isCuti ? 'CUTI TAHUNAN / KHUSUS' : 'HARI LIBUR / OFF';
+    this.weeklyDraftMatrix[key] = [
+      {
+        storeCode: cleanStatus,
+        storeName: label,
+        priority: 'NORMAL',
+        isCuti,
+        isOff: !isCuti,
+        isStatusBadge: true
+      }
+    ];
+    this.renderWeeklySchedulePlanner();
+    this.showToast(`Status hari berhasil disetel ke ${cleanStatus}.`, 'info');
+  },
+
   toggleWeeklyStorePriority(auditorId, dayIndex, storeCode) {
     const items = this.getWeeklySlotItems(auditorId, dayIndex);
     const found = items.find((it) => String(it.storeCode) === String(storeCode));
@@ -10787,10 +10718,14 @@ Instruksi:
     // Isi otomatis target visitor dengan toko kepemilikan mereka masing-masing
     let totalAdded = 0;
     targets.forEach((tId) => {
+      // Bersihkan seluruh slot target terlebih dahulu agar tidak ada sisa bentrok lama
+      for (let d = 0; d < 7; d++) {
+        this.weeklyDraftMatrix[this.getWeeklySlotKey(tId, d)] = [];
+      }
       totalAdded += this.autoFillFiveDaysForAuditor(tId, { idx: 0 }, true);
     });
     this.renderWeeklySchedulePlanner();
-    this.showToast(`Jadwal 1 minggu untuk ${targets.length} visitor lainnya berhasil disusun sesuai toko kepemilikan masing-masing (Bebas Bentrok)! `, 'success');
+    this.showToast(`Jadwal 1 minggu untuk ${targets.length} visitor lainnya berhasil disusun sesuai toko kepemilikan masing-masing (100% Bebas Bentrok)!`, 'success');
   },
 
   getFilteredStoresForWeeklyPicker() {
@@ -10813,9 +10748,12 @@ Instruksi:
 
   autoFillFiveDaysForAuditor(auditorId, startCursor = { idx: 0 }, silent = false) {
     this.ensureWeeklyPlannerInitialized();
-    const filteredStores = this.getFilteredStoresForWeeklyPicker();
+    let filteredStores = this.getFilteredStoresForWeeklyPicker();
+    if (!filteredStores || filteredStores.length < 7) {
+      filteredStores = window.FMCUData.getStores() || [];
+    }
     if (filteredStores.length === 0) {
-      if (!silent) this.showToast('Tidak ada toko yang cocok dengan filter saat ini.', 'warning');
+      if (!silent) this.showToast('Tidak ada master toko yang tersedia.', 'warning');
       return 0;
     }
 
@@ -10827,6 +10765,7 @@ Instruksi:
 
     // Helper: Periksa apakah toko bentrok pada hari d (tanggal dateStr) dengan visitor lain
     const isConflictOnDay = (stCode, dayIdx, dateStr) => {
+      if (!stCode || stCode === 'CUTI' || stCode === 'OFF') return false;
       const codeStr = String(stCode);
       // 1. Cek di draft slot visitor lain pada hari yang sama
       for (const aud of auditors) {
@@ -10849,12 +10788,14 @@ Instruksi:
       if (aud.id === auditorId) return;
       for (let d = 0; d < 7; d++) {
         this.getWeeklySlotItems(aud.id, d).forEach((it) => {
-          if (it.storeCode) usedByOtherVisitorsInWeek.add(String(it.storeCode));
+          if (it.storeCode && it.storeCode !== 'CUTI' && it.storeCode !== 'OFF') {
+            usedByOtherVisitorsInWeek.add(String(it.storeCode));
+          }
         });
       }
     });
     schedules.forEach((s) => {
-      if (weekDateStrs.has(s.scheduledDate) && s.auditorId !== auditorId && s.storeCode) {
+      if (weekDateStrs.has(s.scheduledDate) && s.auditorId !== auditorId && s.storeCode && s.storeCode !== 'CUTI' && s.storeCode !== 'OFF') {
         usedByOtherVisitorsInWeek.add(String(s.storeCode));
       }
     });
@@ -11482,11 +11423,68 @@ Instruksi:
                     <div class="space-y-1.5 min-h-[54px]">
                       ${
                         draftItems.length === 0
-                          ? `<div class="h-14 rounded-xl border border-dashed border-slate-300 flex flex-col items-center justify-center text-center p-2 text-[10px] text-slate-400">
-                              <span>Klik hari ini lalu pilih toko di atas</span>
+                          ? `<div class="rounded-xl border border-dashed border-slate-300 p-2 text-center space-y-2">
+                              <span class="text-[10px] text-slate-400 block leading-tight">Tidak ada toko dipilih</span>
+                              <div class="grid grid-cols-2 gap-1.5 pt-0.5">
+                                <button
+                                  type="button"
+                                  onclick="event.stopPropagation(); FMCUApp.setWeeklySlotStatus('${u.id}', ${dayObj.dayIndex}, 'CUTI')"
+                                  class="py-1.5 px-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 font-extrabold text-[10px] transition flex items-center justify-center gap-1 shadow-2xs cursor-pointer active:scale-95"
+                                  title="Tandai hari ${dayObj.dayName} sebagai CUTI untuk ${u.name}"
+                                >
+                                  <span>🌴 CUTI</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onclick="event.stopPropagation(); FMCUApp.setWeeklySlotStatus('${u.id}', ${dayObj.dayIndex}, 'OFF')"
+                                  class="py-1.5 px-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-300 font-extrabold text-[10px] transition flex items-center justify-center gap-1 shadow-2xs cursor-pointer active:scale-95"
+                                  title="Tandai hari ${dayObj.dayName} sebagai OFF / LIBUR untuk ${u.name}"
+                                >
+                                  <span>💤 OFF</span>
+                                </button>
+                              </div>
                             </div>`
                           : draftItems
                               .map((item, itemIdx) => {
+                                const isCuti = item.isCuti || item.storeCode === 'CUTI';
+                                const isOff = item.isOff || item.storeCode === 'OFF';
+
+                                if (isCuti || isOff) {
+                                  const isC = isCuti;
+                                  const badgeBg = isC ? 'bg-amber-50 border-amber-300' : 'bg-indigo-50 border-indigo-300';
+                                  const icon = isC ? '🌴' : '💤';
+                                  const title = isC ? 'CUTI TAHUNAN / KHUSUS' : 'HARI LIBUR / OFF';
+                                  const txtColor = isC ? 'text-amber-900' : 'text-indigo-900';
+                                  const subTxt = isC ? 'Jadwal Cuti Terkonfirmasi' : 'Hari Off / Istirahat';
+                                  const pillBg = isC ? 'bg-amber-200 text-amber-900' : 'bg-indigo-200 text-indigo-900';
+
+                                  return `
+                                    <div onclick="event.stopPropagation()" class="p-2.5 rounded-xl border ${badgeBg} shadow-2xs space-y-1.5 transition">
+                                      <div class="flex items-start justify-between gap-1">
+                                        <div class="min-w-0">
+                                          <div class="font-extrabold text-[11px] ${txtColor} flex items-center gap-1">
+                                            <span>${icon}</span>
+                                            <span class="truncate">${title}</span>
+                                          </div>
+                                          <div class="text-[9px] text-slate-500">${subTxt}</div>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onclick="FMCUApp.removeStoreFromWeeklySlot('${u.id}', ${dayObj.dayIndex}, '${item.storeCode}')"
+                                          class="text-slate-400 hover:text-rose-600 px-1 text-xs cursor-pointer"
+                                          title="Batalkan status ini"
+                                        >
+                                          <i class="fa-solid fa-xmark"></i>
+                                        </button>
+                                      </div>
+                                      <div class="flex items-center justify-between pt-0.5">
+                                        <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold ${pillBg}">${isC ? 'CUTI' : 'OFF'}</span>
+                                        <span class="text-[9px] text-slate-400 font-medium">Bebas Visit</span>
+                                      </div>
+                                    </div>
+                                  `;
+                                }
+
                                 const st = storeMap.get(String(item.storeCode));
                                 const stName = st ? st.name : item.storeCode;
                                 const stCity = st ? st.city || st.type || 'CVS' : 'CVS';
@@ -11577,10 +11575,10 @@ Instruksi:
                       type="button"
                       onclick="FMCUApp.promptAddManualStoreToWeeklySlot('${u.id}', ${dayObj.dayIndex})"
                       class="w-full py-1 px-2 rounded-lg bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200 text-[10px] font-bold transition flex items-center justify-center gap-1 cursor-pointer"
-                      title="Tambah toko secara manual jika belum ada di master toko"
+                      title="Buat agenda atau toko khusus secara manual jika belum ada di master toko"
                     >
-                      <i class="fa-solid fa-pencil text-[9px] text-slate-400"></i>
-                      <span>+ Toko Manual</span>
+                      <i class="fa-solid fa-calendar-plus text-[9px] text-slate-400"></i>
+                      <span>Buat Agenda Manual</span>
                     </button>
                   </div>
                 </div>
@@ -11702,6 +11700,32 @@ Instruksi:
       fiveDays.forEach((dayObj) => {
         const items = this.getWeeklySlotItems(audId, dayObj.dayIndex);
         items.forEach((item, idx) => {
+          const isCuti = item.isCuti || item.storeCode === 'CUTI';
+          const isOff = item.isOff || item.storeCode === 'OFF';
+
+          if (isCuti || isOff) {
+            involvedAuditors.add(au.name);
+            const statusKey = isCuti ? 'CUTI' : 'OFF';
+            newSchedules.push({
+              id: `sch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${idx}`,
+              storeCode: statusKey,
+              storeName: isCuti ? 'CUTI TAHUNAN / KHUSUS' : 'HARI LIBUR / OFF',
+              storeType: 'NON_STORE',
+              auditorId: au.id,
+              auditorName: au.name,
+              scheduledDate: dayObj.dateStr,
+              shiftWindow: '-',
+              priority: 'NORMAL',
+              auditFocus: isCuti ? 'Cuti Resmi' : 'Hari Off / Libur',
+              status: statusKey,
+              actualIn: null,
+              actualOut: null,
+              reportId: null,
+              assignedBy
+            });
+            return;
+          }
+
           const st = storeMap.get(String(item.storeCode));
           if (!st) return;
           involvedAuditors.add(au.name);
@@ -11731,10 +11755,11 @@ Instruksi:
       return;
     }
 
-    // Cek Bentrok Antar-Jadwal Baru
+    // Cek Bentrok Antar-Jadwal Baru (Abaikan CUTI & OFF karena bebas bentrok)
     const storeDateMap = {};
     const conflictList = [];
     newSchedules.forEach((ns) => {
+      if (ns.storeCode === 'CUTI' || ns.storeCode === 'OFF') return;
       const k = `${ns.storeCode}__${ns.scheduledDate}`;
       if (storeDateMap[k]) {
         conflictList.push(`${ns.storeName} (${ns.scheduledDate}): ${storeDateMap[k]} & ${ns.auditorName}`);
@@ -12791,6 +12816,7 @@ Instruksi:
   },
 
   checkStoreConflictOnDay(storeCode, currentAuditorId, dayIndex, dateStr) {
+    if (!storeCode || storeCode === 'CUTI' || storeCode === 'OFF') return null;
     const users = this.getSchedulableAuditors();
     // A. Cek di slot draft auditor lain pada hari yang sama
     for (const aud of users) {
@@ -14046,6 +14072,9 @@ function doPost(e) {
     var rootFolderId = payload.gdriveFolderId || DEFAULT_ROOT_GDRIVE_ID;
     var rootFolder = getOrCreateTargetFolder_(rootFolderId, 'FMCU_VISIT_REPORTS');
 
+    // Sapu & bersihkan folder toko yang tercecer di root jika ada
+    cleanupSpamStoreFoldersFromRoot_(rootFolder);
+
     // 2. Folder Tahun (Format: "01. VISIT BESTIE 2026", auto create untuk tahun selanjutnya)
     var yearFolderName = '01. VISIT BESTIE ' + visitYear;
     var yearFolder = getOrCreateSubFolder_(rootFolder, yearFolderName);
@@ -14095,7 +14124,7 @@ function doPost(e) {
       try {
         var b64Qsc = payload.qscPdfBase64.indexOf(',') !== -1 ? payload.qscPdfBase64.split(',')[1] : payload.qscPdfBase64;
         var decodedQsc = Utilities.base64Decode(b64Qsc);
-        var qscFileName = 'Kolase Lembar QSC-' + storeName + '-' + ddMmYyyy + '.pdf';
+        var qscFileName = 'Lembar QSC-Fami track-' + storeName + '-' + ddMmYyyy + '.pdf';
         var qscBlob = Utilities.newBlob(decodedQsc, 'application/pdf', qscFileName);
 
         // Hapus versi lama jika ada nama file yang sama
@@ -14410,29 +14439,25 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
 
       // Lindungi folder resmi yang memang ada di root:
       // "01. VISIT BESTIE 2026", "02. VISIT BESTIE 2027", "Schedule...", dll.
-      if (/^\d{2}\.\s*VISIT\s*BESTIE/i.test(fname) || fnameLower.indexOf('schedule') !== -1 || fnameLower === 'template') {
+      if (/^\d{2}\.\s*VISIT\s*BESTIE/i.test(fname) || fnameLower.indexOf('schedule') !== -1 || fnameLower.indexOf('template') !== -1) {
         continue;
       }
 
-      // Deteksi jika folder ini adalah folder toko yang tercecer di root:
-      // Format toko diawali digit kode (contoh: "0064 - MENTENG SQUARE...", "0003 - PEJATEN...")
-      // atau mengandung kata store / menteng / apartemen
-      if (/^\d{3,5}\s*[-_]/i.test(fname) || fnameLower.indexOf('menteng') !== -1 || (fnameLower.indexOf('store') !== -1 && !/^\d{2}\./.test(fname))) {
-        try {
-          var yearFolder = getOrCreateSubFolder_(rootFolder, '01. VISIT BESTIE 2026');
-          var archiveFolder = getOrCreateSubFolder_(yearFolder, '.Arsip Spam Root Terpindahkan');
+      // Seluruh folder selain folder resmi di atas adalah folder toko yang tercecer di root (seperti "0D64 - MENTENG SQUARE...")
+      try {
+        var yearFolder = getOrCreateSubFolder_(rootFolder, '01. VISIT BESTIE 2026');
+        var archiveFolder = getOrCreateSubFolder_(yearFolder, '.Arsip Spam Root Terpindahkan');
 
-          if (typeof f.moveTo === 'function') {
-            f.moveTo(archiveFolder);
-          } else {
-            archiveFolder.addFolder(f);
-            rootFolder.removeFolder(f);
-          }
-          moved++;
-          Logger.log('Memindahkan spam folder toko dari root ke arsip: ' + fname);
-        } catch (eMove) {
-          Logger.log('Gagal memindahkan folder ' + fname + ': ' + eMove.toString());
+        if (typeof f.moveTo === 'function') {
+          f.moveTo(archiveFolder);
+        } else {
+          archiveFolder.addFolder(f);
+          rootFolder.removeFolder(f);
         }
+        moved++;
+        Logger.log('Memindahkan spam folder toko dari root ke arsip: ' + fname);
+      } catch (eMove) {
+        Logger.log('Gagal memindahkan folder ' + fname + ': ' + eMove.toString());
       }
     }
   } catch (eClean) {
