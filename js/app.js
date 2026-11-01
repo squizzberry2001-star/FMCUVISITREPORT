@@ -3686,10 +3686,20 @@ window.FMCUApp = {
 
   isAuditorUser(user = this.currentUser) {
     if (!user) return false;
-    if (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN_SCHEDULE') return false;
+    if (user.id === 'usr-admin' || user.username === 'admin') return false;
+    if (user.role === 'SUPER_ADMIN') return false;
     if (user.role === 'AUDITOR' || user.role === 'VISITOR') return true;
     const badge = String(user.roleBadge || '').toLowerCase();
-    return badge.includes('visitor') || badge.includes('auditor') || badge.includes('bestie');
+    const jab = String(user.jabatan || '').toLowerCase();
+    return (
+      badge.includes('visitor') ||
+      badge.includes('auditor') ||
+      badge.includes('bestie') ||
+      badge.includes('trainer') ||
+      jab.includes('trainer') ||
+      jab.includes('bestie') ||
+      user.role === 'ADMIN_SCHEDULE'
+    );
   },
 
   getSchedulableAuditors() {
@@ -11871,6 +11881,15 @@ Instruksi:
                   </button>
                   <button
                     type="button"
+                    onclick="FMCUApp.exportUserScheduleToTemplateExcel('${u.name}')"
+                    class="px-2.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 font-extrabold text-[11px] transition flex items-center gap-1 cursor-pointer"
+                    title="Export format Excel Templete Jadwal khusus untuk ${u.name}"
+                  >
+                    <i class="fa-solid fa-file-excel text-purple-600"></i>
+                    <span>Export Excel</span>
+                  </button>
+                  <button
+                    type="button"
                     onclick="FMCUApp.clearAuditorWeeklyDraft('${u.id}')"
                     class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 font-bold text-[11px] transition cursor-pointer"
                   >
@@ -12136,6 +12155,349 @@ Instruksi:
     this.renderAdminView();
   },
 
+  // ==========================================================================
+  // EXCEL FORMAT TEMPLATE JADWAL (STANDARISASI SESUAI "Templete Jadwal.xlsx")
+  // Kolom: [Nama, Start Date, Start Time, End Date, End Time, Description, Location]
+  // ==========================================================================
+  generateTemplateJadwalSheetData(targetUserName = null) {
+    this.ensureWeeklyPlannerInitialized();
+    const fiveDays = this.getFiveWorkDays(this.weeklyMondayDate);
+    const schedules = window.FMCUData.getSchedules() || [];
+    const allUsers = window.FMCUData.getUsers() || [];
+    const schedulableUsers = this.getSchedulableAuditors();
+
+    // Tentukan daftar user yang diexport
+    let usersToExport = [];
+    if (targetUserName) {
+      const match = allUsers.find(
+        (u) => String(u.name || '').toLowerCase().trim() === String(targetUserName).toLowerCase().trim()
+      );
+      usersToExport = match ? [match] : [{ id: 'custom', name: targetUserName }];
+    } else {
+      usersToExport = schedulableUsers.length > 0 ? [...schedulableUsers] : allUsers.filter((u) => u.username !== 'admin');
+    }
+
+    // Urutkan alfabetis nama user
+    usersToExport.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'id', { sensitivity: 'base' }));
+
+    const rows = [
+      ['Nama', 'Start Date', 'Start Time', 'End Date', 'End Time', 'Description', 'Location']
+    ];
+
+    const storeMap = new Map((window.FMCUData.getStores() || []).map((s) => [String(s.code), s]));
+
+    usersToExport.forEach((u) => {
+      fiveDays.forEach((dayObj) => {
+        const dayIdx = dayObj.dayIndex;
+        const dateStr = dayObj.dateStr;
+
+        // Cek di draft matrix terlebih dahulu jika ada, lalu cek database jadwal tersimpan
+        const draftItems = this.getWeeklySlotItems(u.id, dayIdx);
+        const savedItems = schedules.filter(
+          (s) => (s.auditorId === u.id || s.auditorName === u.name) && s.scheduledDate === dateStr
+        );
+
+        const items = draftItems.length > 0 ? draftItems : savedItems;
+
+        if (items.length === 0) {
+          // Jika kosong di akhir pekan (Sabtu & Minggu), tandai OFF seperti di Templete Jadwal.xlsx
+          if (dayIdx >= 5) {
+            rows.push([
+              u.name,
+              dateStr,
+              '08:30',
+              dateStr,
+              '17:30',
+              'OFF',
+              ''
+            ]);
+          }
+          return;
+        }
+
+        items.forEach((item) => {
+          const isCuti = item.isCuti || item.storeCode === 'CUTI' || item.status === 'CUTI';
+          const isOff = item.isOff || item.storeCode === 'OFF' || item.status === 'OFF';
+          const isAgenda = item.isAgenda || item.storeCode === 'AGENDA' || item.status === 'AGENDA';
+
+          let desc = '';
+          let loc = '';
+
+          if (isCuti) {
+            desc = 'CUTI';
+            loc = '';
+          } else if (isOff) {
+            desc = 'OFF';
+            loc = '';
+          } else if (isAgenda) {
+            desc = item.storeName ? `Agenda : ${item.storeName}` : 'Agenda Kegiatan Internal';
+            if (item.notes) desc += `\n${item.notes}`;
+            loc = item.agendaLocation || 'HEAD OFFICE';
+          } else {
+            // Visit Store
+            const st = storeMap.get(String(item.storeCode));
+            const storeName = st ? st.name : item.storeName || item.storeCode;
+            desc = 'Agenda : Visit Store';
+            if (item.focus && item.focus !== 'Audit Standar' && item.focus !== 'Audit Rutin Mingguan (QSC & Observasi)') {
+              desc += `\nFokus: ${item.focus}`;
+            } else if (item.auditFocus && item.auditFocus !== 'Audit Standar' && item.auditFocus !== 'Audit Rutin Mingguan (QSC & Observasi)') {
+              desc += `\nFokus: ${item.auditFocus}`;
+            }
+            loc = storeName;
+          }
+
+          const windowParts = (item.shiftWindow || item.window || '08:30 - 17:30').split('-');
+          const startTime = (windowParts[0] || '08:30').trim().slice(0, 5) || '08:30';
+          const endTime = (windowParts[1] || '17:30').trim().replace(/WIB/i, '').trim().slice(0, 5) || '17:30';
+
+          rows.push([
+            u.name,
+            dateStr,
+            startTime,
+            dateStr,
+            endTime,
+            desc,
+            loc
+          ]);
+        });
+      });
+    });
+
+    // Buat nama sheet e.g. "02 - 08 Nov "
+    let sheetTitle = '02 - 08 Nov ';
+    try {
+      const d1 = new Date(fiveDays[0].dateStr + 'T00:00:00');
+      const d2 = new Date(fiveDays[6].dateStr + 'T00:00:00');
+      const dd1 = String(d1.getDate()).padStart(2, '0');
+      const dd2 = String(d2.getDate()).padStart(2, '0');
+      const mmm = d1.toLocaleDateString('en-US', { month: 'short' });
+      sheetTitle = `${dd1} - ${dd2} ${mmm} `;
+    } catch (e) {}
+
+    return {
+      rows,
+      sheetTitle,
+      fiveDays
+    };
+  },
+
+  exportWeeklyScheduleToTemplateExcel(targetUserName = null) {
+    if (typeof XLSX === 'undefined') {
+      this.showToast('Library Excel (SheetJS) belum termuat. Silakan muat ulang halaman.', 'error');
+      return;
+    }
+    this.triggerHaptic('light');
+
+    const { rows, sheetTitle } = this.generateTemplateJadwalSheetData(targetUserName);
+    if (rows.length <= 1) {
+      this.showToast('Belum ada jadwal yang tersedia untuk diexport pada periode ini.', 'warning');
+      return;
+    }
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+
+    // Layout kolom persis seperti Templete Jadwal.xlsx
+    ws['!cols'] = [
+      { wch: 22 }, // Nama
+      { wch: 14 }, // Start Date
+      { wch: 13 }, // Start Time
+      { wch: 14 }, // End Date
+      { wch: 13 }, // End Time
+      { wch: 54 }, // Description
+      { wch: 58 }  // Location
+    ];
+
+    const safeSheetName = sheetTitle.trim().slice(0, 31);
+    XLSX.utils.book_append_sheet(wb, ws, safeSheetName);
+
+    const cleanUser = targetUserName ? targetUserName.replace(/[^a-zA-Z0-9_-]/g, '_') : 'Semua_Visitor';
+    const cleanRange = safeSheetName.replace(/\s+/g, '_');
+    const fileName = `Templete_Jadwal_${cleanUser}_${cleanRange}.xlsx`;
+
+    XLSX.writeFile(wb, fileName);
+    this.showToast(`File Excel "${fileName}" (Format Templete Jadwal: ${rows.length - 1} baris jadwal) berhasil diunduh!`, 'success');
+  },
+
+  exportUserScheduleToTemplateExcel(userName) {
+    this.exportWeeklyScheduleToTemplateExcel(userName);
+  },
+
+  async loadDefaultTemplateJadwalExcel() {
+    this.triggerHaptic('medium');
+    this.showToast('Membaca file "Templete Jadwal.xlsx"...', 'info');
+    try {
+      const resp = await fetch('Templete%20Jadwal.xlsx');
+      if (!resp.ok) {
+        throw new Error('File Templete Jadwal.xlsx tidak dapat diakses langsung via fetch.');
+      }
+      const buffer = await resp.arrayBuffer();
+      this.parseAndApplyTemplateJadwalWorkbook(buffer, 'Templete Jadwal.xlsx');
+    } catch (err) {
+      console.warn('Gagal memuat otomatis Templete Jadwal.xlsx:', err);
+      // Fallback: buka file picker
+      document.getElementById('input-import-template-jadwal')?.click();
+    }
+  },
+
+  handleTemplateJadwalFileImport(event) {
+    const file = event.target?.files?.[0];
+    if (!file) return;
+    this.triggerHaptic('medium');
+    this.showToast(`Membaca file ${file.name}...`, 'info');
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      this.parseAndApplyTemplateJadwalWorkbook(e.target.result, file.name);
+    };
+    reader.readAsArrayBuffer(file);
+    event.target.value = '';
+  },
+
+  parseAndApplyTemplateJadwalWorkbook(arrayBuffer, sourceName = 'Excel') {
+    if (typeof XLSX === 'undefined') {
+      this.showToast('Library Excel belum termuat.', 'error');
+      return;
+    }
+    try {
+      const wb = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
+      const sheetName = wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+      if (data.length <= 1) {
+        this.showToast(`File ${sourceName} kosong atau tidak memiliki data jadwal.`, 'warning');
+        return;
+      }
+
+      this.ensureWeeklyPlannerInitialized();
+      const allUsers = window.FMCUData.getUsers();
+      const userMap = new Map();
+      allUsers.forEach((u) => {
+        userMap.set(String(u.name).toLowerCase().trim(), u);
+        if (u.username) userMap.set(String(u.username).toLowerCase().trim(), u);
+        if (u.nik) userMap.set(String(u.nik).toLowerCase().trim(), u);
+      });
+
+      const stores = window.FMCUData.getStores();
+      const storeMap = new Map();
+      stores.forEach((st) => {
+        storeMap.set(String(st.name).toLowerCase().trim(), st);
+        storeMap.set(String(st.code).toLowerCase().trim(), st);
+      });
+
+      let importedCount = 0;
+      const fiveDays = this.getFiveWorkDays(this.weeklyMondayDate);
+      const dateToIdxMap = new Map();
+      fiveDays.forEach((d) => dateToIdxMap.set(d.dateStr, d.dayIndex));
+
+      const involvedAuditorIds = new Set();
+      const resetSlotKeys = new Set();
+
+      for (let r = 1; r < data.length; r++) {
+        const row = data[r];
+        const rawNama = String(row[0] || '').trim();
+        if (!rawNama) continue;
+
+        let u = userMap.get(rawNama.toLowerCase());
+        if (!u) {
+          u = {
+            id: `usr-${rawNama.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+            name: rawNama,
+            username: rawNama.toLowerCase().replace(/[^a-z0-9]/g, ''),
+            role: 'AUDITOR',
+            roleBadge: 'Visitor / Regional Bestie',
+            active: true
+          };
+          allUsers.push(u);
+          userMap.set(rawNama.toLowerCase(), u);
+          window.FMCUData.saveUsers(allUsers);
+        }
+
+        involvedAuditorIds.add(u.id);
+
+        let dateStr = '';
+        if (row[1] instanceof Date) {
+          dateStr = row[1].toISOString().slice(0, 10);
+        } else if (typeof row[1] === 'string') {
+          dateStr = row[1].slice(0, 10);
+        }
+
+        const dayIdx = dateToIdxMap.get(dateStr);
+        if (dayIdx === undefined) continue;
+
+        const startTime = String(row[2] || '08:30').slice(0, 5);
+        const endTime = String(row[4] || '17:30').slice(0, 5);
+        const shiftWindow = `${startTime} - ${endTime}`;
+        const desc = String(row[5] || '').trim();
+        const loc = String(row[6] || '').trim();
+        const descLower = desc.toLowerCase();
+
+        const slotKey = this.getWeeklySlotKey(u.id, dayIdx);
+        if (!resetSlotKeys.has(slotKey)) {
+          this.weeklyDraftMatrix[slotKey] = [];
+          resetSlotKeys.add(slotKey);
+        }
+
+        if (descLower === 'cuti' || descLower.includes('cuti')) {
+          this.weeklyDraftMatrix[slotKey].push({
+            storeCode: 'CUTI',
+            storeName: 'CUTI TAHUNAN / KHUSUS',
+            priority: 'NORMAL',
+            isCuti: true,
+            isOff: false,
+            isStatusBadge: true,
+            shiftWindow: '-'
+          });
+          importedCount++;
+        } else if (descLower === 'off' || descLower.includes('off')) {
+          this.weeklyDraftMatrix[slotKey].push({
+            storeCode: 'OFF',
+            storeName: 'HARI LIBUR / OFF',
+            priority: 'NORMAL',
+            isCuti: false,
+            isOff: true,
+            isStatusBadge: true,
+            shiftWindow: '-'
+          });
+          importedCount++;
+        } else if (descLower.includes('visit store') || loc) {
+          const matchedStore = storeMap.get(loc.toLowerCase());
+          if (matchedStore) {
+            this.weeklyDraftMatrix[slotKey].push({
+              storeCode: matchedStore.code,
+              storeName: matchedStore.name,
+              priority: 'NORMAL',
+              shiftWindow
+            });
+          } else {
+            this.weeklyDraftMatrix[slotKey].push({
+              storeCode: 'AGENDA',
+              storeName: desc.replace(/^agenda\s*:\s*/i, '').trim() || loc,
+              agendaLocation: loc,
+              notes: desc,
+              isAgenda: true,
+              priority: 'NORMAL',
+              shiftWindow
+            });
+          }
+          importedCount++;
+        }
+      }
+
+      involvedAuditorIds.forEach((audId) => {
+        if (!audId.includes('__') && !this.weeklySelectedAuditors.includes(audId)) {
+          this.weeklySelectedAuditors.push(audId);
+        }
+      });
+
+      this.renderWeeklySchedulePlanner();
+      this.showToast(`Berhasil memuat & menerapkan ${importedCount} jadwal dari file ${sourceName}!`, 'success', 6000);
+    } catch (err) {
+      console.error('Error parse template excel:', err);
+      this.showToast(`Gagal membaca format jadwal dari file ${sourceName}: ${err.message}`, 'error');
+    }
+  },
+
   exportSchedulesAndAuditorRecapExcel() {
     if (typeof XLSX === 'undefined') {
       this.showToast('Library Excel (SheetJS) belum termuat. Silakan muat ulang halaman.', 'error');
@@ -12308,6 +12670,24 @@ Instruksi:
 
     const wb = XLSX.utils.book_new();
 
+    // ========================================================================
+    // SHEET 1 (STANDARISASI SESUAI "Templete Jadwal.xlsx"):
+    // Kolom: [Nama, Start Date, Start Time, End Date, End Time, Description, Location]
+    // Diseragamkan sesuai template jadwal resmi
+    // ========================================================================
+    const { rows: tplRows, sheetTitle } = this.generateTemplateJadwalSheetData(null);
+    const wsTpl = XLSX.utils.aoa_to_sheet(tplRows);
+    wsTpl['!cols'] = [
+      { wch: 22 }, // Nama
+      { wch: 14 }, // Start Date
+      { wch: 13 }, // Start Time
+      { wch: 14 }, // End Date
+      { wch: 13 }, // End Time
+      { wch: 54 }, // Description
+      { wch: 58 }  // Location
+    ];
+    XLSX.utils.book_append_sheet(wb, wsTpl, sheetTitle.trim().slice(0, 31) || 'Templete Jadwal');
+
     const ws1 = XLSX.utils.json_to_sheet(
       auditorRecapRows.length > 0 ? auditorRecapRows : [{ Info: 'Belum ada data visitor' }]
     );
@@ -12412,7 +12792,7 @@ Instruksi:
     const dateStamp = new Date().toISOString().slice(0, 10);
     const fileName = `Rekap_Jadwal_Visit_&_Visitor_FMCU_${dateStamp}.xlsx`;
     XLSX.writeFile(wb, fileName);
-    this.showToast(`File Excel "${fileName}" (4 Sheet Rekap Lengkap) berhasil diunduh!`, 'success');
+    this.showToast(`File Excel "${fileName}" (5 Sheet Rekap Lengkap termasuk format Templete Jadwal) berhasil diunduh!`, 'success');
   },
 
   handleSaveSchedule(event) {

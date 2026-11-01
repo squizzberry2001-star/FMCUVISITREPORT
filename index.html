@@ -2109,6 +2109,40 @@ service cloud.firestore {
                     </button>
                   </div>
 
+                  <!-- Action Strip: Export Format Templete Jadwal (.xlsx) & Muat dari Templete Jadwal.xlsx -->
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    <button
+                      type="button"
+                      onclick="FMCUApp.exportWeeklyScheduleToTemplateExcel()"
+                      class="w-full py-2.5 px-3.5 rounded-xl border border-emerald-300 bg-emerald-50/90 hover:bg-emerald-100 text-emerald-950 font-extrabold text-xs shadow-2xs transition flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                      title="Export seluruh jadwal ke format Templete Jadwal.xlsx (Row & Kolom Standar)"
+                    >
+                      <i class="fa-solid fa-file-excel text-[#009944] text-sm"></i>
+                      <span>Export Template Jadwal (.xlsx)</span>
+                    </button>
+                    <div class="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onclick="FMCUApp.loadDefaultTemplateJadwalExcel()"
+                        class="flex-1 py-2.5 px-3 rounded-xl border border-teal-300 bg-teal-50/90 hover:bg-teal-100 text-teal-950 font-extrabold text-xs shadow-2xs transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
+                        title="Muat & sinkronisasikan jadwal langsung dari file Templete Jadwal.xlsx"
+                      >
+                        <i class="fa-solid fa-cloud-arrow-down text-[#0099A6] text-sm"></i>
+                        <span class="truncate">Muat Templete Jadwal.xlsx</span>
+                      </button>
+                      <button
+                        type="button"
+                        onclick="document.getElementById('input-import-template-jadwal').click()"
+                        class="py-2.5 px-3 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-extrabold text-xs shadow-2xs transition flex items-center justify-center gap-1 cursor-pointer"
+                        title="Pilih & import file Excel Templete Jadwal (.xlsx / .xls)"
+                      >
+                        <i class="fa-solid fa-file-arrow-up text-slate-500"></i>
+                        <span class="hidden sm:inline">Pilih File</span>
+                      </button>
+                    </div>
+                  </div>
+                  <input type="file" id="input-import-template-jadwal" accept=".xlsx,.xls" onchange="FMCUApp.handleTemplateJadwalFileImport(event)" class="hidden" />
+
                   <!-- Row 2: Pilih Visitor -->
                   <div class="space-y-2">
                     <div class="flex items-center justify-between gap-2">
@@ -2460,12 +2494,21 @@ service cloud.firestore {
                       <div class="flex items-center gap-1">
                         <button
                           type="button"
-                          onclick="FMCUApp.exportSchedulesAndAuditorRecapExcel()"
-                          class="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#009944] border border-emerald-200 font-extrabold text-[10px] transition flex items-center gap-1 cursor-pointer"
-                          title="Export Rekap Excel (.xlsx)"
+                          onclick="FMCUApp.exportWeeklyScheduleToTemplateExcel()"
+                          class="px-2 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-[10px] transition flex items-center gap-1 cursor-pointer"
+                          title="Export Format Excel Templete Jadwal (.xlsx)"
                         >
                           <i class="fa-solid fa-file-excel"></i>
-                          <span class="hidden sm:inline">Excel</span>
+                          <span class="hidden sm:inline">Template Excel</span>
+                        </button>
+                        <button
+                          type="button"
+                          onclick="FMCUApp.exportSchedulesAndAuditorRecapExcel()"
+                          class="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#009944] border border-emerald-200 font-extrabold text-[10px] transition flex items-center gap-1 cursor-pointer"
+                          title="Export Rekap Lengkap Excel (.xlsx) - Termasuk Sheet Format Template"
+                        >
+                          <i class="fa-solid fa-table-cells"></i>
+                          <span class="hidden sm:inline">Rekap Full</span>
                         </button>
                         <button
                           type="button"

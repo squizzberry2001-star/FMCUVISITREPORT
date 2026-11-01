@@ -274,23 +274,40 @@ const DEFAULT_SETTINGS = {
   autoSyncGDrive: true
 };
 
-// Data Karyawan hasil ekstraksi "Data_Karyawan_NIK.xlsx" (Nama, NIK, JABATAN)
+// Data Karyawan hasil ekstraksi "Data_Karyawan_NIK.xlsx" & "Templete Jadwal.xlsx" (Total 35 Karyawan: 18 Regional Bestie + 17 Karyawan/Trainer FMCU)
 const EMPLOYEE_NIK_SEED_ROWS = [
   { name: 'Aan Bagus Permana', nik: '210822947', jabatan: 'Regional Bestie' },
+  { name: 'Al Azis Rachman Rizal', nik: 'TR-alazisrach', jabatan: 'Trainer FMCU / Regional Bestie' },
   { name: 'Anggi Novita', nik: '230723742', jabatan: 'Regional Bestie' },
+  { name: 'Aulia Puspita Dewi', nik: 'TR-auliapuspi', jabatan: 'Trainer FMCU / Regional Bestie' },
+  { name: 'Azkalia Faiza Hanum', nik: 'TR-azkaliafai', jabatan: 'Trainer FMCU / Regional Bestie' },
   { name: 'Bagus Pradika', nik: '210823002', jabatan: 'Regional Bestie' },
   { name: 'Cindy Silvia Sahyu', nik: '210923054', jabatan: 'Regional Bestie' },
+  { name: 'Clara Damaris Putri', nik: 'TR-claradamar', jabatan: 'Trainer FMCU / Regional Bestie' },
   { name: 'Edi Sukarno', nik: '210822948', jabatan: 'Regional Bestie' },
+  { name: 'Fadliani Rizky Fidiaz', nik: 'TR-fadlianiri', jabatan: 'Trainer FMCU / Regional Bestie' },
   { name: 'Fajar Saputra', nik: '230623709', jabatan: 'Regional Bestie' },
+  { name: 'Farid Albani Musya', nik: 'TR-faridalban', jabatan: 'Trainer FMCU / Regional Bestie' },
   { name: 'Fendi Setiawan', nik: '230523581', jabatan: 'Regional Bestie' },
   { name: 'Fiqri Amatul Firdaus', nik: '210923070', jabatan: 'Regional Bestie' },
   { name: 'Karlina Endah Puji Astuti', nik: '211123186', jabatan: 'Regional Bestie' },
+  { name: 'M. Ghifary Hakim Syarif', nik: 'TR-mghifaryha', jabatan: 'Trainer FMCU / Regional Bestie' },
+  { name: 'Maharani Dina Putri', nik: 'TR-maharanidi', jabatan: 'Trainer FMCU / Regional Bestie' },
   { name: 'Malik Ibrahim', nik: '200622511', jabatan: 'Regional Bestie' },
+  { name: 'Marisa Giselina', nik: 'TR-marisagise', jabatan: 'Trainer FMCU / Regional Bestie' },
+  { name: 'Muhammad Fauzan', nik: 'TR-muhammadfa', jabatan: 'Trainer FMCU / Regional Bestie' },
   { name: 'Muhammad Fikri', nik: '230723758', jabatan: 'Regional Bestie' },
+  { name: 'Nazillah Khaidar', nik: 'TR-nazillahkh', jabatan: 'Trainer FMCU / Regional Bestie' },
   { name: 'Novilya Dwi Rahman', nik: '201222610', jabatan: 'Regional Bestie' },
+  { name: 'Nurfujiati', nik: 'TR-nurfujiati', jabatan: 'Trainer FMCU / Regional Bestie' },
+  { name: 'Putri Mentari Ayu', nik: 'TR-putrimenta', username: 'putri.ayu', jabatan: 'Trainer FMCU / Admin Jadwal' },
+  { name: 'Rani Adrianti', nik: 'TR-raniadrian', jabatan: 'Trainer FMCU / Regional Bestie' },
   { name: 'Rani Ismawati', nik: '210722912', jabatan: 'Regional Bestie' },
+  { name: 'Rido Yuhanda', nik: 'TR-ridoyuhand', jabatan: 'Trainer FMCU / Regional Bestie' },
+  { name: 'Riki Prasetyawan', nik: 'TR-rikipraset', jabatan: 'Trainer FMCU / Regional Bestie' },
   { name: 'Rully Alfandi', nik: '210822981', jabatan: 'Regional Bestie' },
   { name: 'Seftiana Putri Rahmawati', nik: '220623417', jabatan: 'Regional Bestie' },
+  { name: 'Septiana Indasari', nik: 'TR-septianain', jabatan: 'Trainer FMCU / Admin Jadwal' },
   { name: 'Tia Fitri', nik: '230523599', jabatan: 'Regional Bestie' },
   { name: 'Widia Astuti', nik: '170621535', jabatan: 'Regional Bestie' },
   { name: 'Yuyun Yuliyanti', nik: '230823803', jabatan: 'Regional Bestie' }
@@ -521,16 +538,19 @@ window.FMCUData = {
     if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(INITIAL_USERS));
     } else {
-      // Pastikan 18 karyawan dari Data_Karyawan_NIK.xlsx & akun Admin otomatis ter-seed jika belum ada
+      // Pastikan seluruh 35 karyawan (18 Regional Bestie + 17 Karyawan/Trainer FMCU dari Templete Jadwal.xlsx) & akun Admin otomatis ter-seed jika belum ada
       const existingUsers = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
-      const existingNiks = new Set(existingUsers.map((u) => String(u.nik || u.username || '').toLowerCase()));
+      const existingNiks = new Set(existingUsers.map((u) => String(u.nik || u.username || '').toLowerCase().trim()));
+      const existingNames = new Set(existingUsers.map((u) => String(u.name || '').toLowerCase().trim()));
       let addedSeed = false;
       if (!existingUsers.some((u) => u.username === 'admin' || u.role === 'SUPER_ADMIN')) {
         existingUsers.unshift(INITIAL_USERS[0]);
         addedSeed = true;
       }
       EMPLOYEE_NIK_SEED_ROWS.forEach((row, idx) => {
-        if (!existingNiks.has(String(row.nik).toLowerCase())) {
+        const cleanName = String(row.name).toLowerCase().trim();
+        const cleanNik = String(row.nik).toLowerCase().trim();
+        if (!existingNames.has(cleanName) && !existingNiks.has(cleanNik)) {
           existingUsers.push(mapEmployeeRowToUserObject(row, idx, { passwordMode: 'nik' }));
           addedSeed = true;
         }
@@ -1301,7 +1321,24 @@ window.FMCUData = {
   },
 
   getUsers() {
-    const raw = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
+    let raw = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
+    if (!Array.isArray(raw) || raw.length === 0) {
+      raw = [...INITIAL_USERS];
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(raw));
+    } else {
+      // Auto-sinkronisasi 35 karyawan (jika belum lengkap di localStorage)
+      const existingNames = new Set(raw.map((u) => String(u.name || '').toLowerCase().trim()));
+      let hasNew = false;
+      EMPLOYEE_NIK_SEED_ROWS.forEach((row, idx) => {
+        if (!existingNames.has(String(row.name).toLowerCase().trim())) {
+          raw.push(mapEmployeeRowToUserObject(row, idx, { passwordMode: 'nik' }));
+          hasNew = true;
+        }
+      });
+      if (hasNew) {
+        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(raw));
+      }
+    }
     return raw.map((u) => ({
       ...u,
       name: u.name === 'Auditor FMCU' ? 'Visitor FMCU' : u.name,
