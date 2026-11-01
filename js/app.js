@@ -10451,7 +10451,7 @@ Instruksi:
     // Update stats counter
     const statsEl = document.getElementById('weekly-picker-stats');
     if (statsEl) {
-      statsEl.textContent = `Menampilkan ${filtered.length} dari ${stores.length} Toko`;
+      statsEl.textContent = `Menampilkan seluruh ${filtered.length} dari ${stores.length} Master Toko`;
     }
 
     // 3. Render Store Cards List
@@ -10469,8 +10469,9 @@ Instruksi:
       return;
     }
 
-    // Tampilkan hingga 150 baris per pencarian (agar sangat responsif)
-    const displayList = filtered.slice(0, 150);
+    // Tampilkan seluruh daftar master toko lengkap tanpa terpotong (hingga 700 toko langsung dimuat)
+    const modalLimit = (this._weeklyModalShowAll || filtered.length <= 700) ? filtered.length : Math.min(filtered.length, 250);
+    const displayList = filtered.slice(0, modalLimit);
 
     listEl.innerHTML = displayList
       .map((st) => {
@@ -10856,41 +10857,75 @@ Instruksi:
 
     const stores = window.FMCUData.getStores();
     const citySel = document.getElementById('weekly-store-city-filter');
-    if (citySel && citySel.options.length <= 1 && stores.length > 0) {
+    if (citySel && (citySel.options.length <= 1 || citySel.options[0]?.text?.indexOf(String(stores.length)) === -1) && stores.length > 0) {
       const cities = Array.from(new Set(stores.map((s) => s.city).filter(Boolean))).sort();
       const curVal = citySel.value || 'ALL';
       citySel.innerHTML =
-        `<option value="ALL">Semua Kota / Wilayah (${stores.length} Toko)</option>` +
+        `<option value="ALL">Semua Kota / Wilayah (${stores.length} Master Toko)</option>` +
         cities.map((c) => `<option value="${c}" ${c === curVal ? 'selected' : ''}>${c}</option>`).join('');
     }
 
     const filtered = this.getFilteredStoresForWeeklyPicker();
-    const previewList = filtered.slice(0, 28);
 
-    if (previewList.length === 0) {
-      container.innerHTML = `<div class="text-xs text-slate-400 py-1">Tidak ditemukan toko yang sesuai kata kunci pencarian.</div>`;
+    // Update counter label
+    const countEl = document.getElementById('weekly-store-quick-counter');
+    if (countEl) {
+      countEl.textContent = `Menampilkan ${filtered.length} dari ${stores.length} Master Toko`;
+    }
+
+    if (filtered.length === 0) {
+      container.innerHTML = `<div class="col-span-full text-center text-xs text-slate-400 py-6 font-semibold"><i class="fa-solid fa-store-slash text-xl mb-1 block text-slate-300"></i>Tidak ditemukan toko yang sesuai kata kunci pencarian / filter wilayah.</div>`;
       return;
     }
 
-    container.innerHTML = previewList
+    // Tampilkan seluruh toko hasil filter (hingga 700 toko dimuat langsung agar 100% lengkap)
+    const limit = (this._showAllQuickStores || filtered.length <= 700) ? filtered.length : Math.min(filtered.length, 120);
+    const displayList = filtered.slice(0, limit);
+
+    let html = displayList
       .map(
         (st) => `
         <button
           type="button"
           onclick="FMCUApp.assignStoreToWeeklySlot('${st.code}', null, null, true)"
-          class="shrink-0 px-2.5 py-1.5 rounded-xl bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 transition text-left group cursor-pointer shadow-2xs"
+          class="p-2 rounded-xl bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 transition text-left group cursor-pointer shadow-2xs flex flex-col justify-between"
+          title="${st.name} (${st.code}) - ${st.city || ''} ${st.address || ''}"
         >
-          <div class="flex items-center gap-1.5">
-            <span class="font-mono font-extrabold text-[11px] text-[#009944]">${st.code}</span>
-            <span class="font-extrabold text-xs text-slate-800 group-hover:text-slate-900">${st.name}</span>
+          <div>
+            <div class="flex items-center justify-between gap-1">
+              <span class="font-mono font-extrabold text-[10.5px] text-[#009944]">${st.code}</span>
+              <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600">${st.type || 'CVS'}</span>
+            </div>
+            <div class="font-extrabold text-xs text-slate-800 group-hover:text-slate-900 truncate mt-0.5" title="${st.name}">${st.name}</div>
           </div>
-          <div class="text-[10px] text-slate-500 mt-0.5">
-            ${st.type || 'CVS'} • ${st.city || '-'} ${st.areaManager ? '• AM: ' + st.areaManager : ''}
+          <div class="text-[9.5px] text-slate-500 truncate mt-1">
+            ${st.city || '-'} ${st.areaManager ? '• AM: ' + st.areaManager : ''}
           </div>
         </button>
       `
       )
       .join('');
+
+    if (filtered.length > limit) {
+      html += `
+        <div class="col-span-full py-2.5 text-center">
+          <button
+            type="button"
+            onclick="FMCUApp.showAllQuickStoresInPlanner()"
+            class="px-4 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-extrabold transition cursor-pointer shadow-2xs"
+          >
+            <i class="fa-solid fa-store mr-1.5"></i>Tampilkan Sisa ${filtered.length - limit} Master Toko Lainnya
+          </button>
+        </div>
+      `;
+    }
+
+    container.innerHTML = html;
+  },
+
+  showAllQuickStoresInPlanner() {
+    this._showAllQuickStores = true;
+    this.renderWeeklyQuickStoreResults();
   },
 
   // ==========================================================================

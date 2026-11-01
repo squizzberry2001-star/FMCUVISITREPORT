@@ -539,29 +539,35 @@ window.FMCUData = {
       }
     }
 
-    // Otomatis isi Master Toko dari hasil ekstraksi "10. List PIC Oktober 2026_rev01.xlsx" jika masih kosong
+    // Otomatis isi & sinkronisasi lengkap Master Toko dari hasil ekstraksi "10. List PIC Oktober 2026_rev01.xlsx"
     const currentStores = JSON.parse(localStorage.getItem(STORAGE_KEYS.STORES) || '[]');
     if (Array.isArray(window.FMCU_INITIAL_STORES) && window.FMCU_INITIAL_STORES.length > 0) {
-      if (currentStores.length === 0) {
-        localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(window.FMCU_INITIAL_STORES));
-      } else {
-        // Lengkapi koordinat pinpoint (lat, lng, latitude, longitude) dari seed jika belum ada
-        const seedMap = new Map();
-        window.FMCU_INITIAL_STORES.forEach((s) => seedMap.set(String(s.code), s));
-        let updatedCoord = false;
-        currentStores.forEach((st) => {
-          const seed = seedMap.get(String(st.code));
-          if (seed && (st.lat === undefined || st.lat === null || st.lat === '')) {
-            st.lat = seed.lat;
-            st.lng = seed.lng;
-            st.latitude = seed.latitude;
-            st.longitude = seed.longitude;
-            updatedCoord = true;
+      const existingMap = new Map();
+      currentStores.forEach((s) => existingMap.set(String(s.code), s));
+      let hasUpdate = false;
+
+      window.FMCU_INITIAL_STORES.forEach((seed) => {
+        const seedCode = String(seed.code);
+        if (!existingMap.has(seedCode)) {
+          existingMap.set(seedCode, seed);
+          hasUpdate = true;
+        } else {
+          const cur = existingMap.get(seedCode);
+          if (cur.lat === undefined || cur.lat === null || cur.lat === '') {
+            cur.lat = seed.lat;
+            cur.lng = seed.lng;
+            cur.latitude = seed.latitude;
+            cur.longitude = seed.longitude;
+            hasUpdate = true;
           }
-        });
-        if (updatedCoord) {
-          localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(currentStores));
         }
+      });
+
+      if (hasUpdate || currentStores.length === 0) {
+        const fullStores = Array.from(existingMap.values()).sort((a, b) =>
+          String(a.code || '').localeCompare(String(b.code || ''), undefined, { numeric: true })
+        );
+        localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(fullStores));
       }
     } else if (!localStorage.getItem(STORAGE_KEYS.STORES)) {
       localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify([]));
@@ -1415,28 +1421,37 @@ window.FMCUData = {
   getStores() {
     let stores = JSON.parse(localStorage.getItem(STORAGE_KEYS.STORES) || '[]');
     if (!Array.isArray(stores) || stores.length === 0) {
-      stores = Array.isArray(window.FMCU_INITIAL_STORES) ? window.FMCU_INITIAL_STORES : [];
+      stores = Array.isArray(window.FMCU_INITIAL_STORES) ? [...window.FMCU_INITIAL_STORES] : [];
       localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(stores));
       return stores;
     }
-    // Pastikan semua toko selalu memiliki koordinat pinpoint (lat/lng) dari seed
+    // Pastikan seluruh 610 Master Toko selalu lengkap terisi tanpa ada toko yang terpotong / tertinggal
     if (Array.isArray(window.FMCU_INITIAL_STORES) && window.FMCU_INITIAL_STORES.length > 0) {
-      const seedMap = new Map();
-      window.FMCU_INITIAL_STORES.forEach((s) => seedMap.set(String(s.code), s));
-      let missingCoords = false;
-      stores.forEach((st) => {
-        if (st.lat === undefined || st.lat === null || st.lat === '') {
-          const seed = seedMap.get(String(st.code));
-          if (seed) {
-            st.lat = seed.lat;
-            st.lng = seed.lng;
-            st.latitude = seed.latitude;
-            st.longitude = seed.longitude;
-            missingCoords = true;
+      const existingMap = new Map();
+      stores.forEach((s) => existingMap.set(String(s.code), s));
+      let hasChanges = false;
+
+      window.FMCU_INITIAL_STORES.forEach((seed) => {
+        const seedCode = String(seed.code);
+        if (!existingMap.has(seedCode)) {
+          existingMap.set(seedCode, seed);
+          hasChanges = true;
+        } else {
+          const cur = existingMap.get(seedCode);
+          if (cur.lat === undefined || cur.lat === null || cur.lat === '') {
+            cur.lat = seed.lat;
+            cur.lng = seed.lng;
+            cur.latitude = seed.latitude;
+            cur.longitude = seed.longitude;
+            hasChanges = true;
           }
         }
       });
-      if (missingCoords) {
+
+      if (hasChanges) {
+        stores = Array.from(existingMap.values()).sort((a, b) =>
+          String(a.code || '').localeCompare(String(b.code || ''), undefined, { numeric: true })
+        );
         localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(stores));
       }
     }

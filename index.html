@@ -2203,8 +2203,12 @@ service cloud.firestore {
                     </div>
                   </div>
 
-                  <!-- Clickable Store Chips Result -->
-                  <div id="weekly-store-quick-results" class="flex items-center gap-2 overflow-x-auto pb-1 pt-0.5"></div>
+                  <!-- Store Counter & Quick Grid Result -->
+                  <div class="flex items-center justify-between text-[11px] font-bold text-slate-500 pt-1">
+                    <span id="weekly-store-quick-counter">Memuat daftar master toko...</span>
+                    <span class="text-[10px] text-slate-400 hidden sm:inline">Klik toko untuk langsung assign ke slot target</span>
+                  </div>
+                  <div id="weekly-store-quick-results" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 max-h-60 overflow-y-auto p-1.5 bg-slate-50/60 rounded-xl border border-slate-200/80"></div>
                 </div>
 
                 <!-- PAPAN MATRIKS 1 WEEK (SENIN s/d MINGGU) PER VISITOR -->
@@ -3885,7 +3889,7 @@ service cloud.firestore {
         </div>
 
         <!-- Store List Results -->
-        <div id="weekly-picker-list-container" class="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2 min-h-[260px] max-h-[420px]">
+        <div id="weekly-picker-list-container" class="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2 min-h-[280px] max-h-[55vh]">
           <!-- Populated dynamically with store cards -->
         </div>
 
