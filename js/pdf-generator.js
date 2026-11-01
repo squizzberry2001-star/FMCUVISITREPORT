@@ -62,44 +62,22 @@ window.FMCUPdf = {
               ? `GPS: ${Number(gpsLat).toFixed(5)}, ${Number(gpsLng).toFixed(5)}`
               : 'GPS: Live Location Verified';
 
-            if (isCompact) {
-              // Watermark ramping & mini khusus lembar dokumen/QSC agar tidak menutupi isi tabel/form
-              const barH = Math.max(20, Math.round(h * 0.032));
-              ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
-              ctx.fillRect(0, h - barH, w, barH);
+            // Watermark timestamp & GPS ramping, fit & minimalist di bagian bawah foto (bukti, perbaikan, QSC)
+            const barH = Math.max(22, Math.round(h * 0.038));
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
+            ctx.fillRect(0, h - barH, w, barH);
 
-              // Green accent bar on left
-              ctx.fillStyle = '#009944';
-              ctx.fillRect(0, h - barH, Math.max(4, Math.round(w * 0.008)), barH);
+            // Green accent bar on left
+            ctx.fillStyle = '#009944';
+            ctx.fillRect(0, h - barH, Math.max(4, Math.round(w * 0.008)), barH);
 
-              const padLeft = Math.max(10, Math.round(w * 0.016));
-              const fontSize = Math.max(9, Math.round(barH * 0.44));
+            const padLeft = Math.max(10, Math.round(w * 0.016));
+            const fontSize = Math.max(9, Math.round(barH * 0.44));
 
-              ctx.fillStyle = '#FFFFFF';
-              ctx.font = `bold ${fontSize}px sans-serif`;
-              const textStr = `${storeName.toUpperCase()} (FMI)  •  ${timeStr}  •  ${gpsStr}`;
-              ctx.fillText(textStr, padLeft, h - Math.round(barH * 0.30));
-            } else {
-              const barH = Math.max(46, Math.round(h * 0.095));
-              ctx.fillStyle = 'rgba(15, 23, 42, 0.82)';
-              ctx.fillRect(0, h - barH, w, barH);
-
-              // Green accent bar on left
-              ctx.fillStyle = '#009944';
-              ctx.fillRect(0, h - barH, Math.max(6, Math.round(w * 0.012)), barH);
-
-              const padLeft = Math.max(14, Math.round(w * 0.025));
-              const titleFontSize = Math.max(12, Math.round(barH * 0.36));
-              const subFontSize = Math.max(10, Math.round(barH * 0.27));
-
-              ctx.fillStyle = '#FFFFFF';
-              ctx.font = `bold ${titleFontSize}px sans-serif`;
-              ctx.fillText(`${storeName.toUpperCase()} (FMI)`, padLeft, h - barH + titleFontSize + 5);
-
-              ctx.fillStyle = '#CBD5E1';
-              ctx.font = `${subFontSize}px sans-serif`;
-              ctx.fillText(`${timeStr} • ${gpsStr}`, padLeft, h - 7);
-            }
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = `bold ${fontSize}px sans-serif`;
+            const textStr = `${storeName.toUpperCase()} (FMI)  •  ${timeStr}  •  ${gpsStr}`;
+            ctx.fillText(textStr, padLeft, h - Math.round(barH * 0.28));
           }
 
           resolve(canvas.toDataURL('image/jpeg', 0.84));
@@ -524,16 +502,15 @@ window.FMCUPdf = {
     this.drawPageFooter(doc, footerText);
 
     // ========================================================================
-    // PAGE 2: QSC / FAMITRACK RESULT (2 photos per page)
+    // PAGE 2: QSC / FAMITRACK RESULT (1 full photo per page, NO footer)
     // ========================================================================
     const qscPhotos = (report.qscPhotos && report.qscPhotos.length > 0)
       ? report.qscPhotos
       : [
-          { caption: 'Lembar Form QSC / FamiTrack #1 (Wajib)', dataUrl: '' },
-          { caption: 'Lembar Form QSC / FamiTrack #2 (Wajib)', dataUrl: '' }
+          { caption: 'Lembar Form QSC / FamiTrack (Full)', dataUrl: '' }
         ];
 
-    for (let i = 0; i < qscPhotos.length; i += 2) {
+    qscPhotos.forEach((photo, idx) => {
       doc.addPage([320, 180], 'landscape');
       doc.setFillColor(255, 255, 255);
       doc.rect(0, 0, 320, 180, 'F');
@@ -542,48 +519,50 @@ window.FMCUPdf = {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(18);
       doc.setTextColor(15, 23, 42); // Slate-900
-      doc.text('QSC / FamiTrack Result', 12, 22);
+      doc.text('QSC / FamiTrack Result', 12, 18);
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8.5);
       doc.setTextColor(100, 116, 139); // Slate-500
-      doc.text('Form penilaian standar kualitas, kebersihan & layanan operasional toko', 12, 28);
+      doc.text('Form penilaian standar kualitas, kebersihan & layanan operasional toko', 12, 24);
 
       doc.setDrawColor(0, 153, 166);
       doc.setLineWidth(0.35);
-      doc.line(12, 33, 308, 33);
+      doc.line(12, 28, 308, 28);
 
-      const pair = qscPhotos.slice(i, i + 2);
-      pair.forEach((photo, idx) => {
-        const cardX = idx === 0 ? 12 : 164;
-        doc.setFillColor(255, 255, 255);
-        doc.setDrawColor(226, 232, 240); // Slate-200
-        doc.setLineWidth(0.25);
-        doc.roundedRect(cardX, 39, 144, 128, 3, 3, 'FD');
+      const cardX = 12;
+      const cardY = 32;
+      const cardW = 296;
+      const cardH = 142;
 
-        const qscImgBase64 = this.getPhotoBase64ForPdf(photo);
-        if (qscImgBase64 && qscImgBase64.startsWith('data:image')) {
-          this.drawImageProportional(doc, qscImgBase64, cardX + 3, 43, 138, 112, 'JPEG', 'FAST');
-        } else {
-          doc.setFillColor(248, 250, 252);
-          doc.roundedRect(cardX + 3, 43, 138, 112, 2, 2, 'F');
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(9.5);
-          doc.setTextColor(148, 163, 184);
-          doc.text('Tidak ada foto dilampirkan (Kosong)', cardX + 72, 99, { align: 'center' });
-        }
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(226, 232, 240); // Slate-200
+      doc.setLineWidth(0.25);
+      doc.roundedRect(cardX, cardY, cardW, cardH, 3, 3, 'FD');
 
-        // Caption Bar
+      const qscImgBase64 = this.getPhotoBase64ForPdf(photo);
+      if (qscImgBase64 && qscImgBase64.startsWith('data:image')) {
+        this.drawImageProportional(doc, qscImgBase64, cardX + 3, cardY + 3, cardW - 6, cardH - 12, 'JPEG', 'FAST');
+      } else {
         doc.setFillColor(248, 250, 252);
-        doc.roundedRect(cardX + 3, 157, 138, 8, 1.5, 1.5, 'F');
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(7.8);
-        doc.setTextColor(15, 23, 42);
-        doc.text(photo.caption || `Lembar Form QSC / FamiTrack #${i + idx + 1}`, cardX + 6, 162.5);
-      });
+        doc.roundedRect(cardX + 3, cardY + 3, cardW - 6, cardH - 12, 2, 2, 'F');
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(148, 163, 184);
+        doc.text('Tidak ada foto dilampirkan (Kosong)', cardX + cardW / 2, cardY + cardH / 2, { align: 'center' });
+      }
 
-      this.drawPageFooter(doc, footerText);
-    }
+      // Caption Bar
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(cardX + 3, cardY + cardH - 8, cardW - 6, 6.5, 1, 1, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(15, 23, 42);
+      doc.text(photo.caption || `Lembar Form QSC / FamiTrack #${idx + 1}`, cardX + 6, cardY + cardH - 3.5);
+
+      // Desain ulang: Hapus footer bagian bawah untuk halaman QSC sesuai permintaan
+      // this.drawPageFooter(doc, footerText); // TIDAK DIPANGGIL
+    });
 
     // ========================================================================
     // PAGE 3: GENERAL INFORMATION (Store Crew Table)
@@ -1197,83 +1176,60 @@ window.FMCUPdf = {
       return doc;
     }
 
-    // Two vertical photos per page (Format Vertikal)
-    const photosPerPage = 2;
-    const totalPages = Math.ceil(activePhotos.length / photosPerPage);
-
-    for (let pIdx = 0; pIdx < totalPages; pIdx++) {
+    // 1 Full un-split photo per A4 page without bottom footer
+    activePhotos.forEach((photo, pIdx) => {
       if (pIdx > 0) doc.addPage();
 
-      // Header Banner FamilyMart
+      // Header Banner Minimalist
       doc.setFillColor(0, 153, 68);
-      doc.rect(0, 0, pageWidth, 24, 'F');
+      doc.rect(0, 0, pageWidth, 22, 'F');
       doc.setFillColor(0, 153, 166);
-      doc.rect(0, 24, pageWidth, 2, 'F');
+      doc.rect(0, 22, pageWidth, 2, 'F');
 
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(13);
-      doc.text('KOLASE LEMBAR QSC (SECTION 1 FORM VISIT)', 12, 11);
-      doc.setFontSize(9);
+      doc.setFontSize(12);
+      doc.text('LEMBAR QSC / FAMITRACK (SECTION 1 FORM VISIT)', 12, 10);
+      doc.setFontSize(8.5);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Store: ${cleanStore} (${report.storeCode || '-'}) | Auditor: ${report.auditorName || '-'} | Tanggal: ${dateFormatted} | Hal ${pIdx + 1}/${totalPages}`, 12, 18);
+      doc.text(`Store: ${cleanStore} (${report.storeCode || '-'}) | Auditor: ${report.auditorName || '-'} | Tanggal: ${dateFormatted} | Lembar ${pIdx + 1}/${activePhotos.length}`, 12, 17);
 
-      const startPhotoIdx = pIdx * photosPerPage;
-      const pagePhotos = activePhotos.slice(startPhotoIdx, startPhotoIdx + photosPerPage);
+      const boxX = 10;
+      const boxY = 28;
+      const boxW = 190;
+      const boxH = 260; // Mengisi hampir penuh halaman A4 (h = 297mm) tanpa footer
 
-      pagePhotos.forEach((photo, subIdx) => {
-        const photoNum = photo.slotIndex || (startPhotoIdx + subIdx + 1);
-        const boxY = 32 + (subIdx * 125);
-        const boxH = 118;
-        const boxW = 186;
-        const boxX = 12;
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(203, 213, 225);
+      doc.roundedRect(boxX, boxY, boxW, boxH, 3, 3, 'FD');
 
-        doc.setFillColor(248, 250, 252);
-        doc.setDrawColor(203, 213, 225);
-        doc.roundedRect(boxX, boxY, boxW, boxH, 3, 3, 'FD');
-
-        // Photo Label
-        doc.setFillColor(0, 153, 166);
-        doc.roundedRect(boxX + 4, boxY + 4, 75, 6.5, 1.5, 1.5, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8);
-        doc.text(`Lembar QSC / FamiTrack #${photoNum} (Section 1)`, boxX + 6, boxY + 8.5);
-
-        const imgBase64 = photo.resolvedBase64 || (photo.dataUrl && photo.dataUrl.startsWith('data:image') ? photo.dataUrl : '');
-        if (imgBase64) {
-          try {
-            // Gambar proporsional vertikal di dalam kotak A4 agar checklist & timestamp tidak tertarik
-            this.drawImageProportional(doc, imgBase64, boxX + 4, boxY + 12, boxW - 8, boxH - 16, 'JPEG', 'FAST');
-          } catch (e) {
-            console.warn('QSC photo draw error:', e);
-            doc.setTextColor(148, 163, 184);
-            doc.setFontSize(9);
-            doc.text('[Foto QSC Section 1 tersimpan di Google Drive]', boxX + 20, boxY + 50);
-          }
-        } else {
+      const imgBase64 = photo.resolvedBase64 || (photo.dataUrl && photo.dataUrl.startsWith('data:image') ? photo.dataUrl : '');
+      if (imgBase64) {
+        try {
+          this.drawImageProportional(doc, imgBase64, boxX + 3, boxY + 3, boxW - 6, boxH - 6, 'JPEG', 'FAST');
+        } catch (e) {
+          console.warn('QSC photo draw error:', e);
           doc.setTextColor(148, 163, 184);
           doc.setFontSize(9);
-          doc.text('[Foto Lembar QSC Section 1 tersimpan di Google Drive]', boxX + 20, boxY + 50);
+          doc.text('[Foto QSC Section 1 tersimpan di Google Drive]', boxX + 20, boxY + 50);
         }
-      });
-
-      // Footer
-      doc.setTextColor(148, 163, 184);
-      doc.setFontSize(8);
-      doc.text(`PT FamilyMart Indonesia • FMCU Regional Bestie Visit Report • ${dateFormatted}`, pageWidth / 2, pageHeight - 6, { align: 'center' });
-      this.drawPageFooter(doc, "");
-    }
+      } else {
+        doc.setTextColor(148, 163, 184);
+        doc.setFontSize(9);
+        doc.text('[Foto Lembar QSC Section 1 tersimpan di Google Drive]', boxX + 20, boxY + 50);
+      }
+      // Hapus footer bagian bawah sesuai permintaan Point 9
+    });
 
     return doc;
   },
 
   // Format Nama File Lembar QSC: "Lembar QSC-FAMITRACK-{nama store}-{DD-MM-YYYY}.pdf"
   getVerticalQscFileName(report) {
-    if (!report) return 'Lembar QSC-FAMITRACK-STORE.pdf';
+    if (!report) return 'Lembar QSC-Fami track-STORE.pdf';
     const cleanStore = String(report.storeName || 'STORE').replace(/[/\\:*?"<>|]/g, ' ').trim();
     const dateFormatted = this.formatDateDdMmYyyy(report.visitDate);
-    return `Lembar QSC-FAMITRACK-${cleanStore}-${dateFormatted}.pdf`;
+    return `Lembar QSC-Fami track-${cleanStore}-${dateFormatted}.pdf`;
   },
 
   async downloadVerticalQscPdf(report) {
@@ -1515,48 +1471,41 @@ window.FMCUPdf = {
       `
     });
 
-    // 2. QSC / Famitrack Result
+    // 2. QSC / Famitrack Result (1 foto full un-split per slide tanpa footer)
     const qscPhotos = (report.qscPhotos && report.qscPhotos.length > 0)
       ? report.qscPhotos
       : [
-          { caption: 'Lembar Form QSC / FamiTrack #1 (Wajib)', dataUrl: '' },
-          { caption: 'Lembar Form QSC / FamiTrack #2 (Wajib)', dataUrl: '' }
+          { caption: 'Lembar Form QSC / FamiTrack (Full)', dataUrl: '' }
         ];
 
-    for (let i = 0; i < qscPhotos.length; i += 2) {
-      const pair = qscPhotos.slice(i, i + 2);
+    qscPhotos.forEach((p, idx) => {
+      const src = this.getPhotoDisplaySrc(p);
       slides.push({
-        title: `QSC / Famitrack Result (${i + 1}-${Math.min(i + 2, qscPhotos.length)})`,
+        title: `QSC / Famitrack Result (${idx + 1}/${qscPhotos.length})`,
+        skipFooterWatermark: true,
         html: `
           <div class="w-full h-full bg-white px-[3.2%] py-[2.8%] flex flex-col justify-between">
             <div>
-              <h2 class="text-[#0099A6] font-extrabold text-[clamp(10px,2.2cqw,26px)]">QSC/ Famitrack Result</h2>
-              <div class="w-full h-[2px] bg-[#0099A6] mt-[1cqw]"></div>
+              <h2 class="text-[#0099A6] font-extrabold text-[clamp(10px,2.2cqw,26px)]">QSC / FamiTrack Result</h2>
+              <p class="text-slate-500 font-medium text-[clamp(6.5px,0.85cqw,11px)]">Lembar penilaian standar mutu & operasional toko</p>
+              <div class="w-full h-[2px] bg-[#0099A6] mt-[0.8cqw]"></div>
             </div>
-            <div class="grid grid-cols-2 gap-[3cqw] my-auto h-[68%]">
-              ${pair.map((p, idx) => {
-                const src = this.getPhotoDisplaySrc(p);
-                return `
-                <div class="border ${src ? 'border-slate-300' : 'border-dashed border-slate-300'} rounded-xl p-[1cqw] flex flex-col justify-between bg-white h-full overflow-hidden">
-                  <div class="w-full h-[88%] bg-slate-50 rounded-lg overflow-hidden flex items-center justify-center">
-                    ${src
-                      ? `<img src="${src}" class="w-full h-full object-contain" alt="QSC" />`
-                      : `<div class="flex flex-col items-center justify-center text-slate-400 p-2 text-center">
-                           <i class="fa-solid fa-file-invoice text-3xl mb-1.5 text-slate-300"></i>
-                           <span class="text-[clamp(7px,0.9cqw,12px)] font-bold text-slate-600">Foto Lembar QSC #${i + idx + 1}</span>
-                           <span class="text-[clamp(6px,0.75cqw,10px)] text-slate-400 mt-0.5">Belum ada foto diunggah (Default Kosong)</span>
-                         </div>`}
-                  </div>
-                  <div class="text-[clamp(6.5px,0.85cqw,11px)] text-slate-700 font-semibold pt-1 truncate">${p.caption || `Lembar Form QSC / FamiTrack #${i + idx + 1}`}</div>
-                </div>
-              `;
-              }).join('')}
+            <div class="w-full flex-1 my-2 border ${src ? 'border-slate-300' : 'border-dashed border-slate-300'} rounded-xl p-[1cqw] bg-slate-50 flex items-center justify-center overflow-hidden">
+              ${src
+                ? `<img src="${src}" class="w-full h-full object-contain" alt="Lembar QSC" />`
+                : `<div class="flex flex-col items-center justify-center text-slate-400 p-4 text-center">
+                     <i class="fa-solid fa-file-invoice text-4xl mb-2 text-slate-300"></i>
+                     <span class="text-[clamp(8px,1cqw,14px)] font-bold text-slate-600">Foto Lembar QSC #${idx + 1}</span>
+                     <span class="text-[clamp(6.5px,0.8cqw,11px)] text-slate-400 mt-0.5">Belum ada foto lembar QSC diunggah</span>
+                   </div>`}
             </div>
-            
+            <div class="text-[clamp(6.5px,0.85cqw,11px)] text-slate-700 font-semibold truncate pb-1">
+              ${p.caption || `Lembar Form QSC / FamiTrack #${idx + 1}`}
+            </div>
           </div>
         `
       });
-    }
+    });
 
     // 3. General Information
     const crewRows = report.crewList || [];
@@ -1906,7 +1855,7 @@ window.FMCUPdf = {
     `;
 
     slides.forEach((s) => {
-      if (s && s.html) {
+      if (s && s.html && !s.skipFooterWatermark) {
         const lastDivIdx = s.html.lastIndexOf('</div>');
         if (lastDivIdx !== -1) {
           s.html = s.html.slice(0, lastDivIdx) + watermarkSnippet + s.html.slice(lastDivIdx);

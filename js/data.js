@@ -1794,12 +1794,23 @@ window.FMCUData = {
     const storeCode = meta.storeCode || 'STORE';
     const storeName = meta.storeName || 'VISIT';
     const photoType = meta.photoType || 'EVIDENCE';
-    const cleanCaption = String(
-      photoObj.fullPhotoDataUrl ? 'Lembar_Form_QSC_Full' : (photoObj.caption || photoObj.description || photoType)
-    )
-      .replace(/[^a-zA-Z0-9_-]/g, '_')
-      .slice(0, 35);
-    const fileName = `FMCU_${storeCode}_${photoType}_${cleanCaption}_${Date.now()}.jpg`;
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+    const cleanStoreName = String(storeName).replace(/[/\\:*?"<>|]/g, ' ').trim();
+
+    let fileName = `FMCU_${storeCode}_${photoType}_${Date.now()}.jpg`;
+    let displayTitle = '';
+    if (photoType === 'QSC') {
+      fileName = `Lembar QSC-Fami track-${cleanStoreName}-${dd}-${mm}-${yyyy}.jpg`;
+      displayTitle = `Lembar QSC/Fami track-${cleanStoreName}-${dd}-${mm}-${yyyy}`;
+    } else {
+      const cleanCaption = String(
+        photoObj.caption || photoObj.description || photoType
+      ).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 35);
+      fileName = `FMCU_${storeCode}_${photoType}_${cleanCaption}_${Date.now()}.jpg`;
+    }
 
     try {
       const response = await fetch(gasUrl, {
@@ -1809,6 +1820,7 @@ window.FMCUData = {
           action: 'uploadPhoto',
           photoId: photoObj.id || '',
           fileName,
+          displayTitle: displayTitle || fileName,
           photoBase64: rawDataUrl.split(',')[1] || rawDataUrl,
           storeCode,
           storeName,
@@ -1935,11 +1947,12 @@ window.FMCUData = {
     }
   },
 
-  getStoreDraft(storeCode) {
+  getStoreDraft(storeCode, scheduleId = null) {
     if (!storeCode) return null;
     try {
       const drafts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DRAFT_REPORT) || '{}');
-      let draft = drafts[String(storeCode)] || this.draftMemoryCache[String(storeCode)] || null;
+      const schKey = scheduleId ? `${storeCode}_${scheduleId}` : null;
+      let draft = (schKey && drafts[schKey]) || drafts[String(storeCode)] || (schKey && this.draftMemoryCache[schKey]) || this.draftMemoryCache[String(storeCode)] || null;
       if (draft) {
         const hydrate = (p) => {
           if (!p) return p;
@@ -1957,21 +1970,27 @@ window.FMCUData = {
       }
       return null;
     } catch (e) {
-      return this.draftMemoryCache[String(storeCode)] || null;
+      const schKey = scheduleId ? `${storeCode}_${scheduleId}` : null;
+      return (schKey && this.draftMemoryCache[schKey]) || this.draftMemoryCache[String(storeCode)] || null;
     }
   },
 
-  saveStoreDraft(storeCode, draftData) {
+  saveStoreDraft(storeCode, draftData, scheduleId = null) {
     if (!storeCode || !draftData) return false;
+    const schId = scheduleId || draftData.scheduleId || null;
+    const schKey = schId ? `${storeCode}_${schId}` : null;
     this.draftMemoryCache[String(storeCode)] = draftData;
+    if (schKey) this.draftMemoryCache[schKey] = draftData;
     this.cacheReportPhotosInMemory(draftData);
     this.saveDraftInDb(storeCode, draftData);
     try {
       const drafts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DRAFT_REPORT) || '{}');
-      drafts[String(storeCode)] = {
+      const entry = {
         ...draftData,
         updatedAt: new Date().toISOString()
       };
+      drafts[String(storeCode)] = entry;
+      if (schKey) drafts[schKey] = entry;
       localStorage.setItem(STORAGE_KEYS.DRAFT_REPORT, JSON.stringify(drafts));
       return true;
     } catch (e) {
@@ -1979,10 +1998,12 @@ window.FMCUData = {
       try {
         const lightweightDraft = prepareReportForFirestore(draftData);
         const drafts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DRAFT_REPORT) || '{}');
-        drafts[String(storeCode)] = {
+        const entry = {
           ...lightweightDraft,
           updatedAt: new Date().toISOString()
         };
+        drafts[String(storeCode)] = entry;
+        if (schKey) drafts[schKey] = entry;
         localStorage.setItem(STORAGE_KEYS.DRAFT_REPORT, JSON.stringify(drafts));
         return true;
       } catch (err2) {
@@ -1992,13 +2013,16 @@ window.FMCUData = {
     }
   },
 
-  deleteStoreDraft(storeCode) {
+  deleteStoreDraft(storeCode, scheduleId = null) {
     if (!storeCode) return false;
+    const schKey = scheduleId ? `${storeCode}_${scheduleId}` : null;
     delete this.draftMemoryCache[String(storeCode)];
+    if (schKey) delete this.draftMemoryCache[schKey];
     this.deleteDraftFromDb(storeCode);
     try {
       const drafts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DRAFT_REPORT) || '{}');
       delete drafts[String(storeCode)];
+      if (schKey) delete drafts[schKey];
       localStorage.setItem(STORAGE_KEYS.DRAFT_REPORT, JSON.stringify(drafts));
       return true;
     } catch (e) {

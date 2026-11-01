@@ -241,6 +241,7 @@ window.FMCUApp = {
     // 1. Tandai waktu saat tab atau web app ditutup / di-unload & update status keluar aplikasi
     const markUnload = () => {
       try {
+        this.recordAppHeartbeat();
         this.saveCurrentFormDraft();
         sessionStorage.setItem(window.FMCUData.TAB_UNLOAD_KEY, String(Date.now()));
         if (this.currentUser && this.isAuditorUser(this.currentUser)) {
@@ -250,6 +251,23 @@ window.FMCUApp = {
     };
     window.addEventListener('pagehide', markUnload);
     window.addEventListener('beforeunload', markUnload);
+    document.addEventListener('visibilitychange', () => {
+      this.recordAppHeartbeat();
+      if (document.visibilityState === 'hidden') {
+        this.saveCurrentFormDraft();
+      }
+    });
+    window.addEventListener('blur', () => {
+      if (this.currentView === 'form') {
+        this.saveCurrentFormDraft();
+      }
+    });
+    setInterval(() => {
+      if (this.currentView === 'form') {
+        this.saveCurrentFormDraft();
+      }
+      this.recordAppHeartbeat();
+    }, 8000);
 
     // 2. Perpanjang sesi aktif saat user berinteraksi (throttled tiap 10 detik)
     let lastTouch = 0;
@@ -2259,6 +2277,17 @@ window.FMCUApp = {
     el.style.height = Math.max(el.scrollHeight, 42) + 'px';
   },
 
+  expandAllVisibleTextareas() {
+    requestAnimationFrame(() => {
+      document.querySelectorAll('#view-form textarea.fm-auto-textarea, #view-form textarea').forEach((ta) => {
+        if (ta.offsetParent !== null) {
+          ta.style.height = 'auto';
+          ta.style.height = Math.max(ta.scrollHeight, 42) + 'px';
+        }
+      });
+    });
+  },
+
   switchFormSection(secNum, scrollTop = true) {
     this.triggerHaptic('light');
     const targetSec = Number(secNum) || 1;
@@ -2269,6 +2298,7 @@ window.FMCUApp = {
     this.updateFormProgress();
     this.saveCurrentFormDraft();
     this.currentFormSection = targetSec;
+    setTimeout(() => this.expandAllVisibleTextareas(), 60);
 
     // Auto-fill nama visitor jika masih kosong
     if (targetSec === 1) {
@@ -3387,6 +3417,44 @@ window.FMCUApp = {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} WIB`;
   },
 
+  recordAppHeartbeat() {
+    const nowStr = this.getCurrentTimeWIB();
+    const nowTs = Date.now();
+    try {
+      localStorage.setItem('fmcu_last_active_time', nowStr);
+      localStorage.setItem('fmcu_last_active_timestamp', String(nowTs));
+      const activeCheckIn = window.FMCUData ? window.FMCUData.getActiveCheckIn() : null;
+      if (activeCheckIn) {
+        activeCheckIn.lastActiveTime = nowStr;
+        activeCheckIn.lastActiveTimestamp = nowTs;
+        window.FMCUData.setActiveCheckIn(activeCheckIn);
+        const schId = activeCheckIn.scheduleId || document.getElementById('form-schedule-id')?.value;
+        if (schId) {
+          const schedules = window.FMCUData.getSchedules() || [];
+          const sch = schedules.find((s) => s.id === schId);
+          if (sch) {
+            sch.lastActiveTime = nowStr;
+            window.FMCUData.saveSchedules(schedules);
+          }
+        }
+      }
+    } catch (e) {}
+  },
+
+  getStoreVisitCount(storeCode) {
+    if (!storeCode) return 0;
+    const reports = window.FMCUData.getReports() || [];
+    return reports.filter((r) => String(r.storeCode) === String(storeCode)).length;
+  },
+
+  renderStoreVisitBadgeHtml(storeCode) {
+    const count = this.getStoreVisitCount(storeCode);
+    if (count > 0) {
+      return `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs" title="Total kunjungan toko ini"><i class="fa-solid fa-clock-rotate-left text-[9px] text-blue-600"></i>Pernah divisit ${count}x</span>`;
+    }
+    return `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200" title="Belum pernah ada riwayat kunjungan"><i class="fa-regular fa-clock text-[9px]"></i>Belum pernah divisit</span>`;
+  },
+
   getActiveTargetStore() {
     const activeCheckIn = window.FMCUData.getActiveCheckIn();
     const storeCode =
@@ -3450,10 +3518,40 @@ window.FMCUApp = {
     // "dan jika di rentan antara jam tersebut tidak terdeteksi lokasi/terdeteksi maka tidak direcord"
     // ========================================================================
     if (distanceMeters === null || distanceMeters > GEOFENCE_RADIUS) {
+      this.recordAppHeartbeat();
       if (!currentInVal || currentInVal === '--:-- WIB' || currentInVal === '-') {
         this.updateGeofenceUI('OUTSIDE_DENIED_IN', distanceMeters);
       } else if (!currentOutVal || currentOutVal === '--:-- WIB' || currentOutVal === '-') {
-        this.updateGeofenceUI('OUTSIDE_DENIED_OUT', distanceMeters, currentInVal);
+        // Jika sudah mencapai jam out tapi posisi di luar radius: catat actual out dengan status DILUAR_RADIUS
+        if (currentTotalMins >= CUTOFF_OUT_MINS) {
+          const autoOutTime = this.getSmartAutoOutTime();
+          currentOutVal = autoOutTime;
+          if (outInput) outInput.value = autoOutTime;
+
+          if (activeCheckIn) {
+            activeCheckIn.actualOut = autoOutTime;
+            activeCheckIn.latOut = this.liveGps.lat;
+            activeCheckIn.lngOut = this.liveGps.lng;
+            activeCheckIn.outLocationStatus = `DILUAR_RADIUS (${distanceMeters || '?'}m)`;
+            window.FMCUData.setActiveCheckIn(activeCheckIn);
+          }
+          const schId = activeCheckIn?.scheduleId || document.getElementById('form-schedule-id')?.value;
+          if (schId) {
+            const schedules = window.FMCUData.getSchedules();
+            const sch = schedules.find((s) => s.id === schId);
+            if (sch) {
+              sch.actualOut = autoOutTime;
+              sch.actualLat = this.liveGps.lat;
+              sch.actualLng = this.liveGps.lng;
+              sch.outLocationStatus = `DILUAR_RADIUS (${distanceMeters || '?'}m)`;
+              window.FMCUData.saveSchedules(schedules);
+            }
+          }
+          this.updateActiveCheckInUI();
+          this.updateGeofenceUI('AUTO_OUT_COMPLETED', distanceMeters, autoOutTime);
+        } else {
+          this.updateGeofenceUI('OUTSIDE_DENIED_OUT', distanceMeters, currentInVal);
+        }
       } else {
         this.updateGeofenceUI('AUTO_OUT_COMPLETED', distanceMeters, currentOutVal);
       }
@@ -3499,15 +3597,16 @@ window.FMCUApp = {
     }
 
     // 2. ATURAN RECORD OUT:
-    // "jika visitor/regional bestie sengaja menutup aplikasi atau web maka out tidak ter record"
-    // "untuk OUT yang dibaca adalah jam terakhir web ini di Buka/dijam 17:30 atau sesudah jam tersebut"
+    // - Hanya direkam jika waktu sudah mencapai jam out (>= CUTOFF_OUT_MINS)
+    // - Jika sudah out tapi di luar radius, tetap dicatat dengan status khusus
+    // - Jika keluar app di antara jam kerja, rekam jam terakhir kali aktif buka web
+    this.recordAppHeartbeat();
+
     if (currentTotalMins < CUTOFF_OUT_MINS) {
-      // BELUM MENCAPAI JAM 17:30 -> OUT TIDAK TER-RECORD!
-      // Jika visitor sengaja menutup aplikasi atau web sebelum jam 17:30, out tidak ter-record.
+      // Belum mencapai jam out -> out belum direkam
       this.updateGeofenceUI('INSIDE_WAITING_OUT', distanceMeters, currentInVal);
     } else {
-      // WAKTU SUDAH JAM 17:30 ATAU SESUDAHNYA (>= 17:30) & VISITOR MEMBUKA WEB DI LOKASI TOKO (<= 15m):
-      // Rekam jam terakhir web ini dibuka sebagai Actual OUT
+      // Waktu sudah mencapai jam out (>= target jam out)
       const autoOutTime = this.getSmartAutoOutTime();
       if (autoOutTime) {
         currentOutVal = autoOutTime;
@@ -3517,6 +3616,7 @@ window.FMCUApp = {
           activeCheckIn.actualOut = autoOutTime;
           activeCheckIn.latOut = this.liveGps.lat;
           activeCheckIn.lngOut = this.liveGps.lng;
+          activeCheckIn.outLocationStatus = 'DALAM_RADIUS';
           window.FMCUData.setActiveCheckIn(activeCheckIn);
         }
 
@@ -3524,10 +3624,11 @@ window.FMCUApp = {
         if (schId) {
           const schedules = window.FMCUData.getSchedules();
           const sch = schedules.find((s) => s.id === schId);
-          if (sch && sch.actualOut !== autoOutTime) {
+          if (sch) {
             sch.actualOut = autoOutTime;
             sch.actualLat = this.liveGps.lat;
             sch.actualLng = this.liveGps.lng;
+            sch.outLocationStatus = 'DALAM_RADIUS';
             window.FMCUData.saveSchedules(schedules);
           }
         }
@@ -4167,6 +4268,7 @@ window.FMCUApp = {
                   Site ${r.storeCode} • ${r.storeType || 'CVS'}
                 </span>
                 <h4 class="font-extrabold text-base sm:text-lg text-slate-900">FamilyMart ${r.storeName}</h4>
+                ${this.renderStoreVisitBadgeHtml(r.storeCode)}
                 <span class="text-xs text-slate-400">•</span>
                 <span class="text-xs font-semibold text-slate-600">${dateText}</span>
               </div>
@@ -4381,7 +4483,10 @@ window.FMCUApp = {
               </div>
 
               <div>
-                <h4 class="font-extrabold text-base text-slate-900">FamilyMart ${s.storeName}</h4>
+                <div class="flex items-center gap-2 flex-wrap mb-1">
+                  <h4 class="font-extrabold text-base text-slate-900">FamilyMart ${s.storeName}</h4>
+                  ${this.renderStoreVisitBadgeHtml(s.storeCode)}
+                </div>
                 <div class="text-xs text-slate-600 flex items-center gap-1.5 mt-0.5">
                   <i class="fa-regular fa-calendar text-[#0099A6]"></i>
                   <span>${dateFormatted} (${s.shiftWindow || '-'})</span>
@@ -5659,9 +5764,11 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     if (this._isHydratingForm) return;
     const storeCode = document.getElementById('form-store-code')?.value.trim();
     if (!storeCode || storeCode === '-' || storeCode === '') return;
+    const scheduleId = document.getElementById('form-schedule-id')?.value.trim() || null;
     try {
       const draft = this.buildCurrentFormReportObject();
-      window.FMCUData.saveStoreDraft(storeCode, draft);
+      if (scheduleId) draft.scheduleId = scheduleId;
+      window.FMCUData.saveStoreDraft(storeCode, draft, scheduleId);
       this.updateLiveAutosaveBadge();
     } catch (e) {
       console.warn('Draft save error:', e);
@@ -5726,11 +5833,14 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
 
   restoreStoreData(targetStoreCode, scheduleId = null) {
     if (!targetStoreCode || targetStoreCode === '-') return false;
-    const reports = window.FMCUData.getReports();
+    const reports = window.FMCUData.getReports() || [];
+    const schedules = window.FMCUData.getSchedules() || [];
+    const sch = scheduleId ? schedules.find((s) => s.id === scheduleId) : null;
     const todayStr = this.getLocalDateISO();
+    const targetDate = sch?.scheduledDate || todayStr;
 
-    // 1. Cek apakah ada draft yang sedang aktif dikerjakan untuk toko ini
-    const draft = window.FMCUData.getStoreDraft(targetStoreCode);
+    // 1. Cek draft khusus untuk kombinasi toko + jadwal ini
+    const draft = window.FMCUData.getStoreDraft(targetStoreCode, scheduleId);
     const hasMeaningfulDraft =
       draft &&
       ((draft.observations && draft.observations.length > 0) ||
@@ -5741,16 +5851,17 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         (draft.actualIn && draft.actualIn !== '-') ||
         (draft.crewList && draft.crewList.some((c) => c.name && c.name.trim())));
 
-    // 2. Cek laporan yang sudah ada di database / arsip untuk toko ini
+    // 2. Cek laporan yang SUDAH SELESAI di database untuk jadwal spesifik ini
     let existingRep = null;
     if (scheduleId) {
       existingRep = reports.find((r) => r.scheduleId === scheduleId);
     }
+    // Jika tidak ditemukan berdasarkan scheduleId, cari yang tanggal kunjungannya persis sama
     if (!existingRep) {
-      existingRep = reports.find((r) => r.storeCode === targetStoreCode && r.visitDate === todayStr);
+      existingRep = reports.find((r) => r.storeCode === targetStoreCode && r.visitDate === targetDate);
     }
 
-    // Jika ada laporan di arsip dan TIDAK ADA draft aktif baru, muat data laporan arsip toko ini
+    // Jika ada laporan di arsip untuk jadwal/tanggal ini dan tidak ada draft baru:
     if (existingRep && (!hasMeaningfulDraft || existingRep.id === draft?.id)) {
       this.loadReportObjectToForm(existingRep);
       this.hasActiveStoreForm = true;
@@ -5759,8 +5870,13 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       return true;
     }
 
-    // Jika ada draft aktif yang sedang diedit pengguna, muat draft tersebut
+    // Jika ada draft aktif untuk toko & jadwal ini:
     if (draft) {
+      // Pastikan jika draft ini untuk jadwal baru, jangan bawa reportId lama yang bisa menimpa laporan sebelumnya
+      if (scheduleId && draft.scheduleId && draft.scheduleId !== scheduleId) {
+        draft.id = 'rep-' + Date.now();
+        draft.scheduleId = scheduleId;
+      }
       this.loadReportObjectToForm(draft);
       this.hasActiveStoreForm = true;
       this.activePreviewReportId = draft.id || '__LIVE_FORM__';
@@ -5768,16 +5884,8 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       return true;
     }
 
-    // Jika ada existingRep (meskipun ada draft kosong), tetap muat existingRep
-    if (existingRep) {
-      this.loadReportObjectToForm(existingRep);
-      this.hasActiveStoreForm = true;
-      this.activePreviewReportId = existingRep.id;
-      this.updateFormGuardVisibility();
-      return true;
-    }
-
-    // 3. Hanya jika toko benar-benar baru tanpa draft dan tanpa arsip riwayat laporan sama sekali
+    // Jika tidak ada draft maupun arsip untuk jadwal ini, MULAI FORM BARU BERSIH!
+    // PENTING: Jangan muat arsip dari tanggal lain agar PDF & data visit tidak tumpang tindih
     this.resetVisitForm(true);
     this.hasActiveStoreForm = true;
     this.activePreviewReportId = '__LIVE_FORM__';
@@ -5787,6 +5895,10 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     const st = stores.find((s) => s.code === targetStoreCode);
     if (st) {
       this.populateStoreFields(st);
+    }
+    if (scheduleId) {
+      const schIdEl = document.getElementById('form-schedule-id');
+      if (schIdEl) schIdEl.value = scheduleId;
     }
     return false;
   },
@@ -5976,21 +6088,10 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     if (!Array.isArray(qscList) || qscList.length === 0) {
       const qscTs = Date.now();
       qscList = [
-        { id: `qsc-${qscTs}-1`, caption: 'Lembar Form QSC / FamiTrack #1 (Wajib)', dataUrl: '', driveFileId: '', driveUrl: '' },
-        { id: `qsc-${qscTs}-2`, caption: 'Lembar Form QSC / FamiTrack #2 (Wajib)', dataUrl: '', driveFileId: '', driveUrl: '' }
+        { id: `qsc-${qscTs}`, caption: 'Lembar Form QSC / FamiTrack (Full)', dataUrl: '', driveFileId: '', driveUrl: '' }
       ];
     } else {
       qscList = qscList.map(hydratePhoto);
-      while (qscList.length < 2) {
-        const nextIdx = qscList.length;
-        qscList.push({
-          id: `qsc-${Date.now()}-${nextIdx + 1}`,
-          caption: nextIdx === 0 ? 'Lembar Form QSC / FamiTrack #1 (Wajib)' : 'Lembar Form QSC / FamiTrack #2 (Wajib)',
-          dataUrl: '',
-          driveFileId: '',
-          driveUrl: ''
-        });
-      }
     }
     this.formQscPhotos = qscList;
     this.formOpiObservations = JSON.parse(JSON.stringify(rep.opiObservations || []));
@@ -6050,6 +6151,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     this.renderObservationsList();
     this.renderEvidenceGrid();
     this.renderCaPhotosGrid();
+    setTimeout(() => this.expandAllVisibleTextareas(), 100);
   },
 
   // --- Sub-section Switchers for Section 2 (Observation) and Section 3 (Evidence) ---
@@ -6084,6 +6186,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     }
 
     this.triggerHaptic('light');
+    setTimeout(() => this.expandAllVisibleTextareas(), 60);
   },
 
   switchEvidenceSubSection(tab) {
@@ -6115,6 +6218,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     }
 
     this.triggerHaptic('light');
+    setTimeout(() => this.expandAllVisibleTextareas(), 60);
   },
 
   addActiveObservation() {
@@ -6504,105 +6608,86 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     }
   },
 
-  // --- Section 1C: QSC Photos ---
+  // --- Section 1C: QSC Photos (1 Full Foto Utuh Un-Split) ---
   renderQscPhotosGrid() {
     const grid = document.getElementById('form-qsc-photos-grid');
     if (!grid) return;
 
-    // Pastikan selalu fix tepat 2 slot (wajib 2: bagian atas & bagian bawah)
-    if (!Array.isArray(this.formQscPhotos) || this.formQscPhotos.length !== 2) {
+    if (!Array.isArray(this.formQscPhotos) || this.formQscPhotos.length === 0) {
       const qscTs = Date.now();
-      const p0 = this.formQscPhotos?.[0] || { id: `qsc-${qscTs}-1`, caption: 'Lembar Form QSC / FamiTrack #1 (Bagian Atas)', dataUrl: '', driveFileId: '', driveUrl: '' };
-      const p1 = this.formQscPhotos?.[1] || { id: `qsc-${qscTs}-2`, caption: 'Lembar Form QSC / FamiTrack #2 (Bagian Bawah)', dataUrl: '', driveFileId: '', driveUrl: '' };
-      this.formQscPhotos = [p0, p1];
+      this.formQscPhotos = [
+        { id: `qsc-${qscTs}`, caption: 'Lembar Form QSC / FamiTrack (Full)', dataUrl: '', driveFileId: '', driveUrl: '' }
+      ];
     }
 
-    const hasAnyPhoto = this.formQscPhotos.some((p) => p && (p.dataUrl || p.driveFileId));
-    const allUploaded = this.formQscPhotos.every((p) => p && (p.dataUrl || p.driveFileId));
+    const p0 = this.formQscPhotos[0] || {};
+    const displaySrc = window.FMCUPdf.getPhotoDisplaySrc(p0);
+    const statusBadge = p0._uploading
+      ? `<span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800"><i class="fa-solid fa-spinner fa-spin mr-1"></i>Upload ke Google Drive...</span>`
+      : p0.driveFileId
+      ? `<a href="${p0.driveViewUrl || p0.driveUrl || '#'}" target="_blank" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 hover:underline"><i class="fa-brands fa-google-drive mr-1"></i>Tersimpan di Google Drive: Lembar QSC/Fami track</a>`
+      : displaySrc
+      ? `<span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-teal-50 text-[#0099A6] border border-teal-200"><i class="fa-solid fa-cloud-arrow-up mr-1"></i>Siap Sync ke Google Drive</span>`
+      : '';
 
-    // 1. Hero Action Banner: Ambil 1x Foto Lembar Form QSC (Auto Split 2 Bagian Atas & Bawah)
-    const headerBannerHtml = `
-      <div class="col-span-full bg-gradient-to-r from-emerald-50 via-teal-50 to-white border-2 border-emerald-300 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-2xs mb-1">
-        <div class="flex items-center gap-3.5 min-w-0">
-          <div class="w-12 h-12 rounded-2xl bg-[#009944] text-white flex items-center justify-center text-xl shrink-0 shadow-xs">
-            <i class="fa-solid fa-camera"></i>
-          </div>
-          <div>
-            <div class="flex items-center gap-2 flex-wrap">
-              <h4 class="font-black text-sm sm:text-base text-slate-900">Upload 1x Foto Lembar Form QSC / FamiTrack</h4>
-              <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">Auto-Split 2 Bagian</span>
+    grid.innerHTML = `
+      <div class="col-span-full border-2 ${displaySrc ? 'border-emerald-300 bg-white' : 'border-dashed border-slate-300 bg-slate-50/70'} rounded-2xl p-4 sm:p-5 space-y-3.5 transition shadow-2xs">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-10 h-10 rounded-xl ${displaySrc ? 'bg-[#009944]' : 'bg-slate-400'} text-white flex items-center justify-center text-lg shrink-0 shadow-2xs">
+              <i class="fa-solid fa-file-invoice"></i>
             </div>
-            <p class="text-xs text-slate-600 mt-0.5 leading-relaxed">
-              Visitor cukup <strong>foto 1x lembar QSC penuh</strong>. Sistem secara otomatis membelah foto menjadi <strong>2 bagian (Atas & Bawah)</strong> untuk slide PDF, dan menyimpan <strong>foto penuh utuh</strong> di Google Drive.
-            </p>
+            <div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <h4 class="font-extrabold text-sm sm:text-base text-slate-900">Foto Lembar Form QSC / FamiTrack (Full Foto)</h4>
+                <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full ${displaySrc ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-50 text-rose-700 border border-rose-200'}">
+                  ${displaySrc ? '✓ Foto Lembar Terpasang (Full)' : '* Wajib Diunggah'}
+                </span>
+              </div>
+              <p class="text-xs text-slate-500 mt-0.5">
+                Foto lembar penilaian operasional toko secara utuh. Foto tampil penuh tanpa dipotong pada slide PDF dan otomatis diarsipkan ke Google Drive.
+              </p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0 self-stretch sm:self-auto">
+            ${displaySrc ? `
+              <button type="button" onclick="FMCUApp.editQscPhoto(0)" class="h-9 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs transition" title="Sunting & Crop Lembar QSC">
+                <i class="fa-solid fa-pen"></i>
+                <span>Sunting</span>
+              </button>
+            ` : ''}
+            <label class="h-9 px-4 rounded-xl fm-gradient hover:opacity-95 text-white font-extrabold text-xs cursor-pointer shadow-xs transition flex items-center justify-center gap-1.5 flex-1 sm:flex-initial">
+              <i class="fa-solid fa-camera"></i>
+              <span>${displaySrc ? 'Ganti Foto' : 'Pilih / Foto Lembar QSC'}</span>
+              <input type="file" accept="image/*" onchange="FMCUApp.handleQscSingleFullUpload(event)" class="hidden" />
+            </label>
           </div>
         </div>
-        <label class="fm-gradient hover:opacity-95 text-white font-extrabold text-xs sm:text-sm px-5 py-2.5 rounded-xl cursor-pointer shadow-md transition flex items-center gap-2 shrink-0 self-stretch sm:self-auto justify-center">
-          <i class="fa-solid fa-camera text-base"></i>
-          <span>${hasAnyPhoto ? 'Ambil Ulang 1x Foto Form QSC' : 'Ambil 1x Foto Form QSC'}</span>
-          <input type="file" accept="image/*" onchange="FMCUApp.handleQscSingleFullUpload(event)" class="hidden" />
-        </label>
+
+        <div class="w-full h-80 sm:h-96 rounded-xl bg-slate-900/5 border border-slate-200 overflow-hidden flex items-center justify-center relative group">
+          ${
+            displaySrc
+              ? `
+              <div onclick="FMCUApp.openPhotoPreviewModal('${displaySrc}', 'Lembar Form QSC / FamiTrack')" class="w-full h-full cursor-zoom-in relative group/qsc flex items-center justify-center" title="Klik untuk perbesar foto lembar QSC">
+                <img src="${displaySrc}" class="w-full h-full object-contain p-1 transition duration-200 group-hover/qsc:scale-[1.01]" alt="Lembar QSC Full" />
+                <div class="absolute inset-0 bg-slate-950/25 opacity-0 group-hover/qsc:opacity-100 transition-opacity flex items-center justify-center pointer-events-none p-2">
+                  <span class="bg-slate-900/85 backdrop-blur-xs text-white text-xs font-extrabold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 border border-white/20">
+                    <i class="fa-solid fa-magnifying-glass-plus text-emerald-400 text-sm"></i>
+                    <span>Perbesar Gambar</span>
+                  </span>
+                </div>
+              </div>
+              `
+              : `<div class="text-center text-slate-400 text-xs p-6 space-y-2">
+                  <i class="fa-solid fa-file-invoice text-4xl text-slate-300 block"></i>
+                  <span class="font-bold text-slate-600 block text-sm">Belum Ada Foto Lembar QSC</span>
+                  <span class="text-xs text-slate-400 block max-w-sm mx-auto">Klik tombol <strong>"Pilih / Foto Lembar QSC"</strong> di atas untuk mengambil foto checklist form penilaian toko secara penuh.</span>
+                 </div>`
+          }
+          ${statusBadge ? `<div class="absolute bottom-2.5 left-2.5 shadow-sm z-10">${statusBadge}</div>` : ''}
+        </div>
       </div>
     `;
-
-    // 2. Render 2 Slot (Lembar Bagian Atas & Lembar Bagian Bawah)
-    const slotsHtml = this.formQscPhotos
-      .map((p, idx) => {
-        if ((!p.dataUrl || !p.dataUrl.startsWith('data:image')) && !p.driveFileId && (p.id === 'qsc-1' || p.id === 'qsc-2')) {
-          p.id = `qsc-${Date.now()}-${idx + 1}`;
-        }
-        const displaySrc = window.FMCUPdf.getPhotoDisplaySrc(p);
-        const statusBadge = p._uploading
-          ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800"><i class="fa-solid fa-spinner fa-spin mr-1"></i>Upload ke Google Drive...</span>`
-          : p.driveFileId
-          ? `<a href="${p.driveViewUrl || p.driveUrl || '#'}" target="_blank" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 hover:underline"><i class="fa-brands fa-google-drive mr-1"></i>Tersimpan di Google Drive (Foto Penuh)</a>`
-          : displaySrc
-          ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-[#0099A6]"><i class="fa-solid fa-cloud-arrow-up mr-1"></i>Siap Sync ke Google Drive</span>`
-          : '';
-
-        const slotLabel = idx === 0 ? 'Lembar #1 (Bagian Atas - Auto Split)' : 'Lembar #2 (Bagian Bawah - Auto Split)';
-        const guideText = idx === 0 ? 'Potongan otomatis bagian atas lembar QSC' : 'Potongan otomatis bagian bawah lembar QSC';
-
-        return `
-        <div class="border-2 ${displaySrc ? 'border-emerald-300 bg-white' : 'border-dashed border-slate-300 bg-slate-50/70'} rounded-2xl p-4 space-y-3 transition">
-          <div class="flex items-center justify-between gap-2">
-            <div class="flex items-center gap-2 min-w-0">
-              <span class="w-6 h-6 rounded-lg ${displaySrc ? 'bg-[#009944]' : 'bg-slate-400'} text-white text-xs font-extrabold flex items-center justify-center shrink-0 shadow-2xs">${idx + 1}</span>
-              <span class="text-xs font-extrabold text-slate-800 truncate">${slotLabel}</span>
-            </div>
-            <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full shrink-0 ${displaySrc ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-50 text-rose-700 border border-rose-200'}">
-              ${displaySrc ? '✓ Split Terpasang' : '* Menunggu 1x Foto'}
-            </span>
-          </div>
-
-          <div class="w-full h-56 rounded-xl bg-slate-50 border border-slate-200 overflow-hidden flex items-center justify-center relative group">
-            ${
-              displaySrc
-                ? `
-                <div onclick="FMCUApp.openPhotoPreviewModal('${displaySrc}', '${slotLabel}')" class="w-full h-full cursor-zoom-in relative group/qsc flex items-center justify-center bg-slate-900/5" title="Klik untuk perbesar potongan lembar QSC">
-                  <img src="${displaySrc}" class="w-full h-full object-contain p-1 transition duration-200 group-hover/qsc:scale-[1.02]" alt="QSC Form ${idx + 1}" />
-                  <div class="absolute inset-0 bg-slate-950/25 opacity-0 group-hover/qsc:opacity-100 transition-opacity flex items-center justify-center pointer-events-none p-2">
-                    <span class="bg-slate-900/85 backdrop-blur-xs text-white text-[11px] font-extrabold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 border border-white/20">
-                      <i class="fa-solid fa-magnifying-glass-plus text-emerald-400 text-xs"></i>
-                      <span>Perbesar Gambar</span>
-                    </span>
-                  </div>
-                </div>
-                `
-                : `<div class="text-center text-slate-400 text-xs p-4">
-                    <i class="fa-solid fa-file-invoice text-3xl mb-1.5 text-slate-300 block"></i>
-                    <span class="font-bold text-slate-600 block">${slotLabel}</span>
-                    <span class="text-[11px] text-slate-400">${guideText}</span>
-                   </div>`
-            }
-            ${statusBadge ? `<div class="absolute top-2 left-2 shadow-sm z-10">${statusBadge}</div>` : ''}
-          </div>
-        </div>
-      `;
-      })
-      .join('');
-
-    grid.innerHTML = headerBannerHtml + slotsHtml;
   },
 
   removeQscPhoto(idx) {
@@ -6633,7 +6718,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     this.showToast(`Foto lembar QSC #${idx + 1} berhasil dikosongkan.`, 'info');
   },
 
-  editQscPhoto(idx) {
+  editQscPhoto(idx = 0) {
     if (!this.formQscPhotos || !this.formQscPhotos[idx]) return;
     const photoObj = this.formQscPhotos[idx];
     const currentSrc = window.FMCUPdf.getPhotoDisplaySrc(photoObj);
@@ -6648,19 +6733,18 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         storeName,
         gpsLat: this.liveGps.lat,
         gpsLng: this.liveGps.lng,
-        applyWatermark: false,
+        applyWatermark: true,
         compact: true,
         photoType: 'QSC'
       });
-      if (!photoObj.id || photoObj.id === 'qsc-1' || photoObj.id === 'qsc-2') {
-        photoObj.id = `qsc-${Date.now()}-${idx + 1}`;
-      }
       photoObj.dataUrl = dataUrl;
+      photoObj.fullPhotoDataUrl = dataUrl;
       photoObj.driveFileId = '';
       photoObj.driveUrl = '';
       photoObj._uploading = true;
       window.FMCUData.cachePhotoInMemory(photoObj.id, null, dataUrl);
       this.renderQscPhotosGrid();
+      this.saveCurrentFormDraft();
 
       await window.FMCUData.uploadPhotoToGDrive(photoObj, {
         storeCode,
@@ -6672,14 +6756,14 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       this.saveCurrentFormDraft();
       this.showToast(
         photoObj.driveFileId
-          ? `Foto lembar QSC #${idx + 1} berhasil diperbarui & disimpan ke Google Drive!`
-          : `Foto lembar QSC #${idx + 1} berhasil diperbarui.`,
+          ? 'Foto lembar QSC berhasil diperbarui & disimpan ke Google Drive!'
+          : 'Foto lembar QSC berhasil diperbarui.',
         'success'
       );
     });
   },
 
-  // Handler untuk mengunggah 1x foto penuh Form QSC dan otomatis membelah jadi 2 (atas & bawah)
+  // Handler untuk mengunggah 1x foto penuh Form QSC secara utuh (Un-Split)
   async handleQscSingleFullUpload(event) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -6688,10 +6772,9 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     this.promptPhotoEdit(file, async (editedFullDataUrl) => {
       const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
       const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
-      this.showToast('Memproses & membelah foto Form QSC menjadi 2 bagian...', 'info', 2500);
+      this.showToast('Memproses foto Lembar Form QSC...', 'info', 2000);
 
       try {
-        // 1. Watermark & GPS ramping (compact) pada foto penuh agar tidak menutupi tabel checklist lembar QSC
         const fullStampedDataUrl = await window.FMCUPdf.processAndStampImage(editedFullDataUrl, {
           storeName,
           gpsLat: this.liveGps.lat,
@@ -6701,73 +6784,41 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
           photoType: 'QSC'
         });
 
-        // 2. Split otomatis menjadi 2 bagian: atas & bawah
-        const { topDataUrl, bottomDataUrl } = await window.FMCUPdf.splitImageTopBottom(fullStampedDataUrl);
-
         const qscTs = Date.now();
         const p0 = {
-          id: `qsc-${qscTs}-1`,
-          caption: 'Lembar Form QSC / FamiTrack #1 (Bagian Atas)',
-          dataUrl: topDataUrl,
-          fullPhotoDataUrl: fullStampedDataUrl,
-          driveFileId: '',
-          driveUrl: '',
-          _uploading: true
-        };
-        const p1 = {
-          id: `qsc-${qscTs}-2`,
-          caption: 'Lembar Form QSC / FamiTrack #2 (Bagian Bawah)',
-          dataUrl: bottomDataUrl,
+          id: `qsc-${qscTs}`,
+          caption: 'Lembar Form QSC / FamiTrack (Full)',
+          dataUrl: fullStampedDataUrl,
           fullPhotoDataUrl: fullStampedDataUrl,
           driveFileId: '',
           driveUrl: '',
           _uploading: true
         };
 
-        this.formQscPhotos = [p0, p1];
-        window.FMCUData.cachePhotoInMemory(p0.id, null, topDataUrl);
-        window.FMCUData.cachePhotoInMemory(p1.id, null, bottomDataUrl);
+        this.formQscPhotos = [p0];
+        window.FMCUData.cachePhotoInMemory(p0.id, null, fullStampedDataUrl);
         this.renderQscPhotosGrid();
         this.saveCurrentFormDraft();
 
-        // 3. Simpan foto penuh (foto kolasi utuh) ke Google Drive
-        const fullPhotoObj = {
-          id: `qsc-full-${qscTs}`,
-          caption: 'Lembar_Form_QSC_Full',
-          dataUrl: fullStampedDataUrl,
-          fullPhotoDataUrl: fullStampedDataUrl
-        };
-
-        await window.FMCUData.uploadPhotoToGDrive(fullPhotoObj, {
+        await window.FMCUData.uploadPhotoToGDrive(p0, {
           storeCode,
           storeName,
           photoType: 'QSC'
         });
 
-        // Bagikan ID & URL Drive foto utuh ke kedua slot
-        if (fullPhotoObj.driveFileId) {
-          p0.driveFileId = fullPhotoObj.driveFileId;
-          p0.driveUrl = fullPhotoObj.driveUrl;
-          p0.driveViewUrl = fullPhotoObj.driveViewUrl;
-          p1.driveFileId = fullPhotoObj.driveFileId;
-          p1.driveUrl = fullPhotoObj.driveUrl;
-          p1.driveViewUrl = fullPhotoObj.driveViewUrl;
-        }
         p0._uploading = false;
-        p1._uploading = false;
-
         this.renderQscPhotosGrid();
         this.saveCurrentFormDraft();
         this.updateFormProgress();
         this.showToast(
-          fullPhotoObj.driveFileId
-            ? 'Foto Form QSC berhasil di-split jadi 2 bagian & foto utuh tersimpan di Google Drive!'
-            : 'Foto Form QSC berhasil diunggah & di-split jadi 2 bagian.',
+          p0.driveFileId
+            ? 'Foto Lembar QSC utuh berhasil diunggah & tersimpan di Google Drive!'
+            : 'Foto Lembar QSC utuh berhasil diproses.',
           'success'
         );
       } catch (err) {
-        console.error('Gagal memproses split foto QSC:', err);
-        this.showToast('Gagal memproses split foto QSC: ' + err.message, 'error');
+        console.error('Gagal memproses foto QSC:', err);
+        this.showToast('Gagal memproses foto QSC: ' + err.message, 'error');
       }
     });
   },
@@ -7622,10 +7673,6 @@ Instruksi:
 
         return `
         <div class="border border-slate-300 rounded-2xl p-3 bg-white grid grid-cols-12 gap-3 relative shadow-sm">
-          <button type="button" onclick="FMCUApp.removeEvidencePhotoCard(${idx})" class="absolute top-2 right-2 w-6 h-6 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center text-xs cursor-pointer" title="Hapus Foto">
-            <i class="fa-solid fa-xmark"></i>
-          </button>
-
           <div class="col-span-5 h-36 bg-slate-100 rounded-xl overflow-hidden relative flex items-center justify-center border border-slate-200 group">
             ${
               displaySrc
@@ -7661,16 +7708,22 @@ Instruksi:
             </div>
           </div>
 
-          <div class="col-span-7 flex flex-col justify-between pr-4">
+          <div class="col-span-7 flex flex-col justify-between pr-1">
             <div>
               <div class="flex items-center justify-between gap-1.5 mb-1.5 min-h-[26px]">
                 <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider truncate">Keterangan #${idx + 1}</span>
-                <button type="button" onclick="FMCUApp.startVoiceInput('ev-desc-${idx}', this)" class="shrink-0 h-6 text-[10px] font-bold text-teal-800 bg-teal-50 hover:bg-teal-100 px-2 rounded-lg border border-teal-200 flex items-center gap-1 cursor-pointer transition shadow-2xs" title="Diktekan dengan Suara">
-                  <i class="fa-solid fa-microphone text-rose-500 text-[10px]"></i>
-                  <span>Dikte</span>
-                </button>
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button type="button" onclick="FMCUApp.startVoiceInput('ev-desc-${idx}', this)" class="h-6 text-[10px] font-bold text-teal-800 bg-teal-50 hover:bg-teal-100 px-2 rounded-lg border border-teal-200 flex items-center gap-1 cursor-pointer transition shadow-2xs" title="Diktekan dengan Suara">
+                    <i class="fa-solid fa-microphone text-rose-500 text-[10px]"></i>
+                    <span>Dikte</span>
+                  </button>
+                  <button type="button" onclick="FMCUApp.removeEvidencePhotoCard(${idx})" class="h-6 text-[10px] font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 px-2 rounded-lg border border-rose-200 flex items-center gap-1 cursor-pointer transition shadow-2xs" title="Hapus Foto">
+                    <i class="fa-solid fa-trash-can text-[10px]"></i>
+                    <span>Hapus</span>
+                  </button>
+                </div>
               </div>
-              <textarea id="ev-desc-${idx}" rows="3" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formEvidencePhotos[${idx}].description = this.value; FMCUApp.updateFormProgress();" placeholder="Tuliskan deskripsi temuan foto ini..." class="fm-auto-textarea border border-slate-200 rounded-lg p-2 text-xs text-slate-800 focus:outline-none focus:border-teal-500">${ev.description || ''}</textarea>
+              <textarea id="ev-desc-${idx}" rows="3" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formEvidencePhotos[${idx}].description = this.value; FMCUApp.updateFormProgress();" placeholder="Tuliskan deskripsi temuan foto ini..." class="fm-auto-textarea border border-slate-200 rounded-lg p-2 text-xs text-slate-800 focus:outline-none focus:border-teal-500 w-full">${ev.description || ''}</textarea>
               ${driveBadge}
             </div>
           </div>
@@ -7874,10 +7927,6 @@ Instruksi:
 
         return `
         <div class="border border-purple-200 rounded-2xl p-3 bg-white grid grid-cols-12 gap-3 relative shadow-sm">
-          <button type="button" onclick="FMCUApp.removeCaPhotoCard(${idx})" class="absolute top-2 right-2 w-6 h-6 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center text-xs cursor-pointer" title="Hapus Foto">
-            <i class="fa-solid fa-xmark"></i>
-          </button>
-
           <div class="col-span-5 h-36 bg-slate-100 rounded-xl overflow-hidden relative flex items-center justify-center border border-slate-200 group">
             ${
               displaySrc
@@ -7913,16 +7962,22 @@ Instruksi:
             </div>
           </div>
 
-          <div class="col-span-7 flex flex-col justify-between pr-4">
+          <div class="col-span-7 flex flex-col justify-between pr-1">
             <div>
               <div class="flex items-center justify-between gap-1.5 mb-1.5 min-h-[26px]">
                 <span class="text-[10px] font-black text-purple-900/70 uppercase tracking-wider truncate">Perbaikan #${idx + 1}</span>
-                <button type="button" onclick="FMCUApp.startVoiceInput('ca-desc-${idx}', this)" class="shrink-0 h-6 text-[10px] font-bold text-purple-800 bg-purple-50 hover:bg-purple-100 px-2 rounded-lg border border-purple-200 flex items-center gap-1 cursor-pointer transition shadow-2xs" title="Diktekan dengan Suara">
-                  <i class="fa-solid fa-microphone text-rose-500 text-[10px]"></i>
-                  <span>Dikte</span>
-                </button>
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button type="button" onclick="FMCUApp.startVoiceInput('ca-desc-${idx}', this)" class="h-6 text-[10px] font-bold text-purple-800 bg-purple-50 hover:bg-purple-100 px-2 rounded-lg border border-purple-200 flex items-center gap-1 cursor-pointer transition shadow-2xs" title="Diktekan dengan Suara">
+                    <i class="fa-solid fa-microphone text-rose-500 text-[10px]"></i>
+                    <span>Dikte</span>
+                  </button>
+                  <button type="button" onclick="FMCUApp.removeCaPhotoCard(${idx})" class="h-6 text-[10px] font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 px-2 rounded-lg border border-rose-200 flex items-center gap-1 cursor-pointer transition shadow-2xs" title="Hapus Foto">
+                    <i class="fa-solid fa-trash-can text-[10px]"></i>
+                    <span>Hapus</span>
+                  </button>
+                </div>
               </div>
-              <textarea id="ca-desc-${idx}" rows="3" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formCaPhotos[${idx}].description = this.value; FMCUApp.updateFormProgress();" placeholder="Tuliskan deskripsi tindakan perbaikan / hasil..." class="fm-auto-textarea border border-slate-200 rounded-lg p-2 text-xs text-slate-800 focus:outline-none focus:border-purple-500">${ca.description || ''}</textarea>
+              <textarea id="ca-desc-${idx}" rows="3" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formCaPhotos[${idx}].description = this.value; FMCUApp.updateFormProgress();" placeholder="Tuliskan deskripsi tindakan perbaikan / hasil..." class="fm-auto-textarea border border-slate-200 rounded-lg p-2 text-xs text-slate-800 focus:outline-none focus:border-purple-500 w-full">${ca.description || ''}</textarea>
               ${driveBadge}
             </div>
           </div>
@@ -9291,13 +9346,24 @@ Instruksi:
         )
       : stores;
 
+    const selectedDate = document.getElementById('adm-sch-date')?.value || '';
+    const schedules = window.FMCUData.getSchedules() || [];
+    const storesScheduledToday = new Set(
+      schedules
+        .filter((sc) => sc.scheduledDate === selectedDate && sc.status !== 'CANCELLED')
+        .map((sc) => String(sc.storeCode))
+    );
+
     schStoreSel.innerHTML =
       filtered.length > 0
         ? filtered
-            .map(
-              (s) =>
-                `<option value="${s.code}">${s.code} - ${s.name} (${s.type || 'CVS'}${s.city ? ' • ' + s.city : ''})</option>`
-            )
+            .map((s) => {
+              const isAlreadyChosen = storesScheduledToday.has(String(s.code));
+              if (isAlreadyChosen) {
+                return `<option value="${s.code}" disabled class="text-slate-400 bg-slate-100">[SUDAH DIJADWALKAN HARI INI] ${s.code} - ${s.name} (${s.type || 'CVS'})</option>`;
+              }
+              return `<option value="${s.code}">${s.code} - ${s.name} (${s.type || 'CVS'}${s.city ? ' • ' + s.city : ''})</option>`;
+            })
             .join('')
         : `<option value="">-- Tidak ada toko yang cocok dengan pencarian --</option>`;
   },
@@ -9598,7 +9664,10 @@ Instruksi:
                 <div class="text-[10px] font-mono text-slate-400">${s.shiftWindow || '08:30 - 17:30'}</div>
               </td>
               <td class="py-2.5 px-3">
-                <div class="font-bold text-slate-900">${s.storeName}</div>
+                <div class="font-bold text-slate-900 flex items-center gap-1.5 flex-wrap">
+                  <span>${s.storeName}</span>
+                  ${this.renderStoreVisitBadgeHtml(s.storeCode)}
+                </div>
                 <div class="text-[10px] font-mono text-slate-400">Site: ${s.storeCode} (${s.storeType || 'CVS'})</div>
               </td>
               <td class="py-2.5 px-3 font-bold text-slate-800">${s.auditorName}</td>
@@ -9903,19 +9972,30 @@ Instruksi:
     if (!st) return;
 
     const defaultPriority = document.getElementById('weekly-default-priority')?.value || 'NORMAL';
-    const slotItems = this.getWeeklySlotItems(audId, dayIdx);
+    const days = this.getFiveWorkDays(this.weeklyMondayDate);
+    const dayName = days[dayIdx]?.dayName || `Hari ${dayIdx + 1}`;
 
-    if (slotItems.some((item) => String(item.storeCode) === String(st.code))) {
-      this.showToast(`Toko ${st.name} (${st.code}) sudah ada di hari tersebut.`, 'info');
-    } else {
-      slotItems.push({
-        storeCode: st.code,
-        priority: defaultPriority
-      });
+    // Cek apakah toko sudah dipilih oleh visitor manapun di hari yang sama
+    let existingAuditorName = '';
+    for (const otherAudId of this.weeklySelectedAuditors) {
+      const otherItems = this.getWeeklySlotItems(otherAudId, dayIdx);
+      if (otherItems.some((item) => String(item.storeCode) === String(st.code))) {
+        const u = window.FMCUData.getUsers().find((x) => x.id === otherAudId);
+        existingAuditorName = u ? u.name : 'Visitor lain';
+        break;
+      }
+    }
+    if (existingAuditorName) {
+      this.showToast(`Toko "${st.name}" (${st.code}) sudah dijadwalkan pada ${dayName} untuk ${existingAuditorName}. Toko tidak dapat dipilih lebih dari 1x di hari yang sama.`, 'warning', 4500);
+      return;
     }
 
-    const days = this.getFiveWorkDays(this.weeklyMondayDate);
-    const dayName = days[dayIdx]?.dayName || 'HARI';
+    const slotItems = this.getWeeklySlotItems(audId, dayIdx);
+    slotItems.push({
+      storeCode: st.code,
+      priority: defaultPriority
+    });
+
 
     // Jika berasal dari Quick Picker dan Auto-Advance aktif, geser ke hari berikutnya (Sen -> Sel -> Rab -> Kam -> Jum -> Sab -> Min)
     const autoAdvance = document.getElementById('weekly-auto-advance-day')?.checked;
@@ -10208,10 +10288,24 @@ Instruksi:
     listEl.innerHTML = displayList
       .map((st) => {
         const isAssigned = assignedCodes.has(String(st.code));
+        let assignedToOtherName = '';
+        for (const otherAudId of this.weeklySelectedAuditors) {
+          if (otherAudId !== auditorId) {
+            const otherItems = this.getWeeklySlotItems(otherAudId, dayIndex);
+            if (otherItems.some((it) => String(it.storeCode) === String(st.code))) {
+              const u = window.FMCUData.getUsers().find((x) => x.id === otherAudId);
+              assignedToOtherName = u ? u.name : 'Visitor Lain';
+              break;
+            }
+          }
+        }
+
         return `
           <div class="p-2.5 sm:p-3 rounded-xl border transition ${
             isAssigned
               ? 'bg-emerald-50/90 border-emerald-300 ring-1 ring-emerald-300/40 shadow-2xs'
+              : assignedToOtherName
+              ? 'bg-slate-100/70 border-slate-200 opacity-60'
               : 'bg-white border-slate-200 hover:border-emerald-300 hover:bg-slate-50/80 shadow-2xs'
           } flex items-center justify-between gap-3">
             <div class="flex items-center gap-2.5 min-w-0 flex-1">
@@ -10226,6 +10320,8 @@ Instruksi:
                   <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-slate-100 text-slate-600">${st.type || 'CVS'}</span>
                   ${st.city ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-100 text-slate-500">${st.city}</span>` : ''}
                   ${isAssigned ? `<span class="px-2 py-0.2 rounded-full text-[9px] font-extrabold bg-emerald-200 text-emerald-900">✓ Terjadwal Hari Ini</span>` : ''}
+                  ${assignedToOtherName ? `<span class="px-2 py-0.2 rounded-full text-[9px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200">[Dipilih ${assignedToOtherName}]</span>` : ''}
+                  ${this.renderStoreVisitBadgeHtml(st.code)}
                 </div>
                 <h5 class="font-extrabold text-xs sm:text-sm text-slate-900 truncate leading-snug mt-0.5" title="${st.name}">${st.name}</h5>
                 <p class="text-[10px] text-slate-500 truncate mt-0.5">${st.address || '-'} ${st.areaManager ? ' • AM: ' + st.areaManager : ''}</p>
@@ -10242,6 +10338,15 @@ Instruksi:
                      >
                        <i class="fa-solid fa-trash-can text-[10px]"></i>
                        <span>Hapus</span>
+                     </button>`
+                  : assignedToOtherName
+                  ? `<button
+                       type="button"
+                       disabled
+                       class="px-3 py-1.5 rounded-xl bg-slate-200 text-slate-400 border border-slate-300 text-xs font-bold cursor-not-allowed"
+                       title="Toko sudah dijadwalkan untuk ${assignedToOtherName} pada hari ini"
+                     >
+                       <span>Terkunci</span>
                      </button>`
                   : `<button
                        type="button"
@@ -11488,7 +11593,19 @@ Instruksi:
     }
     if (!au) return;
 
-    const schedules = window.FMCUData.getSchedules();
+    const schedules = window.FMCUData.getSchedules() || [];
+    // Validasi toko sudah dipilih di hari yang sama
+    const existingSch = schedules.find(
+      (sc) => String(sc.storeCode) === String(st.code) && sc.scheduledDate === dateStr && sc.status !== 'CANCELLED'
+    );
+    if (existingSch) {
+      this.showToast(
+        `Toko "${st.name}" (${st.code}) sudah dijadwalkan pada tanggal ${dateStr} untuk visitor ${existingSch.auditorName || '-'}. Toko tidak dapat dipilih 2x di hari yang sama.`,
+        'warning',
+        5000
+      );
+      return;
+    }
     schedules.unshift({
       id: 'sch-' + Date.now(),
       storeCode: st.code,
@@ -12363,11 +12480,12 @@ Instruksi:
           <div class="border ${isDone ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200 bg-white'} rounded-2xl p-4 space-y-3 shadow-2xs">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
               <div>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
                   <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${isDone ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
                     ${isDone ? '✓ Selesai' : '⏳ Terjadwal'}
                   </span>
                   <span class="text-xs font-black text-slate-900">${s.storeName} (${s.storeCode})</span>
+                  ${this.renderStoreVisitBadgeHtml(s.storeCode)}
                 </div>
                 <div class="text-[11px] text-slate-500 mt-0.5">
                   <i class="fa-solid fa-user-check text-slate-400 mr-1"></i>Visitor: <strong class="text-slate-800">${s.auditorName || 'Belum Ditugaskan'}</strong>
@@ -13448,13 +13566,13 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder, databaseFolder) {
       var fname = f.getName().trim();
       var fnameLower = fname.toLowerCase();
 
-      // Jangan sentuh folder database dan folder hierarki tahun laporan (e.g. "01. VISIT BESTIE 2026")
-      if (fnameLower === dbFolderName || /^01\.\s*VISIT\s*BESTIE/i.test(fname)) {
+      // Jangan sentuh folder database dan folder hierarki tahun laporan (e.g. "01. VISIT BESTIE 2026", "02. VISIT BESTIE 2027")
+      if (fnameLower === dbFolderName || /^\d{2}\.\s*VISIT/i.test(fname)) {
         continue;
       }
 
-      // Deteksi folder toko (e.g. "0003 - PEJATEN", "0014 - PTC", "0064 - MENTENG SQUARE...", atau yang diawali digit kode toko)
-      if (/^\d{3,5}\s*[-_]/i.test(fname) || fnameLower.indexOf('store') !== -1 || fnameLower.indexOf('visit') !== -1) {
+      // Deteksi folder toko yang tercecer di root (e.g. "0064 - MENTENG SQUARE...", atau yang diawali digit kode toko)
+      if (/^\d{3,5}\s*[-_]/i.test(fname) || fnameLower.indexOf('store') !== -1 || fnameLower.indexOf('visit') !== -1 || fnameLower.indexOf('menteng') !== -1 || !/^\d{2}\./.test(fname)) {
         try {
           if (typeof f.moveTo === 'function') {
             f.moveTo(databaseFolder);
