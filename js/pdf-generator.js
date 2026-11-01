@@ -502,38 +502,44 @@ window.FMCUPdf = {
     this.drawPageFooter(doc, footerText);
 
     // ========================================================================
-    // PAGE 2: QSC / FAMITRACK RESULT (1 full photo per page, NO footer)
+    // PAGE 2: QSC / FAMITRACK RESULT (1 lembar sama kanan-kiri, NO footer)
     // ========================================================================
+    doc.addPage([320, 180], 'landscape');
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, 320, 180, 'F');
+
+    // Header Minimalist & Corporate
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.setTextColor(15, 23, 42); // Slate-900
+    doc.text('QSC / FamiTrack Result', 12, 18);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(100, 116, 139); // Slate-500
+    doc.text('Form penilaian standar kualitas, kebersihan & layanan operasional toko', 12, 24);
+
+    doc.setDrawColor(0, 153, 166);
+    doc.setLineWidth(0.35);
+    doc.line(12, 28, 308, 28);
+
     const qscPhotos = (report.qscPhotos && report.qscPhotos.length > 0)
       ? report.qscPhotos
       : [
-          { caption: 'Lembar Form QSC / FamiTrack (Full)', dataUrl: '' }
+          { caption: 'Lembar Form QSC / FamiTrack #1 (Bagian Atas)', dataUrl: '' },
+          { caption: 'Lembar Form QSC / FamiTrack #2 (Bagian Bawah)', dataUrl: '' }
         ];
 
-    qscPhotos.forEach((photo, idx) => {
-      doc.addPage([320, 180], 'landscape');
-      doc.setFillColor(255, 255, 255);
-      doc.rect(0, 0, 320, 180, 'F');
+    const cardW = 144;
+    const cardH = 142;
+    const cardY = 32;
 
-      // Header Minimalist & Corporate
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(18);
-      doc.setTextColor(15, 23, 42); // Slate-900
-      doc.text('QSC / FamiTrack Result', 12, 18);
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8.5);
-      doc.setTextColor(100, 116, 139); // Slate-500
-      doc.text('Form penilaian standar kualitas, kebersihan & layanan operasional toko', 12, 24);
-
-      doc.setDrawColor(0, 153, 166);
-      doc.setLineWidth(0.35);
-      doc.line(12, 28, 308, 28);
-
-      const cardX = 12;
-      const cardY = 32;
-      const cardW = 296;
-      const cardH = 142;
+    // Render 2 Kartu bersisian Kanan-Kiri di satu lembar yang sama
+    // Slot 1 (Kiri): Bagian Atas
+    // Slot 2 (Kanan): Bagian Bawah
+    [0, 1].forEach((idx) => {
+      const cardX = idx === 0 ? 12 : 164;
+      const photo = qscPhotos[idx] || {};
 
       doc.setFillColor(255, 255, 255);
       doc.setDrawColor(226, 232, 240); // Slate-200
@@ -545,11 +551,16 @@ window.FMCUPdf = {
         this.drawImageProportional(doc, qscImgBase64, cardX + 3, cardY + 3, cardW - 6, cardH - 12, 'JPEG', 'FAST');
       } else {
         doc.setFillColor(248, 250, 252);
-        doc.roundedRect(cardX + 3, cardY + 3, cardW - 6, cardH - 12, 2, 2, 'F');
+        doc.roundedRect(cardX + 3, cardY + cardH - 12, cardW - 6, cardH - 12, 2, 2, 'F');
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
+        doc.setFontSize(9.5);
         doc.setTextColor(148, 163, 184);
-        doc.text('Tidak ada foto dilampirkan (Kosong)', cardX + cardW / 2, cardY + cardH / 2, { align: 'center' });
+        doc.text(
+          idx === 0 ? 'Foto Lembar QSC Bagian Atas (Kosong)' : 'Foto Lembar QSC Bagian Bawah (Kosong)',
+          cardX + cardW / 2,
+          cardY + cardH / 2,
+          { align: 'center' }
+        );
       }
 
       // Caption Bar
@@ -558,11 +569,13 @@ window.FMCUPdf = {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8);
       doc.setTextColor(15, 23, 42);
-      doc.text(photo.caption || `Lembar Form QSC / FamiTrack #${idx + 1}`, cardX + 6, cardY + cardH - 3.5);
-
-      // Desain ulang: Hapus footer bagian bawah untuk halaman QSC sesuai permintaan
-      // this.drawPageFooter(doc, footerText); // TIDAK DIPANGGIL
+      const defaultCaption = idx === 0 ? 'Lembar Form QSC / FamiTrack #1 (Bagian Atas)' : 'Lembar Form QSC / FamiTrack #2 (Bagian Bawah)';
+      doc.text(photo.caption || defaultCaption, cardX + 6, cardY + cardH - 3.5);
     });
+
+    // Desain ulang: Hapus footer bagian bawah untuk halaman QSC sesuai permintaan
+    // this.drawPageFooter(doc, footerText); // TIDAK DIPANGGIL
+
 
     // ========================================================================
     // PAGE 3: GENERAL INFORMATION (Store Crew Table)
@@ -1471,40 +1484,64 @@ window.FMCUPdf = {
       `
     });
 
-    // 2. QSC / Famitrack Result (1 foto full un-split per slide tanpa footer)
+    // 2. QSC / Famitrack Result (1 lembar slide dengan 2 foto side-by-side kanan-kiri, tanpa footer)
     const qscPhotos = (report.qscPhotos && report.qscPhotos.length > 0)
       ? report.qscPhotos
       : [
-          { caption: 'Lembar Form QSC / FamiTrack (Full)', dataUrl: '' }
+          { caption: 'Lembar Form QSC / FamiTrack #1 (Bagian Atas)', dataUrl: '' },
+          { caption: 'Lembar Form QSC / FamiTrack #2 (Bagian Bawah)', dataUrl: '' }
         ];
 
-    qscPhotos.forEach((p, idx) => {
-      const src = this.getPhotoDisplaySrc(p);
-      slides.push({
-        title: `QSC / Famitrack Result (${idx + 1}/${qscPhotos.length})`,
-        skipFooterWatermark: true,
-        html: `
-          <div class="w-full h-full bg-white px-[3.2%] py-[2.8%] flex flex-col justify-between">
-            <div>
-              <h2 class="text-[#0099A6] font-extrabold text-[clamp(10px,2.2cqw,26px)]">QSC / FamiTrack Result</h2>
-              <p class="text-slate-500 font-medium text-[clamp(6.5px,0.85cqw,11px)]">Lembar penilaian standar mutu & operasional toko</p>
-              <div class="w-full h-[2px] bg-[#0099A6] mt-[0.8cqw]"></div>
+    const p0 = qscPhotos[0] || {};
+    const p1 = qscPhotos[1] || {};
+    const src0 = this.getPhotoDisplaySrc(p0);
+    const src1 = this.getPhotoDisplaySrc(p1);
+
+    slides.push({
+      title: 'QSC / FamiTrack Result',
+      skipFooterWatermark: true,
+      html: `
+        <div class="w-full h-full bg-white px-[3.2%] py-[2.8%] flex flex-col justify-between">
+          <div>
+            <h2 class="text-[#0099A6] font-extrabold text-[clamp(10px,2.2cqw,26px)]">QSC / FamiTrack Result</h2>
+            <p class="text-slate-500 font-medium text-[clamp(6.5px,0.85cqw,11px)]">Lembar penilaian standar mutu & operasional toko</p>
+            <div class="w-full h-[2px] bg-[#0099A6] mt-[0.8cqw]"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-[1.5cqw] flex-1 my-2">
+            <!-- Card Kiri: Bagian Atas -->
+            <div class="border ${src0 ? 'border-slate-300' : 'border-dashed border-slate-300'} rounded-xl p-[0.8cqw] bg-slate-50 flex flex-col justify-between overflow-hidden">
+              <div class="flex-1 w-full flex items-center justify-center overflow-hidden">
+                ${src0
+                  ? `<img src="${src0}" class="w-full h-full object-contain" alt="Lembar QSC Bagian Atas" />`
+                  : `<div class="flex flex-col items-center justify-center text-slate-400 p-2 text-center">
+                       <i class="fa-solid fa-file-invoice text-3xl mb-1.5 text-slate-300"></i>
+                       <span class="text-[clamp(8px,1cqw,13px)] font-bold text-slate-600">Lembar QSC #1 (Bagian Atas)</span>
+                       <span class="text-[clamp(6px,0.75cqw,10px)] text-slate-400 mt-0.5">Belum ada foto</span>
+                     </div>`}
+              </div>
+              <div class="text-[clamp(6.5px,0.8cqw,11px)] text-slate-700 font-semibold truncate pt-1 border-t border-slate-200 mt-1">
+                ${p0.caption || 'Lembar Form QSC / FamiTrack #1 (Bagian Atas)'}
+              </div>
             </div>
-            <div class="w-full flex-1 my-2 border ${src ? 'border-slate-300' : 'border-dashed border-slate-300'} rounded-xl p-[1cqw] bg-slate-50 flex items-center justify-center overflow-hidden">
-              ${src
-                ? `<img src="${src}" class="w-full h-full object-contain" alt="Lembar QSC" />`
-                : `<div class="flex flex-col items-center justify-center text-slate-400 p-4 text-center">
-                     <i class="fa-solid fa-file-invoice text-4xl mb-2 text-slate-300"></i>
-                     <span class="text-[clamp(8px,1cqw,14px)] font-bold text-slate-600">Foto Lembar QSC #${idx + 1}</span>
-                     <span class="text-[clamp(6.5px,0.8cqw,11px)] text-slate-400 mt-0.5">Belum ada foto lembar QSC diunggah</span>
-                   </div>`}
-            </div>
-            <div class="text-[clamp(6.5px,0.85cqw,11px)] text-slate-700 font-semibold truncate pb-1">
-              ${p.caption || `Lembar Form QSC / FamiTrack #${idx + 1}`}
+
+            <!-- Card Kanan: Bagian Bawah -->
+            <div class="border ${src1 ? 'border-slate-300' : 'border-dashed border-slate-300'} rounded-xl p-[0.8cqw] bg-slate-50 flex flex-col justify-between overflow-hidden">
+              <div class="flex-1 w-full flex items-center justify-center overflow-hidden">
+                ${src1
+                  ? `<img src="${src1}" class="w-full h-full object-contain" alt="Lembar QSC Bagian Bawah" />`
+                  : `<div class="flex flex-col items-center justify-center text-slate-400 p-2 text-center">
+                       <i class="fa-solid fa-file-invoice text-3xl mb-1.5 text-slate-300"></i>
+                       <span class="text-[clamp(8px,1cqw,13px)] font-bold text-slate-600">Lembar QSC #2 (Bagian Bawah)</span>
+                       <span class="text-[clamp(6px,0.75cqw,10px)] text-slate-400 mt-0.5">Belum ada foto</span>
+                     </div>`}
+              </div>
+              <div class="text-[clamp(6.5px,0.8cqw,11px)] text-slate-700 font-semibold truncate pt-1 border-t border-slate-200 mt-1">
+                ${p1.caption || 'Lembar Form QSC / FamiTrack #2 (Bagian Bawah)'}
+              </div>
             </div>
           </div>
-        `
-      });
+        </div>
+      `
     });
 
     // 3. General Information

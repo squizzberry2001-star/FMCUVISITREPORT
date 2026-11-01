@@ -1979,14 +1979,24 @@ window.FMCUData = {
     if (!storeCode || !draftData) return false;
     const schId = scheduleId || draftData.scheduleId || null;
     const schKey = schId ? `${storeCode}_${schId}` : null;
+
+    // 1. Simpan di RAM Memory Cache (Akses Instan Cepat)
     this.draftMemoryCache[String(storeCode)] = draftData;
     if (schKey) this.draftMemoryCache[schKey] = draftData;
+
+    // 2. Simpan seluruh binary foto ke IndexedDB (Kapasitas Gigabytes tanpa batas kuota)
     this.cacheReportPhotosInMemory(draftData);
+
+    // 3. Simpan full draft utuh ke IndexedDB drafts store
     this.saveDraftInDb(storeCode, draftData);
+    if (schKey) this.saveDraftInDb(schKey, draftData);
+
+    // 4. Simpan versi lightweight (tanpa Base64 biner raksasa) di LocalStorage agar kuota 5MB tidak jebol
     try {
+      const lightweightDraft = prepareReportForFirestore(draftData);
       const drafts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DRAFT_REPORT) || '{}');
       const entry = {
-        ...draftData,
+        ...lightweightDraft,
         updatedAt: new Date().toISOString()
       };
       drafts[String(storeCode)] = entry;
@@ -1994,22 +2004,8 @@ window.FMCUData = {
       localStorage.setItem(STORAGE_KEYS.DRAFT_REPORT, JSON.stringify(drafts));
       return true;
     } catch (e) {
-      console.warn('LocalStorage draft quota warning, saving lightweight draft:', e);
-      try {
-        const lightweightDraft = prepareReportForFirestore(draftData);
-        const drafts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DRAFT_REPORT) || '{}');
-        const entry = {
-          ...lightweightDraft,
-          updatedAt: new Date().toISOString()
-        };
-        drafts[String(storeCode)] = entry;
-        if (schKey) drafts[schKey] = entry;
-        localStorage.setItem(STORAGE_KEYS.DRAFT_REPORT, JSON.stringify(drafts));
-        return true;
-      } catch (err2) {
-        console.error('Failed to save store draft in localStorage, draft safely preserved in IndexedDB:', err2);
-        return false;
-      }
+      console.warn('LocalStorage draft quota warning, draft safely preserved in IndexedDB & RAM:', e);
+      return true;
     }
   },
 
@@ -2019,6 +2015,7 @@ window.FMCUData = {
     delete this.draftMemoryCache[String(storeCode)];
     if (schKey) delete this.draftMemoryCache[schKey];
     this.deleteDraftFromDb(storeCode);
+    if (schKey) this.deleteDraftFromDb(schKey);
     try {
       const drafts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DRAFT_REPORT) || '{}');
       delete drafts[String(storeCode)];

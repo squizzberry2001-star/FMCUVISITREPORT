@@ -179,6 +179,20 @@ window.FMCUApp = {
     this.checkAndDispatchUserVisitNotifications();
 
     this.renderHomeNewsSlider();
+
+    // Pastikan database IndexedDB foto & draft terinisialisasi dan siap di RAM
+    if (window.FMCUData && typeof window.FMCUData.initPhotoStorage === 'function') {
+      window.FMCUData.initPhotoStorage().then(() => {
+        const curCheckIn = window.FMCUData.getActiveCheckIn();
+        if (curCheckIn && curCheckIn.storeCode) {
+          const curCode = document.getElementById('form-store-code')?.value.trim();
+          if (!curCode || curCode === '-' || curCode === curCheckIn.storeCode) {
+            this.restoreStoreData(curCheckIn.storeCode, curCheckIn.scheduleId || null);
+          }
+        }
+      }).catch(() => {});
+    }
+
     if (activeCheckIn && activeCheckIn.storeCode) {
       this.restoreActiveCheckInToForm(activeCheckIn);
     } else {
@@ -242,6 +256,7 @@ window.FMCUApp = {
     const markUnload = () => {
       try {
         this.recordAppHeartbeat();
+        this.syncAllFormInputsToMemory();
         this.saveCurrentFormDraft();
         sessionStorage.setItem(window.FMCUData.TAB_UNLOAD_KEY, String(Date.now()));
         if (this.currentUser && this.isAuditorUser(this.currentUser)) {
@@ -254,20 +269,23 @@ window.FMCUApp = {
     document.addEventListener('visibilitychange', () => {
       this.recordAppHeartbeat();
       if (document.visibilityState === 'hidden') {
+        this.syncAllFormInputsToMemory();
         this.saveCurrentFormDraft();
       }
     });
     window.addEventListener('blur', () => {
       if (this.currentView === 'form') {
+        this.syncAllFormInputsToMemory();
         this.saveCurrentFormDraft();
       }
     });
     setInterval(() => {
       if (this.currentView === 'form') {
+        this.syncAllFormInputsToMemory();
         this.saveCurrentFormDraft();
       }
       this.recordAppHeartbeat();
-    }, 8000);
+    }, 4000);
 
     // 2. Perpanjang sesi aktif saat user berinteraksi (throttled tiap 10 detik)
     let lastTouch = 0;
@@ -2040,6 +2058,7 @@ window.FMCUApp = {
 
     // Auto-save form draft jika visitor berpindah dari halaman Form
     if (this.currentView === 'form' && viewName !== 'form') {
+      this.syncAllFormInputsToMemory();
       this.saveCurrentFormDraft();
     }
 
@@ -2078,8 +2097,16 @@ window.FMCUApp = {
         return;
       }
       if (!this.hasActiveStoreForm) {
-        this.showToast('Pilih dan lakukan Check-In pada toko di jadwal Anda terlebih dahulu untuk membuka Form Visit.', 'warning');
-        viewName = this.getFirstAllowedView();
+        const activeCheckIn = window.FMCUData.getActiveCheckIn();
+        if (activeCheckIn && activeCheckIn.storeCode) {
+          this.hasActiveStoreForm = true;
+          this.restoreStoreData(activeCheckIn.storeCode, activeCheckIn.scheduleId || null);
+        } else {
+          this.showToast('Pilih dan lakukan Check-In pada toko di jadwal Anda terlebih dahulu untuk membuka Form Visit.', 'warning');
+          viewName = this.getFirstAllowedView();
+        }
+      } else {
+        setTimeout(() => this.expandAllVisibleTextareas(), 100);
       }
     }
 
@@ -5760,15 +5787,104 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     });
   },
 
+  syncAllFormInputsToMemory() {
+    // 1. Sinkronisasi identitas toko & header
+    const sName = document.getElementById('form-store-name')?.value.trim();
+    const sHead = document.getElementById('form-store-head')?.value.trim();
+    const sAm = document.getElementById('form-area-manager')?.value.trim();
+    const sRm = document.getElementById('form-regional-manager')?.value.trim();
+    const sEmail = document.getElementById('form-store-email')?.value.trim();
+    const sCa = document.getElementById('form-ca-link')?.value.trim();
+    const sIn = document.getElementById('form-actual-in')?.value.trim();
+    const sOut = document.getElementById('form-actual-out')?.value.trim();
+    const sScore = document.getElementById('form-qsc-score')?.value.trim();
+
+    // 2. Sinkronisasi Crew Table dari DOM
+    const crewTable = document.getElementById('crew-table-body');
+    if (crewTable && Array.isArray(this.formCrew)) {
+      const rows = crewTable.querySelectorAll('tr');
+      rows.forEach((r, idx) => {
+        if (!this.formCrew[idx]) return;
+        const nameInput = r.querySelector('input[type="text"]');
+        const levelSel = r.querySelector('select');
+        if (nameInput) this.formCrew[idx].name = nameInput.value;
+        if (levelSel) this.formCrew[idx].jobLevel = levelSel.value;
+      });
+    }
+
+    // 3. Sinkronisasi Observasi QSC
+    if (Array.isArray(this.formObservations)) {
+      this.formObservations.forEach((obs, idx) => {
+        const temuanEl = document.getElementById(`obs-temuan-${idx}`);
+        const dampakEl = document.getElementById(`obs-qsc-dampak-${idx}`);
+        const kondisiEl = document.getElementById(`obs-qsc-kondisi-${idx}`);
+        const tindakanEl = document.getElementById(`obs-qsc-tindakan-${idx}`);
+        const penyebabEl = document.getElementById(`obs-qsc-penyebab-${idx}`);
+        const hasilEl = document.getElementById(`obs-qsc-hasil-${idx}`);
+
+        if (temuanEl) obs.temuan = temuanEl.value;
+        if (dampakEl) obs.dampak = dampakEl.value;
+        if (kondisiEl) obs.kondisiIdeal = kondisiEl.value;
+        if (tindakanEl) obs.tindakanPerbaikan = tindakanEl.value;
+        if (penyebabEl) obs.penyebab = penyebabEl.value;
+        if (hasilEl) obs.hasil = hasilEl.value;
+      });
+    }
+
+    // 4. Sinkronisasi Observasi OPI
+    if (Array.isArray(this.formOpiObservations)) {
+      this.formOpiObservations.forEach((obs, idx) => {
+        const temuanEl = document.getElementById(`obs-opi-temuan-${idx}`);
+        const dampakEl = document.getElementById(`obs-opi-dampak-${idx}`);
+        const kondisiEl = document.getElementById(`obs-opi-kondisi-${idx}`);
+        const tindakanEl = document.getElementById(`obs-opi-tindakan-${idx}`);
+        const penyebabEl = document.getElementById(`obs-opi-penyebab-${idx}`);
+        const hasilEl = document.getElementById(`obs-opi-hasil-${idx}`);
+
+        if (temuanEl) obs.temuan = temuanEl.value;
+        if (dampakEl) obs.dampak = dampakEl.value;
+        if (kondisiEl) obs.kondisiIdeal = kondisiEl.value;
+        if (tindakanEl) obs.tindakanPerbaikan = tindakanEl.value;
+        if (penyebabEl) obs.penyebab = penyebabEl.value;
+        if (hasilEl) obs.hasil = hasilEl.value;
+      });
+    }
+
+    // 5. Sinkronisasi Deskripsi Foto Evidence & CA
+    if (Array.isArray(this.formEvidencePhotos)) {
+      this.formEvidencePhotos.forEach((p, idx) => {
+        const descEl = document.getElementById(`ev-desc-${idx}`);
+        if (descEl) p.description = descEl.value;
+      });
+    }
+    if (Array.isArray(this.formCaPhotos)) {
+      this.formCaPhotos.forEach((p, idx) => {
+        const descEl = document.getElementById(`ca-desc-${idx}`);
+        if (descEl) p.description = descEl.value;
+      });
+    }
+  },
+
   saveCurrentFormDraft() {
     if (this._isHydratingForm) return;
     const storeCode = document.getElementById('form-store-code')?.value.trim();
     if (!storeCode || storeCode === '-' || storeCode === '') return;
     const scheduleId = document.getElementById('form-schedule-id')?.value.trim() || null;
     try {
+      this.syncAllFormInputsToMemory();
       const draft = this.buildCurrentFormReportObject();
       if (scheduleId) draft.scheduleId = scheduleId;
       window.FMCUData.saveStoreDraft(storeCode, draft, scheduleId);
+
+      // Simpan referensi toko draft aktif ke activeCheckIn
+      const activeCheckIn = window.FMCUData.getActiveCheckIn() || {};
+      activeCheckIn.storeCode = storeCode;
+      if (scheduleId) activeCheckIn.scheduleId = scheduleId;
+      activeCheckIn.activeDraftStoreCode = storeCode;
+      activeCheckIn.activeDraftScheduleId = scheduleId;
+      activeCheckIn.lastSavedAt = Date.now();
+      window.FMCUData.setActiveCheckIn(activeCheckIn);
+
       this.updateLiveAutosaveBadge();
     } catch (e) {
       console.warn('Draft save error:', e);
@@ -5839,40 +5955,27 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     const todayStr = this.getLocalDateISO();
     const targetDate = sch?.scheduledDate || todayStr;
 
-    // 1. Cek draft khusus untuk kombinasi toko + jadwal ini
+    // 1. Cek draft khusus untuk kombinasi toko + jadwal ini (atau dari memory cache / IndexedDB)
     const draft = window.FMCUData.getStoreDraft(targetStoreCode, scheduleId);
-    const hasMeaningfulDraft =
+
+    // Kriteria draft yang memiliki isi (meskipun hanya sebagian):
+    const hasAnyDraftData =
       draft &&
-      ((draft.observations && draft.observations.length > 0) ||
-        (draft.opiObservations && draft.opiObservations.length > 0) ||
-        (draft.evidencePhotos && draft.evidencePhotos.length > 0) ||
-        (draft.caPhotos && draft.caPhotos.length > 0) ||
+      ((draft.observations && draft.observations.some(o => o && (o.temuan || o.dampak || o.penyebab || o.tindakanPerbaikan || o.hasil))) ||
+        (draft.opiObservations && draft.opiObservations.some(o => o && (o.temuan || o.dampak || o.penyebab || o.tindakanPerbaikan || o.hasil))) ||
+        (draft.qscPhotos && draft.qscPhotos.some(p => p && (p.dataUrl || p.driveFileId || p.fullPhotoDataUrl))) ||
+        (draft.evidencePhotos && draft.evidencePhotos.some(p => p && (p.dataUrl || p.driveFileId || p.description))) ||
+        (draft.caPhotos && draft.caPhotos.some(p => p && (p.dataUrl || p.driveFileId || p.description))) ||
         (draft.qscScore && Number(draft.qscScore) > 0) ||
-        (draft.actualIn && draft.actualIn !== '-') ||
-        (draft.crewList && draft.crewList.some((c) => c.name && c.name.trim())));
+        (draft.storeHead && draft.storeHead.trim() !== '' && draft.storeHead !== '-') ||
+        (draft.areaManager && draft.areaManager.trim() !== '' && draft.areaManager !== '-') ||
+        (draft.storeEmail && draft.storeEmail.trim() !== '') ||
+        (draft.caLink && draft.caLink.trim() !== '') ||
+        (draft.actualIn && draft.actualIn !== '-' && draft.actualIn !== '--:-- WIB') ||
+        (draft.crewList && draft.crewList.some((c) => c && c.name && c.name.trim())));
 
-    // 2. Cek laporan yang SUDAH SELESAI di database untuk jadwal spesifik ini
-    let existingRep = null;
-    if (scheduleId) {
-      existingRep = reports.find((r) => r.scheduleId === scheduleId);
-    }
-    // Jika tidak ditemukan berdasarkan scheduleId, cari yang tanggal kunjungannya persis sama
-    if (!existingRep) {
-      existingRep = reports.find((r) => r.storeCode === targetStoreCode && r.visitDate === targetDate);
-    }
-
-    // Jika ada laporan di arsip untuk jadwal/tanggal ini dan tidak ada draft baru:
-    if (existingRep && (!hasMeaningfulDraft || existingRep.id === draft?.id)) {
-      this.loadReportObjectToForm(existingRep);
-      this.hasActiveStoreForm = true;
-      this.activePreviewReportId = existingRep.id;
-      this.updateFormGuardVisibility();
-      return true;
-    }
-
-    // Jika ada draft aktif untuk toko & jadwal ini:
-    if (draft) {
-      // Pastikan jika draft ini untuk jadwal baru, jangan bawa reportId lama yang bisa menimpa laporan sebelumnya
+    // JIKA ADA DRAFT BERISI: UTAMAKAN DRAFT AGAR SELURUH DATA YANG DIKETIK / DIUPLOAD TETAP UTUH!
+    if (draft && hasAnyDraftData) {
       if (scheduleId && draft.scheduleId && draft.scheduleId !== scheduleId) {
         draft.id = 'rep-' + Date.now();
         draft.scheduleId = scheduleId;
@@ -5884,8 +5987,33 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       return true;
     }
 
-    // Jika tidak ada draft maupun arsip untuk jadwal ini, MULAI FORM BARU BERSIH!
-    // PENTING: Jangan muat arsip dari tanggal lain agar PDF & data visit tidak tumpang tindih
+    // 2. Cek laporan yang SUDAH SELESAI di database untuk jadwal spesifik ini (hanya jika tidak ada draft aktif)
+    let existingRep = null;
+    if (scheduleId) {
+      existingRep = reports.find((r) => r.scheduleId === scheduleId);
+    }
+    if (!existingRep) {
+      existingRep = reports.find((r) => r.storeCode === targetStoreCode && r.visitDate === targetDate);
+    }
+
+    if (existingRep) {
+      this.loadReportObjectToForm(existingRep);
+      this.hasActiveStoreForm = true;
+      this.activePreviewReportId = existingRep.id;
+      this.updateFormGuardVisibility();
+      return true;
+    }
+
+    // Jika draft ada meskipun minimalis:
+    if (draft) {
+      this.loadReportObjectToForm(draft);
+      this.hasActiveStoreForm = true;
+      this.activePreviewReportId = draft.id || '__LIVE_FORM__';
+      this.updateFormGuardVisibility();
+      return true;
+    }
+
+    // 3. Jika tidak ada draft maupun arsip untuk jadwal ini, MULAI FORM BARU BERSIH
     this.resetVisitForm(true);
     this.hasActiveStoreForm = true;
     this.activePreviewReportId = '__LIVE_FORM__';
@@ -6117,9 +6245,9 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     // Asynchronous IndexedDB photo hydration (apabila tab sempat di-refresh atau memory cache kosong)
     if (window.FMCUData && typeof window.FMCUData.getPhotoFromDb === 'function') {
       const allFormPhotos = [...this.formQscPhotos, ...this.formEvidencePhotos, ...this.formCaPhotos];
-      // Hanya hydrate foto yang memang memiliki driveFileId atau driveUrl (bukan slot kosong)
+      // Hydrate seluruh foto yang belum memiliki dataUrl tapi memiliki ID valid di IndexedDB
       const needsHydration = allFormPhotos.filter(
-        (p) => p && (!p.dataUrl || !p.dataUrl.startsWith('data:image')) && p.id !== 'qsc-1' && p.id !== 'qsc-2' && (p.driveFileId || p.driveUrl)
+        (p) => p && (!p.dataUrl || !p.dataUrl.startsWith('data:image')) && p.id && p.id !== 'qsc-1' && p.id !== 'qsc-2'
       );
       if (needsHydration.length > 0) {
         Promise.all(
@@ -6135,6 +6263,9 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         ).then(() => {
           this._isHydratingForm = false;
           this.renderFormDynamicSections();
+        }).catch((e) => {
+          console.warn('Photo hydration warning:', e);
+          this._isHydratingForm = false;
         });
       } else {
         this._isHydratingForm = false;
@@ -6608,86 +6739,119 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     }
   },
 
-  // --- Section 1C: QSC Photos (1 Full Foto Utuh Un-Split) ---
+  // --- Section 1C: QSC Photos (1x Ambil Foto -> Auto-Split 2 Bagian Kanan-Kiri, Full di GDrive) ---
   renderQscPhotosGrid() {
     const grid = document.getElementById('form-qsc-photos-grid');
     if (!grid) return;
 
-    if (!Array.isArray(this.formQscPhotos) || this.formQscPhotos.length === 0) {
+    // Pastikan selalu tepat 2 slot (bagian atas & bagian bawah)
+    if (!Array.isArray(this.formQscPhotos) || this.formQscPhotos.length !== 2) {
       const qscTs = Date.now();
-      this.formQscPhotos = [
-        { id: `qsc-${qscTs}`, caption: 'Lembar Form QSC / FamiTrack (Full)', dataUrl: '', driveFileId: '', driveUrl: '' }
-      ];
+      const p0 = this.formQscPhotos?.[0] || { id: `qsc-${qscTs}-1`, caption: 'Lembar Form QSC / FamiTrack #1 (Bagian Atas)', dataUrl: '', driveFileId: '', driveUrl: '' };
+      const p1 = this.formQscPhotos?.[1] || { id: `qsc-${qscTs}-2`, caption: 'Lembar Form QSC / FamiTrack #2 (Bagian Bawah)', dataUrl: '', driveFileId: '', driveUrl: '' };
+      this.formQscPhotos = [p0, p1];
     }
 
-    const p0 = this.formQscPhotos[0] || {};
-    const displaySrc = window.FMCUPdf.getPhotoDisplaySrc(p0);
-    const statusBadge = p0._uploading
-      ? `<span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800"><i class="fa-solid fa-spinner fa-spin mr-1"></i>Upload ke Google Drive...</span>`
-      : p0.driveFileId
-      ? `<a href="${p0.driveViewUrl || p0.driveUrl || '#'}" target="_blank" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 hover:underline"><i class="fa-brands fa-google-drive mr-1"></i>Tersimpan di Google Drive: Lembar QSC/Fami track</a>`
-      : displaySrc
-      ? `<span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-teal-50 text-[#0099A6] border border-teal-200"><i class="fa-solid fa-cloud-arrow-up mr-1"></i>Siap Sync ke Google Drive</span>`
-      : '';
+    const hasAnyPhoto = this.formQscPhotos.some((p) => p && (p.dataUrl || p.driveFileId));
 
-    grid.innerHTML = `
-      <div class="col-span-full border-2 ${displaySrc ? 'border-emerald-300 bg-white' : 'border-dashed border-slate-300 bg-slate-50/70'} rounded-2xl p-4 sm:p-5 space-y-3.5 transition shadow-2xs">
-        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div class="flex items-center gap-3 min-w-0">
-            <div class="w-10 h-10 rounded-xl ${displaySrc ? 'bg-[#009944]' : 'bg-slate-400'} text-white flex items-center justify-center text-lg shrink-0 shadow-2xs">
-              <i class="fa-solid fa-file-invoice"></i>
-            </div>
-            <div>
-              <div class="flex items-center gap-2 flex-wrap">
-                <h4 class="font-extrabold text-sm sm:text-base text-slate-900">Foto Lembar Form QSC / FamiTrack (Full Foto)</h4>
-                <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full ${displaySrc ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-50 text-rose-700 border border-rose-200'}">
-                  ${displaySrc ? '✓ Foto Lembar Terpasang (Full)' : '* Wajib Diunggah'}
-                </span>
-              </div>
-              <p class="text-xs text-slate-500 mt-0.5">
-                Foto lembar penilaian operasional toko secara utuh. Foto tampil penuh tanpa dipotong pada slide PDF dan otomatis diarsipkan ke Google Drive.
-              </p>
-            </div>
+    // 1. Hero Action Banner: Ambil 1x Foto Lembar Form QSC (Auto Split 2 Bagian Atas & Bawah)
+    const headerBannerHtml = `
+      <div class="col-span-full bg-gradient-to-r from-emerald-50 via-teal-50 to-white border-2 border-emerald-300 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-2xs mb-1">
+        <div class="flex items-center gap-3.5 min-w-0">
+          <div class="w-12 h-12 rounded-2xl bg-[#009944] text-white flex items-center justify-center text-xl shrink-0 shadow-xs">
+            <i class="fa-solid fa-camera"></i>
           </div>
-          <div class="flex items-center gap-2 shrink-0 self-stretch sm:self-auto">
-            ${displaySrc ? `
-              <button type="button" onclick="FMCUApp.editQscPhoto(0)" class="h-9 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs transition" title="Sunting & Crop Lembar QSC">
-                <i class="fa-solid fa-pen"></i>
-                <span>Sunting</span>
-              </button>
-            ` : ''}
-            <label class="h-9 px-4 rounded-xl fm-gradient hover:opacity-95 text-white font-extrabold text-xs cursor-pointer shadow-xs transition flex items-center justify-center gap-1.5 flex-1 sm:flex-initial">
-              <i class="fa-solid fa-camera"></i>
-              <span>${displaySrc ? 'Ganti Foto' : 'Pilih / Foto Lembar QSC'}</span>
-              <input type="file" accept="image/*" onchange="FMCUApp.handleQscSingleFullUpload(event)" class="hidden" />
-            </label>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h4 class="font-black text-sm sm:text-base text-slate-900">Upload 1x Foto Lembar Form QSC / FamiTrack</h4>
+              <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">Auto-Split 2 Bagian Kanan-Kiri</span>
+            </div>
+            <p class="text-xs text-slate-600 mt-0.5 leading-relaxed">
+              Visitor cukup <strong>foto 1x lembar QSC penuh</strong>. Sistem secara otomatis memotongnya menjadi <strong>2 bagian (Atas & Bawah)</strong> di satu lembar kanan-kiri pada slide PDF, dan menyimpan <strong>1 foto penuh utuh</strong> di Google Drive.
+            </p>
           </div>
         </div>
-
-        <div class="w-full h-80 sm:h-96 rounded-xl bg-slate-900/5 border border-slate-200 overflow-hidden flex items-center justify-center relative group">
-          ${
-            displaySrc
-              ? `
-              <div onclick="FMCUApp.openPhotoPreviewModal('${displaySrc}', 'Lembar Form QSC / FamiTrack')" class="w-full h-full cursor-zoom-in relative group/qsc flex items-center justify-center" title="Klik untuk perbesar foto lembar QSC">
-                <img src="${displaySrc}" class="w-full h-full object-contain p-1 transition duration-200 group-hover/qsc:scale-[1.01]" alt="Lembar QSC Full" />
-                <div class="absolute inset-0 bg-slate-950/25 opacity-0 group-hover/qsc:opacity-100 transition-opacity flex items-center justify-center pointer-events-none p-2">
-                  <span class="bg-slate-900/85 backdrop-blur-xs text-white text-xs font-extrabold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 border border-white/20">
-                    <i class="fa-solid fa-magnifying-glass-plus text-emerald-400 text-sm"></i>
-                    <span>Perbesar Gambar</span>
-                  </span>
-                </div>
-              </div>
-              `
-              : `<div class="text-center text-slate-400 text-xs p-6 space-y-2">
-                  <i class="fa-solid fa-file-invoice text-4xl text-slate-300 block"></i>
-                  <span class="font-bold text-slate-600 block text-sm">Belum Ada Foto Lembar QSC</span>
-                  <span class="text-xs text-slate-400 block max-w-sm mx-auto">Klik tombol <strong>"Pilih / Foto Lembar QSC"</strong> di atas untuk mengambil foto checklist form penilaian toko secara penuh.</span>
-                 </div>`
-          }
-          ${statusBadge ? `<div class="absolute bottom-2.5 left-2.5 shadow-sm z-10">${statusBadge}</div>` : ''}
-        </div>
+        <label class="fm-gradient hover:opacity-95 text-white font-extrabold text-xs sm:text-sm px-5 py-2.5 rounded-xl cursor-pointer shadow-md transition flex items-center gap-2 shrink-0 self-stretch sm:self-auto justify-center">
+          <i class="fa-solid fa-camera text-base"></i>
+          <span>${hasAnyPhoto ? 'Ambil Ulang 1x Foto Form QSC' : 'Ambil 1x Foto Form QSC'}</span>
+          <input type="file" accept="image/*" onchange="FMCUApp.handleQscSingleFullUpload(event)" class="hidden" />
+        </label>
       </div>
     `;
+
+    // 2. Render 2 Slot (Lembar Bagian Atas & Lembar Bagian Bawah)
+    const slotsHtml = this.formQscPhotos
+      .map((p, idx) => {
+        if ((!p.dataUrl || !p.dataUrl.startsWith('data:image')) && !p.driveFileId && (p.id === 'qsc-1' || p.id === 'qsc-2')) {
+          p.id = `qsc-${Date.now()}-${idx + 1}`;
+        }
+        const displaySrc = window.FMCUPdf.getPhotoDisplaySrc(p);
+        const slotLabel = idx === 0 ? 'Lembar Bagian Atas (#1)' : 'Lembar Bagian Bawah (#2)';
+        const guideText = idx === 0 ? 'Potongan bagian atas lembar QSC' : 'Potongan bagian bawah lembar QSC';
+
+        const statusBadge = p._uploading
+          ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800"><i class="fa-solid fa-spinner fa-spin mr-1"></i>Upload ke Google Drive...</span>`
+          : p.driveFileId
+          ? `<a href="${p.driveViewUrl || p.driveUrl || '#'}" target="_blank" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 hover:underline"><i class="fa-brands fa-google-drive mr-1"></i>Tersimpan di Google Drive</a>`
+          : displaySrc
+          ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-[#0099A6] border border-teal-200"><i class="fa-solid fa-cloud-arrow-up mr-1"></i>Siap Sync ke Google Drive</span>`
+          : '';
+
+        return `
+        <div class="border-2 ${displaySrc ? 'border-emerald-300 bg-white' : 'border-dashed border-slate-300 bg-slate-50/70'} rounded-2xl p-4 space-y-3 transition shadow-2xs">
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full ${displaySrc ? 'bg-emerald-500' : 'bg-slate-300'}"></span>
+                <span class="font-extrabold text-xs sm:text-sm text-slate-800">${slotLabel}</span>
+              </div>
+              <span class="text-[11px] text-slate-400 block">${guideText}</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              ${
+                displaySrc
+                  ? `
+                <button type="button" onclick="FMCUApp.editQscPhoto(${idx})" class="h-8 px-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1 cursor-pointer shadow-2xs transition" title="Sunting & Crop Potongan Ini">
+                  <i class="fa-solid fa-pen text-[10px]"></i>
+                  <span>Sunting</span>
+                </button>
+              `
+                  : ''
+              }
+              <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full ${displaySrc ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-50 text-rose-700 border border-rose-200'}">
+                ${displaySrc ? '✓ Terpasang' : '* Wajib'}
+              </span>
+            </div>
+          </div>
+
+          <div class="w-full h-56 rounded-xl bg-slate-50 border border-slate-200 overflow-hidden flex items-center justify-center relative group">
+            ${
+              displaySrc
+                ? `
+                <div onclick="FMCUApp.openPhotoPreviewModal('${displaySrc}', '${slotLabel}')" class="w-full h-full cursor-zoom-in relative group/qsc flex items-center justify-center bg-slate-900/5" title="Klik untuk perbesar potongan lembar QSC">
+                  <img src="${displaySrc}" class="w-full h-full object-contain p-1 transition duration-200 group-hover/qsc:scale-[1.02]" alt="QSC Form ${idx + 1}" />
+                  <div class="absolute inset-0 bg-slate-950/25 opacity-0 group-hover/qsc:opacity-100 transition-opacity flex items-center justify-center pointer-events-none p-2">
+                    <span class="bg-slate-900/85 backdrop-blur-xs text-white text-[11px] font-extrabold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 border border-white/20">
+                      <i class="fa-solid fa-magnifying-glass-plus text-emerald-400 text-xs"></i>
+                      <span>Perbesar Gambar</span>
+                    </span>
+                  </div>
+                </div>
+                `
+                : `<div class="text-center text-slate-400 text-xs p-4">
+                    <i class="fa-solid fa-file-invoice text-3xl mb-1.5 text-slate-300 block"></i>
+                    <span class="font-bold text-slate-600 block">${slotLabel}</span>
+                    <span class="text-[11px] text-slate-400">${guideText}</span>
+                   </div>`
+            }
+            ${statusBadge ? `<div class="absolute top-2 left-2 shadow-sm z-10">${statusBadge}</div>` : ''}
+          </div>
+        </div>
+      `;
+      })
+      .join('');
+
+    grid.innerHTML = headerBannerHtml + slotsHtml;
   },
 
   removeQscPhoto(idx) {
@@ -6707,7 +6871,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     }
     this.formQscPhotos[idx] = {
       id: `qsc-${Date.now()}-${idx + 1}`,
-      caption: idx === 0 ? 'Lembar Form QSC / FamiTrack #1 (Wajib)' : 'Lembar Form QSC / FamiTrack #2 (Wajib)',
+      caption: idx === 0 ? 'Lembar Form QSC / FamiTrack #1 (Bagian Atas)' : 'Lembar Form QSC / FamiTrack #2 (Bagian Bawah)',
       dataUrl: '',
       driveFileId: '',
       driveUrl: '',
@@ -6738,32 +6902,17 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         photoType: 'QSC'
       });
       photoObj.dataUrl = dataUrl;
-      photoObj.fullPhotoDataUrl = dataUrl;
       photoObj.driveFileId = '';
       photoObj.driveUrl = '';
-      photoObj._uploading = true;
+      photoObj._uploading = false;
       window.FMCUData.cachePhotoInMemory(photoObj.id, null, dataUrl);
       this.renderQscPhotosGrid();
       this.saveCurrentFormDraft();
-
-      await window.FMCUData.uploadPhotoToGDrive(photoObj, {
-        storeCode,
-        storeName,
-        photoType: 'QSC'
-      });
-      photoObj._uploading = false;
-      this.renderQscPhotosGrid();
-      this.saveCurrentFormDraft();
-      this.showToast(
-        photoObj.driveFileId
-          ? 'Foto lembar QSC berhasil diperbarui & disimpan ke Google Drive!'
-          : 'Foto lembar QSC berhasil diperbarui.',
-        'success'
-      );
+      this.showToast('Potongan lembar QSC berhasil diperbarui.', 'success');
     });
   },
 
-  // Handler untuk mengunggah 1x foto penuh Form QSC secara utuh (Un-Split)
+  // Handler untuk mengunggah 1x foto penuh Form QSC dan otomatis membelah jadi 2 (atas & bawah)
   async handleQscSingleFullUpload(event) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -6772,9 +6921,10 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     this.promptPhotoEdit(file, async (editedFullDataUrl) => {
       const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
       const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
-      this.showToast('Memproses foto Lembar Form QSC...', 'info', 2000);
+      this.showToast('Memproses & membelah foto Form QSC menjadi 2 bagian...', 'info', 2500);
 
       try {
+        // 1. Watermark & GPS pada foto penuh (utuh)
         const fullStampedDataUrl = await window.FMCUPdf.processAndStampImage(editedFullDataUrl, {
           storeName,
           gpsLat: this.liveGps.lat,
@@ -6784,41 +6934,73 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
           photoType: 'QSC'
         });
 
+        // 2. Split otomatis menjadi 2 bagian: atas & bawah
+        const { topDataUrl, bottomDataUrl } = await window.FMCUPdf.splitImageTopBottom(fullStampedDataUrl);
+
         const qscTs = Date.now();
         const p0 = {
-          id: `qsc-${qscTs}`,
-          caption: 'Lembar Form QSC / FamiTrack (Full)',
-          dataUrl: fullStampedDataUrl,
+          id: `qsc-${qscTs}-1`,
+          caption: 'Lembar Form QSC / FamiTrack #1 (Bagian Atas)',
+          dataUrl: topDataUrl,
+          fullPhotoDataUrl: fullStampedDataUrl,
+          driveFileId: '',
+          driveUrl: '',
+          _uploading: true
+        };
+        const p1 = {
+          id: `qsc-${qscTs}-2`,
+          caption: 'Lembar Form QSC / FamiTrack #2 (Bagian Bawah)',
+          dataUrl: bottomDataUrl,
           fullPhotoDataUrl: fullStampedDataUrl,
           driveFileId: '',
           driveUrl: '',
           _uploading: true
         };
 
-        this.formQscPhotos = [p0];
-        window.FMCUData.cachePhotoInMemory(p0.id, null, fullStampedDataUrl);
+        this.formQscPhotos = [p0, p1];
+        window.FMCUData.cachePhotoInMemory(p0.id, null, topDataUrl);
+        window.FMCUData.cachePhotoInMemory(p1.id, null, bottomDataUrl);
         this.renderQscPhotosGrid();
         this.saveCurrentFormDraft();
 
-        await window.FMCUData.uploadPhotoToGDrive(p0, {
+        // 3. Simpan foto penuh (foto utuh tanpa split) ke Google Drive
+        const fullPhotoObj = {
+          id: `qsc-full-${qscTs}`,
+          caption: 'Lembar_Form_QSC_Full',
+          dataUrl: fullStampedDataUrl,
+          fullPhotoDataUrl: fullStampedDataUrl
+        };
+
+        await window.FMCUData.uploadPhotoToGDrive(fullPhotoObj, {
           storeCode,
           storeName,
           photoType: 'QSC'
         });
 
+        // Bagikan ID & URL Drive foto utuh ke kedua slot
+        if (fullPhotoObj.driveFileId) {
+          p0.driveFileId = fullPhotoObj.driveFileId;
+          p0.driveUrl = fullPhotoObj.driveUrl;
+          p0.driveViewUrl = fullPhotoObj.driveViewUrl;
+          p1.driveFileId = fullPhotoObj.driveFileId;
+          p1.driveUrl = fullPhotoObj.driveUrl;
+          p1.driveViewUrl = fullPhotoObj.driveViewUrl;
+        }
         p0._uploading = false;
+        p1._uploading = false;
+
         this.renderQscPhotosGrid();
         this.saveCurrentFormDraft();
         this.updateFormProgress();
         this.showToast(
-          p0.driveFileId
-            ? 'Foto Lembar QSC utuh berhasil diunggah & tersimpan di Google Drive!'
-            : 'Foto Lembar QSC utuh berhasil diproses.',
+          fullPhotoObj.driveFileId
+            ? 'Foto Form QSC berhasil di-split jadi 2 bagian & foto utuh tersimpan di Google Drive!'
+            : 'Foto Form QSC berhasil diunggah & di-split jadi 2 bagian.',
           'success'
         );
       } catch (err) {
-        console.error('Gagal memproses foto QSC:', err);
-        this.showToast('Gagal memproses foto QSC: ' + err.message, 'error');
+        console.error('Gagal memproses split foto QSC:', err);
+        this.showToast('Gagal memproses split foto QSC: ' + err.message, 'error');
       }
     });
   },
@@ -6830,39 +7012,27 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     this.promptPhotoEdit(file, async (editedDataUrl) => {
       const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
       const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
-      const settings = window.FMCUData.getSettings();
-      const applyWm = true;
       const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
         storeName,
         gpsLat: this.liveGps.lat,
         gpsLng: this.liveGps.lng,
-        applyWatermark: applyWm
-      });
-      const photoObj = this.formQscPhotos[idx];
-      if (!photoObj.id || photoObj.id === 'qsc-1' || photoObj.id === 'qsc-2') {
-        photoObj.id = `qsc-${Date.now()}-${idx + 1}`;
-      }
-      photoObj.dataUrl = dataUrl;
-      photoObj.driveFileId = '';
-      photoObj.driveUrl = '';
-      photoObj._uploading = true;
-      window.FMCUData.cachePhotoInMemory(photoObj.id, null, dataUrl);
-      this.renderQscPhotosGrid();
-
-      await window.FMCUData.uploadPhotoToGDrive(photoObj, {
-        storeCode,
-        storeName,
+        applyWatermark: true,
+        compact: true,
         photoType: 'QSC'
       });
-      photoObj._uploading = false;
+      if (!this.formQscPhotos[idx]) {
+        this.formQscPhotos[idx] = { id: `qsc-${Date.now()}-${idx + 1}`, caption: idx === 0 ? 'Lembar Form QSC / FamiTrack #1 (Bagian Atas)' : 'Lembar Form QSC / FamiTrack #2 (Bagian Bawah)' };
+      }
+      const p = this.formQscPhotos[idx];
+      p.dataUrl = dataUrl;
+      p.driveFileId = '';
+      p.driveUrl = '';
+      p._uploading = false;
+      window.FMCUData.cachePhotoInMemory(p.id, null, dataUrl);
       this.renderQscPhotosGrid();
       this.saveCurrentFormDraft();
-      this.showToast(
-        photoObj.driveFileId
-          ? `Foto lembar QSC #${idx + 1} berhasil disimpan ke Google Drive!`
-          : `Foto lembar QSC #${idx + 1} berhasil disesuaikan & diproses`,
-        'success'
-      );
+      this.updateFormProgress();
+      this.showToast(`Foto lembar QSC #${idx + 1} berhasil diperbarui.`, 'success');
     });
   },
 
