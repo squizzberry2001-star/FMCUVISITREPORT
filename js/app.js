@@ -1698,6 +1698,7 @@ window.FMCUApp = {
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         this.closeCustomUserDropdown();
+        this.closePhotoPreviewModal();
       }
     });
   },
@@ -6574,38 +6575,27 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
             </span>
           </div>
 
-          <div class="w-full h-52 rounded-xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center relative group">
+          <div class="w-full h-56 rounded-xl bg-slate-50 border border-slate-200 overflow-hidden flex items-center justify-center relative group">
             ${
               displaySrc
-                ? `<img src="${displaySrc}" class="w-full h-full object-contain p-1 bg-slate-900/5" alt="QSC Form ${idx + 1}" />`
+                ? `
+                <div onclick="FMCUApp.openPhotoPreviewModal('${displaySrc}', '${slotLabel}')" class="w-full h-full cursor-zoom-in relative group/qsc flex items-center justify-center bg-slate-900/5" title="Klik untuk perbesar potongan lembar QSC">
+                  <img src="${displaySrc}" class="w-full h-full object-contain p-1 transition duration-200 group-hover/qsc:scale-[1.02]" alt="QSC Form ${idx + 1}" />
+                  <div class="absolute inset-0 bg-slate-950/25 opacity-0 group-hover/qsc:opacity-100 transition-opacity flex items-center justify-center pointer-events-none p-2">
+                    <span class="bg-slate-900/85 backdrop-blur-xs text-white text-[11px] font-extrabold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 border border-white/20">
+                      <i class="fa-solid fa-magnifying-glass-plus text-emerald-400 text-xs"></i>
+                      <span>Perbesar Gambar</span>
+                    </span>
+                  </div>
+                </div>
+                `
                 : `<div class="text-center text-slate-400 text-xs p-4">
                     <i class="fa-solid fa-file-invoice text-3xl mb-1.5 text-slate-300 block"></i>
                     <span class="font-bold text-slate-600 block">${slotLabel}</span>
                     <span class="text-[11px] text-slate-400">${guideText}</span>
                    </div>`
             }
-            ${statusBadge ? `<div class="absolute top-2 left-2 shadow-sm">${statusBadge}</div>` : ''}
-            <div class="absolute bottom-2.5 right-2.5 flex items-center gap-1.5 flex-wrap justify-end">
-              ${
-                displaySrc
-                  ? `
-                    <button type="button" onclick="FMCUApp.editQscPhoto(${idx})" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl cursor-pointer shadow-md transition flex items-center gap-1.5" title="Sunting & Potong Bagian Ini">
-                      <i class="fa-solid fa-pen text-xs"></i>
-                      <span>Sunting</span>
-                    </button>
-                    <button type="button" onclick="FMCUApp.removeQscPhoto(${idx})" class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl cursor-pointer shadow-md transition flex items-center gap-1">
-                      <i class="fa-solid fa-trash-can text-xs"></i>
-                      <span>Hapus</span>
-                    </button>
-                  `
-                  : ''
-              }
-              <label class="bg-slate-900/85 hover:bg-slate-950 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl cursor-pointer shadow-md transition flex items-center gap-1.5">
-                <i class="fa-solid fa-camera text-emerald-400"></i>
-                <span>${displaySrc ? 'Ganti Potongan' : 'Pilih Foto'}</span>
-                <input type="file" accept="image/*" onchange="FMCUApp.handleQscPhotoUpload(event, ${idx})" class="hidden" />
-              </label>
-            </div>
+            ${statusBadge ? `<div class="absolute top-2 left-2 shadow-sm z-10">${statusBadge}</div>` : ''}
           </div>
         </div>
       `;
@@ -6654,12 +6644,13 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     this.promptPhotoEdit(currentSrc, async (editedDataUrl) => {
       const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
       const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
-      const applyWm = true;
       const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
         storeName,
         gpsLat: this.liveGps.lat,
         gpsLng: this.liveGps.lng,
-        applyWatermark: applyWm
+        applyWatermark: false,
+        compact: true,
+        photoType: 'QSC'
       });
       if (!photoObj.id || photoObj.id === 'qsc-1' || photoObj.id === 'qsc-2') {
         photoObj.id = `qsc-${Date.now()}-${idx + 1}`;
@@ -6700,12 +6691,14 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       this.showToast('Memproses & membelah foto Form QSC menjadi 2 bagian...', 'info', 2500);
 
       try {
-        // 1. Watermark & GPS pada foto penuh (utuh)
+        // 1. Watermark & GPS ramping (compact) pada foto penuh agar tidak menutupi tabel checklist lembar QSC
         const fullStampedDataUrl = await window.FMCUPdf.processAndStampImage(editedFullDataUrl, {
           storeName,
           gpsLat: this.liveGps.lat,
           gpsLng: this.liveGps.lng,
-          applyWatermark: true
+          applyWatermark: true,
+          compact: true,
+          photoType: 'QSC'
         });
 
         // 2. Split otomatis menjadi 2 bagian: atas & bawah
@@ -7636,7 +7629,17 @@ Instruksi:
           <div class="col-span-5 h-36 bg-slate-100 rounded-xl overflow-hidden relative flex items-center justify-center border border-slate-200 group">
             ${
               displaySrc
-                ? `<img src="${displaySrc}" class="w-full h-full object-cover" alt="Evidence" />`
+                ? `
+                <div onclick="FMCUApp.openPhotoPreviewModal('${displaySrc}', 'Foto Bukti #${idx + 1}')" class="w-full h-full cursor-zoom-in relative group/evimg flex items-center justify-center" title="Klik untuk perbesar gambar">
+                  <img src="${displaySrc}" class="w-full h-full object-cover transition duration-200 group-hover/evimg:scale-105" alt="Evidence #${idx + 1}" />
+                  <div class="absolute inset-0 bg-slate-950/30 opacity-0 group-hover/evimg:opacity-100 transition-opacity flex items-center justify-center pointer-events-none p-1">
+                    <span class="bg-slate-900/85 backdrop-blur-xs text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full shadow-lg flex items-center gap-1.5 border border-white/20">
+                      <i class="fa-solid fa-magnifying-glass-plus text-emerald-400 text-xs"></i>
+                      <span>Perbesar Gambar</span>
+                    </span>
+                  </div>
+                </div>
+                `
                 : `<div class="text-center p-2"><i class="fa-solid fa-camera text-slate-300 text-xl block mb-1"></i><span class="text-[9px] text-slate-400 font-bold block leading-tight">Panduan: Rak tegak lurus</span></div>`
             }
             <div class="absolute inset-0 viewfinder-grid pointer-events-none opacity-20 group-hover:opacity-40 transition"></div>
@@ -7649,20 +7652,10 @@ Instruksi:
               `
                 : ''
             }
-            <div class="absolute bottom-1.5 inset-x-1.5 flex items-center gap-1">
-              ${
-                displaySrc
-                  ? `
-                  <button type="button" onclick="FMCUApp.editEvidencePhoto(${idx})" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold py-1 rounded text-center cursor-pointer flex items-center justify-center gap-1 shadow-sm transition">
-                    <i class="fa-solid fa-pen text-[9px]"></i>
-                    <span>Sunting</span>
-                  </button>
-                `
-                  : ''
-              }
-              <label class="${displaySrc ? 'flex-1' : 'w-full'} bg-slate-900/85 hover:bg-slate-900 text-white text-[10px] font-bold py-1 rounded text-center cursor-pointer flex items-center justify-center gap-1 shadow-sm transition">
-                <i class="fa-solid fa-camera text-[10px]"></i>
-                <span>${displaySrc ? 'Ganti' : 'Pilih / Foto'}</span>
+            <div class="absolute bottom-1.5 inset-x-1.5 flex items-center gap-1 z-10">
+              <label class="w-full bg-slate-900/85 hover:bg-slate-900 text-white text-[10px] font-bold py-1.5 rounded-lg text-center cursor-pointer flex items-center justify-center gap-1 shadow-sm transition">
+                <i class="fa-solid fa-camera text-[10px] text-emerald-400"></i>
+                <span>${displaySrc ? 'Ganti Foto' : 'Pilih / Foto'}</span>
                 <input type="file" accept="image/*" capture="environment" onchange="FMCUApp.handleSingleEvidenceUpload(event, ${idx})" class="hidden" />
               </label>
             </div>
@@ -7759,12 +7752,11 @@ Instruksi:
     this.promptPhotoEdit(currentSrc, async (editedDataUrl) => {
       const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
       const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
-      const applyWm = true;
       const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
         storeName,
         gpsLat: this.liveGps.lat,
         gpsLng: this.liveGps.lng,
-        applyWatermark: applyWm
+        applyWatermark: false
       });
       evObj.id = evObj.id || 'ev-' + Date.now();
       evObj.dataUrl = dataUrl;
@@ -7889,7 +7881,17 @@ Instruksi:
           <div class="col-span-5 h-36 bg-slate-100 rounded-xl overflow-hidden relative flex items-center justify-center border border-slate-200 group">
             ${
               displaySrc
-                ? `<img src="${displaySrc}" class="w-full h-full object-cover" alt="Corrective Action" />`
+                ? `
+                <div onclick="FMCUApp.openPhotoPreviewModal('${displaySrc}', 'Foto Tindakan Perbaikan #${idx + 1}')" class="w-full h-full cursor-zoom-in relative group/caimg flex items-center justify-center" title="Klik untuk perbesar gambar">
+                  <img src="${displaySrc}" class="w-full h-full object-cover transition duration-200 group-hover/caimg:scale-105" alt="Corrective Action #${idx + 1}" />
+                  <div class="absolute inset-0 bg-slate-950/30 opacity-0 group-hover/caimg:opacity-100 transition-opacity flex items-center justify-center pointer-events-none p-1">
+                    <span class="bg-slate-900/85 backdrop-blur-xs text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full shadow-lg flex items-center gap-1.5 border border-white/20">
+                      <i class="fa-solid fa-magnifying-glass-plus text-purple-400 text-xs"></i>
+                      <span>Perbesar Gambar</span>
+                    </span>
+                  </div>
+                </div>
+                `
                 : `<div class="text-center p-2"><i class="fa-solid fa-camera text-slate-300 text-xl block mb-1"></i><span class="text-[9px] text-purple-500 font-bold block leading-tight">Foto Bukti Perbaikan</span></div>`
             }
             <div class="absolute inset-0 viewfinder-grid pointer-events-none opacity-20 group-hover:opacity-40 transition"></div>
@@ -7902,20 +7904,10 @@ Instruksi:
               `
                 : ''
             }
-            <div class="absolute bottom-1.5 inset-x-1.5 flex items-center gap-1">
-              ${
-                displaySrc
-                  ? `
-                  <button type="button" onclick="FMCUApp.editCaPhoto(${idx})" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold py-1 rounded text-center cursor-pointer flex items-center justify-center gap-1 shadow-sm transition">
-                    <i class="fa-solid fa-pen text-[9px]"></i>
-                    <span>Sunting</span>
-                  </button>
-                `
-                  : ''
-              }
-              <label class="${displaySrc ? 'flex-1' : 'w-full'} bg-purple-900/85 hover:bg-purple-900 text-white text-[10px] font-bold py-1 rounded text-center cursor-pointer flex items-center justify-center gap-1 shadow-sm transition">
-                <i class="fa-solid fa-camera text-[10px]"></i>
-                <span>${displaySrc ? 'Ganti' : 'Pilih / Foto'}</span>
+            <div class="absolute bottom-1.5 inset-x-1.5 flex items-center gap-1 z-10">
+              <label class="w-full bg-purple-900/85 hover:bg-purple-900 text-white text-[10px] font-bold py-1.5 rounded-lg text-center cursor-pointer flex items-center justify-center gap-1 shadow-sm transition">
+                <i class="fa-solid fa-camera text-[10px] text-purple-300"></i>
+                <span>${displaySrc ? 'Ganti Foto' : 'Pilih / Foto'}</span>
                 <input type="file" accept="image/*" capture="environment" onchange="FMCUApp.handleSingleCaUpload(event, ${idx})" class="hidden" />
               </label>
             </div>
@@ -8016,12 +8008,11 @@ Instruksi:
     this.promptPhotoEdit(currentSrc, async (editedDataUrl) => {
       const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
       const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
-      const applyWm = true;
       const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
         storeName,
         gpsLat: this.liveGps.lat,
         gpsLng: this.liveGps.lng,
-        applyWatermark: applyWm
+        applyWatermark: false
       });
       caObj.id = caObj.id || 'ca-' + Date.now();
       caObj.dataUrl = dataUrl;
@@ -15613,7 +15604,7 @@ ${extractedPdfText}`;
     img: null,
     rotation: 0,
     mode: 'crop',
-    cropRect: { x: 0.05, y: 0.05, w: 0.9, h: 0.9 },
+    cropRect: { x: 0, y: 0, w: 1.0, h: 1.0 },
     markers: [],
     isDragging: false,
     dragAction: null,
@@ -15645,7 +15636,7 @@ ${extractedPdfText}`;
           img,
           rotation: 0,
           mode: 'crop',
-          cropRect: { x: 0.05, y: 0.05, w: 0.9, h: 0.9 },
+          cropRect: { x: 0, y: 0, w: 1.0, h: 1.0 },
           markers: [],
           isDragging: false,
           dragAction: null,
@@ -15692,7 +15683,7 @@ ${extractedPdfText}`;
 
   rotatePhotoEditor(deg = 90) {
     this.photoEditorState.rotation = (this.photoEditorState.rotation + deg) % 360;
-    this.photoEditorState.cropRect = { x: 0.05, y: 0.05, w: 0.9, h: 0.9 };
+    this.photoEditorState.cropRect = { x: 0, y: 0, w: 1.0, h: 1.0 };
     this.photoEditorState.markers = [];
     this.drawPhotoEditorCanvas();
   },
@@ -15707,7 +15698,7 @@ ${extractedPdfText}`;
   resetPhotoEditor() {
     this.photoEditorState.rotation = 0;
     this.photoEditorState.mode = 'crop';
-    this.photoEditorState.cropRect = { x: 0.05, y: 0.05, w: 0.9, h: 0.9 };
+    this.photoEditorState.cropRect = { x: 0, y: 0, w: 1.0, h: 1.0 };
     this.photoEditorState.markers = [];
     this.setPhotoEditorMode('crop');
     this.drawPhotoEditorCanvas();
@@ -15790,8 +15781,9 @@ ${extractedPdfText}`;
       ctx.lineTo(cropX + cropW, cropY + (cropH * 2) / 3);
       ctx.stroke();
 
-      const handleSize = 14;
+      const handleSize = 16;
       ctx.fillStyle = '#009944';
+      // 4 sudut
       ctx.fillRect(cropX - 2, cropY - 2, handleSize, 4);
       ctx.fillRect(cropX - 2, cropY - 2, 4, handleSize);
       ctx.fillRect(cropX + cropW - handleSize + 2, cropY - 2, handleSize, 4);
@@ -15800,6 +15792,14 @@ ${extractedPdfText}`;
       ctx.fillRect(cropX - 2, cropY + cropH - handleSize + 2, 4, handleSize);
       ctx.fillRect(cropX + cropW - handleSize + 2, cropY + cropH - 2, handleSize, 4);
       ctx.fillRect(cropX + cropW - 2, cropY + cropH - handleSize + 2, 4, handleSize);
+
+      // Handle tengah sisi atas, bawah, kiri, kanan
+      const midX = cropX + cropW / 2;
+      const midY = cropY + cropH / 2;
+      ctx.fillRect(midX - 12, cropY - 2, 24, 4);
+      ctx.fillRect(midX - 12, cropY + cropH - 2, 24, 4);
+      ctx.fillRect(cropX - 2, midY - 12, 4, 24);
+      ctx.fillRect(cropX + cropW - 2, midY - 12, 4, 24);
     } else {
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
       ctx.setLineDash([4, 4]);
@@ -15846,10 +15846,51 @@ ${extractedPdfText}`;
       const clientX = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
       const clientY = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
       return {
-        x: (clientX - rect.left) / canvas.width,
-        y: (clientY - rect.top) / canvas.height
+        x: Math.max(0, Math.min(1, (clientX - rect.left) / canvas.width)),
+        y: Math.max(0, Math.min(1, (clientY - rect.top) / canvas.height))
       };
     };
+
+    const getCropHitHandle = (pos) => {
+      const cr = this.photoEditorState.cropRect;
+      const thX = 20 / (canvas.width || 400);
+      const thY = 20 / (canvas.height || 400);
+
+      const nearL = Math.abs(pos.x - cr.x) <= thX;
+      const nearR = Math.abs(pos.x - (cr.x + cr.w)) <= thX;
+      const nearT = Math.abs(pos.y - cr.y) <= thY;
+      const nearB = Math.abs(pos.y - (cr.y + cr.h)) <= thY;
+
+      const inX = pos.x >= cr.x - thX && pos.x <= cr.x + cr.w + thX;
+      const inY = pos.y >= cr.y - thY && pos.y <= cr.y + cr.h + thY;
+
+      if (nearL && nearT) return 'resize-tl';
+      if (nearR && nearT) return 'resize-tr';
+      if (nearL && nearB) return 'resize-bl';
+      if (nearR && nearB) return 'resize-br';
+      if (nearT && inX) return 'resize-t';
+      if (nearB && inX) return 'resize-b';
+      if (nearL && inY) return 'resize-l';
+      if (nearR && inY) return 'resize-r';
+      if (pos.x >= cr.x && pos.x <= cr.x + cr.w && pos.y >= cr.y && pos.y <= cr.y + cr.h) return 'move-crop';
+      return null;
+    };
+
+    canvas.addEventListener('pointermove', (e) => {
+      if (this.photoEditorState.isDragging) return;
+      if (this.photoEditorState.mode !== 'crop') {
+        canvas.style.cursor = 'crosshair';
+        return;
+      }
+      const pos = getCanvasPos(e);
+      const hit = getCropHitHandle(pos);
+      if (hit === 'resize-tl' || hit === 'resize-br') canvas.style.cursor = 'nwse-resize';
+      else if (hit === 'resize-tr' || hit === 'resize-bl') canvas.style.cursor = 'nesw-resize';
+      else if (hit === 'resize-t' || hit === 'resize-b') canvas.style.cursor = 'ns-resize';
+      else if (hit === 'resize-l' || hit === 'resize-r') canvas.style.cursor = 'ew-resize';
+      else if (hit === 'move-crop') canvas.style.cursor = 'move';
+      else canvas.style.cursor = 'default';
+    });
 
     const onStart = (e) => {
       e.preventDefault();
@@ -15858,7 +15899,8 @@ ${extractedPdfText}`;
       this.photoEditorState.dragStart = pos;
 
       if (this.photoEditorState.mode === 'crop') {
-        this.photoEditorState.dragAction = 'move-crop';
+        const hit = getCropHitHandle(pos);
+        this.photoEditorState.dragAction = hit || 'move-crop';
       } else {
         this.photoEditorState.dragAction = 'draw-marker';
         this.photoEditorState.currentMarker = {
@@ -15874,17 +15916,39 @@ ${extractedPdfText}`;
       if (!this.photoEditorState.isDragging) return;
       e.preventDefault();
       const pos = getCanvasPos(e);
+      const action = this.photoEditorState.dragAction;
+      const cr = this.photoEditorState.cropRect;
+      const minSize = 0.08;
 
-      if (this.photoEditorState.dragAction === 'move-crop') {
+      if (action === 'move-crop') {
         const dx = pos.x - this.photoEditorState.dragStart.x;
         const dy = pos.y - this.photoEditorState.dragStart.y;
         this.photoEditorState.dragStart = pos;
 
-        const cr = this.photoEditorState.cropRect;
         cr.x = Math.max(0, Math.min(1 - cr.w, cr.x + dx));
         cr.y = Math.max(0, Math.min(1 - cr.h, cr.y + dy));
         this.drawPhotoEditorCanvas();
-      } else if (this.photoEditorState.dragAction === 'draw-marker') {
+      } else if (action && action.startsWith('resize-')) {
+        if (action.includes('l')) {
+          const right = cr.x + cr.w;
+          const newX = Math.max(0, Math.min(right - minSize, pos.x));
+          cr.w = right - newX;
+          cr.x = newX;
+        }
+        if (action.includes('r')) {
+          cr.w = Math.max(minSize, Math.min(1 - cr.x, pos.x - cr.x));
+        }
+        if (action.includes('t')) {
+          const bottom = cr.y + cr.h;
+          const newY = Math.max(0, Math.min(bottom - minSize, pos.y));
+          cr.h = bottom - newY;
+          cr.y = newY;
+        }
+        if (action.includes('b')) {
+          cr.h = Math.max(minSize, Math.min(1 - cr.y, pos.y - cr.y));
+        }
+        this.drawPhotoEditorCanvas();
+      } else if (action === 'draw-marker') {
         const start = this.photoEditorState.dragStart;
         const minX = Math.min(start.x, pos.x);
         const minY = Math.min(start.y, pos.y);
@@ -15988,6 +16052,35 @@ ${extractedPdfText}`;
   closeModal(id) {
     const el = document.getElementById(id);
     if (el) el.classList.add('hidden');
+  },
+
+  // --- Lightbox Modal (Perbesar Gambar) ---
+  openPhotoPreviewModal(imgSrc, title = 'Perbesar Foto') {
+    if (!imgSrc) return;
+    const modal = document.getElementById('modal-photo-lightbox');
+    const img = document.getElementById('photo-lightbox-img');
+    const titleEl = document.getElementById('photo-lightbox-title');
+    if (img) img.src = imgSrc;
+    if (titleEl) titleEl.textContent = title;
+    if (modal) {
+      modal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+  },
+
+  closePhotoPreviewModal() {
+    const modal = document.getElementById('modal-photo-lightbox');
+    if (modal) modal.classList.add('hidden');
+    document.body.style.overflow = '';
+  },
+
+  downloadLightboxPhoto() {
+    const img = document.getElementById('photo-lightbox-img');
+    if (!img || !img.src) return;
+    const a = document.createElement('a');
+    a.href = img.src;
+    a.download = `photo-preview-${Date.now()}.jpg`;
+    a.click();
   }
 };
 

@@ -24,8 +24,13 @@ window.FMCUPdf = {
       gpsLat = null,
       gpsLng = null,
       applyWatermark = true,
-      maxDimension = 1100
+      maxDimension = 1100,
+      compact = false,
+      compactWatermark = false,
+      photoType = ''
     } = options;
+
+    const isCompact = Boolean(compact || compactWatermark || photoType === 'QSC');
 
     return new Promise((resolve, reject) => {
       const renderOnCanvas = (src) => {
@@ -50,22 +55,6 @@ window.FMCUPdf = {
           ctx.drawImage(img, 0, 0, w, h);
 
           if (applyWatermark) {
-            const barH = Math.max(46, Math.round(h * 0.095));
-            ctx.fillStyle = 'rgba(15, 23, 42, 0.82)';
-            ctx.fillRect(0, h - barH, w, barH);
-
-            // Green accent bar on left
-            ctx.fillStyle = '#009944';
-            ctx.fillRect(0, h - barH, Math.max(6, Math.round(w * 0.012)), barH);
-
-            const padLeft = Math.max(14, Math.round(w * 0.025));
-            const titleFontSize = Math.max(12, Math.round(barH * 0.36));
-            const subFontSize = Math.max(10, Math.round(barH * 0.27));
-
-            ctx.fillStyle = '#FFFFFF';
-            ctx.font = `bold ${titleFontSize}px sans-serif`;
-            ctx.fillText(`${storeName.toUpperCase()} (FMI)`, padLeft, h - barH + titleFontSize + 5);
-
             const now = new Date();
             const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
             const timeStr = `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}, ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} WIB`;
@@ -73,9 +62,44 @@ window.FMCUPdf = {
               ? `GPS: ${Number(gpsLat).toFixed(5)}, ${Number(gpsLng).toFixed(5)}`
               : 'GPS: Live Location Verified';
 
-            ctx.fillStyle = '#CBD5E1';
-            ctx.font = `${subFontSize}px sans-serif`;
-            ctx.fillText(`${timeStr} • ${gpsStr}`, padLeft, h - 7);
+            if (isCompact) {
+              // Watermark ramping & mini khusus lembar dokumen/QSC agar tidak menutupi isi tabel/form
+              const barH = Math.max(20, Math.round(h * 0.032));
+              ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+              ctx.fillRect(0, h - barH, w, barH);
+
+              // Green accent bar on left
+              ctx.fillStyle = '#009944';
+              ctx.fillRect(0, h - barH, Math.max(4, Math.round(w * 0.008)), barH);
+
+              const padLeft = Math.max(10, Math.round(w * 0.016));
+              const fontSize = Math.max(9, Math.round(barH * 0.44));
+
+              ctx.fillStyle = '#FFFFFF';
+              ctx.font = `bold ${fontSize}px sans-serif`;
+              const textStr = `${storeName.toUpperCase()} (FMI)  •  ${timeStr}  •  ${gpsStr}`;
+              ctx.fillText(textStr, padLeft, h - Math.round(barH * 0.30));
+            } else {
+              const barH = Math.max(46, Math.round(h * 0.095));
+              ctx.fillStyle = 'rgba(15, 23, 42, 0.82)';
+              ctx.fillRect(0, h - barH, w, barH);
+
+              // Green accent bar on left
+              ctx.fillStyle = '#009944';
+              ctx.fillRect(0, h - barH, Math.max(6, Math.round(w * 0.012)), barH);
+
+              const padLeft = Math.max(14, Math.round(w * 0.025));
+              const titleFontSize = Math.max(12, Math.round(barH * 0.36));
+              const subFontSize = Math.max(10, Math.round(barH * 0.27));
+
+              ctx.fillStyle = '#FFFFFF';
+              ctx.font = `bold ${titleFontSize}px sans-serif`;
+              ctx.fillText(`${storeName.toUpperCase()} (FMI)`, padLeft, h - barH + titleFontSize + 5);
+
+              ctx.fillStyle = '#CBD5E1';
+              ctx.font = `${subFontSize}px sans-serif`;
+              ctx.fillText(`${timeStr} • ${gpsStr}`, padLeft, h - 7);
+            }
           }
 
           resolve(canvas.toDataURL('image/jpeg', 0.84));
