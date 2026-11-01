@@ -1163,6 +1163,187 @@ window.FMCUApp = {
     return auths.includes(authKey);
   },
 
+  isReportOwnedByUser(report, user = this.currentUser) {
+    if (!report || !user) return false;
+    if (report.auditorId && user.id && String(report.auditorId) === String(user.id)) return true;
+    if (report.auditorUsername && user.username && String(report.auditorUsername).toLowerCase() === String(user.username).toLowerCase()) return true;
+    if (report.auditorNik && user.nik && String(report.auditorNik) === String(user.nik)) return true;
+    const rName = String(report.auditorName || '').trim().toLowerCase();
+    const uName = String(user.name || '').trim().toLowerCase();
+    return Boolean(rName && uName && rName === uName);
+  },
+
+  hasMeaningfulVisitData() {
+    const code = document.getElementById('form-store-code')?.value.trim();
+    if (!code || code === '-') return false;
+    const qscCount = (this.formQscPhotos || []).filter((p) => p && (p.dataUrl || p.driveFileId || p.driveUrl)).length;
+    const evCount = (this.formEvidencePhotos || []).filter((p) => p && (p.dataUrl || p.driveFileId || p.driveUrl)).length;
+    const caCount = (this.formCaPhotos || []).filter((p) => p && (p.dataUrl || p.driveFileId || p.driveUrl)).length;
+    const obsCount = (this.formObservations || []).filter((o) => o && o.temuan && o.temuan.trim()).length;
+    const opiCount = (this.formOpiObservations || []).filter((o) => o && o.temuan && o.temuan.trim()).length;
+    const inVal = document.getElementById('form-actual-in')?.value.trim();
+    const hasActualIn = Boolean(inVal && inVal !== '-' && inVal !== '--:-- WIB');
+    return Boolean(qscCount > 0 || evCount > 0 || caCount > 0 || obsCount > 0 || opiCount > 0 || hasActualIn);
+  },
+
+  _deleteAuthTarget: null,
+
+  promptDeleteVisitReport(reportId) {
+    if (!this.isPrivilegedAdmin()) {
+      this.showToast('Hanya Admin Jadwal dan Super Admin yang memiliki otoritas untuk menghapus riwayat visit.', 'warning');
+      return;
+    }
+    const reports = window.FMCUData.getReports();
+    const rep = reports.find((r) => String(r.id) === String(reportId));
+    if (!rep) return;
+
+    this._deleteAuthTarget = {
+      type: 'report',
+      id: rep.id,
+      storeName: rep.storeName || 'FamilyMart',
+      storeCode: rep.storeCode || '-',
+      date: rep.visitDayDateFormatted || rep.visitDateFormatted || rep.visitDate || '-',
+      visitor: rep.auditorName || '-'
+    };
+    this.openDeleteAuthorityModal();
+  },
+
+  promptDeleteSchedule(scheduleId) {
+    if (!this.isPrivilegedAdmin()) {
+      this.showToast('Hanya Admin Jadwal dan Super Admin yang memiliki otoritas untuk menghapus jadwal visit.', 'warning');
+      return;
+    }
+    const schedules = window.FMCUData.getSchedules();
+    const sch = schedules.find((s) => String(s.id) === String(scheduleId));
+    if (!sch) return;
+
+    this._deleteAuthTarget = {
+      type: 'schedule',
+      id: sch.id,
+      storeName: sch.storeName || 'FamilyMart',
+      storeCode: sch.storeCode || '-',
+      date: window.FMCUPdf.formatIndonesianDate(sch.scheduledDate, true),
+      visitor: sch.auditorName || '-'
+    };
+    this.openDeleteAuthorityModal();
+  },
+
+  openDeleteAuthorityModal() {
+    const modal = document.getElementById('modal-delete-authority-auth');
+    if (!modal || !this._deleteAuthTarget) return;
+
+    const t = this._deleteAuthTarget;
+    const typePill = document.getElementById('modal-del-auth-type-pill');
+    if (typePill) {
+      typePill.textContent = t.type === 'report' ? 'RIWAYAT VISIT / LAPORAN' : 'JADWAL VISIT TOKO';
+      typePill.className = t.type === 'report'
+        ? 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800'
+        : 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800';
+    }
+    const storeEl = document.getElementById('modal-del-auth-store');
+    if (storeEl) storeEl.textContent = `FamilyMart ${t.storeName} (${t.storeCode})`;
+
+    const dateEl = document.getElementById('modal-del-auth-date');
+    if (dateEl) dateEl.textContent = t.date;
+
+    const visitorEl = document.getElementById('modal-del-auth-visitor');
+    if (visitorEl) visitorEl.innerHTML = `<i class="fa-regular fa-user text-slate-400"></i><span>Visitor: <strong>${t.visitor}</strong></span>`;
+
+    const pwdInput = document.getElementById('modal-del-auth-password');
+    if (pwdInput) {
+      pwdInput.value = '';
+    }
+    const errEl = document.getElementById('modal-del-auth-error');
+    if (errEl) errEl.classList.add('hidden');
+
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+      if (pwdInput) pwdInput.focus();
+    }, 100);
+  },
+
+  closeDeleteAuthorityModal() {
+    const modal = document.getElementById('modal-delete-authority-auth');
+    if (modal) modal.classList.add('hidden');
+    this._deleteAuthTarget = null;
+  },
+
+  toggleDeleteAuthPwdVisibility() {
+    const pwdInput = document.getElementById('modal-del-auth-password');
+    const eyeIcon = document.getElementById('modal-del-auth-pwd-eye');
+    if (!pwdInput || !eyeIcon) return;
+    if (pwdInput.type === 'password') {
+      pwdInput.type = 'text';
+      eyeIcon.className = 'fa-regular fa-eye-slash text-xs text-rose-600';
+    } else {
+      pwdInput.type = 'password';
+      eyeIcon.className = 'fa-regular fa-eye text-xs text-slate-400';
+    }
+  },
+
+  confirmDeleteAuthority() {
+    if (!this._deleteAuthTarget) return;
+    const pwdInput = document.getElementById('modal-del-auth-password');
+    const entered = (pwdInput?.value || '').trim();
+    const errEl = document.getElementById('modal-del-auth-error');
+    const errText = document.getElementById('modal-del-auth-error-text');
+
+    if (!entered) {
+      if (errEl && errText) {
+        errText.textContent = 'Silakan masukkan password otoritas Anda!';
+        errEl.classList.remove('hidden');
+      }
+      return;
+    }
+
+    const curUser = this.currentUser || {};
+    const validPasswords = [
+      String(curUser.password || '').trim(),
+      String(curUser.nik || '').trim(),
+      '123'
+    ].filter(Boolean);
+
+    const isValid = validPasswords.some((vp) => vp === entered);
+    if (!isValid) {
+      if (errEl && errText) {
+        errText.textContent = 'Password otoritas salah! Pastikan memasukkan password akun Anda.';
+        errEl.classList.remove('hidden');
+      }
+      pwdInput?.focus();
+      return;
+    }
+
+    const target = this._deleteAuthTarget;
+    if (target.type === 'report') {
+      const schedules = window.FMCUData.getSchedules();
+      let schUpdated = false;
+      schedules.forEach((s) => {
+        if (s.reportId === target.id || (s.storeCode === target.storeCode && s.status === 'COMPLETED')) {
+          s.reportId = null;
+          s.status = 'PENDING';
+          s.actualOut = null;
+          schUpdated = true;
+        }
+      });
+      if (schUpdated) {
+        window.FMCUData.saveSchedules(schedules);
+      }
+
+      window.FMCUData.deleteReport(target.id);
+      window.FMCUData.deleteStoreDraft(target.storeCode);
+
+      if (this.activePreviewReportId === target.id) {
+        this.activePreviewReportId = null;
+      }
+      this.closeDeleteAuthorityModal();
+      this.renderAllViews();
+      this.showToast(`Laporan visit Toko ${target.storeName} (${target.storeCode}) berhasil dihapus permanen!`, 'success');
+    } else if (target.type === 'schedule') {
+      this.deleteSchedule(target.id);
+      this.closeDeleteAuthorityModal();
+    }
+  },
+
   isPrivilegedAdmin(user = this.currentUser) {
     if (!user) return false;
     const role = String(user.role || '').toUpperCase();
@@ -3722,22 +3903,34 @@ window.FMCUApp = {
     const countPill = document.getElementById('analytics-history-count-pill');
     if (!container) return;
 
-    const allReports = window.FMCUData.getReports();
+    const isVisitor = this.isAuditorUser(this.currentUser) || !this.isPrivilegedAdmin(this.currentUser);
+    let allReports = window.FMCUData.getReports().filter((r) => r && r.id && r.storeCode);
+    if (isVisitor) {
+      allReports = allReports.filter((r) => this.isReportOwnedByUser(r, this.currentUser));
+    }
     if (countPill) countPill.textContent = String(allReports.length);
 
     // Populate Visitor Filter dropdown
     const visFilterEl = document.getElementById('analytics-history-visitor-filter');
     if (visFilterEl) {
-      const auditors = this.getSchedulableAuditors();
-      const curVal = visFilterEl.value || 'ALL';
-      visFilterEl.innerHTML =
-        `<option value="ALL">Semua Visitor (${allReports.length} Laporan)</option>` +
-        auditors
-          .map((u) => {
-            const count = allReports.filter((r) => r.auditorId === u.id || r.auditorName === u.name).length;
-            return `<option value="${u.id}" ${u.id === curVal ? 'selected' : ''}>${u.name} (${count})</option>`;
-          })
-          .join('');
+      if (isVisitor) {
+        visFilterEl.innerHTML = `<option value="${this.currentUser.id || this.currentUser.username}">${this.currentUser.name} (${allReports.length} Laporan)</option>`;
+        visFilterEl.disabled = true;
+        visFilterEl.classList.add('opacity-75');
+      } else {
+        visFilterEl.disabled = false;
+        visFilterEl.classList.remove('opacity-75');
+        const auditors = this.getSchedulableAuditors();
+        const curVal = visFilterEl.value || 'ALL';
+        visFilterEl.innerHTML =
+          `<option value="ALL">Semua Visitor (${allReports.length} Laporan)</option>` +
+          auditors
+            .map((u) => {
+              const count = allReports.filter((r) => r.auditorId === u.id || r.auditorName === u.name).length;
+              return `<option value="${u.id}" ${u.id === curVal ? 'selected' : ''}>${u.name} (${count})</option>`;
+            })
+            .join('');
+      }
     }
 
     const searchQ = (document.getElementById('analytics-history-search')?.value || '').trim().toLowerCase();
@@ -3813,10 +4006,22 @@ window.FMCUApp = {
               ${
                 isAdmin
                   ? `
-                <a href="${r.storeFolderUrl || r.visitorFolderUrl || 'https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8'}" target="_blank" rel="noopener noreferrer" class="px-3.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs">
+                <a href="${r.storeFolderUrl || r.visitorFolderUrl || 'https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8'}" target="_blank" rel="noopener noreferrer" class="px-3 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs">
                   <i class="fa-solid fa-folder-open text-[#009944]"></i>
                   <span>Folder Toko</span>
                 </a>
+                <button type="button" onclick="FMCUApp.openReportPreview('${r.id}')" class="px-3 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition flex items-center gap-1.5 cursor-pointer">
+                  <i class="fa-solid fa-display"></i>
+                  <span>Preview Slide</span>
+                </button>
+                <button type="button" onclick="FMCUApp.downloadReportById('${r.id}')" class="fm-gradient hover:opacity-95 text-white font-bold px-3 py-2 rounded-xl text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                  <i class="fa-solid fa-file-arrow-down"></i>
+                  <span>Unduh PDF</span>
+                </button>
+                <button type="button" onclick="FMCUApp.promptDeleteVisitReport('${r.id}')" class="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer">
+                  <i class="fa-solid fa-trash-can"></i>
+                  <span>Hapus</span>
+                </button>
               `
                   : `
                 <button type="button" onclick="FMCUApp.editReportById('${r.id}')" class="px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition cursor-pointer">
@@ -3840,16 +4045,22 @@ window.FMCUApp = {
   },
 
   renderAnalyticsPerformance() {
-    const schedules = window.FMCUData.getSchedules();
-    const reports = window.FMCUData.getReports();
+    const isVisitor = this.isAuditorUser(this.currentUser) || !this.isPrivilegedAdmin(this.currentUser);
+    let schedules = window.FMCUData.getSchedules();
+    let reports = window.FMCUData.getReports().filter((r) => r && r.id && r.storeCode);
+
+    if (isVisitor) {
+      schedules = schedules.filter((s) => this.isScheduleOwnedByUser(s, this.currentUser));
+      reports = reports.filter((r) => this.isReportOwnedByUser(r, this.currentUser));
+    }
 
     const completedSchedules = schedules.filter((s) => s.status === 'COMPLETED').length;
     const totalSchedules = schedules.length;
     const compRate = totalSchedules > 0 ? Math.round((completedSchedules / totalSchedules) * 100) : 0;
     const kpiVisEl = document.getElementById('kpi-total-visits');
-    if (kpiVisEl) kpiVisEl.textContent = `${reports.length} Visit`;
+    if (kpiVisEl) kpiVisEl.textContent = `${reports.length} Toko`;
     const kpiCompEl = document.getElementById('kpi-completion-rate');
-    if (kpiCompEl) kpiCompEl.textContent = `${completedSchedules}/${totalSchedules} Jadwal (${compRate}%)`;
+    if (kpiCompEl) kpiCompEl.textContent = `${completedSchedules}/${totalSchedules} Toko (${compRate}%)`;
 
     let totalFindings = 0;
     let openFindings = 0;
@@ -3889,44 +4100,7 @@ window.FMCUApp = {
   },
 
   deleteReportById(reportId) {
-    const isAdmin = Boolean(
-      this.currentUser &&
-      (this.currentUser.role === 'ADMIN_SCHEDULE' || this.currentUser.role === 'SUPER_ADMIN')
-    );
-    if (!isAdmin) {
-      this.showToast('Hanya Admin Jadwal dan Super Admin yang memiliki otoritas untuk menghapus history laporan visit.', 'warning');
-      return;
-    }
-
-    const reports = window.FMCUData.getReports();
-    const rep = reports.find((r) => String(r.id) === String(reportId));
-    if (!rep) return;
-
-    const confirmMsg = `Hapus laporan visit FamilyMart ${rep.storeName || ''} (${rep.storeCode || ''}) tanggal ${rep.visitDate || ''}?\n\nTindakan ini akan menghapus arsip PDF dan history laporan secara permanen dari database.`;
-    if (!confirm(confirmMsg)) return;
-
-    // Lepaskan tautan dari jadwal jika ada
-    const schedules = window.FMCUData.getSchedules();
-    let schUpdated = false;
-    schedules.forEach((s) => {
-      if (s.reportId === reportId || (s.storeCode === rep.storeCode && s.scheduledDate === rep.visitDate && s.status === 'COMPLETED')) {
-        s.reportId = null;
-        s.status = 'PENDING';
-        s.actualOut = null;
-        schUpdated = true;
-      }
-    });
-    if (schUpdated) {
-      window.FMCUData.saveSchedules(schedules);
-    }
-
-    window.FMCUData.deleteReport(reportId);
-
-    // Refresh views
-    this.renderAnalyticsHistory();
-    this.renderHomeHistory();
-    this.renderCurrentActiveView();
-    this.showToast(`Laporan visit Toko ${rep.storeName} berhasil dihapus dari database!`, 'success');
+    this.promptDeleteVisitReport(reportId);
   },
 
   showLockedScheduleNotice(storeName, scheduledDate) {
@@ -5159,8 +5333,20 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
   renderHomeHistory() {
     const container = document.getElementById('home-history-list');
     if (!container) return;
+
+    const isVisitor = this.isAuditorUser(this.currentUser) || !this.isPrivilegedAdmin(this.currentUser);
+    let allReports = window.FMCUData.getReports().filter((r) => r && r.id && r.storeCode);
+    if (isVisitor) {
+      allReports = allReports.filter((r) => this.isReportOwnedByUser(r, this.currentUser));
+    }
+
+    const histPill = document.getElementById('home-history-count-pill');
+    if (histPill) {
+      histPill.textContent = allReports.length;
+    }
+
     const query = (document.getElementById('history-search-input')?.value || '').toLowerCase();
-    const reports = window.FMCUData.getReports().filter((r) => {
+    const reports = allReports.filter((r) => {
       if (!query) return true;
       return (
         (r.storeName || '').toLowerCase().includes(query) ||
@@ -5172,16 +5358,13 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     if (reports.length === 0) {
       container.innerHTML = `
         <div class="border border-dashed border-slate-200 rounded-2xl py-10 px-4 text-center space-y-1 bg-slate-50/50">
-          <div class="text-slate-400 text-xs font-medium">Belum ada riwayat laporan visit yang tersimpan.</div>
+          <div class="text-slate-400 text-xs font-medium">${isVisitor ? 'Anda belum memiliki riwayat laporan visit yang tersimpan.' : 'Belum ada riwayat laporan visit yang tersimpan.'}</div>
         </div>
       `;
       return;
     }
 
-    const isAdmin = Boolean(
-      this.currentUser &&
-        (this.currentUser.role === 'ADMIN_SCHEDULE' || this.currentUser.role === 'SUPER_ADMIN')
-    );
+    const isAdmin = this.isPrivilegedAdmin(this.currentUser);
 
     container.innerHTML = reports
       .map((r) => {
@@ -5226,6 +5409,18 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
                   <i class="fa-solid fa-folder-open text-[#009944]"></i>
                   <span>Folder Toko</span>
                 </a>
+                <button type="button" onclick="FMCUApp.openReportPreview('${r.id}')" class="px-3 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition flex items-center gap-1.5 cursor-pointer">
+                  <i class="fa-solid fa-display"></i>
+                  <span>Lihat PDF</span>
+                </button>
+                <button type="button" onclick="FMCUApp.downloadReportById('${r.id}')" class="fm-gradient hover:opacity-95 text-white font-bold px-3 py-2 rounded-xl text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                  <i class="fa-solid fa-file-arrow-down"></i>
+                  <span>Unduh PDF</span>
+                </button>
+                <button type="button" onclick="FMCUApp.promptDeleteVisitReport('${r.id}')" class="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer">
+                  <i class="fa-solid fa-trash-can"></i>
+                  <span>Hapus</span>
+                </button>
               `
                   : `
                 <button onclick="FMCUApp.editReportById('${r.id}')" class="px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition cursor-pointer">
@@ -7581,32 +7776,40 @@ Instruksi:
     const sel = document.getElementById('preview-report-selector');
     const labelEl = document.getElementById('preview-report-label');
     const trackEl = document.getElementById('preview-report-running-track');
-    const reports = window.FMCUData.getReports();
+
+    const isVisitor = this.isAuditorUser(this.currentUser) || !this.isPrivilegedAdmin(this.currentUser);
+    let reports = window.FMCUData.getReports().filter((r) => r && r.id && r.storeCode);
+    if (isVisitor) {
+      reports = reports.filter((r) => this.isReportOwnedByUser(r, this.currentUser));
+    }
 
     // Urutkan laporan dari yang paling baru
     reports.sort((a, b) => String(b.createdAt || b.visitDate || '').localeCompare(String(a.createdAt || a.visitDate || '')));
 
+    const hasMeaningfulDraft = this.hasActiveStoreForm && this.hasMeaningfulVisitData();
     const currentStoreName = document.getElementById('form-store-name')?.value.trim() || '';
     const currentStoreCode = document.getElementById('form-store-code')?.value.trim() || '';
     const hasCurrentStore = Boolean(currentStoreCode && currentStoreCode !== '-');
+    const shouldShowLiveDraft = hasMeaningfulDraft && hasCurrentStore;
 
-    if (!this.activePreviewReportId) {
-      if (this.hasActiveStoreForm && hasCurrentStore) {
+    // Pastikan activePreviewReportId menunjuk ke laporan yang valid
+    if (!this.activePreviewReportId || this.activePreviewReportId === '__LIVE_FORM__') {
+      if (shouldShowLiveDraft) {
         this.activePreviewReportId = '__LIVE_FORM__';
       } else if (reports.length > 0) {
         this.activePreviewReportId = reports[0].id;
       } else {
-        this.activePreviewReportId = '__LIVE_FORM__';
+        this.activePreviewReportId = shouldShowLiveDraft ? '__LIVE_FORM__' : null;
       }
-    } else if (this.activePreviewReportId !== '__LIVE_FORM__') {
+    } else {
       const exists = reports.some((r) => r.id === this.activePreviewReportId);
       if (!exists) {
-        if (this.hasActiveStoreForm && hasCurrentStore) {
-          this.activePreviewReportId = '__LIVE_FORM__';
-        } else if (reports.length > 0) {
+        if (reports.length > 0) {
           this.activePreviewReportId = reports[0].id;
-        } else {
+        } else if (shouldShowLiveDraft) {
           this.activePreviewReportId = '__LIVE_FORM__';
+        } else {
+          this.activePreviewReportId = null;
         }
       }
     }
@@ -7615,10 +7818,9 @@ Instruksi:
       ? `🎯 [Draft Form Toko Aktif: ${currentStoreName} (${currentStoreCode})]`
       : `🎯 [Draft Form Toko Saat Ini]`;
 
-    const liveOptionHtml =
-      (this.hasActiveStoreForm || reports.length === 0)
-        ? `<option value="__LIVE_FORM__" ${this.activePreviewReportId === '__LIVE_FORM__' ? 'selected' : ''}>${liveLabel}</option>`
-        : '';
+    const liveOptionHtml = shouldShowLiveDraft
+      ? `<option value="__LIVE_FORM__" ${this.activePreviewReportId === '__LIVE_FORM__' ? 'selected' : ''}>${liveLabel}</option>`
+      : '';
 
     const reportsOptionsHtml = reports
       .map(
@@ -7668,14 +7870,22 @@ Instruksi:
   renderPreviewReportDropdownItems(reports = null, liveLabel = '') {
     const listEl = document.getElementById('preview-report-options-list');
     if (!listEl) return;
+
+    const isVisitor = this.isAuditorUser(this.currentUser) || !this.isPrivilegedAdmin(this.currentUser);
     if (!reports) {
-      reports = window.FMCUData.getReports();
+      reports = window.FMCUData.getReports().filter((r) => r && r.id && r.storeCode);
+      if (isVisitor) {
+        reports = reports.filter((r) => this.isReportOwnedByUser(r, this.currentUser));
+      }
       reports.sort((a, b) => String(b.createdAt || b.visitDate || '').localeCompare(String(a.createdAt || a.visitDate || '')));
     }
 
+    const hasMeaningfulDraft = this.hasActiveStoreForm && this.hasMeaningfulVisitData();
     const currentStoreName = document.getElementById('form-store-name')?.value.trim() || '';
     const currentStoreCode = document.getElementById('form-store-code')?.value.trim() || '';
     const hasCurrentStore = Boolean(currentStoreCode && currentStoreCode !== '-');
+    const shouldShowLiveDraft = hasMeaningfulDraft && hasCurrentStore;
+
     if (!liveLabel) {
       liveLabel = hasCurrentStore
         ? `🎯 [Draft Form Toko Aktif: ${currentStoreName} (${currentStoreCode})]`
@@ -7683,7 +7893,7 @@ Instruksi:
     }
 
     let itemsHtml = '';
-    if (this.hasActiveStoreForm || reports.length === 0) {
+    if (shouldShowLiveDraft) {
       const isSel = this.activePreviewReportId === '__LIVE_FORM__';
       itemsHtml += `
         <button
@@ -7750,7 +7960,11 @@ Instruksi:
 
   filterPreviewReports(query) {
     const q = (query || '').toLowerCase().trim();
-    const reports = window.FMCUData.getReports();
+    const isVisitor = this.isAuditorUser(this.currentUser) || !this.isPrivilegedAdmin(this.currentUser);
+    let reports = window.FMCUData.getReports().filter((r) => r && r.id && r.storeCode);
+    if (isVisitor) {
+      reports = reports.filter((r) => this.isReportOwnedByUser(r, this.currentUser));
+    }
     reports.sort((a, b) => String(b.createdAt || b.visitDate || '').localeCompare(String(a.createdAt || a.visitDate || '')));
 
     const filtered = !q
@@ -7769,15 +7983,36 @@ Instruksi:
   },
 
   getActivePreviewReport() {
+    const isVisitor = this.isAuditorUser(this.currentUser) || !this.isPrivilegedAdmin(this.currentUser);
+    let reports = window.FMCUData.getReports().filter((r) => r && r.id && r.storeCode);
+    if (isVisitor) {
+      reports = reports.filter((r) => this.isReportOwnedByUser(r, this.currentUser));
+    }
+    reports.sort((a, b) => String(b.createdAt || b.visitDate || '').localeCompare(String(a.createdAt || a.visitDate || '')));
+
     if (this.activePreviewReportId === '__LIVE_FORM__') {
+      if (this.hasActiveStoreForm && this.hasMeaningfulVisitData()) {
+        return this.buildCurrentFormReportObject();
+      }
+      return reports[0] || null;
+    }
+
+    if (this.activePreviewReportId) {
+      const found = reports.find((r) => r.id === this.activePreviewReportId);
+      if (found) return found;
+    }
+
+    if (reports.length > 0) {
+      this.activePreviewReportId = reports[0].id;
+      return reports[0];
+    }
+
+    if (this.hasActiveStoreForm && this.hasMeaningfulVisitData()) {
+      this.activePreviewReportId = '__LIVE_FORM__';
       return this.buildCurrentFormReportObject();
     }
-    const reports = window.FMCUData.getReports();
-    return (
-      reports.find((r) => r.id === this.activePreviewReportId) ||
-      (this.hasActiveStoreForm ? this.buildCurrentFormReportObject() : reports[0]) ||
-      this.buildCurrentFormReportObject()
-    );
+
+    return null;
   },
 
   openReportPreview(reportId) {
@@ -8903,9 +9138,15 @@ Instruksi:
                   s.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
                 }">${s.status}</span>
               </td>
-              <td class="py-2.5 px-3 text-right whitespace-nowrap space-x-1">
-                <button onclick="FMCUApp.checkInAndOpenForm('${s.storeCode}', '${s.id}')" class="text-[#0099A6] hover:underline font-bold cursor-pointer">Visit</button>
-                <button onclick="FMCUApp.deleteSchedule('${s.id}')" class="text-rose-600 hover:underline font-bold ml-2 cursor-pointer">Hapus</button>
+              <td class="py-2.5 px-3 text-right whitespace-nowrap space-x-1.5">
+                ${
+                  s.status === 'COMPLETED' || s.reportId
+                    ? `<button type="button" onclick="FMCUApp.openReportPreview('${s.reportId || ''}')" class="px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-extrabold text-[11px] transition cursor-pointer">Lihat PDF</button>`
+                    : this.isScheduleOwnedByUser(s, this.currentUser)
+                    ? `<button type="button" onclick="FMCUApp.checkInAndOpenForm('${s.storeCode}', '${s.id}')" class="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#009944] font-extrabold text-[11px] transition cursor-pointer">Mulai Visit</button>`
+                    : `<span class="px-2 py-0.5 rounded text-[10px] font-bold text-slate-400 bg-slate-50 border border-slate-200">Belum Visit</span>`
+                }
+                <button type="button" onclick="FMCUApp.promptDeleteSchedule('${s.id}')" class="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-extrabold text-[11px] transition cursor-pointer">Hapus</button>
               </td>
             </tr>
           `
@@ -11662,11 +11903,15 @@ Instruksi:
                     <span>Lihat PDF</span>
                   </button>
                 ` : `
+                  ${this.isScheduleOwnedByUser(s, this.currentUser) ? `
                   <button type="button" onclick="FMCUApp.openStoreVisitForm('${s.storeCode}', '${s.id}'); FMCUApp.closeAdminCalendarDayDetail();" class="px-3 py-1.5 rounded-xl fm-gradient text-white font-extrabold text-xs shadow-2xs transition flex items-center gap-1 cursor-pointer">
                     <i class="fa-solid fa-file-waveform"></i>
-                    <span>Form Visit</span>
+                    <span>Mulai Visit</span>
                   </button>
-                  <button type="button" onclick="FMCUApp.deleteSchedule('${s.id}'); FMCUApp.openAdminCalendarDayDetail('${dateStr}');" class="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs transition cursor-pointer" title="Hapus Jadwal Ini">
+                  ` : `
+                  <span class="px-2.5 py-1 rounded-xl text-xs font-bold text-slate-400 bg-slate-100 border border-slate-200">Belum Visit</span>
+                  `}
+                  <button type="button" onclick="FMCUApp.closeAdminCalendarDayDetail(); FMCUApp.promptDeleteSchedule('${s.id}');" class="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs transition cursor-pointer" title="Hapus Jadwal Ini">
                     <i class="fa-solid fa-trash-can"></i>
                   </button>
                 `}

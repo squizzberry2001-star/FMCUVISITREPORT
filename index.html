@@ -4093,6 +4093,93 @@ service cloud.firestore {
     </div>
 
     <!-- ============================================================
+         MODAL: OTORITAS HAPUS DAFTAR VISIT / JADWAL
+         ============================================================ -->
+    <div id="modal-delete-authority-auth" class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 hidden">
+      <div class="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+        <!-- Header -->
+        <div class="p-4 sm:p-5 bg-gradient-to-r from-rose-600 to-red-600 text-white flex items-center justify-between shrink-0">
+          <div class="flex items-center gap-2.5">
+            <div class="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-lg shrink-0">
+              <i class="fa-solid fa-trash-can"></i>
+            </div>
+            <div>
+              <h3 class="font-black text-sm sm:text-base leading-tight">Otoritas Hapus Visit / Jadwal</h3>
+              <p class="text-xs text-rose-100 font-medium">Verifikasi keamanan tindakan permanen</p>
+            </div>
+          </div>
+          <button type="button" onclick="FMCUApp.closeDeleteAuthorityModal()" class="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition cursor-pointer">
+            <i class="fa-solid fa-xmark text-sm"></i>
+          </button>
+        </div>
+
+        <!-- Body -->
+        <div class="p-5 sm:p-6 space-y-4 bg-slate-50/50">
+          <!-- Item info box -->
+          <div class="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-2">
+            <div class="flex items-center justify-between">
+              <span id="modal-del-auth-type-pill" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">
+                LAPORAN VISIT
+              </span>
+              <span id="modal-del-auth-date" class="text-xs font-semibold text-slate-500 font-mono">-</span>
+            </div>
+            <div class="font-extrabold text-slate-900 text-sm sm:text-base truncate" id="modal-del-auth-store">
+              FamilyMart Store
+            </div>
+            <div class="text-xs text-slate-600 flex items-center gap-1.5" id="modal-del-auth-visitor">
+              <i class="fa-regular fa-user text-slate-400"></i>
+              <span>Visitor: <strong>-</strong></span>
+            </div>
+          </div>
+
+          <div class="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2">
+            <i class="fa-solid fa-triangle-exclamation text-rose-600 text-sm mt-0.5 shrink-0"></i>
+            <span class="leading-relaxed">Tindakan ini akan menghapus data kunjungan/jadwal secara permanen dari sistem database. Masukkan password otoritas akun Anda untuk konfirmasi.</span>
+          </div>
+
+          <!-- Password input -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">
+              Password Otoritas Admin:
+            </label>
+            <div class="relative">
+              <input
+                type="password"
+                id="modal-del-auth-password"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 transition pr-10"
+                placeholder="Masukkan password akun admin..."
+                autocomplete="current-password"
+                onkeydown="if(event.key === 'Enter') FMCUApp.confirmDeleteAuthority();"
+              />
+              <button
+                type="button"
+                onclick="FMCUApp.toggleDeleteAuthPwdVisibility()"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <i id="modal-del-auth-pwd-eye" class="fa-regular fa-eye text-xs"></i>
+              </button>
+            </div>
+            <div id="modal-del-auth-error" class="hidden text-xs text-rose-600 font-bold mt-1.5 flex items-center gap-1">
+              <i class="fa-solid fa-circle-exclamation"></i>
+              <span id="modal-del-auth-error-text">Password otoritas salah!</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-4 bg-white border-t border-slate-200 flex items-center justify-end gap-2 shrink-0">
+          <button type="button" onclick="FMCUApp.closeDeleteAuthorityModal()" class="px-4 py-2 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs transition cursor-pointer">
+            Batal
+          </button>
+          <button type="button" id="modal-del-auth-btn-confirm" onclick="FMCUApp.confirmDeleteAuthority()" class="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+            <i class="fa-solid fa-trash-can text-xs"></i>
+            <span>Hapus Permanen</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
          MODAL: CROP & MARKER TEMUAN FOTO (SECTION 1 & 3)
          ============================================================ -->
     <div id="modal-photo-editor" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex flex-col justify-between select-none">
