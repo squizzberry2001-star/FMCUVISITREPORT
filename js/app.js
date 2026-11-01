@@ -10978,9 +10978,21 @@ Instruksi:
   autoFillFiveDaysForAllSelectedAuditors() {
     this.ensureWeeklyPlannerInitialized();
     if (this.weeklySelectedAuditors.length === 0) {
-      this.showToast('Pilih minimal 1 Regional Bestie / Visitor di Langkah 2.', 'warning');
+      this.showToast('Pilih minimal 1 Regional Bestie / Visitor pada daftar di atas.', 'warning');
       return;
     }
+    // Bersihkan slot draft non-cuti/off agar penyusunan jadwal 100% bebas bentrok dari awal
+    this.weeklySelectedAuditors.forEach((audId) => {
+      for (let d = 0; d < 7; d++) {
+        const slotKey = this.getWeeklySlotKey(audId, d);
+        const existing = this.weeklyDraftMatrix[slotKey] || [];
+        if (existing.some((it) => it.isCuti || it.isOff || it.storeCode === 'CUTI' || it.storeCode === 'OFF')) {
+          continue;
+        }
+        this.weeklyDraftMatrix[slotKey] = [];
+      }
+    });
+
     const cursor = { idx: 0 };
     let totalAdded = 0;
     this.weeklySelectedAuditors.forEach((audId) => {
@@ -10988,7 +11000,7 @@ Instruksi:
     });
     this.renderWeeklySchedulePlanner();
     this.showToast(
-      `Berhasil menyebarkan ${totalAdded} jadwal toko untuk ${this.weeklySelectedAuditors.length} Visitor (Senin–Minggu)!`,
+      `Berhasil menyusun & menyebarkan ${totalAdded} jadwal visit untuk ${this.weeklySelectedAuditors.length} Visitor (100% Bebas Bentrok)!`,
       'success'
     );
   },

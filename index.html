@@ -2091,6 +2091,24 @@ service cloud.firestore {
                   </div>
                   <div id="weekly-nearest-monday-info" class="text-[10px] font-semibold text-emerald-700 -mt-2"></div>
 
+                  <!-- Big Action Button: Isi 1 Minggu (Sebar 1 Minggu Semua Visitor) -->
+                  <div class="pt-1">
+                    <button
+                      type="button"
+                      onclick="FMCUApp.autoFillFiveDaysForAllSelectedAuditors()"
+                      class="w-full py-3 sm:py-3.5 px-4 sm:px-6 rounded-2xl bg-gradient-to-r from-[#009944] via-emerald-600 to-[#0099A6] hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-xs sm:text-sm tracking-wide shadow-md hover:shadow-lg transition-all transform active:scale-[0.99] flex items-center justify-center gap-2.5 cursor-pointer group"
+                      title="Otomatis menyusun jadwal 1 minggu (Senin s/d Minggu) untuk seluruh visitor terpilih sesuai toko kepemilikan Bestie In Charge 100% bebas bentrok"
+                    >
+                      <div class="w-7 h-7 rounded-xl bg-white/20 group-hover:bg-white/30 flex items-center justify-center text-white transition shrink-0">
+                        <i class="fa-solid fa-wand-magic-sparkles text-xs sm:text-sm"></i>
+                      </div>
+                      <span class="truncate">Isi 1 Minggu (Sebar 1 Minggu Semua Visitor)</span>
+                      <span class="hidden sm:inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/20 text-emerald-50 ml-1">
+                        100% Bebas Bentrok
+                      </span>
+                    </button>
+                  </div>
+
                   <!-- Row 2: Pilih Visitor -->
                   <div class="space-y-2">
                     <div class="flex items-center justify-between gap-2">
@@ -2166,53 +2184,6 @@ service cloud.firestore {
                       </div>
                     </div>
                   </details>
-                </div>
-
-                <!-- CARD 2: PENCARIAN & PEMILIHAN TOKO CEPAT -->
-                <div id="weekly-quick-picker-card" class="p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-3">
-                  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
-                    <div class="flex items-center gap-2 flex-wrap">
-                      <span class="w-5 h-5 rounded-md bg-[#009944] text-white text-[10px] font-extrabold flex items-center justify-center">2</span>
-                      <span class="text-xs font-extrabold text-slate-900">Pilih Toko untuk Ditugaskan</span>
-                      <span id="weekly-active-slot-indicator" class="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                        🎯 Target Slot: Pilih Hari di Bawah
-                      </span>
-                    </div>
-                    <div class="flex items-center gap-1.5 flex-wrap">
-                      <label class="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-600 cursor-pointer select-none">
-                        <input type="checkbox" id="weekly-auto-advance-day" checked class="rounded text-[#009944] focus:ring-0" />
-                        <span>Auto-Lanjut Hari</span>
-                      </label>
-                      <button type="button" onclick="FMCUApp.autoFillFiveDaysForActiveAuditor()" class="px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-bold text-[11px] transition flex items-center gap-1 cursor-pointer">
-                        <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i>
-                        <span>Isi 1 Minggu (Visitor Aktif)</span>
-                      </button>
-                      <button type="button" onclick="FMCUApp.autoFillFiveDaysForAllSelectedAuditors()" class="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#009944] border border-emerald-200 font-bold text-[11px] transition flex items-center gap-1 cursor-pointer">
-                        <i class="fa-solid fa-bolt text-[10px]"></i>
-                        <span>Sebar 1 Minggu ke Semua Visitor</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- Search & City Filter -->
-                  <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
-                    <div class="sm:col-span-8 relative">
-                      <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                      <input type="text" id="weekly-store-search" oninput="FMCUApp.renderWeeklyQuickStoreResults()" placeholder="Cari nama toko, site code, kota, area manager..." class="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50/70 text-slate-800 placeholder-slate-400 text-xs font-semibold focus:outline-none focus:border-[#009944] focus:bg-white" />
-                    </div>
-                    <div class="sm:col-span-4">
-                      <select id="weekly-store-city-filter" onchange="FMCUApp.renderWeeklyQuickStoreResults()" class="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50/70 text-slate-700 text-xs font-semibold focus:outline-none focus:border-[#009944] focus:bg-white">
-                        <option value="ALL">Semua Wilayah</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <!-- Store Counter & Quick Grid Result -->
-                  <div class="flex items-center justify-between text-[11px] font-bold text-slate-500 pt-1">
-                    <span id="weekly-store-quick-counter">Memuat daftar master toko...</span>
-                    <span class="text-[10px] text-slate-400 hidden sm:inline">Klik toko untuk langsung assign ke slot target</span>
-                  </div>
-                  <div id="weekly-store-quick-results" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 max-h-60 overflow-y-auto p-1.5 bg-slate-50/60 rounded-xl border border-slate-200/80"></div>
                 </div>
 
                 <!-- PAPAN MATRIKS 1 WEEK (SENIN s/d MINGGU) PER VISITOR -->
