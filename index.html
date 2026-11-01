@@ -1739,76 +1739,47 @@
             </div>
           </div>
 
-          <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2.5 w-full lg:w-auto">
-            <!-- View Mode 3-Way Toggle: Slide 16:9, PDF Asli, Semua Halaman -->
-            <div class="grid grid-cols-3 sm:inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200 w-full sm:w-auto text-center">
-              <button type="button" id="btn-mode-slide" onclick="FMCUApp.setPreviewMode('slide')" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-900 shadow-sm transition cursor-pointer truncate">
-                <i class="fa-solid fa-display mr-1 text-[#0099A6]"></i><span>Slide</span>
-              </button>
-              <button type="button" id="btn-mode-pdf" onclick="FMCUApp.setPreviewMode('pdf')" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition cursor-pointer truncate">
-                <i class="fa-solid fa-file-pdf mr-1 text-rose-600"></i><span>PDF Asli</span>
-              </button>
-              <button type="button" id="btn-mode-grid" onclick="FMCUApp.setPreviewMode('grid')" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition cursor-pointer truncate">
-                <i class="fa-solid fa-grip mr-1 text-slate-500"></i><span>Semua</span>
-              </button>
-            </div>
-
-            <!-- Action Button: SINKRONISASI GDRIVE (Email dinonaktifkan selama masa testing) -->
-            <div class="w-full sm:w-auto">
-              <button
-                type="button"
-                id="btn-preview-send-gdrive"
-                onclick="FMCUApp.handlePreviewGDriveSyncClick()"
-                class="w-full sm:w-auto px-6 py-2.5 rounded-xl fm-gradient hover:opacity-95 text-white font-extrabold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <i class="fa-brands fa-google-drive text-base"></i>
-                <span>SINKRONISASI GDRIVE</span>
-              </button>
-            </div>
+          <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+            <!-- Action Buttons: Buka di Tab Baru, Unduh PDF, Sinkronisasi GDrive -->
+            <button
+              type="button"
+              onclick="FMCUApp.openActualPdfInNewTab()"
+              class="px-3.5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-extrabold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-98"
+              title="Buka Dokumen PDF di Tab Baru Browser"
+            >
+              <i class="fa-solid fa-arrow-up-right-from-square"></i>
+              <span>Buka di Tab Baru</span>
+            </button>
+            <button
+              type="button"
+              onclick="FMCUApp.downloadCurrentPreviewPdf()"
+              class="px-4 py-2.5 rounded-xl bg-[#009944] hover:bg-emerald-600 text-white font-extrabold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-98"
+              title="Unduh Berkas PDF Lengkap"
+            >
+              <i class="fa-solid fa-download"></i>
+              <span>Unduh PDF</span>
+            </button>
+            <button
+              type="button"
+              id="btn-preview-send-gdrive"
+              onclick="FMCUApp.handlePreviewGDriveSyncClick()"
+              class="px-5 py-2.5 rounded-xl fm-gradient hover:opacity-95 text-white font-extrabold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-md active:scale-98"
+              title="Sinkronisasikan Berkas ke Google Drive Toko"
+            >
+              <i class="fa-brands fa-google-drive text-sm"></i>
+              <span>SINKRONISASI GDRIVE</span>
+            </button>
           </div>
         </div>
 
-        <!-- Mode 1: Interactive Single Slide Deck Viewer (Mobile-Responsive & Swipe-Friendly) -->
-        <div id="preview-slide-mode-container" class="space-y-3 sm:space-y-4">
-          <div class="flex items-center justify-between bg-slate-900 text-white p-2.5 sm:px-4 sm:py-2.5 rounded-xl gap-2">
-            <div class="flex items-center gap-2 min-w-0">
-              <span id="preview-slide-counter" class="text-[10px] sm:text-xs font-extrabold bg-[#0099A6] px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md shrink-0">Hal 1 / 10</span>
-              <span id="preview-slide-title" class="text-xs sm:text-sm font-semibold text-slate-200 truncate">Cover - FMCU Visit Store Report</span>
-            </div>
-            <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
-              <button type="button" onclick="FMCUApp.prevSlide()" class="px-2.5 sm:px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold transition cursor-pointer flex items-center gap-1">
-                <i class="fa-solid fa-chevron-left text-[11px]"></i><span class="hidden sm:inline">Sebelumnya</span>
-              </button>
-              <button type="button" onclick="FMCUApp.nextSlide()" class="px-2.5 sm:px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold transition cursor-pointer flex items-center gap-1">
-                <span class="hidden sm:inline">Selanjutnya</span><i class="fa-solid fa-chevron-right text-[11px]"></i>
-              </button>
-            </div>
-          </div>
-
-          <!-- Active 16:9 Slide Stage -->
-          <div class="max-w-5xl mx-auto w-full">
-            <div class="pdf-slide-wrapper">
-              <div id="preview-active-slide-stage" class="pdf-slide-canvas"></div>
-            </div>
-          </div>
-
-          <!-- Mobile Swipe Hint & Thumbnail Strip -->
-          <div class="space-y-1.5">
-            <div class="text-[10px] sm:text-xs text-slate-400 text-center flex items-center justify-center gap-1.5 sm:hidden">
-              <i class="fa-solid fa-hand-pointer text-slate-400"></i>
-              <span>Geser (swipe) slide ke kanan / kiri untuk berpindah halaman</span>
-            </div>
-            <div id="preview-thumbnails-strip" class="flex items-center gap-2 sm:gap-3 overflow-x-auto py-1 sm:py-2 px-1"></div>
-          </div>
-        </div>
-
-        <!-- Mode 2: Actual Native PDF Document Viewer (Tampilan Dokumen Asli Seperti Download) -->
-        <div id="preview-pdf-mode-container" class="hidden space-y-3">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 bg-slate-900 text-white rounded-2xl">
+        <!-- TAMPILAN DOKUMEN PDF ASLI (LANGSUNG MENAMPILKAN SEMUA HALAMAN) -->
+        <div id="preview-pdf-mode-container" class="space-y-4">
+          <!-- Document Header Banner -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 bg-slate-900 text-white rounded-2xl shadow-sm">
             <div class="flex items-center gap-2.5 min-w-0">
               <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
               <div class="min-w-0 flex-1">
-                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Dokumen Asli (Direct jsPDF Output)</div>
+                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Dokumen Asli (Direct PDF Output - Semua Halaman)</div>
                 <div class="running-text-container mt-0.5">
                   <div id="preview-pdf-doc-name-track" class="running-text-track">
                     <div id="preview-pdf-doc-name" class="text-xs sm:text-sm font-extrabold text-white">Dokumen PDF Aktual (16:9 Landscape)</div>
@@ -1817,81 +1788,26 @@
               </div>
             </div>
             <div class="flex items-center gap-2 shrink-0">
-              <button type="button" onclick="FMCUApp.openActualPdfInNewTab()" class="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs">
-                <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                <span>Buka di Tab Baru</span>
-              </button>
-              <button type="button" onclick="FMCUApp.downloadCurrentPreviewPdf()" class="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-[#009944] hover:bg-emerald-600 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs">
-                <i class="fa-solid fa-download"></i>
-                <span>Unduh PDF</span>
-              </button>
+              <span id="preview-pdf-total-pages-badge" class="px-2.5 py-1 rounded-lg bg-teal-800 text-teal-200 text-xs font-extrabold border border-teal-600">
+                Memuat Halaman...
+              </span>
             </div>
           </div>
 
-          <!-- Mobile PDF Helper Bar for Optimal Fit -->
-          <div class="sm:hidden px-3.5 py-2.5 bg-slate-800 text-slate-200 text-xs rounded-xl flex items-center justify-between gap-2 shadow-xs">
-            <span class="flex items-center gap-1.5 min-w-0">
-              <i class="fa-solid fa-mobile-screen text-[#0099A6] shrink-0"></i>
-              <span class="truncate">Tampilan Fit PDF di Layar Ponsel</span>
-            </span>
-            <div class="flex items-center gap-1.5 shrink-0">
-              <button type="button" onclick="FMCUApp.setPreviewMode('slide')" class="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-[11px] cursor-pointer">
-                Mode Slide
-              </button>
-              <button type="button" onclick="FMCUApp.openActualPdfInNewTab()" class="px-2.5 py-1 rounded-lg bg-[#009944] text-white font-bold text-[11px] cursor-pointer">
-                Layar Penuh
-              </button>
-            </div>
+          <!-- Loading Spinner -->
+          <div id="preview-pdf-loading" class="p-10 bg-white/90 rounded-2xl border border-slate-200 flex flex-col items-center justify-center gap-2.5 shadow-xs">
+            <div class="w-9 h-9 rounded-full border-3 border-teal-600 border-t-transparent animate-spin"></div>
+            <span class="text-xs font-bold text-slate-700">Merender Dokumen PDF Asli (Seluruh Halaman)...</span>
           </div>
 
-          <!-- PDF Controls Bar: Canvas Fit Layar HP & Navigasi Halaman -->
-          <div class="flex items-center justify-between gap-2 p-2 sm:p-2.5 bg-slate-800 text-white rounded-xl text-xs">
-            <div id="preview-pdf-canvas-pager" class="flex items-center gap-1.5 sm:gap-2">
-              <button type="button" onclick="FMCUApp.prevPdfPage()" class="px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded-lg font-bold cursor-pointer text-xs flex items-center gap-1">
-                <i class="fa-solid fa-chevron-left text-[10px]"></i><span class="hidden sm:inline">Sebelumnya</span>
-              </button>
-              <span id="preview-pdf-page-indicator" class="font-extrabold px-2 py-0.5 rounded bg-teal-600 text-[11px]">Hal 1 / 10</span>
-              <button type="button" onclick="FMCUApp.nextPdfPage()" class="px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded-lg font-bold cursor-pointer text-xs flex items-center gap-1">
-                <span class="hidden sm:inline">Berikutnya</span><i class="fa-solid fa-chevron-right text-[10px]"></i>
-              </button>
-            </div>
+          <!-- Container Seluruh Halaman PDF (Scrollable Continuous) -->
+          <div id="preview-actual-pdf-all-pages" class="space-y-5 max-w-5xl mx-auto w-full"></div>
 
-            <div class="flex items-center gap-1.5">
-              <button type="button" id="btn-pdf-view-canvas" onclick="FMCUApp.switchPdfDisplayMode('canvas')" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-[#009944] text-white transition cursor-pointer">
-                <i class="fa-solid fa-mobile-screen mr-1"></i><span>Fit Layar</span>
-              </button>
-              <button type="button" id="btn-pdf-view-frame" onclick="FMCUApp.switchPdfDisplayMode('frame')" class="px-2.5 py-1 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition cursor-pointer">
-                <i class="fa-solid fa-window-maximize mr-1"></i><span>Frame</span>
-              </button>
-              <button type="button" onclick="FMCUApp.openActualPdfInNewTab()" class="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-bold cursor-pointer ml-1" title="Buka PDF di tab baru browser">
-                <i class="fa-solid fa-arrow-up-right-from-square"></i>
-              </button>
-            </div>
-          </div>
-
-          <!-- 1. Canvas Fit Layar Container (100% Responsive on Mobile & Desktop) -->
-          <div id="preview-actual-pdf-canvas-container" class="pdf-canvas-container relative min-h-[300px]">
-            <div id="preview-pdf-loading" class="absolute inset-0 bg-white/80 backdrop-blur-xs flex flex-col items-center justify-center gap-2 z-10 hidden">
-              <div class="w-8 h-8 rounded-full border-3 border-teal-600 border-t-transparent animate-spin"></div>
-              <span class="text-xs font-bold text-slate-700">Merender Dokumen PDF Aktual...</span>
-            </div>
-            <div class="w-full flex justify-center">
-              <canvas id="preview-actual-pdf-canvas" class="rounded-xl shadow-lg border border-slate-300 w-full max-w-full"></canvas>
-            </div>
-            <div class="text-[10px] sm:text-[11px] text-slate-500 font-semibold text-center mt-2.5 flex items-center justify-center gap-1.5">
-              <i class="fa-solid fa-circle-check text-emerald-600"></i>
-              <span>PDF 100% Fit Layar Ponsel & Bebas Terpotong. Gunakan tombol Sebelumnya / Berikutnya untuk navigasi slide.</span>
-            </div>
-          </div>
-
-          <!-- 2. Embedded Native PDF Viewer Frame (Fallback / Desktop Mode) -->
+          <!-- Fallback Native PDF Viewer Frame -->
           <div id="preview-actual-pdf-frame-container" class="hidden w-full bg-slate-100 rounded-2xl border border-slate-300 overflow-hidden shadow-sm relative">
-            <iframe id="preview-actual-pdf-iframe" class="w-full h-[68vh] sm:h-[750px] border-0" style="width: 100%; max-width: 100%; min-height: 480px;" title="Actual PDF Preview"></iframe>
+            <iframe id="preview-actual-pdf-iframe" class="w-full h-[75vh] sm:h-[800px] border-0" style="width: 100%; max-width: 100%; min-height: 520px;" title="Actual PDF Preview"></iframe>
           </div>
         </div>
-
-        <!-- Mode 3: All Slides Grid View -->
-        <div id="preview-grid-mode-container" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6"></div>
 
       </main>
 

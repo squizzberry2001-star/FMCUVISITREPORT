@@ -444,10 +444,17 @@ function stripPhotoBinaryForDatabase(photo) {
     window.FMCUData.cachePhotoInMemory(photo.id, photo.driveFileId, photo.dataUrl);
   }
   const isHttpUrl = photo.dataUrl && /^https?:\/\//i.test(photo.dataUrl);
-  const directUrl =
+  let directUrl =
     photo.driveUrl ||
     (photo.driveFileId ? `https://drive.google.com/thumbnail?id=${photo.driveFileId}&sz=w1200` : '') ||
     (isHttpUrl ? photo.dataUrl : '');
+
+  // REAL-TIME CROSS-DEVICE SYNC:
+  // Jika directUrl belum ada (sedang proses upload GDrive) namun ada Base64 lokal,
+  // simpan dataUrl (jika ukuran <= 450KB) agar perangkat lain langsung dapat melihat foto secara realtime!
+  if (!directUrl && photo.dataUrl && photo.dataUrl.startsWith('data:image') && photo.dataUrl.length <= 450000) {
+    directUrl = photo.dataUrl;
+  }
 
   return {
     id: photo.id || 'photo-' + Date.now(),
@@ -458,8 +465,7 @@ function stripPhotoBinaryForDatabase(photo) {
     driveFileId: photo.driveFileId || '',
     driveUrl: directUrl,
     driveViewUrl: photo.driveViewUrl || '',
-    storageProvider: photo.driveFileId ? 'GOOGLE_DRIVE' : 'GOOGLE_DRIVE_PENDING',
-    // Tidak menyimpan binary Base64 (`data:image/...`) ke Firestore
+    storageProvider: photo.driveFileId ? 'GOOGLE_DRIVE' : (directUrl ? 'FIRESTORE_REALTIME' : 'PENDING'),
     dataUrl: directUrl
   };
 }
@@ -1088,6 +1094,36 @@ window.FMCUData = {
     );
     this.unsubscribers.push(unsubSchedules);
 
+    // 5. REAL-TIME LISTENER: DRAFTS (Sinkronisasi Form & Foto Real-Time Lintas Device)
+    const unsubDrafts = this.db.collection('drafts').onSnapshot(
+      (snapshot) => {
+        const localDrafts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DRAFT_REPORT) || '{}');
+        let hasNewDraft = false;
+        snapshot.forEach((doc) => {
+          const cloudDraft = doc.data();
+          if (!cloudDraft || !cloudDraft.storeCode) return;
+          const storeCode = String(cloudDraft.storeCode);
+          const schId = cloudDraft.scheduleId || null;
+          const schKey = schId ? `${storeCode}_${schId}` : null;
+
+          this.draftMemoryCache[storeCode] = cloudDraft;
+          if (schKey) this.draftMemoryCache[schKey] = cloudDraft;
+          localDrafts[storeCode] = cloudDraft;
+          if (schKey) localDrafts[schKey] = cloudDraft;
+          hasNewDraft = true;
+        });
+
+        if (hasNewDraft) {
+          localStorage.setItem(STORAGE_KEYS.DRAFT_REPORT, JSON.stringify(localDrafts));
+          if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
+            window.FMCUApp.onCloudDataUpdated('drafts');
+          }
+        }
+      },
+      (err) => handleSnapshotError('drafts', err)
+    );
+    this.unsubscribers.push(unsubDrafts);
+
     // 4. REAL-TIME LISTENER: REPORTS
     const unsubReports = this.db.collection('reports').onSnapshot(
       (snapshot) => {
@@ -1324,30 +1360,65 @@ window.FMCUData = {
     let raw = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
     if (!Array.isArray(raw) || raw.length === 0) {
       raw = [...INITIAL_USERS];
-      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(raw));
-    } else {
-      // Auto-sinkronisasi 35 karyawan (jika belum lengkap di localStorage)
-      const existingNames = new Set(raw.map((u) => String(u.name || '').toLowerCase().trim()));
-      let hasNew = false;
-      EMPLOYEE_NIK_SEED_ROWS.forEach((row, idx) => {
-        if (!existingNames.has(String(row.name).toLowerCase().trim())) {
-          raw.push(mapEmployeeRowToUserObject(row, idx, { passwordMode: 'nik' }));
-          hasNew = true;
-        }
-      });
-      if (hasNew) {
-        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(raw));
-      }
     }
-    return raw.map((u) => ({
+
+    // 1. DEDUPLIKASI TOTAL: Gabungkan (merge) user berdasarkan Nama Unik
+    const userMapByName = new Map();
+    raw.forEach((u) => {
+      if (!u) return;
+      const normName = String(u.name || '').toLowerCase().trim();
+      if (!normName) return;
+      if (!userMapByName.has(normName)) {
+        userMapByName.set(normName, { ...u });
+      } else {
+        // Gabungkan field penting jika user sudah ada
+        const existing = userMapByName.get(normName);
+        if (!existing.nik && u.nik) existing.nik = u.nik;
+        if (!existing.jabatan && u.jabatan) existing.jabatan = u.jabatan;
+        if (u.role === 'ADMIN_SCHEDULE' || u.role === 'SUPER_ADMIN') existing.role = u.role;
+        if (Array.isArray(u.authorities)) {
+          existing.authorities = Array.from(new Set([...(existing.authorities || []), ...u.authorities]));
+        }
+      }
+    });
+
+    // 2. Pastikan akun root Super Admin ada
+    if (!userMapByName.has('admin fmcu') && !userMapByName.has('administrator')) {
+      userMapByName.set('admin fmcu', INITIAL_USERS[0]);
+    }
+
+    // 3. Pastikan seluruh 36 karyawan terdaftar tanpa membuat duplikat
+    EMPLOYEE_NIK_SEED_ROWS.forEach((row, idx) => {
+      const normName = String(row.name).toLowerCase().trim();
+      if (!userMapByName.has(normName)) {
+        userMapByName.set(normName, mapEmployeeRowToUserObject(row, idx, { passwordMode: 'nik' }));
+      }
+    });
+
+    const deduped = Array.from(userMapByName.values());
+    if (deduped.length !== raw.length) {
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(deduped));
+    }
+
+    return deduped.map((u) => ({
       ...u,
       name: u.name === 'Auditor FMCU' ? 'Visitor FMCU' : u.name,
       roleBadge: String(u.roleBadge || '').replace(/Auditor/gi, 'Visitor')
     }));
   },
   saveUsers(users) {
+    // Deduplikasi ketat sebelum menyimpan ke LocalStorage & Cloud Firestore
+    const seen = new Set();
+    const cleanUsers = [];
+    (users || []).forEach((u) => {
+      if (!u) return;
+      const norm = String(u.name || '').toLowerCase().trim();
+      if (!norm || seen.has(norm)) return;
+      seen.add(norm);
+      cleanUsers.push(u);
+    });
     const prevUsers = this.getUsers();
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(cleanUsers));
 
     if (this.db) {
       try {
@@ -2061,6 +2132,21 @@ window.FMCUData = {
       drafts[String(storeCode)] = entry;
       if (schKey) drafts[schKey] = entry;
       localStorage.setItem(STORAGE_KEYS.DRAFT_REPORT, JSON.stringify(drafts));
+
+      // 5. Sinkronisasi Real-Time ke Cloud Firestore collection 'drafts'
+      if (this.db) {
+        try {
+          const docId = schKey || String(storeCode);
+          this.db.collection('drafts').doc(docId).set({
+            ...entry,
+            storeCode: String(storeCode),
+            scheduleId: schId
+          }, { merge: true }).catch((err) => console.warn('Draft firestore sync warning:', err));
+        } catch (eDb) {
+          console.warn('Draft firestore error:', eDb);
+        }
+      }
+
       return true;
     } catch (e) {
       console.warn('LocalStorage draft quota warning, draft safely preserved in IndexedDB & RAM:', e);
@@ -2075,6 +2161,10 @@ window.FMCUData = {
     if (schKey) delete this.draftMemoryCache[schKey];
     this.deleteDraftFromDb(storeCode);
     if (schKey) this.deleteDraftFromDb(schKey);
+    if (this.db) {
+      if (schKey) this.db.collection('drafts').doc(schKey).delete().catch(() => {});
+      this.db.collection('drafts').doc(String(storeCode)).delete().catch(() => {});
+    }
     try {
       const drafts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DRAFT_REPORT) || '{}');
       delete drafts[String(storeCode)];

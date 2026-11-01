@@ -392,6 +392,11 @@ window.FMCUApp = {
     if (collectionName === 'schedules') {
       this.checkAndDispatchUserVisitNotifications();
     }
+    if (collectionName === 'drafts') {
+      if (this.currentView === 'form' && this.activeStoreCode) {
+        this.syncActiveFormDraftFromCloud();
+      }
+    }
     this.updateAdminFirestoreSummary();
 
     // Debounce rendering agar jika Firestore mengirim multi-snapshot sekaligus saat startup,
@@ -2398,6 +2403,24 @@ window.FMCUApp = {
     }
   },
 
+  syncActiveFormDraftFromCloud() {
+    if (!this.activeStoreCode || this._isLocallyEditing) return;
+    const draft = window.FMCUData.getStoreDraft(this.activeStoreCode, this.activeScheduleId);
+    if (!draft) return;
+    this.loadReportObjectToForm(draft);
+    const liveText = document.getElementById('form-live-autosave-text');
+    if (liveText) {
+      liveText.textContent = 'Draf & Foto tersinkron realtime dari perangkat lain';
+      liveText.className = 'text-emerald-700 font-bold';
+      setTimeout(() => {
+        if (liveText) {
+          liveText.textContent = 'Draf tersimpan otomatis';
+          liveText.className = '';
+        }
+      }, 3500);
+    }
+  },
+
   updateFormGuardVisibility() {
     const guardEl = document.getElementById('form-no-store-guard');
     const wrapperEl = document.getElementById('form-active-store-wrapper');
@@ -3724,9 +3747,15 @@ window.FMCUApp = {
 
   getSchedulableAuditors() {
     const users = window.FMCUData.getUsers();
-    return users
-      .filter((u) => this.isAuditorUser(u))
-      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'id', { sensitivity: 'base' }));
+    const seen = new Set();
+    const unique = [];
+    users.filter((u) => this.isAuditorUser(u)).forEach((u) => {
+      const n = String(u.name || '').trim().toLowerCase();
+      if (!n || seen.has(n)) return;
+      seen.add(n);
+      unique.push(u);
+    });
+    return unique.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'id', { sensitivity: 'base' }));
   },
 
   isScheduleOwnedByUser(schedule, user = this.currentUser) {
@@ -6322,6 +6351,9 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       if ((!p.dataUrl || !p.dataUrl.startsWith('data:image')) && mem) {
         p.dataUrl = mem;
       }
+      if (!p.dataUrl && p.driveUrl) {
+        p.dataUrl = p.driveUrl;
+      }
       return p;
     };
     this.formCrew = JSON.parse(JSON.stringify(rep.crewList || []));
@@ -8901,7 +8933,12 @@ Instruksi:
     const report = this.getActivePreviewReport();
     if (!report) return;
     const loadingEl = document.getElementById('preview-pdf-loading');
+    const allPagesEl = document.getElementById('preview-actual-pdf-all-pages');
+    const frameContainer = document.getElementById('preview-actual-pdf-frame-container');
+    const iframe = document.getElementById('preview-actual-pdf-iframe');
+
     if (loadingEl) loadingEl.classList.remove('hidden');
+    if (allPagesEl) allPagesEl.innerHTML = '';
 
     try {
       await window.FMCUPdf.hydrateReportPhotosFromGDrive(report);
@@ -8909,49 +8946,64 @@ Instruksi:
       const blobUrl = doc.output('bloburl');
       this.currentPdfBlobUrl = blobUrl;
 
-      // 1. Set iframe source
-      const iframe = document.getElementById('preview-actual-pdf-iframe');
+      // Update doc name banner
+      const fileName = window.FMCUPdf.getFileName(report);
+      const docFullName = `Dokumen PDF Asli: ${fileName}`;
+      const docTrack = document.getElementById('preview-pdf-doc-name-track');
+      if (docTrack) {
+        docTrack.innerHTML = `<span class="inline-block font-extrabold text-white">${docFullName}</span>`;
+      }
+
       if (iframe) {
         iframe.src = `${blobUrl}#view=FitH&toolbar=0&navpanes=0&scrollbar=1`;
       }
 
-      // 2. Update doc name banner with running text if long (> 30 chars)
-      const fileName = window.FMCUPdf.getFileName(report);
-      const docFullName = `Dokumen PDF Asli: ${fileName}`;
-      const docNameEl = document.getElementById('preview-pdf-doc-name');
-      const docTrack = document.getElementById('preview-pdf-doc-name-track');
-      if (docNameEl && docTrack) {
-        if (docFullName.length > 30) {
-          docTrack.classList.add('is-running');
-          docTrack.innerHTML = `
-            <span class="inline-block pr-8 font-extrabold text-white">${docFullName}</span>
-            <span class="text-teal-400 font-extrabold pr-8">✦</span>
-            <span class="inline-block pr-8 font-extrabold text-white">${docFullName}</span>
-            <span class="text-teal-400 font-extrabold pr-8">✦</span>
-          `;
-        } else {
-          docTrack.classList.remove('is-running');
-          docTrack.innerHTML = `<span class="inline-block font-extrabold text-white">${docFullName}</span>`;
-        }
-      }
-
-      // 3. Render directly onto responsive canvas using PDF.js if available
-      if (window.pdfjsLib) {
+      // Render SELURUH HALAMAN PDF secara kontinyu menggunakan PDF.js
+      if (window.pdfjsLib && allPagesEl) {
         const arrayBuffer = doc.output('arraybuffer');
         const loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer });
         this.pdfJsDoc = await loadingTask.promise;
-        this.pdfTotalPages = this.pdfJsDoc.numPages;
-        this.pdfCurrentPage = 1;
-        await this.renderPdfPageToCanvas(this.pdfCurrentPage);
-        this.switchPdfDisplayMode('canvas');
+        const totalPages = this.pdfJsDoc.numPages;
+
+        for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+          const page = await this.pdfJsDoc.getPage(pageNum);
+          const viewport = page.getViewport({ scale: 2.0 });
+
+          const card = document.createElement('div');
+          card.className = 'pdf-page-card bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden mb-6 p-2 sm:p-4';
+
+          const header = document.createElement('div');
+          header.className = 'flex items-center justify-between text-xs font-bold text-slate-500 pb-2 mb-2 border-b border-slate-100';
+          header.innerHTML = `<span>Halaman ${pageNum} dari ${totalPages}</span><span class="text-[11px] font-semibold text-teal-700">Dokumen PDF Asli</span>`;
+          card.appendChild(header);
+
+          const canvasWrapper = document.createElement('div');
+          canvasWrapper.className = 'w-full flex justify-center overflow-x-auto';
+          const canvas = document.createElement('canvas');
+          canvas.className = 'rounded-lg shadow-sm border border-slate-100 w-full max-w-full';
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          canvasWrapper.appendChild(canvas);
+          card.appendChild(canvasWrapper);
+
+          allPagesEl.appendChild(card);
+
+          const ctx = canvas.getContext('2d');
+          await page.render({ canvasContext: ctx, viewport }).promise;
+        }
+
+        if (frameContainer) frameContainer.classList.add('hidden');
+        allPagesEl.classList.remove('hidden');
       } else {
-        this.switchPdfDisplayMode('frame');
+        if (frameContainer) frameContainer.classList.remove('hidden');
+        if (allPagesEl) allPagesEl.classList.add('hidden');
       }
     } catch (e) {
       console.warn('Error generating actual PDF preview:', e);
+      if (frameContainer) frameContainer.classList.remove('hidden');
     } finally {
       if (loadingEl) {
-        setTimeout(() => loadingEl.classList.add('hidden'), 350);
+        loadingEl.classList.add('hidden');
       }
     }
   },
@@ -11219,39 +11271,55 @@ Instruksi:
     const auditors = this.getSchedulableAuditors();
     const weekDateStrs = new Set(fiveDays.map((d) => d.dateStr));
 
+    const currentVisitor = auditors.find((x) => x.id === auditorId) || window.FMCUData.getUsers().find((x) => x.id === auditorId);
+    const visitorName = currentVisitor ? currentVisitor.name : '';
+    const currentNormName = visitorName.trim().toLowerCase();
+
     // Helper: Periksa apakah toko bentrok pada hari d (tanggal dateStr) dengan visitor lain
     const isConflictOnDay = (stCode, dayIdx, dateStr) => {
       if (!stCode || stCode === 'CUTI' || stCode === 'OFF' || stCode === 'AGENDA') return false;
       const codeStr = String(stCode);
-      // 1. Cek di draft slot visitor lain pada hari yang sama
-      for (const aud of auditors) {
-        if (aud.id === auditorId) continue;
-        const otherItems = this.getWeeklySlotItems(aud.id, dayIdx);
-        if (otherItems.some((it) => String(it.storeCode) === codeStr)) {
+      // 1. Cek di seluruh slot draft
+      for (const k in this.weeklyDraftMatrix) {
+        if (!k.endsWith(`__${dayIdx}`)) continue;
+        const [slotAudId] = k.split('__');
+        if (slotAudId === auditorId) continue;
+        const slotUser = window.FMCUData.getUsers().find((u) => u.id === slotAudId);
+        if (slotUser && currentNormName && String(slotUser.name || '').trim().toLowerCase() === currentNormName) continue;
+        const items = this.weeklyDraftMatrix[k] || [];
+        if (items.some((it) => String(it.storeCode) === codeStr)) {
           return true;
         }
       }
-      // 2. Cek di database jadwal tersimpan pada tanggal yang sama untuk visitor lain
-      if (schedules.some((s) => s.scheduledDate === dateStr && String(s.storeCode) === codeStr && s.auditorId !== auditorId)) {
+      // 2. Cek di database tersimpan
+      if (schedules.some((s) => s.scheduledDate === dateStr && String(s.storeCode) === codeStr && s.auditorId !== auditorId && String(s.auditorName || '').trim().toLowerCase() !== currentNormName)) {
         return true;
       }
       return false;
     };
 
-    // 1. Kumpulkan semua toko yang sudah terpilih di visitor lain di minggu ini (draft & database tersimpan)
+    // 1. Kumpulkan semua toko yang SUDAH TERPILIH di visitor lain di minggu ini (draft & database tersimpan)
+    // ATURAN MUTLAK: Toko yang sudah dipilih visitor lain tidak boleh dipilih lagi!
     const usedByOtherVisitorsInWeek = new Set();
-    auditors.forEach((aud) => {
-      if (aud.id === auditorId) return;
-      for (let d = 0; d < 7; d++) {
-        this.getWeeklySlotItems(aud.id, d).forEach((it) => {
-          if (it.storeCode && it.storeCode !== 'CUTI' && it.storeCode !== 'OFF' && it.storeCode !== 'AGENDA') {
-            usedByOtherVisitorsInWeek.add(String(it.storeCode));
-          }
-        });
-      }
-    });
+    for (const k in this.weeklyDraftMatrix) {
+      if (!Array.isArray(this.weeklyDraftMatrix[k])) continue;
+      const [slotAudId] = k.split('__');
+      if (slotAudId === auditorId) continue;
+      const slotUser = window.FMCUData.getUsers().find((u) => u.id === slotAudId);
+      if (slotUser && currentNormName && String(slotUser.name || '').trim().toLowerCase() === currentNormName) continue;
+      this.weeklyDraftMatrix[k].forEach((it) => {
+        if (it && it.storeCode && it.storeCode !== 'CUTI' && it.storeCode !== 'OFF' && it.storeCode !== 'AGENDA') {
+          usedByOtherVisitorsInWeek.add(String(it.storeCode));
+        }
+      });
+    }
+
     schedules.forEach((s) => {
-      if (weekDateStrs.has(s.scheduledDate) && s.auditorId !== auditorId && s.storeCode && s.storeCode !== 'CUTI' && s.storeCode !== 'OFF' && s.storeCode !== 'AGENDA') {
+      if (!weekDateStrs.has(s.scheduledDate)) return;
+      if (s.auditorId === auditorId) return;
+      const sAudName = String(s.auditorName || '').trim().toLowerCase();
+      if (currentNormName && sAudName === currentNormName) return;
+      if (s.storeCode && s.storeCode !== 'CUTI' && s.storeCode !== 'OFF' && s.storeCode !== 'AGENDA') {
         usedByOtherVisitorsInWeek.add(String(s.storeCode));
       }
     });
@@ -11265,27 +11333,26 @@ Instruksi:
         totalFilled++;
         const dateStr = fiveDays[d]?.dateStr || '';
         items.forEach((it) => {
-          if (isConflictOnDay(it.storeCode, d, dateStr)) conflictCount++;
+          if (isConflictOnDay(it.storeCode, d, dateStr) || (it.storeCode && usedByOtherVisitorsInWeek.has(String(it.storeCode)))) {
+            conflictCount++;
+          }
         });
       }
     }
 
-    // Jika seluruh 7 hari sudah terisi ATAU terdapat bentrok, bersihkan slot yang bentrok / kocok ulang agar bebas bentrok
+    // Jika seluruh 7 hari sudah terisi ATAU terdapat bentrok/dobel dengan visitor lain, bersihkan slot agar disusun ulang 100% bebas bentrok
     const shouldResetConflicts = conflictCount > 0 || totalFilled === 7;
     if (shouldResetConflicts) {
       for (let d = 0; d < 7; d++) {
         const slotKey = this.getWeeklySlotKey(auditorId, d);
         const dateStr = fiveDays[d]?.dateStr || '';
         if (totalFilled === 7 && conflictCount > 0) {
-          // Penuh dan bentrok -> reset total untuk menyusun 7 hari baru yang 100% bebas bentrok
           this.weeklyDraftMatrix[slotKey] = [];
         } else if (conflictCount > 0) {
-          // Hanya bersihkan hari-hari yang bentrok dengan visitor lain
           this.weeklyDraftMatrix[slotKey] = (this.weeklyDraftMatrix[slotKey] || []).filter(
-            (it) => !isConflictOnDay(it.storeCode, d, dateStr)
+            (it) => !isConflictOnDay(it.storeCode, d, dateStr) && !usedByOtherVisitorsInWeek.has(String(it.storeCode))
           );
         } else if (totalFilled === 7) {
-          // Penuh tanpa bentrok tapi user sengaja klik Isi Otomatis lagi -> kocok ulang jadwal
           this.weeklyDraftMatrix[slotKey] = [];
         }
       }
@@ -11295,13 +11362,13 @@ Instruksi:
     const usedByThisVisitor = new Set();
     for (let d = 0; d < 7; d++) {
       this.getWeeklySlotItems(auditorId, d).forEach((it) => {
-        if (it.storeCode) usedByThisVisitor.add(String(it.storeCode));
+        if (it.storeCode && it.storeCode !== 'CUTI' && it.storeCode !== 'OFF' && it.storeCode !== 'AGENDA') {
+          usedByThisVisitor.add(String(it.storeCode));
+        }
       });
     }
 
     // 4. Deteksi Profil Visitor & Toko Kepemilikan (Bestie in Charge Google Spreadsheet)
-    const currentVisitor = auditors.find((x) => x.id === auditorId);
-    const visitorName = currentVisitor ? currentVisitor.name : '';
     const ownedStoreCodes = (window.FMCUData && typeof window.FMCUData.getStoreCodesOwnedByBestie === 'function')
       ? window.FMCUData.getStoreCodesOwnedByBestie(visitorName)
       : new Set();
@@ -11329,21 +11396,16 @@ Instruksi:
       )
     );
 
-    // Tier 2: Toko kepemilikan Bestie yang belum dipakai visitor ini di minggu ini (fallback jika Tier 1 habis)
-    let poolTier2Owned = shuffleArray(
-      ownedStoresList.filter((st) => !usedByThisVisitor.has(String(st.code)))
-    );
-
-    // Tier 3: Master Toko Umum (digunakan jika Bestie tidak punya toko kepemilikan ATAU toko kepemilikan sudah habis)
-    // "dan jika ada user yang tidak memiliki toko maka dibebaskan"
-    let poolTier3General = shuffleArray(
+    // Tier 2: Master Toko Umum yang 100% BELUM PERNAH DIPILIH siapapun di minggu ini
+    // Digunakan jika Bestie tidak punya toko kepemilikan ATAU toko kepemilikan sudah habis
+    let poolTier2General = shuffleArray(
       filteredStores.filter(
         (st) => !usedByThisVisitor.has(String(st.code)) && !usedByOtherVisitorsInWeek.has(String(st.code))
       )
     );
 
-    // Tier 4: Master Toko Umum fallback (belum dipakai visitor ini)
-    let poolTier4General = shuffleArray(
+    // Tier 3: Fallback darurat (jika seluruh toko di minggu ini benar-benar habis, hindari bentrok pada hari yang sama)
+    let poolTier3Fallback = shuffleArray(
       filteredStores.filter((st) => !usedByThisVisitor.has(String(st.code)))
     );
 
@@ -11354,7 +11416,7 @@ Instruksi:
         const dateStr = fiveDays[d]?.dateStr || '';
         let picked = null;
 
-        // Pilihan 1: Milik Bestie (Tier 1 - Belum dipakai siapapun di minggu ini)
+        // Pilihan 1: Milik Bestie (Tier 1 - Bebas Dipakai & Belum Dipilih Siapapun di Minggu Ini)
         if (hasOwnedStores && poolTier1Owned.length > 0) {
           const idx = poolTier1Owned.findIndex((st) => !isConflictOnDay(st.code, d, dateStr));
           if (idx !== -1) {
@@ -11363,35 +11425,23 @@ Instruksi:
           }
         }
 
-        // Pilihan 2: Milik Bestie (Tier 2 - Tidak bentrok di hari d)
-        if (!picked && hasOwnedStores && poolTier2Owned.length > 0) {
-          const idx = poolTier2Owned.findIndex(
-            (st) => !usedByThisVisitor.has(String(st.code)) && !isConflictOnDay(st.code, d, dateStr)
-          );
+        // Pilihan 2: Master Toko Umum (Tier 2 - Belum Dipilih Siapapun di Minggu Ini)
+        if (!picked && poolTier2General.length > 0) {
+          const idx = poolTier2General.findIndex((st) => !isConflictOnDay(st.code, d, dateStr));
           if (idx !== -1) {
-            picked = poolTier2Owned[idx];
-            poolTier2Owned.splice(idx, 1);
+            picked = poolTier2General[idx];
+            poolTier2General.splice(idx, 1);
           }
         }
 
-        // Pilihan 3: Master Toko Umum Bebas (Tier 3 - Belum dipakai siapapun di minggu ini)
-        // Dipakai jika user bebas/tidak punya toko ATAU toko milik Bestie sudah habis terjadwal
-        if (!picked) {
-          const idx = poolTier3General.findIndex((st) => !isConflictOnDay(st.code, d, dateStr));
-          if (idx !== -1) {
-            picked = poolTier3General[idx];
-            poolTier3General.splice(idx, 1);
-          }
-        }
-
-        // Pilihan 4: Master Toko Umum Bebas (Tier 4 - Fallback akhir tidak bentrok di hari d)
-        if (!picked) {
-          const idx = poolTier4General.findIndex(
+        // Pilihan 3: Fallback darurat tidak bentrok di hari yang sama
+        if (!picked && poolTier3Fallback.length > 0) {
+          const idx = poolTier3Fallback.findIndex(
             (st) => !usedByThisVisitor.has(String(st.code)) && !isConflictOnDay(st.code, d, dateStr)
           );
           if (idx !== -1) {
-            picked = poolTier4General[idx];
-            poolTier4General.splice(idx, 1);
+            picked = poolTier3Fallback[idx];
+            poolTier3Fallback.splice(idx, 1);
           }
         }
 
@@ -11408,10 +11458,10 @@ Instruksi:
       this.renderWeeklySchedulePlanner();
       if (added > 0) {
         const sourceDesc = hasOwnedStores
-          ? `${ownedStoreCodes.size} Toko Kepemilikan Bestie In Charge`
+          ? `${ownedStoreCodes.size} Toko Milik Bestie In Charge`
           : 'Master Toko Umum (Bebas)';
         this.showToast(
-          `Berhasil mengisi otomatis ${added} hari (Senin–Minggu) untuk ${visitorName || 'Visitor'} berbasis ${sourceDesc} (100% Bebas Bentrok)!`,
+          `Berhasil mengisi otomatis ${added} hari (Senin–Minggu) untuk ${visitorName || 'Visitor'} berbasis ${sourceDesc} (100% Bebas Bentrok & Toko Tidak Dobel)!`,
           'success'
         );
       } else {
@@ -12420,16 +12470,27 @@ Instruksi:
     const allUsers = window.FMCUData.getUsers() || [];
     const schedulableUsers = this.getSchedulableAuditors();
 
-    // Tentukan daftar user yang diexport
-    let usersToExport = [];
+    // 1. Tentukan daftar user yang diexport - DEDUPLIKASI KETAT NAMA
+    let rawUsers = [];
     if (targetUserName) {
       const match = allUsers.find(
         (u) => String(u.name || '').toLowerCase().trim() === String(targetUserName).toLowerCase().trim()
       );
-      usersToExport = match ? [match] : [{ id: 'custom', name: targetUserName }];
+      rawUsers = match ? [match] : [{ id: 'custom', name: targetUserName }];
     } else {
-      usersToExport = schedulableUsers.length > 0 ? [...schedulableUsers] : allUsers.filter((u) => u.username !== 'admin');
+      rawUsers = schedulableUsers.length > 0 ? [...schedulableUsers] : allUsers.filter((u) => u.username !== 'admin');
     }
+
+    const seenNames = new Set();
+    const usersToExport = [];
+    rawUsers.forEach((u) => {
+      if (!u || !u.name) return;
+      const n = String(u.name).trim().toLowerCase();
+      if (!seenNames.has(n)) {
+        seenNames.add(n);
+        usersToExport.push(u);
+      }
+    });
 
     // Urutkan alfabetis nama user
     usersToExport.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'id', { sensitivity: 'base' }));
@@ -12441,31 +12502,45 @@ Instruksi:
     const storeMap = new Map((window.FMCUData.getStores() || []).map((s) => [String(s.code), s]));
 
     usersToExport.forEach((u) => {
+      const normName = String(u.name || '').trim().toLowerCase();
+      // Kumpulkan seluruh ID yang mungkin dimiliki user dengan nama ini (cegah duplikasi)
+      const matchingIds = new Set(
+        allUsers.filter((x) => String(x.name || '').trim().toLowerCase() === normName).map((x) => x.id)
+      );
+      matchingIds.add(u.id);
+
       fiveDays.forEach((dayObj) => {
         const dayIdx = dayObj.dayIndex;
         const dateStr = dayObj.dateStr;
 
-        // Cek di draft matrix terlebih dahulu jika ada, lalu cek database jadwal tersimpan
-        const draftItems = this.getWeeklySlotItems(u.id, dayIdx);
+        // Cek di draft matrix terlebih dahulu (lintas matchingIds)
+        let draftItems = [];
+        for (const mId of matchingIds) {
+          const sItems = this.getWeeklySlotItems(mId, dayIdx);
+          if (sItems.length > 0) {
+            draftItems = sItems;
+            break;
+          }
+        }
+
+        // Cek jadwal tersimpan di database
         const savedItems = schedules.filter(
-          (s) => (s.auditorId === u.id || s.auditorName === u.name) && s.scheduledDate === dateStr
+          (s) => (matchingIds.has(s.auditorId) || String(s.auditorName || '').trim().toLowerCase() === normName) && s.scheduledDate === dateStr
         );
 
         const items = draftItems.length > 0 ? draftItems : savedItems;
 
         if (items.length === 0) {
-          // Jika kosong di akhir pekan (Sabtu & Minggu), tandai OFF seperti di Templete Jadwal.xlsx
-          if (dayIdx >= 5) {
-            rows.push([
-              u.name,
-              dateStr,
-              '08:30',
-              dateStr,
-              '17:30',
-              'OFF',
-              ''
-            ]);
-          }
+          // Output hari kosong sebagai OFF agar seluruh hari Senin–Minggu rapi tercatat
+          rows.push([
+            u.name,
+            dateStr,
+            '08:30',
+            dateStr,
+            '17:30',
+            'OFF',
+            ''
+          ]);
           return;
         }
 
@@ -12639,13 +12714,43 @@ Instruksi:
         storeMap.set(String(st.code).toLowerCase().trim(), st);
       });
 
-      let importedCount = 0;
+      // 1. Ekstraksi dan deteksi tanggal secara aman menggunakan UTC getters
+      const formatExcelDate = (val) => {
+        if (val instanceof Date) {
+          const y = val.getUTCFullYear();
+          const m = String(val.getUTCMonth() + 1).padStart(2, '0');
+          const d = String(val.getUTCDate()).padStart(2, '0');
+          return `${y}-${m}-${d}`;
+        }
+        if (typeof val === 'string') {
+          const match = val.match(/\d{4}-\d{2}-\d{2}/);
+          if (match) return match[0];
+        }
+        return '';
+      };
+
+      // Cari tanggal paling awal yang valid di Excel untuk auto-menyesuaikan awal minggu (Senin)
+      const validDates = [];
+      for (let r = 1; r < data.length; r++) {
+        const dStr = formatExcelDate(data[r][1]);
+        if (dStr) validDates.push(dStr);
+      }
+      validDates.sort();
+
+      if (validDates.length > 0) {
+        const earliestDate = validDates[0];
+        this.weeklyMondayDate = this.getMondayOfWeek(earliestDate);
+        const monInput = document.getElementById('weekly-monday-input');
+        if (monInput) monInput.value = this.weeklyMondayDate;
+      }
+
       const fiveDays = this.getFiveWorkDays(this.weeklyMondayDate);
       const dateToIdxMap = new Map();
       fiveDays.forEach((d) => dateToIdxMap.set(d.dateStr, d.dayIndex));
 
       const involvedAuditorIds = new Set();
       const resetSlotKeys = new Set();
+      let importedCount = 0;
 
       for (let r = 1; r < data.length; r++) {
         const row = data[r];
@@ -12669,12 +12774,8 @@ Instruksi:
 
         involvedAuditorIds.add(u.id);
 
-        let dateStr = '';
-        if (row[1] instanceof Date) {
-          dateStr = row[1].toISOString().slice(0, 10);
-        } else if (typeof row[1] === 'string') {
-          dateStr = row[1].slice(0, 10);
-        }
+        const dateStr = formatExcelDate(row[1]);
+        if (!dateStr) continue;
 
         const dayIdx = dateToIdxMap.get(dateStr);
         if (dayIdx === undefined) continue;
@@ -12714,6 +12815,17 @@ Instruksi:
             shiftWindow: '-'
           });
           importedCount++;
+        } else if (descLower.includes('agenda') || descLower.includes('nso') || descLower.includes('training') || descLower.includes('simulasi')) {
+          this.weeklyDraftMatrix[slotKey].push({
+            storeCode: 'AGENDA',
+            storeName: desc.replace(/^agenda\s*:\s*/i, '').trim() || 'AGENDA INTERNAL',
+            agendaLocation: loc || 'HEAD OFFICE',
+            notes: desc,
+            isAgenda: true,
+            priority: 'NORMAL',
+            shiftWindow
+          });
+          importedCount++;
         } else if (descLower.includes('visit store') || loc) {
           const matchedStore = storeMap.get(loc.toLowerCase());
           if (matchedStore) {
@@ -12738,6 +12850,27 @@ Instruksi:
         }
       }
 
+      // 2. KELENGKAPAN HARI:
+      // "jika cuma ada 4 hari maka sisa harinya adalah weekend atau off, jika di hari weekend ada agenda juga tercatat"
+      involvedAuditorIds.forEach((audId) => {
+        for (let d = 0; d < 7; d++) {
+          const slotItems = this.getWeeklySlotItems(audId, d);
+          if (slotItems.length === 0) {
+            const isWeekend = d === 5 || d === 6;
+            this.weeklyDraftMatrix[this.getWeeklySlotKey(audId, d)] = [{
+              storeCode: 'OFF',
+              storeName: isWeekend ? 'WEEKEND / OFF' : 'HARI LIBUR / OFF',
+              priority: 'NORMAL',
+              isCuti: false,
+              isOff: true,
+              isStatusBadge: true,
+              shiftWindow: '-'
+            }];
+            importedCount++;
+          }
+        }
+      });
+
       involvedAuditorIds.forEach((audId) => {
         if (!audId.includes('__') && !this.weeklySelectedAuditors.includes(audId)) {
           this.weeklySelectedAuditors.push(audId);
@@ -12745,7 +12878,11 @@ Instruksi:
       });
 
       this.renderWeeklySchedulePlanner();
-      this.showToast(`Berhasil memuat & menerapkan ${importedCount} jadwal dari file ${sourceName}!`, 'success', 6000);
+      this.showToast(
+        `Berhasil memuat & menerapkan ${importedCount} jadwal dari file ${sourceName}! Hari tanpa agenda otomatis disetel Weekend / OFF.`,
+        'success',
+        6000
+      );
     } catch (err) {
       console.error('Error parse template excel:', err);
       this.showToast(`Gagal membaca format jadwal dari file ${sourceName}: ${err.message}`, 'error');
