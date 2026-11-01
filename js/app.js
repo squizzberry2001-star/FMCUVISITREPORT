@@ -3747,8 +3747,21 @@ window.FMCUApp = {
       (s) => s.scheduledDate === todayStr && this.isScheduleOwnedByUser(s, this.currentUser)
     );
 
-    // Pick first today schedule that hasn't completed or had report filled
-    const myPendingToday = myTodaySchedules.find((s) => {
+    const isNonStore = (s) => s.storeType === 'NON_STORE' || s.storeCode === 'CUTI' || s.storeCode === 'OFF' || s.storeCode === 'AGENDA' || s.status === 'CUTI' || s.status === 'OFF' || s.status === 'AGENDA' || s.isAgenda;
+    const storeSchedules = myTodaySchedules.filter((s) => !isNonStore(s));
+    const nonStore = myTodaySchedules.find((s) => isNonStore(s));
+
+    // Jika jadwal hari ini adalah CUTI, OFF, atau AGENDA: tidak ada form visit yang dibuka
+    if (storeSchedules.length === 0 && nonStore) {
+      const isCuti = nonStore.storeCode === 'CUTI' || nonStore.status === 'CUTI';
+      const isOff = nonStore.storeCode === 'OFF' || nonStore.status === 'OFF';
+      const label = isCuti ? 'CUTI RESMI' : isOff ? 'LIBUR / OFF' : `AGENDA: ${nonStore.storeName}`;
+      this.showToast(`Status Anda hari ini: ${label}. Ini adalah kegiatan non-visit dan tidak memerlukan pengisian form visit.`, 'info', 5000);
+      return;
+    }
+
+    // Pick first today store schedule that hasn't completed or had report filled
+    const myPendingToday = storeSchedules.find((s) => {
       const hasReport = s.reportId || reports.some((r) => r.storeCode === s.storeCode && r.visitDate === s.scheduledDate);
       return s.status !== 'COMPLETED' && !hasReport;
     });
@@ -3759,9 +3772,9 @@ window.FMCUApp = {
       return;
     }
 
-    // 3. If user has schedules today but all are already completed
-    if (myTodaySchedules.length > 0) {
-      const completedToday = myTodaySchedules[0];
+    // 3. If user has store schedules today but all are already completed
+    if (storeSchedules.length > 0) {
+      const completedToday = storeSchedules[0];
       const rep = reports.find((r) => (completedToday.reportId && r.id === completedToday.reportId) || (r.storeCode === completedToday.storeCode && r.visitDate === todayStr));
       if (rep) {
         this.openReportPreview(rep.id);
@@ -3796,12 +3809,32 @@ window.FMCUApp = {
       (s) => s.scheduledDate === todayStr && this.isScheduleOwnedByUser(s, this.currentUser)
     );
 
-    const pendingToday = myTodaySchedules.filter((s) => {
+    const isNonStore = (s) => s.storeType === 'NON_STORE' || s.storeCode === 'CUTI' || s.storeCode === 'OFF' || s.storeCode === 'AGENDA' || s.status === 'CUTI' || s.status === 'OFF' || s.status === 'AGENDA' || s.isAgenda;
+    const storeSchedules = myTodaySchedules.filter((s) => !isNonStore(s));
+    const nonStore = myTodaySchedules.find((s) => isNonStore(s));
+
+    const pendingToday = storeSchedules.filter((s) => {
       const hasReport = s.reportId || reports.some((r) => r.storeCode === s.storeCode && r.visitDate === s.scheduledDate);
       return s.status !== 'COMPLETED' && !hasReport;
     });
 
-    if (myTodaySchedules.length === 0) {
+    if (storeSchedules.length === 0 && nonStore) {
+      const isCuti = nonStore.storeCode === 'CUTI' || nonStore.status === 'CUTI';
+      const isOff = nonStore.storeCode === 'OFF' || nonStore.status === 'OFF';
+      if (isCuti) {
+        btn.className = 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-extrabold p-2.5 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm shadow-none transition flex items-center justify-center text-center gap-1.5 sm:gap-2 cursor-pointer';
+        label.textContent = 'Jadwal Hari Ini: 🌴 CUTI (Tidak Ada Visit)';
+        btn.title = 'Hari ini Anda berstatus CUTI (Bebas dari penugasan visit toko)';
+      } else if (isOff) {
+        btn.className = 'bg-indigo-100 hover:bg-indigo-200 text-indigo-900 border border-indigo-300 font-extrabold p-2.5 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm shadow-none transition flex items-center justify-center text-center gap-1.5 sm:gap-2 cursor-pointer';
+        label.textContent = 'Jadwal Hari Ini: 💤 LIBUR / OFF (Tidak Ada Visit)';
+        btn.title = 'Hari ini adalah hari LIBUR / OFF Anda (Bebas dari penugasan visit toko)';
+      } else {
+        btn.className = 'bg-purple-100 hover:bg-purple-200 text-purple-900 border border-purple-300 font-extrabold p-2.5 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm shadow-none transition flex items-center justify-center text-center gap-1.5 sm:gap-2 cursor-pointer';
+        label.textContent = `Jadwal Hari Ini: 📌 ${nonStore.storeName || 'Agenda'} (Non-Visit)`;
+        btn.title = `Hari ini terjadwal agenda internal: ${nonStore.storeName} (Tidak ada form visit)`;
+      }
+    } else if (storeSchedules.length === 0) {
       btn.className = 'bg-slate-100 hover:bg-slate-200 text-slate-500 border border-slate-200 font-extrabold p-2.5 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm shadow-none transition flex items-center justify-center text-center gap-1.5 sm:gap-2 cursor-pointer';
       label.textContent = 'Visit Jadwal Hari Ini (Tidak Ada Jadwal)';
       btn.title = 'Tidak ada jadwal visit yang ditugaskan untuk hari ini';
@@ -3852,6 +3885,26 @@ window.FMCUApp = {
     const targetCode = store ? store.code : sch ? sch.storeCode : storeCode;
     const targetName = store ? store.name : sch ? sch.storeName : 'Toko Visit';
     const todayStr = this.getLocalDateISO();
+
+    // GUARD NON-VISIT (CUTI, OFF, AGENDA MANUAL):
+    // Jika jadwal adalah CUTI, OFF, atau AGENDA, form visit tidak dapat dibuka karena bukan kunjungan toko
+    const isNonVisit =
+      targetCode === 'CUTI' ||
+      targetCode === 'OFF' ||
+      targetCode === 'AGENDA' ||
+      sch?.storeType === 'NON_STORE' ||
+      sch?.status === 'CUTI' ||
+      sch?.status === 'OFF' ||
+      sch?.status === 'AGENDA' ||
+      sch?.isAgenda;
+
+    if (isNonVisit) {
+      const isC = targetCode === 'CUTI' || sch?.status === 'CUTI';
+      const isO = targetCode === 'OFF' || sch?.status === 'OFF';
+      const label = isC ? 'CUTI RESMI' : isO ? 'HARI LIBUR / OFF' : `AGENDA: ${targetName}`;
+      this.showToast(`Status jadwal ini adalah "${label}" (informasi kegiatan non-visit, tanpa form visit).`, 'info', 4500);
+      return;
+    }
 
     // Simpan draft toko saat ini jika visitor berpindah membuka form toko lain
     const currentStoreCode = document.getElementById('form-store-code')?.value.trim();
@@ -4434,6 +4487,70 @@ window.FMCUApp = {
         const isArchived = isPast || isDone;
         const repId = s.reportId || matchedRep?.id || null;
         const dateFormatted = window.FMCUPdf.formatIndonesianDate(s.scheduledDate, true);
+
+        // ====================================================================
+        // NON-VISIT SCHEDULE (CUTI, OFF, AGENDA MANUAL)
+        // Menampilkan informasi jadwal tanpa form visit & tanpa tombol visit
+        // ====================================================================
+        const isCuti = s.storeCode === 'CUTI' || s.status === 'CUTI';
+        const isOff = s.storeCode === 'OFF' || s.status === 'OFF';
+        const isAgenda = s.storeCode === 'AGENDA' || s.status === 'AGENDA' || s.isAgenda;
+
+        if (isCuti || isOff || isAgenda || s.storeType === 'NON_STORE') {
+          const bgCard = isCuti ? 'border-amber-200 bg-amber-50/60' : isOff ? 'border-indigo-200 bg-indigo-50/60' : 'border-purple-200 bg-purple-50/60';
+          const badgeBg = isCuti ? 'bg-amber-100 text-amber-800' : isOff ? 'bg-indigo-100 text-indigo-800' : 'bg-purple-100 text-purple-800';
+          const title = isCuti ? 'CUTI TAHUNAN / KHUSUS' : isOff ? 'HARI LIBUR / OFF' : (s.storeName || 'AGENDA INTERNAL');
+          const icon = isCuti ? '🌴' : isOff ? '💤' : '📌';
+          const catPill = isCuti ? 'CUTI' : isOff ? 'LIBUR / OFF' : (s.agendaCategory || 'AGENDA');
+          const subTitle = isCuti ? 'Jadwal Cuti Terkonfirmasi' : isOff ? 'Hari Bebas Kerja / Libur Resmi' : 'Informasi Jadwal Kegiatan Internal';
+
+          return `
+            <div class="border ${bgCard} rounded-2xl p-4 flex flex-col justify-between gap-3 shadow-xs hover:shadow-md transition">
+              <div class="space-y-2">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full ${badgeBg}">
+                    ${icon} ${catPill}
+                  </span>
+                  <span class="text-[11px] font-mono font-bold text-slate-500">Non-Visit</span>
+                </div>
+
+                <div>
+                  <div class="flex items-center gap-2 flex-wrap mb-1">
+                    <h4 class="font-black text-base text-slate-900">${icon} ${title}</h4>
+                  </div>
+                  <div class="text-xs text-slate-600 flex items-center gap-1.5 mt-0.5">
+                    <i class="fa-regular fa-calendar text-[#0099A6]"></i>
+                    <span>${dateFormatted} ${s.shiftWindow && s.shiftWindow !== '-' ? `(${s.shiftWindow})` : ''}</span>
+                  </div>
+                  <div class="text-xs text-slate-600 flex items-center gap-1.5 mt-0.5">
+                    <i class="fa-regular fa-user text-emerald-600"></i>
+                    <span>Visitor: <strong>${s.auditorName}</strong></span>
+                  </div>
+                  ${s.agendaLocation ? `
+                    <div class="text-xs text-slate-600 flex items-center gap-1.5 mt-0.5">
+                      <i class="fa-solid fa-location-dot text-purple-600"></i>
+                      <span>Lokasi: <strong>${s.agendaLocation}</strong></span>
+                    </div>
+                  ` : ''}
+                </div>
+
+                <p class="text-[11px] text-slate-600 bg-white/70 p-2.5 rounded-xl leading-relaxed border border-slate-200/50">
+                  ${s.notes || s.auditFocus || subTitle}
+                </p>
+              </div>
+
+              <div class="pt-2 border-t border-slate-200/60 flex items-center justify-between gap-2 text-xs">
+                <span class="text-[11px] font-bold ${isCuti ? 'text-amber-800' : isOff ? 'text-indigo-800' : 'text-purple-800'} flex items-center gap-1">
+                  <i class="fa-solid fa-circle-info"></i>
+                  <span>Jadwal Informasi Saja (Tidak Ada Form Visit)</span>
+                </span>
+                <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-500">
+                  Non-Visit
+                </span>
+              </div>
+            </div>
+          `;
+        }
         return `
           <div class="border ${isArchived ? 'border-slate-200 bg-slate-50/70' : 'border-emerald-200 bg-white'} rounded-2xl p-4 flex flex-col justify-between gap-3 shadow-sm hover:shadow-md transition">
             <div class="space-y-2">
@@ -10684,6 +10801,81 @@ Instruksi:
     this.showToast(`Status hari berhasil disetel ke ${cleanStatus}.`, 'info');
   },
 
+  openManualAgendaModal(auditorId, dayIndex) {
+    this.ensureWeeklyPlannerInitialized();
+    const modal = document.getElementById('modal-manual-agenda');
+    if (!modal) return;
+
+    const fiveDays = this.getFiveWorkDays(this.weeklyMondayDate);
+    const dayObj = fiveDays[dayIndex] || { dayName: `Hari ${dayIndex + 1}`, dateStr: '' };
+    const u = this.getSchedulableAuditors().find((x) => x.id === auditorId);
+
+    const targetAudIdEl = document.getElementById('agenda-target-auditor-id');
+    const targetDayIdxEl = document.getElementById('agenda-target-day-index');
+    const targetAudNameEl = document.getElementById('agenda-target-auditor-name');
+    const targetDayLabelEl = document.getElementById('agenda-target-day-label');
+    const titleInput = document.getElementById('agenda-title-input');
+    const timeInput = document.getElementById('agenda-time-input');
+    const locInput = document.getElementById('agenda-location-input');
+    const notesInput = document.getElementById('agenda-notes-input');
+
+    if (targetAudIdEl) targetAudIdEl.value = auditorId;
+    if (targetDayIdxEl) targetDayIdxEl.value = dayIndex;
+    if (targetAudNameEl) targetAudNameEl.textContent = u ? u.name : 'Visitor';
+    if (targetDayLabelEl) targetDayLabelEl.textContent = `${dayObj.dayName}, ${dayObj.dateStr || ''}`;
+
+    if (titleInput) titleInput.value = '';
+    if (timeInput) timeInput.value = '09:00 - 12:00 WIB';
+    if (locInput) locInput.value = 'Head Office / Online';
+    if (notesInput) notesInput.value = '';
+
+    const firstRadio = document.querySelector('input[name="agenda-cat"][value="MEETING"]');
+    if (firstRadio) firstRadio.checked = true;
+
+    modal.classList.remove('hidden');
+    setTimeout(() => titleInput?.focus(), 150);
+  },
+
+  closeManualAgendaModal() {
+    const modal = document.getElementById('modal-manual-agenda');
+    if (modal) modal.classList.add('hidden');
+  },
+
+  submitManualAgendaForm() {
+    const auditorId = document.getElementById('agenda-target-auditor-id')?.value;
+    const dayIndex = Number(document.getElementById('agenda-target-day-index')?.value || 0);
+    const title = (document.getElementById('agenda-title-input')?.value || '').trim();
+    const time = (document.getElementById('agenda-time-input')?.value || '09:00 - 12:00 WIB').trim();
+    const loc = (document.getElementById('agenda-location-input')?.value || '').trim();
+    const notes = (document.getElementById('agenda-notes-input')?.value || '').trim();
+    const catRadio = document.querySelector('input[name="agenda-cat"]:checked');
+    const category = catRadio ? catRadio.value : 'MEETING';
+
+    if (!title) {
+      this.showToast('Judul / nama agenda wajib diisi.', 'warning');
+      return;
+    }
+
+    const slotKey = this.getWeeklySlotKey(auditorId, dayIndex);
+    this.weeklyDraftMatrix[slotKey] = [
+      {
+        storeCode: 'AGENDA',
+        storeName: title,
+        agendaCategory: category,
+        shiftWindow: time,
+        agendaLocation: loc,
+        notes: notes,
+        isAgenda: true,
+        isStatusBadge: true,
+        priority: 'NORMAL'
+      }
+    ];
+
+    this.closeManualAgendaModal();
+    this.renderWeeklySchedulePlanner();
+    this.showToast(`Agenda manual "${title}" berhasil ditambahkan ke jadwal!`, 'success');
+  },
+
   toggleWeeklyStorePriority(auditorId, dayIndex, storeCode) {
     const items = this.getWeeklySlotItems(auditorId, dayIndex);
     const found = items.find((it) => String(it.storeCode) === String(storeCode));
@@ -10765,7 +10957,7 @@ Instruksi:
 
     // Helper: Periksa apakah toko bentrok pada hari d (tanggal dateStr) dengan visitor lain
     const isConflictOnDay = (stCode, dayIdx, dateStr) => {
-      if (!stCode || stCode === 'CUTI' || stCode === 'OFF') return false;
+      if (!stCode || stCode === 'CUTI' || stCode === 'OFF' || stCode === 'AGENDA') return false;
       const codeStr = String(stCode);
       // 1. Cek di draft slot visitor lain pada hari yang sama
       for (const aud of auditors) {
@@ -10788,14 +10980,14 @@ Instruksi:
       if (aud.id === auditorId) return;
       for (let d = 0; d < 7; d++) {
         this.getWeeklySlotItems(aud.id, d).forEach((it) => {
-          if (it.storeCode && it.storeCode !== 'CUTI' && it.storeCode !== 'OFF') {
+          if (it.storeCode && it.storeCode !== 'CUTI' && it.storeCode !== 'OFF' && it.storeCode !== 'AGENDA') {
             usedByOtherVisitorsInWeek.add(String(it.storeCode));
           }
         });
       }
     });
     schedules.forEach((s) => {
-      if (weekDateStrs.has(s.scheduledDate) && s.auditorId !== auditorId && s.storeCode && s.storeCode !== 'CUTI' && s.storeCode !== 'OFF') {
+      if (weekDateStrs.has(s.scheduledDate) && s.auditorId !== auditorId && s.storeCode && s.storeCode !== 'CUTI' && s.storeCode !== 'OFF' && s.storeCode !== 'AGENDA') {
         usedByOtherVisitorsInWeek.add(String(s.storeCode));
       }
     });
@@ -10986,7 +11178,7 @@ Instruksi:
       for (let d = 0; d < 7; d++) {
         const slotKey = this.getWeeklySlotKey(audId, d);
         const existing = this.weeklyDraftMatrix[slotKey] || [];
-        if (existing.some((it) => it.isCuti || it.isOff || it.storeCode === 'CUTI' || it.storeCode === 'OFF')) {
+        if (existing.some((it) => it.isCuti || it.isOff || it.isAgenda || it.storeCode === 'CUTI' || it.storeCode === 'OFF' || it.storeCode === 'AGENDA')) {
           continue;
         }
         this.weeklyDraftMatrix[slotKey] = [];
@@ -11460,6 +11652,7 @@ Instruksi:
                               .map((item, itemIdx) => {
                                 const isCuti = item.isCuti || item.storeCode === 'CUTI';
                                 const isOff = item.isOff || item.storeCode === 'OFF';
+                                const isAgenda = item.isAgenda || item.storeCode === 'AGENDA';
 
                                 if (isCuti || isOff) {
                                   const isC = isCuti;
@@ -11492,6 +11685,45 @@ Instruksi:
                                       <div class="flex items-center justify-between pt-0.5">
                                         <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold ${pillBg}">${isC ? 'CUTI' : 'OFF'}</span>
                                         <span class="text-[9px] text-slate-400 font-medium">Bebas Visit</span>
+                                      </div>
+                                    </div>
+                                  `;
+                                }
+
+                                if (isAgenda) {
+                                  const title = item.storeName || 'Agenda Kegiatan';
+                                  const cat = item.agendaCategory || 'MEETING';
+                                  const time = item.shiftWindow || '09:00 - 12:00 WIB';
+                                  const loc = item.agendaLocation || '';
+                                  const notes = item.notes || '';
+
+                                  return `
+                                    <div onclick="event.stopPropagation()" class="p-2.5 rounded-xl border bg-purple-50/80 border-purple-300 shadow-2xs space-y-1.5 transition">
+                                      <div class="flex items-start justify-between gap-1">
+                                        <div class="min-w-0">
+                                          <div class="font-extrabold text-[11px] text-purple-950 flex items-center gap-1.5">
+                                            <span class="text-purple-600">📌</span>
+                                            <span class="truncate font-black" title="${title}">${title}</span>
+                                          </div>
+                                          <div class="text-[9px] text-purple-700 font-semibold mt-0.5 flex items-center gap-1">
+                                            <i class="fa-regular fa-clock text-[9px]"></i>
+                                            <span>${time}</span>
+                                          </div>
+                                          ${loc ? `<div class="text-[9px] text-slate-500 truncate mt-0.5"><i class="fa-solid fa-location-dot text-[8px] mr-1 text-slate-400"></i>${loc}</div>` : ''}
+                                          ${notes ? `<div class="text-[9px] text-slate-600 line-clamp-1 italic bg-white/70 p-1 rounded mt-0.5 border border-purple-100">"${notes}"</div>` : ''}
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onclick="FMCUApp.removeStoreFromWeeklySlot('${u.id}', ${dayObj.dayIndex}, '${item.storeCode}')"
+                                          class="text-slate-400 hover:text-rose-600 px-1 text-xs cursor-pointer"
+                                          title="Batalkan agenda ini"
+                                        >
+                                          <i class="fa-solid fa-xmark"></i>
+                                        </button>
+                                      </div>
+                                      <div class="flex items-center justify-between pt-0.5">
+                                        <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-purple-200 text-purple-900">${cat}</span>
+                                        <span class="text-[9px] text-purple-700 font-bold">Non-Visit</span>
                                       </div>
                                     </div>
                                   `;
@@ -11585,11 +11817,11 @@ Instruksi:
                     </button>
                     <button
                       type="button"
-                      onclick="FMCUApp.promptAddManualStoreToWeeklySlot('${u.id}', ${dayObj.dayIndex})"
+                      onclick="FMCUApp.openManualAgendaModal('${u.id}', ${dayObj.dayIndex})"
                       class="w-full py-1 px-2 rounded-lg bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200 text-[10px] font-bold transition flex items-center justify-center gap-1 cursor-pointer"
-                      title="Buat agenda atau toko khusus secara manual jika belum ada di master toko"
+                      title="Buat agenda atau kegiatan internal secara manual (Non-Visit)"
                     >
-                      <i class="fa-solid fa-calendar-plus text-[9px] text-slate-400"></i>
+                      <i class="fa-solid fa-calendar-plus text-[9px] text-purple-600"></i>
                       <span>Buat Agenda Manual</span>
                     </button>
                   </div>
@@ -11714,6 +11946,7 @@ Instruksi:
         items.forEach((item, idx) => {
           const isCuti = item.isCuti || item.storeCode === 'CUTI';
           const isOff = item.isOff || item.storeCode === 'OFF';
+          const isAgenda = item.isAgenda || item.storeCode === 'AGENDA';
 
           if (isCuti || isOff) {
             involvedAuditors.add(au.name);
@@ -11730,6 +11963,32 @@ Instruksi:
               priority: 'NORMAL',
               auditFocus: isCuti ? 'Cuti Resmi' : 'Hari Off / Libur',
               status: statusKey,
+              actualIn: null,
+              actualOut: null,
+              reportId: null,
+              assignedBy
+            });
+            return;
+          }
+
+          if (isAgenda) {
+            involvedAuditors.add(au.name);
+            newSchedules.push({
+              id: `sch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${idx}`,
+              storeCode: 'AGENDA',
+              storeName: item.storeName || 'AGENDA KEGIATAN',
+              storeType: 'NON_STORE',
+              auditorId: au.id,
+              auditorName: au.name,
+              scheduledDate: dayObj.dateStr,
+              shiftWindow: item.shiftWindow || '09:00 - 12:00 WIB',
+              priority: 'NORMAL',
+              auditFocus: item.agendaCategory ? `Agenda: ${item.agendaCategory}` : 'Agenda Kegiatan Internal',
+              agendaCategory: item.agendaCategory || 'MEETING',
+              agendaLocation: item.agendaLocation || '',
+              notes: item.notes || '',
+              status: 'AGENDA',
+              isAgenda: true,
               actualIn: null,
               actualOut: null,
               reportId: null,
@@ -11767,11 +12026,11 @@ Instruksi:
       return;
     }
 
-    // Cek Bentrok Antar-Jadwal Baru (Abaikan CUTI & OFF karena bebas bentrok)
+    // Cek Bentrok Antar-Jadwal Baru (Abaikan CUTI, OFF & AGENDA karena bebas bentrok)
     const storeDateMap = {};
     const conflictList = [];
     newSchedules.forEach((ns) => {
-      if (ns.storeCode === 'CUTI' || ns.storeCode === 'OFF') return;
+      if (ns.storeCode === 'CUTI' || ns.storeCode === 'OFF' || ns.storeCode === 'AGENDA') return;
       const k = `${ns.storeCode}__${ns.scheduledDate}`;
       if (storeDateMap[k]) {
         conflictList.push(`${ns.storeName} (${ns.scheduledDate}): ${storeDateMap[k]} & ${ns.auditorName}`);
@@ -12828,7 +13087,7 @@ Instruksi:
   },
 
   checkStoreConflictOnDay(storeCode, currentAuditorId, dayIndex, dateStr) {
-    if (!storeCode || storeCode === 'CUTI' || storeCode === 'OFF') return null;
+    if (!storeCode || storeCode === 'CUTI' || storeCode === 'OFF' || storeCode === 'AGENDA') return null;
     const users = this.getSchedulableAuditors();
     // A. Cek di slot draft auditor lain pada hari yang sama
     for (const aud of users) {
@@ -13351,6 +13610,13 @@ Instruksi:
                   <button type="button" onclick="FMCUApp.openReportPreview('${repId}'); FMCUApp.closeAdminCalendarDayDetail();" class="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-2xs transition flex items-center gap-1 cursor-pointer">
                     <i class="fa-solid fa-file-pdf"></i>
                     <span>Lihat PDF</span>
+                  </button>
+                ` : (s.storeType === 'NON_STORE' || s.storeCode === 'CUTI' || s.storeCode === 'OFF' || s.storeCode === 'AGENDA') ? `
+                  <span class="px-2.5 py-1 rounded-xl text-xs font-bold text-slate-500 bg-slate-100 border border-slate-200">
+                    <i class="fa-solid fa-circle-info mr-1 text-slate-400"></i>Non-Visit
+                  </span>
+                  <button type="button" onclick="FMCUApp.closeAdminCalendarDayDetail(); FMCUApp.promptDeleteSchedule('${s.id}');" class="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs transition cursor-pointer" title="Hapus Jadwal Ini">
+                    <i class="fa-solid fa-trash-can"></i>
                   </button>
                 ` : `
                   ${this.isScheduleOwnedByUser(s, this.currentUser) ? `

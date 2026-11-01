@@ -4183,6 +4183,149 @@ service cloud.firestore {
          MODAL: OTORITAS HAPUS DAFTAR VISIT / JADWAL
          ============================================================ -->
     <!-- ============================================================
+         MODAL BUAT AGENDA MANUAL (INFORMASI JADWAL NON-VISIT)
+         ============================================================ -->
+    <div id="modal-manual-agenda" onclick="if(event.target === this) FMCUApp.closeManualAgendaModal()" class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 hidden">
+      <div class="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 max-h-[92vh]">
+        <!-- Header -->
+        <div class="p-4 sm:p-5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white flex items-center justify-between shrink-0">
+          <div class="flex items-center gap-2.5">
+            <div class="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-lg shrink-0">
+              <i class="fa-solid fa-calendar-plus"></i>
+            </div>
+            <div>
+              <h3 class="font-black text-sm sm:text-base leading-tight">Buat Agenda Manual</h3>
+              <p class="text-xs text-purple-100 font-medium">Informasi jadwal kegiatan internal (Non-Visit & Tanpa Form)</p>
+            </div>
+          </div>
+          <button type="button" onclick="FMCUApp.closeManualAgendaModal()" class="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition cursor-pointer">
+            <i class="fa-solid fa-xmark text-sm"></i>
+          </button>
+        </div>
+
+        <!-- Body Form -->
+        <form onsubmit="event.preventDefault(); FMCUApp.submitManualAgendaForm();" class="p-5 sm:p-6 space-y-4 bg-slate-50/50 overflow-y-auto flex-1">
+          <input type="hidden" id="agenda-target-auditor-id" value="" />
+          <input type="hidden" id="agenda-target-day-index" value="" />
+
+          <!-- Target Info Banner -->
+          <div class="p-3 rounded-2xl bg-white border border-slate-200 flex items-center justify-between text-xs shadow-2xs">
+            <div>
+              <span class="text-[10px] font-bold text-slate-400 block uppercase">Visitor Ditugaskan</span>
+              <span id="agenda-target-auditor-name" class="font-extrabold text-slate-800 text-xs sm:text-sm">-</span>
+            </div>
+            <div class="text-right">
+              <span class="text-[10px] font-bold text-slate-400 block uppercase">Hari & Tanggal</span>
+              <span id="agenda-target-day-label" class="font-extrabold text-purple-700 text-xs sm:text-sm">-</span>
+            </div>
+          </div>
+
+          <!-- Judul / Nama Agenda -->
+          <div>
+            <label class="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+              Judul / Nama Agenda <span class="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              id="agenda-title-input"
+              required
+              placeholder="Contoh: Meeting Regional, Training Barista, Briefing Bulanan..."
+              class="fm-input text-xs font-bold text-slate-800 w-full"
+            />
+          </div>
+
+          <!-- Kategori Agenda -->
+          <div>
+            <label class="block text-[11px] font-extrabold text-slate-700 uppercase mb-1.5">Kategori Kegiatan</label>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-xs" id="agenda-category-chips">
+              <label class="flex items-center gap-1.5 p-2 rounded-xl border border-slate-200 hover:border-purple-300 bg-white cursor-pointer select-none">
+                <input type="radio" name="agenda-cat" value="MEETING" checked class="text-purple-600 focus:ring-0" />
+                <span class="text-[11px] font-bold text-slate-700">👥 Meeting</span>
+              </label>
+              <label class="flex items-center gap-1.5 p-2 rounded-xl border border-slate-200 hover:border-purple-300 bg-white cursor-pointer select-none">
+                <input type="radio" name="agenda-cat" value="TRAINING" class="text-purple-600 focus:ring-0" />
+                <span class="text-[11px] font-bold text-slate-700">🎓 Training</span>
+              </label>
+              <label class="flex items-center gap-1.5 p-2 rounded-xl border border-slate-200 hover:border-purple-300 bg-white cursor-pointer select-none">
+                <input type="radio" name="agenda-cat" value="BRIEFING" class="text-purple-600 focus:ring-0" />
+                <span class="text-[11px] font-bold text-slate-700">📋 Briefing</span>
+              </label>
+              <label class="flex items-center gap-1.5 p-2 rounded-xl border border-slate-200 hover:border-purple-300 bg-white cursor-pointer select-none">
+                <input type="radio" name="agenda-cat" value="OFFICE_DUTY" class="text-purple-600 focus:ring-0" />
+                <span class="text-[11px] font-bold text-slate-700">🏢 Kantor</span>
+              </label>
+              <label class="flex items-center gap-1.5 p-2 rounded-xl border border-slate-200 hover:border-purple-300 bg-white cursor-pointer select-none">
+                <input type="radio" name="agenda-cat" value="EVENT" class="text-purple-600 focus:ring-0" />
+                <span class="text-[11px] font-bold text-slate-700">🎉 Event</span>
+              </label>
+              <label class="flex items-center gap-1.5 p-2 rounded-xl border border-slate-200 hover:border-purple-300 bg-white cursor-pointer select-none">
+                <input type="radio" name="agenda-cat" value="LAINNYA" class="text-purple-600 focus:ring-0" />
+                <span class="text-[11px] font-bold text-slate-700">📌 Lainnya</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Jam / Waktu Pelaksanaan & Lokasi -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">Jam / Window Waktu</label>
+              <input
+                type="text"
+                id="agenda-time-input"
+                value="09:00 - 12:00 WIB"
+                placeholder="09:00 - 12:00 WIB"
+                class="fm-input text-xs font-mono w-full"
+              />
+            </div>
+            <div>
+              <label class="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">Lokasi Kegiatan</label>
+              <input
+                type="text"
+                id="agenda-location-input"
+                placeholder="Head Office / Online Zoom"
+                class="fm-input text-xs font-semibold w-full"
+              />
+            </div>
+          </div>
+
+          <!-- Catatan / Keterangan Penugasan -->
+          <div>
+            <label class="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">Catatan / Detail Agenda</label>
+            <textarea
+              id="agenda-notes-input"
+              rows="2"
+              placeholder="Instruksi kegiatan atau catatan khusus untuk visitor..."
+              class="fm-input text-xs text-slate-800 w-full resize-none"
+            ></textarea>
+          </div>
+
+          <div class="p-3 rounded-2xl bg-purple-50 border border-purple-200 text-xs text-purple-900 flex items-center gap-2">
+            <i class="fa-solid fa-circle-info text-purple-600 text-sm shrink-0"></i>
+            <span>Agenda ini berfungsi sebagai informasi jadwal penugasan dan <strong>tidak memiliki form visit</strong> bagi visitor.</span>
+          </div>
+
+          <!-- Buttons -->
+          <div class="pt-3 border-t border-slate-200 flex items-center justify-end gap-2 shrink-0">
+            <button
+              type="button"
+              onclick="FMCUApp.closeManualAgendaModal()"
+              class="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-extrabold text-xs transition cursor-pointer"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              class="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs shadow-md transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <i class="fa-solid fa-check"></i>
+              <span>Simpan Agenda</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ============================================================
          MODAL: EDIT JADWAL VISIT TOKO
          ============================================================ -->
     <div id="modal-edit-schedule" onclick="if(event.target === this) FMCUApp.closeEditScheduleModal()" class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 hidden">
