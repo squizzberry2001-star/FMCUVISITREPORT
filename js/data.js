@@ -441,7 +441,7 @@ function sanitizeForFirestore(obj) {
 function stripPhotoBinaryForLocalStorage(photo) {
   if (!photo) return {};
   if (photo.dataUrl && photo.dataUrl.startsWith('data:image') && window.FMCUData) {
-    window.FMCUData.cachePhotoInMemory(photo.id, photo.driveFileId, photo.dataUrl);
+    window.FMCUData.cachePhotoInMemory(photo.id, photo.driveFileId, photo.dataUrl, false);
   }
   const isHttpUrl = photo.dataUrl && /^https?:\/\//i.test(photo.dataUrl);
   const directUrl =
@@ -556,6 +556,9 @@ window.FMCUData = {
   // Cache sementara di RAM sesi aktif untuk merender PDF dengan cepat tanpa membebani Firestore/localStorage
   photoMemoryCache: {},
   draftMemoryCache: {},
+  _persistedPhotoKeys: new Set(),
+  _draftsCloudDenied: false,
+  _pushedUnsyncedReportIds: new Set(),
   _photoStorageReady: false,
   _photoStorageInitPromise: null,
   _deletedReportIds: new Set(),
@@ -1006,6 +1009,10 @@ window.FMCUData = {
     this.unsubscribers = [];
 
     const handleSnapshotError = (collectionName, err) => {
+      if (collectionName === 'drafts') {
+        this._draftsCloudDenied = true;
+        return;
+      }
       console.warn(`Firestore [${collectionName}] error:`, err);
       if (err && err.code === 'permission-denied') {
         this.setCloudStatus(
@@ -1278,9 +1285,9 @@ window.FMCUData = {
         snapshot.forEach((doc) => {
           const data = doc.data();
           if (data && data.id && !this._deletedReportIds.has(String(data.id))) {
-            this.cacheReportPhotosInMemory(data);
+            this.cacheReportPhotosInMemory(data, false);
             const localMatch = localReports.find((r) => String(r.id) === String(data.id));
-            const merged = localMatch ? this.mergeReportAndDraft(localMatch, data) : this.hydrateReportPhotos(data);
+            const merged = localMatch ? this.mergeReportAndDraft(localMatch, data, false) : this.hydrateReportPhotos(data);
             seenIds.add(String(merged.id));
             cloudReports.push(merged);
           }
@@ -1293,7 +1300,8 @@ window.FMCUData = {
           if (!seenIds.has(lid) && !this._deletedReportIds.has(lid)) {
             seenIds.add(lid);
             cloudReports.push(this.hydrateReportPhotos(localRep));
-            if (this.db) {
+            if (this.db && !this._pushedUnsyncedReportIds.has(lid)) {
+              this._pushedUnsyncedReportIds.add(lid);
               this.db
                 .collection('reports')
                 .doc(lid)
@@ -1841,6 +1849,14 @@ window.FMCUData = {
     if (this._photoDbInstance) return this._photoDbInstance;
     if (typeof indexedDB === 'undefined') return null;
     return new Promise((resolve) => {
+      let settled = false;
+      const done = (val) => {
+        if (!settled) {
+          settled = true;
+          resolve(val);
+        }
+      };
+      const timer = setTimeout(() => done(null), 2000);
       try {
         const req = indexedDB.open('fmcu_local_storage_db', 3);
         req.onupgradeneeded = (e) => {
@@ -1856,12 +1872,21 @@ window.FMCUData = {
           }
         };
         req.onsuccess = (e) => {
+          clearTimeout(timer);
           this._photoDbInstance = e.target.result;
-          resolve(this._photoDbInstance);
+          done(this._photoDbInstance);
         };
-        req.onerror = () => resolve(null);
+        req.onerror = () => {
+          clearTimeout(timer);
+          done(null);
+        };
+        req.onblocked = () => {
+          clearTimeout(timer);
+          done(null);
+        };
       } catch (e) {
-        resolve(null);
+        clearTimeout(timer);
+        done(null);
       }
     });
   },
@@ -2080,7 +2105,7 @@ window.FMCUData = {
         return p;
       }
       if (p.dataUrl && p.dataUrl.startsWith('data:image')) {
-        this.cachePhotoInMemory(p.id, p.driveFileId, p.dataUrl);
+        this.cachePhotoInMemory(p.id, p.driveFileId, p.dataUrl, false);
       } else {
         const mem = this.getPhotoFromMemory(p.id, p.driveFileId);
         if (mem && mem.startsWith('data:image')) {
@@ -2147,13 +2172,13 @@ window.FMCUData = {
     });
   },
 
-  mergeReportAndDraft(docA, docB) {
+  mergeReportAndDraft(docA, docB, persistToDb = false) {
     if (!docA && !docB) return null;
     if (!docA) return this.hydrateReportPhotos({ ...docB });
     if (!docB) return this.hydrateReportPhotos({ ...docA });
 
-    this.cacheReportPhotosInMemory(docA);
-    this.cacheReportPhotosInMemory(docB);
+    this.cacheReportPhotosInMemory(docA, persistToDb);
+    this.cacheReportPhotosInMemory(docB, persistToDb);
 
     const scoreA = this.getReportCompletenessScore(docA);
     const scoreB = this.getReportCompletenessScore(docB);
@@ -2268,24 +2293,35 @@ window.FMCUData = {
           delete this.photoMemoryCache['qsc-2'];
 
           await new Promise((resolve) => {
+            const timer = setTimeout(resolve, 1500);
+            const done = () => {
+              clearTimeout(timer);
+              resolve();
+            };
             try {
               const photoTx = db.transaction('photos', 'readonly');
               const photoStore = photoTx.objectStore('photos');
               const cursorReq = photoStore.openCursor();
               cursorReq.onsuccess = (e) => {
-                const cursor = e.target.result;
-                if (cursor) {
-                  if (cursor.key !== 'qsc-1' && cursor.key !== 'qsc-2' && cursor.key && typeof cursor.value === 'string' && cursor.value.startsWith('data:image')) {
-                    this.photoMemoryCache[cursor.key] = cursor.value;
+                try {
+                  const cursor = e.target.result;
+                  if (cursor) {
+                    const k = String(cursor.key || '');
+                    if (k && k !== 'qsc-1' && k !== 'qsc-2' && typeof cursor.value === 'string' && cursor.value.startsWith('data:image')) {
+                      this.photoMemoryCache[k] = cursor.value;
+                      this._persistedPhotoKeys.add(k);
+                    }
+                    cursor.continue();
+                  } else {
+                    done();
                   }
-                  cursor.continue();
-                } else {
-                  resolve();
+                } catch (err) {
+                  done();
                 }
               };
-              cursorReq.onerror = () => resolve();
+              cursorReq.onerror = done;
             } catch (e) {
-              resolve();
+              done();
             }
           });
         }
@@ -2301,28 +2337,37 @@ window.FMCUData = {
           });
 
           await new Promise((resolve) => {
+            const timer = setTimeout(resolve, 1500);
+            const done = () => {
+              clearTimeout(timer);
+              resolve();
+            };
             try {
               const draftTx = db.transaction('drafts', 'readonly');
               const draftStore = draftTx.objectStore('drafts');
               const draftCursorReq = draftStore.openCursor();
               draftCursorReq.onsuccess = (e) => {
-                const cursor = e.target.result;
-                if (cursor) {
-                  const idbDraft = cursor.value;
-                  const key = String(cursor.key || '');
-                  if (idbDraft && key) {
-                    this.cacheReportPhotosInMemory(idbDraft);
-                    const existing = this.draftMemoryCache[key];
-                    this.draftMemoryCache[key] = existing ? this.mergeReportAndDraft(idbDraft, existing) : this.hydrateReportPhotos(idbDraft);
+                try {
+                  const cursor = e.target.result;
+                  if (cursor) {
+                    const idbDraft = cursor.value;
+                    const key = String(cursor.key || '');
+                    if (idbDraft && key) {
+                      this.cacheReportPhotosInMemory(idbDraft, false);
+                      const existing = this.draftMemoryCache[key];
+                      this.draftMemoryCache[key] = existing ? this.mergeReportAndDraft(idbDraft, existing, false) : this.hydrateReportPhotos(idbDraft);
+                    }
+                    cursor.continue();
+                  } else {
+                    done();
                   }
-                  cursor.continue();
-                } else {
-                  resolve();
+                } catch (err) {
+                  done();
                 }
               };
-              draftCursorReq.onerror = () => resolve();
+              draftCursorReq.onerror = done;
             } catch (e) {
-              resolve();
+              done();
             }
           });
           this._draftsCacheHydrated = true;
@@ -2332,26 +2377,35 @@ window.FMCUData = {
         if (db.objectStoreNames.contains('reports')) {
           const idbReports = [];
           await new Promise((resolve) => {
+            const timer = setTimeout(resolve, 1500);
+            const done = () => {
+              clearTimeout(timer);
+              resolve();
+            };
             try {
               const repTx = db.transaction('reports', 'readonly');
               const repStore = repTx.objectStore('reports');
               const repCursorReq = repStore.openCursor();
               repCursorReq.onsuccess = (e) => {
-                const cursor = e.target.result;
-                if (cursor) {
-                  const rep = cursor.value;
-                  if (rep && rep.id && !this._deletedReportIds.has(String(rep.id))) {
-                    this.cacheReportPhotosInMemory(rep);
-                    idbReports.push(rep);
+                try {
+                  const cursor = e.target.result;
+                  if (cursor) {
+                    const rep = cursor.value;
+                    if (rep && rep.id && !this._deletedReportIds.has(String(rep.id))) {
+                      this.cacheReportPhotosInMemory(rep, false);
+                      idbReports.push(rep);
+                    }
+                    cursor.continue();
+                  } else {
+                    done();
                   }
-                  cursor.continue();
-                } else {
-                  resolve();
+                } catch (err) {
+                  done();
                 }
               };
-              repCursorReq.onerror = () => resolve();
+              repCursorReq.onerror = done;
             } catch (e) {
-              resolve();
+              done();
             }
           });
 
@@ -2365,7 +2419,7 @@ window.FMCUData = {
           idbReports.forEach((idbRep) => {
             const rid = String(idbRep.id);
             if (mergedMap.has(rid)) {
-              mergedMap.set(rid, this.mergeReportAndDraft(idbRep, mergedMap.get(rid)));
+              mergedMap.set(rid, this.mergeReportAndDraft(idbRep, mergedMap.get(rid), false));
             } else {
               mergedMap.set(rid, this.hydrateReportPhotos(idbRep));
             }
@@ -2375,7 +2429,7 @@ window.FMCUData = {
           Array.from(mergedMap.values()).forEach((rep) => {
             const draft = this.getStoreDraft(rep.storeCode, rep.scheduleId);
             if (draft && (!draft.visitDate || !rep.visitDate || draft.visitDate === rep.visitDate)) {
-              mergedMap.set(String(rep.id), this.mergeReportAndDraft(rep, draft));
+              mergedMap.set(String(rep.id), this.mergeReportAndDraft(rep, draft, false));
             }
           });
 
@@ -2397,7 +2451,7 @@ window.FMCUData = {
     return this._photoStorageInitPromise;
   },
 
-  cachePhotoInMemory(photoId, driveFileId, dataUrl) {
+  cachePhotoInMemory(photoId, driveFileId, dataUrl, persistToDb = true) {
     if (!dataUrl || !dataUrl.startsWith('data:image')) return;
     const isSplitQscPiece =
       photoId &&
@@ -2406,13 +2460,23 @@ window.FMCUData = {
       photoId !== 'qsc-1' &&
       photoId !== 'qsc-2';
     if (photoId && photoId !== 'qsc-1' && photoId !== 'qsc-2') {
-      this.photoMemoryCache[photoId] = dataUrl;
-      this.setPhotoInDb(photoId, dataUrl);
+      const k = String(photoId);
+      const changed = this.photoMemoryCache[k] !== dataUrl;
+      this.photoMemoryCache[k] = dataUrl;
+      if (persistToDb && (changed || !this._persistedPhotoKeys.has(k))) {
+        this._persistedPhotoKeys.add(k);
+        this.setPhotoInDb(k, dataUrl);
+      }
     }
     // Jangan menimpa cache driveFileId foto utuh QSC dengan potongan atas/bawah
     if (driveFileId && !isSplitQscPiece) {
-      this.photoMemoryCache[driveFileId] = dataUrl;
-      this.setPhotoInDb(driveFileId, dataUrl);
+      const fk = String(driveFileId);
+      const changed = this.photoMemoryCache[fk] !== dataUrl;
+      this.photoMemoryCache[fk] = dataUrl;
+      if (persistToDb && (changed || !this._persistedPhotoKeys.has(fk))) {
+        this._persistedPhotoKeys.add(fk);
+        this.setPhotoInDb(fk, dataUrl);
+      }
     }
   },
 
@@ -2426,21 +2490,21 @@ window.FMCUData = {
     return '';
   },
 
-  cacheReportPhotosInMemory(report) {
+  cacheReportPhotosInMemory(report, persistToDb = true) {
     if (!report) return;
     (report.qscPhotos || []).forEach((p) => {
       if (p && p.dataUrl && p.dataUrl.startsWith('data:image')) {
-        this.cachePhotoInMemory(p.id, p.driveFileId, p.dataUrl);
+        this.cachePhotoInMemory(p.id, p.driveFileId, p.dataUrl, persistToDb);
       }
     });
     (report.evidencePhotos || []).forEach((p) => {
       if (p && p.dataUrl && p.dataUrl.startsWith('data:image')) {
-        this.cachePhotoInMemory(p.id, p.driveFileId, p.dataUrl);
+        this.cachePhotoInMemory(p.id, p.driveFileId, p.dataUrl, persistToDb);
       }
     });
     (report.caPhotos || report.correctiveActionPhotos || []).forEach((p) => {
       if (p && p.dataUrl && p.dataUrl.startsWith('data:image')) {
-        this.cachePhotoInMemory(p.id, p.driveFileId, p.dataUrl);
+        this.cachePhotoInMemory(p.id, p.driveFileId, p.dataUrl, persistToDb);
       }
     });
   },
@@ -2599,7 +2663,7 @@ window.FMCUData = {
 
   getReports(forceRefresh = false) {
     if (!forceRefresh && Array.isArray(this._cachedReports)) {
-      return this._cachedReports.map((rep) => this.hydrateReportPhotos(rep));
+      return this._cachedReports;
     }
     let raw = [];
     try {
@@ -2612,16 +2676,14 @@ window.FMCUData = {
     return hydrated;
   },
 
-  saveReportsLocalOnly(reports) {
+  saveReportsLocalOnly(reports, singleSavedReport = null) {
     const hydratedList = (reports || []).map((r) => this.hydrateReportPhotos(r));
     this._cachedReports = hydratedList;
     try {
-      hydratedList.forEach((r) => {
-        this.cacheReportPhotosInMemory(r);
-        if (r && r.id) {
-          this.saveReportInDb(r.id, r);
-        }
-      });
+      if (singleSavedReport && singleSavedReport.id) {
+        this.cacheReportPhotosInMemory(singleSavedReport, true);
+        this.saveReportInDb(singleSavedReport.id, singleSavedReport);
+      }
       const lightweightReports = hydratedList.map((r) => prepareReportForLocalStorage(r));
       localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(lightweightReports));
       return true;
@@ -2641,7 +2703,7 @@ window.FMCUData = {
           if (!this.draftMemoryCache[k]) {
             this.draftMemoryCache[k] = v;
           } else {
-            this.draftMemoryCache[k] = this.mergeReportAndDraft(this.draftMemoryCache[k], v);
+            this.draftMemoryCache[k] = this.mergeReportAndDraft(this.draftMemoryCache[k], v, false);
           }
         });
       }
@@ -2650,7 +2712,7 @@ window.FMCUData = {
       const draftByStore = this.draftMemoryCache[String(storeCode)] || null;
       let draft = null;
       if (draftBySch && draftByStore) {
-        draft = this.mergeReportAndDraft(draftBySch, draftByStore);
+        draft = this.mergeReportAndDraft(draftBySch, draftByStore, false);
       } else {
         draft = draftBySch || draftByStore || null;
       }
@@ -2682,7 +2744,7 @@ window.FMCUData = {
     }
 
     // 1. Simpan seluruh binary foto ke IndexedDB & RAM Memory Cache
-    this.cacheReportPhotosInMemory(fullDraft);
+    this.cacheReportPhotosInMemory(fullDraft, true);
     const hydratedDraft = this.hydrateReportPhotos(fullDraft);
 
     // 2. Simpan di RAM Memory Cache (Akses Instan Cepat)
@@ -2707,8 +2769,8 @@ window.FMCUData = {
       console.warn('LocalStorage draft quota warning, draft safely preserved in IndexedDB & RAM:', e);
     }
 
-    // 5. Sinkronisasi Real-Time ke Cloud Firestore collection 'drafts'
-    if (this.db) {
+    // 5. Sinkronisasi Real-Time ke Cloud Firestore collection 'drafts' (jika diizinkan oleh rules)
+    if (this.db && !this._draftsCloudDenied) {
       try {
         const firestoreEntry = {
           ...prepareReportForFirestore(hydratedDraft),
@@ -2717,10 +2779,12 @@ window.FMCUData = {
           updatedAt: nowIso
         };
         const docId = schKey || String(storeCode);
-        this.db.collection('drafts').doc(docId).set(firestoreEntry, { merge: true }).catch((err) => console.warn('Draft firestore sync warning:', err));
-      } catch (eDb) {
-        console.warn('Draft firestore error:', eDb);
-      }
+        this.db.collection('drafts').doc(docId).set(firestoreEntry, { merge: true }).catch((err) => {
+          if (err && err.code === 'permission-denied') {
+            this._draftsCloudDenied = true;
+          }
+        });
+      } catch (eDb) {}
     }
 
     return true;
@@ -2733,7 +2797,7 @@ window.FMCUData = {
     if (schKey) delete this.draftMemoryCache[schKey];
     this.deleteDraftFromDb(storeCode);
     if (schKey) this.deleteDraftFromDb(schKey);
-    if (this.db) {
+    if (this.db && !this._draftsCloudDenied) {
       if (schKey) this.db.collection('drafts').doc(schKey).delete().catch(() => {});
       this.db.collection('drafts').doc(String(storeCode)).delete().catch(() => {});
     }
@@ -2756,7 +2820,7 @@ window.FMCUData = {
       ...report,
       updatedAt: nowIso
     };
-    this.cacheReportPhotosInMemory(incoming);
+    this.cacheReportPhotosInMemory(incoming, true);
 
     const reports = this.getReports();
     const idx = reports.findIndex((r) => String(r.id) === String(incoming.id));
@@ -2766,7 +2830,7 @@ window.FMCUData = {
       if (!this.hasMeaningfulVisitContent(incoming) && this.hasMeaningfulVisitContent(reports[idx])) {
         return false;
       }
-      merged = this. hydrateReportPhotos({
+      merged = this.hydrateReportPhotos({
         ...reports[idx],
         ...incoming,
         qscPhotos: this.mergePhotoArrays(incoming.qscPhotos, reports[idx].qscPhotos, true),
@@ -2786,7 +2850,7 @@ window.FMCUData = {
     } else {
       reports.unshift(merged);
     }
-    const ok = this.saveReportsLocalOnly(reports);
+    const ok = this.saveReportsLocalOnly(reports, merged);
 
     // Single-document atomic update ke Cloud Firestore agar cepat, ringan & hemat kuota
     if (this.db && merged.id) {

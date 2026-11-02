@@ -17,6 +17,6 @@
 
 ## 3. Kontak & Kepatuhan Keamanan
 - **Email Dukungan**: fmcu@familymartindonesia.com
-- **Kebijakan Privasi**: https://squizzberry2001-star.github.io/FMCUVISITREPORT/privacy.html
-- **Syarat & Ketentuan**: https://squizzberry2001-star.github.io/FMCUVISITREPORT/terms.html
-- **Security Policy**: https://squizzberry2001-star.github.io/FMCUVISITREPORT/.well-known/security.txt
+- **Kebijakan Privasi**: https://fmcu-onegatesystem.vercel.app/privacy.html
+- **Syarat & Ketentuan**: https://fmcu-onegatesystem.vercel.app/terms.html
+- **Security Policy**: https://fmcu-onegatesystem.vercel.app/.well-known/security.txt

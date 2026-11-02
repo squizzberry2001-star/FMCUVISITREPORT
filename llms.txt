@@ -6,7 +6,7 @@
 - **Nama Sistem**: FMCU Visit Store Report (`FMCU-ONEGATESYSTEM`)
 - **Organisasi**: FamilyMart Corporate University (FMCU) — PT Fajar Mitra Indah (FamilyMart Indonesia)
 - **Cakupan Operasional**: 610+ Toko FamilyMart Indonesia dan Tim Regional Bestie / Visitor FMCU
-- **URL Resmi**: https://squizzberry2001-star.github.io/FMCUVISITREPORT/
+- **URL Resmi**: https://fmcu-onegatesystem.vercel.app/
 
 ## Fitur Utama (Core Capabilities)
 - **Live GPS Location & Geofencing**: Validasi koordinat GPS real-time dan pencatatan waktu kehadiran *Actual In* & *Actual Out* otomatis dalam radius toko.
@@ -16,7 +16,7 @@
 - **Manajemen Jadwal 1 Minggu (Weekly Planner)**: Pengaturan jadwal kunjungan, agenda manual, status OFF/CUTI, serta impor/ekspor template jadwal Excel.
 
 ## Halaman & Dokumentasi Penting
-- [Portal Utama FMCU Visit Store Report](https://squizzberry2001-star.github.io/FMCUVISITREPORT/): Aplikasi utama audit kunjungan toko, peta interaktif 610 toko, dan dashboard analitik.
-- [Kebijakan Privasi & Perlindungan Data](https://squizzberry2001-star.github.io/FMCUVISITREPORT/privacy.html): Informasi tata kelola data lokasi GPS, foto bukti kunjungan, dan keamanan akun karyawan.
-- [Syarat & Ketentuan Layanan](https://squizzberry2001-star.github.io/FMCUVISITREPORT/terms.html): Pedoman penggunaan sistem internal FMCU bagi Visitor, Admin Jadwal, dan Super Admin.
-- [Sitemap XML](https://squizzberry2001-star.github.io/FMCUVISITREPORT/sitemap.xml): Struktur indeks halaman web.
+- [Portal Utama FMCU Visit Store Report](https://fmcu-onegatesystem.vercel.app/): Aplikasi utama audit kunjungan toko, peta interaktif 610 toko, dan dashboard analitik.
+- [Kebijakan Privasi & Perlindungan Data](https://fmcu-onegatesystem.vercel.app/privacy.html): Informasi tata kelola data lokasi GPS, foto bukti kunjungan, dan keamanan akun karyawan.
+- [Syarat & Ketentuan Layanan](https://fmcu-onegatesystem.vercel.app/terms.html): Pedoman penggunaan sistem internal FMCU bagi Visitor, Admin Jadwal, dan Super Admin.
+- [Sitemap XML](https://fmcu-onegatesystem.vercel.app/sitemap.xml): Struktur indeks halaman web.

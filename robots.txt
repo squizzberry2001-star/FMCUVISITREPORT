@@ -28,5 +28,5 @@ Allow: /
 User-agent: Applebot-Extended
 Allow: /
 
-Host: https://squizzberry2001-star.github.io
-Sitemap: https://squizzberry2001-star.github.io/FMCUVISITREPORT/sitemap.xml
+Host: https://fmcu-onegatesystem.vercel.app
+Sitemap: https://fmcu-onegatesystem.vercel.app/sitemap.xml

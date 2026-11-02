@@ -52,7 +52,7 @@ window.FMCUApp = {
 
   // PDF Preview State
   activePreviewReportId: '__LIVE_FORM__',
-  previewMode: 'slide',
+  previewMode: 'pdf',
   previewSlides: [],
   currentSlideIndex: 0,
   newsCurrentIndex: 0,
@@ -545,17 +545,32 @@ window.FMCUApp = {
         this.startContinuousGpsWatch();
       },
       (err) => {
-        let msg = 'Pastikan GPS perangkat menyala dan klik "Allow / Izinkan" saat browser meminta akses lokasi.';
-        if (err.code === 1) {
-          msg = 'Izin lokasi ditolak (Permission Denied). Klik ikon Gembok/Pengaturan di sebelah URL browser Anda, ubah Location menjadi "Allow / Izinkan", lalu klik tombol di bawah.';
-        } else if (err.code === 2) {
-          msg = 'Sinyal lokasi GPS tidak tersedia (Position Unavailable). Pastikan Location Service / GPS pada perangkat Anda sudah dinyalakan.';
-        } else if (err.code === 3) {
-          msg = 'Waktu permintaan sinyal GPS habis (Timeout). Silakan coba klik kembali tombol di bawah.';
+        // Jika high-accuracy gagal karena sinyal/timeout (bukan ditolak), coba fallback network/Wi-Fi location
+        if (err.code !== 1) {
+          navigator.geolocation.getCurrentPosition(
+            (pos2) => {
+              this.unlockWebWithGps(pos2.coords.latitude, pos2.coords.longitude, pos2.coords.accuracy);
+              this.startContinuousGpsWatch();
+            },
+            (err2) => {
+              let msg = 'Pastikan GPS perangkat menyala dan klik "Allow / Izinkan" saat browser meminta akses lokasi.';
+              if (err2.code === 1) {
+                msg = 'Izin lokasi ditolak (Permission Denied). Klik ikon Gembok/Pengaturan di sebelah URL browser Anda, ubah Location menjadi "Allow / Izinkan", lalu klik tombol di bawah.';
+              } else if (err2.code === 2) {
+                msg = 'Sinyal lokasi GPS tidak tersedia (Position Unavailable). Pastikan Location Service / GPS pada perangkat Anda sudah dinyalakan.';
+              } else if (err2.code === 3) {
+                msg = 'Waktu permintaan sinyal GPS habis (Timeout). Silakan coba klik kembali tombol di bawah.';
+              }
+              this.lockWebForGps(msg);
+            },
+            { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+          );
+          return;
         }
+        const msg = 'Izin lokasi ditolak (Permission Denied). Klik ikon Gembok/Pengaturan di sebelah URL browser Anda, ubah Location menjadi "Allow / Izinkan", lalu klik tombol di bawah.';
         this.lockWebForGps(msg);
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
     );
   },
 
@@ -566,8 +581,8 @@ window.FMCUApp = {
         this.unlockWebWithGps(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
       },
       (err) => {
-        if (err.code === 1 || err.code === 2) {
-          this.lockWebForGps('Koneksi lokasi GPS terputus atau izin lokasi dinonaktifkan. Nyalakan kembali GPS untuk melanjutkan.');
+        if (err.code === 1) {
+          this.lockWebForGps('Izin lokasi GPS dinonaktifkan. Izinkan kembali akses lokasi untuk melanjutkan.');
         }
       },
       { enableHighAccuracy: true, maximumAge: 15000, timeout: 15000 }
@@ -6535,8 +6550,10 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
 
     this.renderFormDynamicSections();
     this.switchFormSection(1, false);
+    this._isHydratingForm = false;
 
-    // Asynchronous IndexedDB & Google Drive photo hydration
+    // Asynchronous IndexedDB & Google Drive photo hydration (non-blocking)
+    const targetHydrateStore = rep.storeCode || '';
     (async () => {
       try {
         if (window.FMCUData && typeof window.FMCUData.getPhotoFromDb === 'function') {
@@ -6553,7 +6570,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
               }
               if (b64 && b64.startsWith('data:image')) {
                 p.dataUrl = b64;
-                window.FMCUData.cachePhotoInMemory(p.id, isQscPiece ? null : p.driveFileId, b64);
+                window.FMCUData.cachePhotoInMemory(p.id, isQscPiece ? null : p.driveFileId, b64, false);
                 anyUpdated = true;
               }
             }
@@ -6579,8 +6596,8 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
               const { topDataUrl, bottomDataUrl } = await window.FMCUPdf.splitImageTopBottom(fullB64);
               q0.dataUrl = topDataUrl;
               q1.dataUrl = bottomDataUrl;
-              window.FMCUData.cachePhotoInMemory(q0.id, null, topDataUrl);
-              window.FMCUData.cachePhotoInMemory(q1.id, null, bottomDataUrl);
+              window.FMCUData.cachePhotoInMemory(q0.id, null, topDataUrl, true);
+              window.FMCUData.cachePhotoInMemory(q1.id, null, bottomDataUrl, true);
               anyUpdated = true;
             }
           }
@@ -6595,20 +6612,22 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
               const fetched = window.FMCUData.photoMemoryCache[p.driveFileId];
               if (fetched && fetched.startsWith('data:image')) {
                 p.dataUrl = fetched;
-                window.FMCUData.cachePhotoInMemory(p.id, p.driveFileId, fetched);
+                window.FMCUData.cachePhotoInMemory(p.id, p.driveFileId, fetched, true);
                 anyUpdated = true;
               }
             });
           }
 
-          if (anyUpdated) {
-            this.renderFormDynamicSections();
+          if (anyUpdated && (!targetHydrateStore || this.activeStoreCode === targetHydrateStore)) {
+            this.syncAllFormInputsToMemory();
+            this.renderQscPhotosGrid();
+            this.renderEvidencePhotosGrid();
+            this.renderCaPhotosGrid();
+            this.updateFormProgress();
           }
         }
       } catch (e) {
         console.warn('Photo hydration warning:', e);
-      } finally {
-        this._isHydratingForm = false;
       }
     })();
   },
@@ -9321,19 +9340,19 @@ Instruksi:
 
     this.renderActiveSlide();
     this.renderAllSlidesGrid();
-
-    if (this.previewMode === 'pdf') {
-      this.renderActualPdfViewer();
-    }
+    this.renderActualPdfViewer();
   },
 
   renderActiveSlide() {
     const slide = this.previewSlides[this.currentSlideIndex];
     if (!slide) return;
 
-    document.getElementById('preview-slide-counter').textContent = `Halaman ${this.currentSlideIndex + 1} / ${this.previewSlides.length}`;
-    document.getElementById('preview-slide-title').textContent = slide.title;
-    document.getElementById('preview-active-slide-stage').innerHTML = slide.html;
+    const counterEl = document.getElementById('preview-slide-counter');
+    if (counterEl) counterEl.textContent = `Halaman ${this.currentSlideIndex + 1} / ${this.previewSlides.length}`;
+    const titleEl = document.getElementById('preview-slide-title');
+    if (titleEl) titleEl.textContent = slide.title;
+    const stageEl = document.getElementById('preview-active-slide-stage');
+    if (stageEl) stageEl.innerHTML = slide.html;
 
     const strip = document.getElementById('preview-thumbnails-strip');
     if (strip) {
@@ -13551,12 +13570,12 @@ Instruksi:
 
   handleSaveSchedule(event) {
     event.preventDefault();
-    const storeCode = document.getElementById('adm-sch-store').value;
-    const auditorId = document.getElementById('adm-sch-auditor').value;
-    const dateStr = document.getElementById('adm-sch-date').value;
-    const priority = document.getElementById('adm-sch-priority').value;
-    const windowStr = document.getElementById('adm-sch-window').value.trim();
-    const focus = document.getElementById('adm-sch-focus').value.trim();
+    const storeCode = document.getElementById('adm-sch-store')?.value || '';
+    const auditorId = document.getElementById('adm-sch-auditor')?.value || '';
+    const dateStr = document.getElementById('adm-sch-date')?.value || '';
+    const priority = document.getElementById('adm-sch-priority')?.value || 'HIGH';
+    const windowStr = (document.getElementById('adm-sch-window')?.value || '').trim();
+    const focus = (document.getElementById('adm-sch-focus')?.value || '').trim();
 
     const stores = window.FMCUData.getStores();
     const users = window.FMCUData.getUsers();
@@ -13600,7 +13619,8 @@ Instruksi:
     });
     window.FMCUData.saveSchedules(schedules);
     this.renderAllViews();
-    document.getElementById('adm-sch-focus').value = '';
+    const focusEl = document.getElementById('adm-sch-focus');
+    if (focusEl) focusEl.value = '';
     this.switchScheduleSubSection('list');
     this.showToast(`Jadwal Visit Toko ${st.name} untuk ${au.name} berhasil ditambahkan!`, 'success');
   },
