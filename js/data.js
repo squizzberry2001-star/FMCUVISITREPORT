@@ -1031,17 +1031,58 @@ window.FMCUData = {
             }
           }
 
-          this._cachedUsers = cloudUsers;
-          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(cloudUsers));
+          // Deduplikasi user berdasarkan Nama Unik agar konsisten dengan getUsers()
+          const dedupMap = new Map();
+          cloudUsers.forEach((u) => {
+            if (!u) return;
+            const normName = String(u.name || '').toLowerCase().trim();
+            if (!normName) return;
+            if (!dedupMap.has(normName)) {
+              dedupMap.set(normName, u);
+            } else {
+              const existing = dedupMap.get(normName);
+              if (!existing.nik && u.nik) existing.nik = u.nik;
+              if (!existing.jabatan && u.jabatan) existing.jabatan = u.jabatan;
+              if (u.role === 'ADMIN_SCHEDULE' || u.role === 'SUPER_ADMIN') existing.role = u.role;
+              if (u.lastLocation && (!existing.lastLocation || String(u.lastLocation.updatedAt || '') > String(existing.lastLocation.updatedAt || ''))) {
+                existing.lastLocation = u.lastLocation;
+              }
+            }
+          });
+          const finalCloudUsers = Array.from(dedupMap.values());
+
+          const buildUserStructSig = (arr) =>
+            Array.isArray(arr)
+              ? arr
+                  .map(
+                    (u) =>
+                      `${u.id || u.username}:${u.name || ''}:${u.role || ''}:${u.nik || ''}:${u.password || ''}:${(u.authorities || []).join(',')}`
+                  )
+                  .sort()
+                  .join('|')
+              : '';
+
+          const newStructSig = buildUserStructSig(finalCloudUsers);
+          const onlyLocationChanged = Boolean(this._lastUsersStructSig && this._lastUsersStructSig === newStructSig);
+          this._lastUsersStructSig = newStructSig;
+
+          this._cachedUsers = finalCloudUsers;
+          const nowMs = Date.now();
+          if (!onlyLocationChanged || !this._lastUsersStorageWriteMs || nowMs - this._lastUsersStorageWriteMs > 12000) {
+            this._lastUsersStorageWriteMs = nowMs;
+            try {
+              localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(finalCloudUsers));
+            } catch (e) {}
+          }
           const activeSession = this.getSession();
-          if (activeSession) {
-            const updatedSelf = cloudUsers.find((u) => u.id === activeSession.id || u.username === activeSession.username);
+          if (activeSession && !onlyLocationChanged) {
+            const updatedSelf = finalCloudUsers.find((u) => u.id === activeSession.id || u.username === activeSession.username);
             if (updatedSelf) {
               this.setSession(updatedSelf);
             }
           }
           if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
-            window.FMCUApp.onCloudDataUpdated('users');
+            window.FMCUApp.onCloudDataUpdated('users', { onlyLocationChanged });
           }
         }
       },
@@ -1122,29 +1163,47 @@ window.FMCUData = {
     );
     this.unsubscribers.push(unsubSchedules);
 
-    // 5. REAL-TIME LISTENER: DRAFTS (Sinkronisasi Form & Foto Real-Time Lintas Device)
+    // 5. REAL-TIME LISTENER: DRAFTS (Sinkronisasi Form & Foto Real-Time Lintas Device, Incremental & Non-Blocking)
     const unsubDrafts = this.db.collection('drafts').onSnapshot(
       (snapshot) => {
-        const localDrafts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DRAFT_REPORT) || '{}');
-        let hasNewDraft = false;
-        snapshot.forEach((doc) => {
-          const cloudDraft = doc.data();
-          if (!cloudDraft || !cloudDraft.storeCode) return;
-          const storeCode = String(cloudDraft.storeCode);
-          const schId = cloudDraft.scheduleId || null;
-          const schKey = schId ? `${storeCode}_${schId}` : null;
+        if (!this._draftsCacheHydrated) {
+          this._draftsCacheHydrated = true;
+          try {
+            const initialLocal = JSON.parse(localStorage.getItem(STORAGE_KEYS.DRAFT_REPORT) || '{}');
+            Object.assign(this.draftMemoryCache, initialLocal);
+          } catch (e) {}
+        }
+        const changedDraftKeys = [];
+        const changes = typeof snapshot.docChanges === 'function' ? snapshot.docChanges() : [];
+        if (changes.length > 0) {
+          changes.forEach((change) => {
+            if (change.type === 'removed') return;
+            const cloudDraft = change.doc.data();
+            if (!cloudDraft || !cloudDraft.storeCode) return;
+            const storeCode = String(cloudDraft.storeCode);
+            const schId = cloudDraft.scheduleId || null;
+            const schKey = schId ? `${storeCode}_${schId}` : null;
+            this.draftMemoryCache[storeCode] = cloudDraft;
+            if (schKey) this.draftMemoryCache[schKey] = cloudDraft;
+            changedDraftKeys.push(storeCode);
+            if (schKey) changedDraftKeys.push(schKey);
+          });
+        } else {
+          snapshot.forEach((doc) => {
+            const cloudDraft = doc.data();
+            if (!cloudDraft || !cloudDraft.storeCode) return;
+            const storeCode = String(cloudDraft.storeCode);
+            const schId = cloudDraft.scheduleId || null;
+            const schKey = schId ? `${storeCode}_${schId}` : null;
+            this.draftMemoryCache[storeCode] = cloudDraft;
+            if (schKey) this.draftMemoryCache[schKey] = cloudDraft;
+            changedDraftKeys.push(storeCode);
+          });
+        }
 
-          this.draftMemoryCache[storeCode] = cloudDraft;
-          if (schKey) this.draftMemoryCache[schKey] = cloudDraft;
-          localDrafts[storeCode] = cloudDraft;
-          if (schKey) localDrafts[schKey] = cloudDraft;
-          hasNewDraft = true;
-        });
-
-        if (hasNewDraft) {
-          localStorage.setItem(STORAGE_KEYS.DRAFT_REPORT, JSON.stringify(localDrafts));
+        if (changedDraftKeys.length > 0) {
           if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
-            window.FMCUApp.onCloudDataUpdated('drafts');
+            window.FMCUApp.onCloudDataUpdated('drafts', { changedDraftKeys });
           }
         }
       },
@@ -1543,14 +1602,19 @@ window.FMCUData = {
     const nLng = Number(Number(lng).toFixed(5));
     const curLoc = users[idx].lastLocation;
 
-    // Guard: Jika posisi dan status sama, abaikan untuk menghemat I/O disk & loop re-render
+    // Guard: Jika posisi bergeser < ~22 meter (0.00020 derajat) & status sama dalam < 45 detik, abaikan untuk mencegah badai broadcast Firestore lintas device
+    const prevTimeMs = curLoc && curLoc.updatedAt ? new Date(curLoc.updatedAt).getTime() : 0;
+    const isMinorDrift =
+      curLoc &&
+      Math.abs((curLoc.lat || 0) - nLat) < 0.0002 &&
+      Math.abs((curLoc.lng || 0) - nLng) < 0.0002;
     if (
       curLoc &&
-      curLoc.lat === nLat &&
-      curLoc.lng === nLng &&
+      isMinorDrift &&
       curLoc.status === status &&
       curLoc.storeVisit === storeVisit &&
-      !curLoc.isExited
+      !curLoc.isExited &&
+      Date.now() - prevTimeMs < 45000
     ) {
       return;
     }
@@ -1567,16 +1631,18 @@ window.FMCUData = {
     };
     users[idx].lastLocation = loc;
     this._cachedUsers = users;
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    try {
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    } catch (e) {}
 
     if (this.db) {
       const docId = String(users[idx].id || users[idx].username);
       this.db.collection('users').doc(docId).set({ lastLocation: loc }, { merge: true }).catch(() => {});
     }
 
-    // Segera beri notifikasi ke aplikasi agar pinpoint peta terupdate seketika
+    // Segera beri notifikasi khusus perubahan lokasi agar hanya marker peta yang diupdate tanpa re-render seluruh view
     if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
-      window.FMCUApp.onCloudDataUpdated('users');
+      window.FMCUApp.onCloudDataUpdated('users', { onlyLocationChanged: true });
     }
   },
 
@@ -2151,9 +2217,13 @@ window.FMCUData = {
   getStoreDraft(storeCode, scheduleId = null) {
     if (!storeCode) return null;
     try {
-      const drafts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DRAFT_REPORT) || '{}');
+      if (!this._draftsCacheHydrated) {
+        this._draftsCacheHydrated = true;
+        const storedDrafts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DRAFT_REPORT) || '{}');
+        Object.assign(this.draftMemoryCache, storedDrafts);
+      }
       const schKey = scheduleId ? `${storeCode}_${scheduleId}` : null;
-      let draft = (schKey && drafts[schKey]) || drafts[String(storeCode)] || (schKey && this.draftMemoryCache[schKey]) || this.draftMemoryCache[String(storeCode)] || null;
+      let draft = (schKey && this.draftMemoryCache[schKey]) || this.draftMemoryCache[String(storeCode)] || null;
       if (draft) {
         const hydrate = (p) => {
           if (!p) return p;

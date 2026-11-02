@@ -163,7 +163,7 @@ window.FMCUApp = {
       authScreen.classList.toggle('hidden', Boolean(this.currentUser));
     }
     if (!this.currentUser) {
-      this.triggerMobileAuthSplash();
+      this.skipMobileAuthSplash();
       if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
         this.focusLoginNikInput();
       }
@@ -176,9 +176,6 @@ window.FMCUApp = {
     this.setupCustomUserSelectListeners();
     this.populateHeaderRoleSwitcher();
     this.updateUserHeaderUI();
-    this.checkAndDispatchUserVisitNotifications();
-
-    this.renderHomeNewsSlider();
 
     // Pastikan database IndexedDB foto & draft terinisialisasi dan siap di RAM
     if (window.FMCUData && typeof window.FMCUData.initPhotoStorage === 'function') {
@@ -195,15 +192,16 @@ window.FMCUApp = {
 
     if (activeCheckIn && activeCheckIn.storeCode) {
       this.restoreActiveCheckInToForm(activeCheckIn);
-    } else {
-      this.resetVisitForm(true);
     }
     this.setupFormAutoDraftListeners();
-    this.populateGasScriptPreview();
     this.onCloudStatusChanged(window.FMCUData.cloudStatus, window.FMCUData.cloudErrorMsg);
 
-    // Pulihkan active view & subtab saat refresh (atau arahkan ke default view otoritas user)
+    // Hanya render halaman utama & jalankan tugas berat jika user sudah login!
+    // Saat di layar login (!this.currentUser), jangan render peta/view di background agar input login instan.
     if (this.currentUser) {
+      this.checkAndDispatchUserVisitNotifications();
+      this.renderHomeNewsSlider();
+      this.populateGasScriptPreview();
       const savedSchSub = sessionStorage.getItem('fmcu_active_sch_subtab');
       if (savedSchSub && (savedSchSub === 'create' || savedSchSub === 'list' || savedSchSub === 'calendar')) {
         this.currentScheduleSubSection = savedSchSub;
@@ -218,8 +216,6 @@ window.FMCUApp = {
         ? savedView
         : this.getFirstAllowedView(this.currentUser);
       this.navigate(targetView, savedAdminTab || null);
-    } else {
-      this.navigate('home');
     }
 
     // Aktifkan pemantau Time Session & Tab Close
@@ -368,7 +364,41 @@ window.FMCUApp = {
   },
 
   _cloudDebounceTimer: null,
-  onCloudDataUpdated(collectionName) {
+  onCloudDataUpdated(collectionName, meta = {}) {
+    // Guard 1: Jika user belum login (masih di layar #auth-screen), jangan render ulang halaman background!
+    if (!this.currentUser) {
+      if (collectionName === 'users' && !meta.onlyLocationChanged) {
+        this.populateCustomUserDropdown(false);
+      }
+      return;
+    }
+
+    // Guard 2: Jika hanya koordinat GPS (lastLocation) user yang berubah, cukup update marker peta
+    // tanpa merender ulang seluruh halaman Home / Admin di semua perangkat!
+    if (collectionName === 'users' && meta.onlyLocationChanged) {
+      if (this.currentView === 'home' && this.homeMap && this.homeBestieLayer && !document.getElementById('view-home')?.classList.contains('hidden')) {
+        this.renderBestieMarkers(this.homeMap, this.homeBestieLayer);
+      }
+      if (this.modalMap && this.modalBestieLayer && !document.getElementById('modal-interactive-map')?.classList.contains('hidden')) {
+        this.renderBestieMarkers(this.modalMap, this.modalBestieLayer, true);
+      }
+      if (this.currentView === 'live-maps') {
+        this.renderLiveLocView();
+      }
+      return;
+    }
+
+    // Guard 3: Jika ada perubahan draft form lintas device, sinkronkan form aktif saja tanpa membongkar ulang DOM Home/Admin
+    if (collectionName === 'drafts') {
+      if (this.currentView === 'form' && this.activeStoreCode) {
+        this.syncActiveFormDraftFromCloud();
+      }
+      if (this.currentView === 'home') {
+        this.updateHomeSubSectionPills();
+      }
+      return;
+    }
+
     if (collectionName === 'users') {
       const freshSession = window.FMCUData.getSession();
       if (freshSession) {
@@ -376,8 +406,7 @@ window.FMCUApp = {
       }
       this.populateHeaderRoleSwitcher();
       this.updateUserHeaderUI();
-      // Segera sinkronkan pergerakan pinpoint Bestie di peta
-      if (this.homeMap && this.homeBestieLayer) {
+      if (this.currentView === 'home' && this.homeMap && this.homeBestieLayer) {
         this.renderBestieMarkers(this.homeMap, this.homeBestieLayer);
       }
       if (this.modalMap && this.modalBestieLayer && !document.getElementById('modal-interactive-map')?.classList.contains('hidden')) {
@@ -394,12 +423,9 @@ window.FMCUApp = {
     if (collectionName === 'schedules') {
       this.checkAndDispatchUserVisitNotifications();
     }
-    if (collectionName === 'drafts') {
-      if (this.currentView === 'form' && this.activeStoreCode) {
-        this.syncActiveFormDraftFromCloud();
-      }
+    if (!document.getElementById('view-admin')?.classList.contains('hidden')) {
+      this.updateAdminFirestoreSummary();
     }
-    this.updateAdminFirestoreSummary();
 
     // Debounce rendering agar jika Firestore mengirim multi-snapshot sekaligus saat startup/login,
     // browser tidak melakukan render berkali-kali berturut-turut.
@@ -408,7 +434,7 @@ window.FMCUApp = {
     }
     this._cloudDebounceTimer = setTimeout(() => {
       this.renderCurrentActiveView();
-    }, 250);
+    }, 300);
   },
 
   renderCurrentActiveView() {
@@ -521,7 +547,7 @@ window.FMCUApp = {
         }
         this.lockWebForGps(msg);
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
   },
 
@@ -555,9 +581,8 @@ window.FMCUApp = {
 
     this.applyGpsCoordinates(lat, lng, accuracy);
     if (firstUnlock) {
-      // Toast lokasi GPS aktif di welcome login dihilangkan per instruksi user
       if (!this.currentUser) {
-        this.triggerMobileAuthSplash();
+        this.skipMobileAuthSplash();
       }
       setTimeout(() => {
         if (this.homeMap) this.homeMap.invalidateSize();
@@ -1110,7 +1135,7 @@ window.FMCUApp = {
 
     const authScreen = document.getElementById('auth-screen');
     if (authScreen) authScreen.classList.remove('hidden');
-    this.triggerMobileAuthSplash();
+    this.skipMobileAuthSplash();
     if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
       this.focusLoginNikInput();
     }
@@ -1688,8 +1713,18 @@ window.FMCUApp = {
   populateCustomUserDropdown(force = false) {
     const authScreen = document.getElementById('auth-screen');
     const container = document.getElementById('custom-user-options-list');
+    const menu = document.getElementById('custom-user-dropdown-menu');
+    const searchInput = document.getElementById('custom-user-search-input');
+
     // Jika modal login tersembunyi (user sudah login) dan opsi sudah terisi, skip render ulang
     if (!force && authScreen && authScreen.classList.contains('hidden') && container && container.children.length > 0) {
+      return;
+    }
+    // Jangan pernah mereset / menutup dropdown saat user sedang membuka menu atau mengetik pencarian nama!
+    if (!force && menu && !menu.classList.contains('hidden')) {
+      return;
+    }
+    if (!force && searchInput && (document.activeElement === searchInput || searchInput.value.trim().length > 0)) {
       return;
     }
 
@@ -1697,6 +1732,12 @@ window.FMCUApp = {
     const visibleLoginUsers = users
       .filter((u) => u.role !== 'SUPER_ADMIN')
       .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'id', { sensitivity: 'base' }));
+
+    const listSig = visibleLoginUsers.map((u) => `${u.username}:${u.name}:${u.nik || ''}`).join('|');
+    if (!force && this._lastLoginUsersSig === listSig && container && container.children.length > 0) {
+      return;
+    }
+    this._lastLoginUsersSig = listSig;
 
     this._cachedLoginUsers = visibleLoginUsers;
     this.renderCustomUserOptions(visibleLoginUsers);
@@ -2512,22 +2553,23 @@ window.FMCUApp = {
     }
 
     if (this.currentUser) {
-      const activeCheckIn = window.FMCUData.getActiveCheckIn();
-      const storeName = activeCheckIn?.storeName ? `FamilyMart ${activeCheckIn.storeName}` : null;
-      const nowMs = Date.now();
-      if (!this._lastLocationSyncedAt || nowMs - this._lastLocationSyncedAt > 15000) {
-        this._lastLocationSyncedAt = nowMs;
-        window.FMCUData.updateUserLocation(
-          this.currentUser.id || this.currentUser.username,
-          this.liveGps.lat,
-          this.liveGps.lng,
-          storeName
-        );
+      if (this.isAuditorUser(this.currentUser)) {
+        const activeCheckIn = window.FMCUData.getActiveCheckIn();
+        const storeName = activeCheckIn?.storeName ? `FamilyMart ${activeCheckIn.storeName}` : null;
+        const nowMs = Date.now();
+        if (!this._lastLocationSyncedAt || nowMs - this._lastLocationSyncedAt > 45000) {
+          this._lastLocationSyncedAt = nowMs;
+          window.FMCUData.updateUserLocation(
+            this.currentUser.id || this.currentUser.username,
+            this.liveGps.lat,
+            this.liveGps.lng,
+            storeName
+          );
+        }
       }
+      this.initOrUpdateHomeMap();
+      this.checkAutomaticGeofenceInOut();
     }
-
-    this.initOrUpdateHomeMap();
-    this.checkAutomaticGeofenceInOut();
   },
 
   isHomeMapExpanded: false,
@@ -2544,6 +2586,9 @@ window.FMCUApp = {
   homeActiveStoreLayer: null,
 
   initOrUpdateHomeMap(forceStoreRefresh = false) {
+    if (!this.currentUser) return;
+    const homeView = document.getElementById('view-home');
+    if (homeView && homeView.classList.contains('hidden')) return;
     const mapContainer = document.getElementById('home-live-map');
     if (!mapContainer || typeof L === 'undefined') return;
 
@@ -2590,27 +2635,32 @@ window.FMCUApp = {
           fillOpacity: 0.95
         }).addTo(this.homeStoreLayer);
 
-        m.bindPopup(`
-          <div class="text-xs p-1 space-y-1.5" style="min-width: 210px;">
-            <div class="font-extrabold text-emerald-800 text-sm flex items-center gap-1.5">
-              <i class="fa-solid fa-store text-[#009944]"></i>
-              <span>FamilyMart ${st.name}</span>
-            </div>
-            <div class="text-[11px] font-mono text-slate-500 font-bold">
-              Site: ${st.code} • ${st.type || 'CVS'}
-            </div>
-            <div class="text-[11px] text-slate-700 leading-snug">
-              ${st.address || st.city || '-'}
-            </div>
-            <div class="pt-1 flex items-center justify-between border-t border-slate-100 text-[10px]">
-              <span class="text-slate-500">PIC: <strong>${st.storeHead || '-'}</strong></span>
-              <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener noreferrer" class="font-bold text-[#0099A6] hover:underline flex items-center gap-1">
-                <span>Buka Rute</span>
-                <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
-              </a>
-            </div>
-          </div>
-        `);
+        // Lazy-bind popup hanya saat marker diklik untuk menghemat alokasi 610 instance DOM/Popup di awal
+        m.on('click', () => {
+          if (!m.getPopup()) {
+            m.bindPopup(`
+              <div class="text-xs p-1 space-y-1.5" style="min-width: 210px;">
+                <div class="font-extrabold text-emerald-800 text-sm flex items-center gap-1.5">
+                  <i class="fa-solid fa-store text-[#009944]"></i>
+                  <span>FamilyMart ${st.name}</span>
+                </div>
+                <div class="text-[11px] font-mono text-slate-500 font-bold">
+                  Site: ${st.code} • ${st.type || 'CVS'}
+                </div>
+                <div class="text-[11px] text-slate-700 leading-snug">
+                  ${st.address || st.city || '-'}
+                </div>
+                <div class="pt-1 flex items-center justify-between border-t border-slate-100 text-[10px]">
+                  <span class="text-slate-500">PIC: <strong>${st.storeHead || '-'}</strong></span>
+                  <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener noreferrer" class="font-bold text-[#0099A6] hover:underline flex items-center gap-1">
+                    <span>Buka Rute</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+                  </a>
+                </div>
+              </div>
+            `).openPopup();
+          }
+        });
       });
       this._homeStoresRendered = true;
     }
@@ -4207,6 +4257,7 @@ window.FMCUApp = {
   },
 
   renderHomeView() {
+    if (!this.currentUser) return;
     const homeEl = document.getElementById('view-home');
     if (homeEl && homeEl.classList.contains('hidden')) return;
 
