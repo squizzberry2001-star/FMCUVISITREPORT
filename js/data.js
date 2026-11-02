@@ -1769,19 +1769,73 @@ window.FMCUData = {
     this._cachedSchedules = sorted;
     return sorted;
   },
-  saveSchedules(schedules) {
+  saveSingleSchedule(sch) {
+    if (!sch || !sch.id) return;
+    const docId = String(sch.id);
+    const schedules = this.getSchedules() || [];
+    const idx = schedules.findIndex((s) => String(s.id) === docId);
+    if (idx !== -1) {
+      schedules[idx] = { ...schedules[idx], ...sch, updatedAt: new Date().toISOString() };
+    } else {
+      schedules.push({ ...sch, updatedAt: new Date().toISOString() });
+    }
+    schedules.sort((a, b) => String(a.scheduledDate || '').localeCompare(String(b.scheduledDate || '')));
     this._cachedSchedules = schedules;
-    const prevSchedules = this.getSchedules();
     localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
 
     if (this.db) {
-      const newIds = new Set(schedules.map((s) => String(s.id)));
-      prevSchedules.forEach((oldSch) => {
-        const oldId = String(oldSch.id);
-        if (oldId && !newIds.has(oldId)) {
-          this.db.collection('schedules').doc(oldId).delete().catch((e) => console.warn('Delete schedule error:', e));
-        }
+      this.db
+        .collection('schedules')
+        .doc(docId)
+        .set(sanitizeForFirestore({ ...sch, updatedAt: new Date().toISOString() }), { merge: true })
+        .catch((e) => console.warn('Save single schedule error:', e));
+    }
+  },
+
+  deleteSchedule(scheduleId) {
+    if (!scheduleId) return;
+    const docId = String(scheduleId);
+    const schedules = (this.getSchedules() || []).filter((s) => String(s.id) !== docId);
+    this._cachedSchedules = schedules;
+    localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
+
+    if (this.db) {
+      this.db
+        .collection('schedules')
+        .doc(docId)
+        .delete()
+        .catch((e) => console.warn('Delete schedule error:', e));
+    }
+  },
+
+  deleteBulkSchedules(ids = []) {
+    if (!ids || ids.length === 0) return;
+    const idSet = new Set(ids.map(String));
+    const schedules = (this.getSchedules() || []).filter((s) => !idSet.has(String(s.id)));
+    this._cachedSchedules = schedules;
+    localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
+
+    if (this.db) {
+      ids.forEach((id) => {
+        this.db
+          .collection('schedules')
+          .doc(String(id))
+          .delete()
+          .catch((e) => console.warn('Delete bulk schedule error:', e));
       });
+    }
+  },
+
+  saveSchedules(schedules) {
+    if (!Array.isArray(schedules)) return;
+    schedules.sort((a, b) => String(a.scheduledDate || '').localeCompare(String(b.scheduledDate || '')));
+    this._cachedSchedules = schedules;
+    localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
+
+    // Arsitektur Multi-User Firestore:
+    // HANYA simpan dokumen yang ada pada daftar schedules ke Firestore.
+    // JANGAN PERNAH menghapus jadwal user lain dari Firestore hanya karena belum ada di memori lokal user ini!
+    if (this.db) {
       schedules.forEach((sch) => {
         if (!sch.id) return;
         const docId = String(sch.id);

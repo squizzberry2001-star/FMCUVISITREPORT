@@ -1,11 +1,11 @@
 /* TEAM */
 Organization: FamilyMart Corporate University (FMCU) — PT Fajar Mitra Indah
-Site: https://squizzberry2001-star.github.io/FMCUVISITREPORT/
+Site: https://fmcu-onegatesystem.vercel.app/
 Contact: fmcu@familymartindonesia.com
 Location: Jakarta, Indonesia
 
 /* SITE */
-Last update: 2026-11-02
+Last update: 2026-11-03
 Language: Indonesian (id)
 Standards: HTML5, CSS3, ES2022, WCAG 2.1 AA, WAI-ARIA, Schema.org JSON-LD, PWA
 Components: Leaflet Maps, Chart.js, jsPDF, PDF.js, Cloud Firestore

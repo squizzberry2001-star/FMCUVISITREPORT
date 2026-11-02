@@ -16,6 +16,42 @@ window.FMCUApp = {
       if (typeof fn === 'function') fn();
     }, delay);
   },
+  onHistorySearchInput() {
+    this.debounceAction('history-search', () => this.renderHomeHistory(), 200);
+  },
+  onAnalyticsHistorySearchInput() {
+    this.debounceAction('analytics-history', () => this.renderAnalyticsHistory(), 250);
+  },
+  onPreviewFilterInput(val) {
+    this.debounceAction('filter-preview', () => this.filterPreviewReports(val), 200);
+  },
+  onAdmSchListSearchInput() {
+    this.debounceAction('adm-sch-list-search', () => this.renderAdminView(), 200);
+  },
+  onAdmSchHistorySearchInput() {
+    this.debounceAction('adm-sch-history-search', () => this.renderAdminScheduleHistory(), 200);
+  },
+  onAdmStoreSearchInput() {
+    this.debounceAction('adm-store-search', () => this.renderAdminStoresTable(), 250);
+  },
+  onAdmUserSearchInput() {
+    this.debounceAction('adm-user-search', () => this.renderAdminView(), 200);
+  },
+  onAdmHoldingSearchInput() {
+    this.debounceAction('adm-holding-search', () => this.renderAdminHoldingProductsTable(), 200);
+  },
+  onLiveLocSearchInput(val) {
+    this.debounceAction('live-loc-search', () => this.onLiveLocSearch(val), 200);
+  },
+  onModalMapSearchInput(val) {
+    this.debounceAction('modal-map-search', () => this.searchStoreOnModalMap(val), 200);
+  },
+  onHoldingUserSearchInput() {
+    this.debounceAction('holding-modal-search', () => this.filterHoldingTimeModal(), 150);
+  },
+  onWeeklyPickerSearchInput(val) {
+    this.debounceAction('weekly-picker-search', () => this.onWeeklyStorePickerSearch(val), 200);
+  },
   currentAdminTab: 'schedules',
   currentScheduleSubSection: 'create',
   currentAnalyticsSubSection: 'history',
@@ -149,7 +185,7 @@ window.FMCUApp = {
         if (e.changedTouches && e.changedTouches.length === 1) {
           const deltaX = e.changedTouches[0].clientX - homeTouchStartX;
           const deltaY = e.changedTouches[0].clientY - homeTouchStartY;
-          if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+          if (Math.abs(deltaX) > 85 && Math.abs(deltaX) > Math.abs(deltaY) * 2.5) {
             const sections = ['overview', 'schedule', 'history'];
             const curIdx = sections.indexOf(this.currentHomeSubSection || 'overview');
             if (deltaX < 0 && curIdx < sections.length - 1) {
@@ -439,6 +475,10 @@ window.FMCUApp = {
 
     // Debounce rendering agar jika Firestore mengirim multi-snapshot sekaligus saat startup/login,
     // browser tidak melakukan render berkali-kali berturut-turut.
+    // Guard: Jika user sedang aktif mengisi Form Visit, jangan render ulang background views agar mengetik/foto 100% mulus!
+    if (this.currentView === 'form') {
+      return;
+    }
     if (this._cloudDebounceTimer) {
       clearTimeout(this._cloudDebounceTimer);
     }
@@ -3582,15 +3622,6 @@ window.FMCUApp = {
         activeCheckIn.lastActiveTime = nowStr;
         activeCheckIn.lastActiveTimestamp = nowTs;
         window.FMCUData.setActiveCheckIn(activeCheckIn);
-        const schId = activeCheckIn.scheduleId || document.getElementById('form-schedule-id')?.value;
-        if (schId) {
-          const schedules = window.FMCUData.getSchedules() || [];
-          const sch = schedules.find((s) => s.id === schId);
-          if (sch) {
-            sch.lastActiveTime = nowStr;
-            window.FMCUData.saveSchedules(schedules);
-          }
-        }
       }
     } catch (e) {}
   },
@@ -3698,7 +3729,7 @@ window.FMCUApp = {
               sch.actualLat = this.liveGps.lat;
               sch.actualLng = this.liveGps.lng;
               sch.outLocationStatus = `DILUAR_RADIUS (${distanceMeters || '?'}m)`;
-              window.FMCUData.saveSchedules(schedules);
+              window.FMCUData.saveSingleSchedule(sch);
             }
           }
           this.updateActiveCheckInUI();
@@ -3739,7 +3770,7 @@ window.FMCUApp = {
           sch.actualLat = this.liveGps.lat;
           sch.actualLng = this.liveGps.lng;
           sch.status = 'IN_PROGRESS';
-          window.FMCUData.saveSchedules(schedules);
+          window.FMCUData.saveSingleSchedule(sch);
         }
       }
 
@@ -3783,7 +3814,7 @@ window.FMCUApp = {
             sch.actualLat = this.liveGps.lat;
             sch.actualLng = this.liveGps.lng;
             sch.outLocationStatus = 'DALAM_RADIUS';
-            window.FMCUData.saveSchedules(schedules);
+            window.FMCUData.saveSingleSchedule(sch);
           }
         }
 
@@ -4260,20 +4291,8 @@ window.FMCUApp = {
       }
     }, 650);
 
-    // Subtle auto-peek reminder berkala setiap 9 detik jika masih di section overview
+    // Subtle auto-peek interval dinonaktifkan demi performa 60fps & kenyamanan sentuh di mobile
     if (this._subtabInterval) clearInterval(this._subtabInterval);
-    this._subtabInterval = setInterval(() => {
-      if (this.currentView !== 'home' || this.currentHomeSubSection !== 'overview' || document.hidden) return;
-      const maxScroll = track.scrollWidth - track.clientWidth;
-      if (maxScroll > 10 && track.scrollLeft <= 5) {
-        track.scrollTo({ left: Math.min(80, maxScroll), behavior: 'smooth' });
-        setTimeout(() => {
-          if (this.currentHomeSubSection === 'overview') {
-            track.scrollTo({ left: 0, behavior: 'smooth' });
-          }
-        }, 1000);
-      }
-    }, 9000);
   },
 
   scrollActiveHomeSubtabIntoView() {
@@ -6576,8 +6595,8 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     this.formQscPhotos = qscList;
     this.formOpiObservations = JSON.parse(JSON.stringify(rep.opiObservations || []));
     this.formObservations = JSON.parse(JSON.stringify(rep.qscObservations || rep.observations || []));
-    this.formEvidencePhotos = JSON.parse(JSON.stringify(rep.evidencePhotos || [])).map(hydratePhoto);
-    this.formCaPhotos = JSON.parse(JSON.stringify(rep.caPhotos || rep.correctiveActionPhotos || [])).map(hydratePhoto);
+    this.formEvidencePhotos = (rep.evidencePhotos || []).map((p) => hydratePhoto({ ...p }));
+    this.formCaPhotos = (rep.caPhotos || rep.correctiveActionPhotos || []).map((p) => hydratePhoto({ ...p }));
 
     // Otomatis aktifkan subtab sesuai data yang ada di laporan arsip
     if (this.formOpiObservations.length > 0 && this.formObservations.length === 0) {
@@ -8630,7 +8649,7 @@ Instruksi:
       schedules[schIdx].actualLat = reportObj.gpsLat;
       schedules[schIdx].actualLng = reportObj.gpsLng;
       schedules[schIdx].reportId = reportObj.id;
-      window.FMCUData.saveSchedules(schedules);
+      window.FMCUData.saveSingleSchedule(schedules[schIdx]);
     }
 
     // 3. Sinkronkan foto ke Google Drive di latar belakang untuk integritas Online lintas perangkat
@@ -13488,8 +13507,7 @@ Instruksi:
   deleteSchedule(id) {
     const schedules = window.FMCUData.getSchedules() || [];
     const target = schedules.find((s) => s.id === id);
-    const updated = schedules.filter((s) => s.id !== id);
-    window.FMCUData.saveSchedules(updated);
+    window.FMCUData.deleteSchedule(id);
     this.renderAllViews();
     this.showToast('Jadwal visit dihapus', 'info');
     if (target) {
@@ -13592,18 +13610,14 @@ Instruksi:
 
   deleteBulkSchedules(ids = []) {
     if (!ids || ids.length === 0) return;
-    const idSet = new Set(ids.map(String));
-    const schedules = window.FMCUData.getSchedules() || [];
-    const removedSchedules = schedules.filter((s) => idSet.has(String(s.id)));
-    const remaining = schedules.filter((s) => !idSet.has(String(s.id)));
-
-    window.FMCUData.saveSchedules(remaining);
+    const count = ids.length;
+    window.FMCUData.deleteBulkSchedules(ids);
     this.selectedScheduleIds.clear();
     this.renderAllViews();
-    this.showToast(`Berhasil menghapus ${removedSchedules.length} jadwal visit toko!`, 'success');
+    this.showToast(`Berhasil menghapus ${count} jadwal visit toko!`, 'success');
     this.logScheduleAction(
       'DELETE',
-      `Menghapus massal (bulk delete) ${removedSchedules.length} jadwal visit toko`,
+      `Menghapus massal (bulk delete) ${count} jadwal visit toko`,
       'Daftar Jadwal'
     );
   },
