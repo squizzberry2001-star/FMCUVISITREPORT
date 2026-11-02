@@ -176,25 +176,25 @@ window.FMCUApp = {
     this.setupCustomUserSelectListeners();
     this.populateHeaderRoleSwitcher();
     this.updateUserHeaderUI();
-
-    // Pastikan database IndexedDB foto & draft terinisialisasi dan siap di RAM
-    if (window.FMCUData && typeof window.FMCUData.initPhotoStorage === 'function') {
-      window.FMCUData.initPhotoStorage().then(() => {
-        const curCheckIn = window.FMCUData.getActiveCheckIn();
-        if (curCheckIn && curCheckIn.storeCode) {
-          const curCode = document.getElementById('form-store-code')?.value.trim();
-          if (!curCode || curCode === '-' || curCode === curCheckIn.storeCode) {
-            this.restoreStoreData(curCheckIn.storeCode, curCheckIn.scheduleId || null);
-          }
-        }
-      }).catch(() => {});
-    }
-
-    if (activeCheckIn && activeCheckIn.storeCode) {
-      this.restoreActiveCheckInToForm(activeCheckIn);
-    }
     this.setupFormAutoDraftListeners();
     this.onCloudStatusChanged(window.FMCUData.cloudStatus, window.FMCUData.cloudErrorMsg);
+
+    // Pastikan database IndexedDB foto, draft & reports terinisialisasi penuh terlebih dahulu sebelum merestore form
+    if (window.FMCUData && typeof window.FMCUData.initPhotoStorage === 'function') {
+      window.FMCUData.initPhotoStorage()
+        .then(() => {
+          const curCheckIn = window.FMCUData.getActiveCheckIn();
+          if (curCheckIn && curCheckIn.storeCode) {
+            this.restoreActiveCheckInToForm(curCheckIn);
+          }
+          if (this.currentUser) {
+            this.renderCurrentActiveView();
+          }
+        })
+        .catch(() => {});
+    } else if (activeCheckIn && activeCheckIn.storeCode) {
+      this.restoreActiveCheckInToForm(activeCheckIn);
+    }
 
     // Hanya render halaman utama & jalankan tugas berat jika user sudah login!
     // Saat di layar login (!this.currentUser), jangan render peta/view di background agar input login instan.
@@ -248,12 +248,24 @@ window.FMCUApp = {
   // Otomatis meminta login kembali jika tutup tab / tutup web app / sesi habis
   // ==========================================================================
   initSessionMonitor() {
+    const flushActiveFormBeforeExit = () => {
+      if (!this.currentUser || !this.hasActiveStoreForm || this._isHydratingForm) return;
+      if (this.currentView === 'form' || this._formDirty) {
+        if (this._draftSaveTimer) {
+          clearTimeout(this._draftSaveTimer);
+          this._draftSaveTimer = null;
+        }
+        this.syncAllFormInputsToMemory();
+        this.saveCurrentFormDraft();
+        this._formDirty = false;
+      }
+    };
+
     // 1. Tandai waktu saat tab atau web app ditutup / di-unload & update status keluar aplikasi
     const markUnload = () => {
       try {
         this.recordAppHeartbeat();
-        this.syncAllFormInputsToMemory();
-        this.saveCurrentFormDraft();
+        flushActiveFormBeforeExit();
         sessionStorage.setItem(window.FMCUData.TAB_UNLOAD_KEY, String(Date.now()));
         if (this.currentUser && this.isAuditorUser(this.currentUser)) {
           window.FMCUData.markUserExited(this.currentUser.id);
@@ -265,21 +277,17 @@ window.FMCUApp = {
     document.addEventListener('visibilitychange', () => {
       this.recordAppHeartbeat();
       if (document.visibilityState === 'hidden') {
-        this.syncAllFormInputsToMemory();
-        this.saveCurrentFormDraft();
+        flushActiveFormBeforeExit();
       }
     });
     window.addEventListener('blur', () => {
       if (this.currentView === 'form' && this._formDirty) {
-        this.syncAllFormInputsToMemory();
-        this.saveCurrentFormDraft();
-        this._formDirty = false;
+        flushActiveFormBeforeExit();
       }
     });
     setInterval(() => {
-      if (this.currentView === 'form') {
-        this.syncAllFormInputsToMemory();
-        this.saveCurrentFormDraft();
+      if (this.currentUser && this.currentView === 'form' && this._formDirty) {
+        flushActiveFormBeforeExit();
       }
       this.recordAppHeartbeat();
     }, 4000);
@@ -1083,9 +1091,19 @@ window.FMCUApp = {
     }
     this.populateHeaderRoleSwitcher();
     this.updateUserHeaderUI();
-    // Optimasi: Hindari renderAllViews() berlebihan saat login.
-    // navigate(allowedView) di bawah akan langsung merender view aktif yang tepat.
     this.checkAndDispatchUserVisitNotifications(true);
+
+    // Pastikan jika ada sesi form toko yang sebelumnya aktif, datanya telah siap di memori setelah IndexedDB siap
+    const activeCheckIn = window.FMCUData.getActiveCheckIn();
+    if (activeCheckIn && activeCheckIn.storeCode) {
+      if (window.FMCUData._photoStorageReady) {
+        this.restoreActiveCheckInToForm(activeCheckIn);
+      } else if (typeof window.FMCUData.initPhotoStorage === 'function') {
+        window.FMCUData.initPhotoStorage().then(() => {
+          this.restoreActiveCheckInToForm(activeCheckIn);
+        }).catch(() => {});
+      }
+    }
 
     // Prioritaskan savedView jika masih valid untuk role baru, atau ambil default role
     const savedView = sessionStorage.getItem('fmcu_active_view');
@@ -1100,6 +1118,13 @@ window.FMCUApp = {
     if (!skipConfirm && !reasonMsg) {
       const confirmLogout = confirm('Apakah Anda yakin ingin keluar dari akun aplikasi FMCU Visit Report?');
       if (!confirmLogout) return;
+    }
+    if (this.hasActiveStoreForm && (this.currentView === 'form' || this._formDirty) && !this._isHydratingForm) {
+      try {
+        this.syncAllFormInputsToMemory();
+        this.saveCurrentFormDraft();
+        this._formDirty = false;
+      } catch (e) {}
     }
     if (this.currentUser && this.isAuditorUser(this.currentUser)) {
       window.FMCUData.markUserExited(this.currentUser.id);
@@ -2469,7 +2494,8 @@ window.FMCUApp = {
   },
 
   syncActiveFormDraftFromCloud() {
-    if (!this.activeStoreCode || this._isLocallyEditing) return;
+    if (!this.activeStoreCode || this._isLocallyEditing || this._formDirty) return;
+    if (this._lastLocalFormEditMs && Date.now() - this._lastLocalFormEditMs < 8000) return;
     const draft = window.FMCUData.getStoreDraft(this.activeStoreCode, this.activeScheduleId);
     if (!draft) return;
     this.loadReportObjectToForm(draft);
@@ -6000,31 +6026,32 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
   },
 
   syncAllFormInputsToMemory() {
-    // 1. Sinkronisasi identitas toko & header
-    const sName = document.getElementById('form-store-name')?.value.trim();
-    const sHead = document.getElementById('form-store-head')?.value.trim();
-    const sAm = document.getElementById('form-area-manager')?.value.trim();
-    const sRm = document.getElementById('form-regional-manager')?.value.trim();
-    const sEmail = document.getElementById('form-store-email')?.value.trim();
-    const sCa = document.getElementById('form-ca-link')?.value.trim();
-    const sIn = document.getElementById('form-actual-in')?.value.trim();
-    const sOut = document.getElementById('form-actual-out')?.value.trim();
-    const sScore = document.getElementById('form-qsc-score')?.value.trim();
-
-    // 2. Sinkronisasi Crew Table dari DOM
-    const crewTable = document.getElementById('crew-table-body');
-    if (crewTable && Array.isArray(this.formCrew)) {
-      const rows = crewTable.querySelectorAll('tr');
-      rows.forEach((r, idx) => {
-        if (!this.formCrew[idx]) return;
-        const nameInput = r.querySelector('input[type="text"]');
-        const levelSel = r.querySelector('select');
-        if (nameInput) this.formCrew[idx].name = nameInput.value;
-        if (levelSel) this.formCrew[idx].jobLevel = levelSel.value;
-      });
+    // 1. Sinkronisasi Crew Table dari DOM yang sedang aktif (Mobile vs Desktop)
+    if (Array.isArray(this.formCrew)) {
+      const desktopTbody = document.getElementById('form-crew-tbody');
+      const mobileList = document.getElementById('form-crew-mobile-list');
+      if (desktopTbody && desktopTbody.offsetParent !== null) {
+        const rows = desktopTbody.querySelectorAll('tr');
+        rows.forEach((r, idx) => {
+          if (!this.formCrew[idx]) return;
+          const nameInput = r.querySelector('input[type="text"]');
+          const levelSel = r.querySelector('select');
+          if (nameInput) this.formCrew[idx].name = nameInput.value;
+          if (levelSel) this.formCrew[idx].jobLevel = levelSel.value;
+        });
+      } else if (mobileList && mobileList.offsetParent !== null) {
+        const cards = mobileList.children;
+        Array.from(cards).forEach((card, idx) => {
+          if (!this.formCrew[idx]) return;
+          const nameInput = card.querySelector('input[type="text"]');
+          const levelSel = card.querySelector('select');
+          if (nameInput) this.formCrew[idx].name = nameInput.value;
+          if (levelSel) this.formCrew[idx].jobLevel = levelSel.value;
+        });
+      }
     }
 
-    // 3. Sinkronisasi Observasi QSC
+    // 2. Sinkronisasi Observasi QSC
     if (Array.isArray(this.formObservations)) {
       this.formObservations.forEach((obs, idx) => {
         const temuanEl = document.getElementById(`obs-temuan-${idx}`);
@@ -6043,7 +6070,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       });
     }
 
-    // 4. Sinkronisasi Observasi OPI
+    // 3. Sinkronisasi Observasi OPI
     if (Array.isArray(this.formOpiObservations)) {
       this.formOpiObservations.forEach((obs, idx) => {
         const temuanEl = document.getElementById(`obs-opi-temuan-${idx}`);
@@ -6062,7 +6089,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       });
     }
 
-    // 5. Sinkronisasi Deskripsi Foto Evidence & CA
+    // 4. Sinkronisasi Deskripsi Foto Evidence & CA
     if (Array.isArray(this.formEvidencePhotos)) {
       this.formEvidencePhotos.forEach((p, idx) => {
         const descEl = document.getElementById(`ev-desc-${idx}`);
@@ -6079,6 +6106,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
 
   saveCurrentFormDraft() {
     if (this._isHydratingForm) return;
+    if (window.FMCUData && !window.FMCUData._photoStorageReady) return;
     const storeCode = document.getElementById('form-store-code')?.value.trim();
     if (!storeCode || storeCode === '-' || storeCode === '') return;
     const scheduleId = document.getElementById('form-schedule-id')?.value.trim() || null;
@@ -6086,9 +6114,34 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       this.syncAllFormInputsToMemory();
       const draft = this.buildCurrentFormReportObject();
       if (scheduleId) draft.scheduleId = scheduleId;
+      draft.updatedAt = new Date().toISOString();
+
+      // Cari apakah laporan untuk kunjungan toko ini sudah ada di History Store (reports)
+      const allReports = window.FMCUData.getReports() || [];
+      let repId = document.getElementById('form-report-id')?.value.trim() || '';
+      let existingRep =
+        (repId ? allReports.find((r) => String(r.id) === String(repId)) : null) ||
+        (scheduleId ? allReports.find((r) => r.scheduleId === scheduleId) : null) ||
+        allReports.find((r) => r.storeCode === storeCode && r.visitDate === draft.visitDate);
+
+      if (existingRep) {
+        repId = String(existingRep.id);
+        draft.id = repId;
+        const repIdInput = document.getElementById('form-report-id');
+        if (repIdInput) repIdInput.value = repId;
+        draft.caSpreadsheetUrl = draft.caLink || draft.caSpreadsheetUrl || existingRep.caSpreadsheetUrl || existingRep.caLink || '';
+        draft.pdfUrl = draft.pdfUrl || existingRep.pdfUrl || '';
+        draft.qscPdfUrl = draft.qscPdfUrl || existingRep.qscPdfUrl || '';
+        draft.driveFolderUrl = draft.driveFolderUrl || existingRep.driveFolderUrl || '';
+        draft.storeFolderUrl = draft.storeFolderUrl || existingRep.storeFolderUrl || '';
+        draft.visitorFolderUrl = draft.visitorFolderUrl || existingRep.visitorFolderUrl || '';
+        draft.createdAt = existingRep.createdAt || draft.createdAt;
+      }
+
+      // 1. Simpan ke Drafts (Memory + IndexedDB + LocalStorage + Firestore)
       window.FMCUData.saveStoreDraft(storeCode, draft, scheduleId);
 
-      // Simpan referensi toko draft aktif ke activeCheckIn
+      // 2. Simpan referensi toko draft aktif ke activeCheckIn
       const activeCheckIn = window.FMCUData.getActiveCheckIn() || {};
       activeCheckIn.storeCode = storeCode;
       if (scheduleId) activeCheckIn.scheduleId = scheduleId;
@@ -6097,19 +6150,16 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       activeCheckIn.lastSavedAt = Date.now();
       window.FMCUData.setActiveCheckIn(activeCheckIn);
 
-      // AUTOSAVE ARSIP: Jika user membuka arsip laporan toko dan mengeditnya
-      const repId = document.getElementById('form-report-id')?.value.trim();
-      const isArchived = Boolean(activeCheckIn.isArchivedView || repId);
-      if (repId && isArchived) {
-        draft.id = repId;
-        const existingRep = window.FMCUData.getReports().find((r) => String(r.id) === String(repId));
-        if (existingRep) {
-          draft.caSpreadsheetUrl = draft.caSpreadsheetUrl || existingRep.caSpreadsheetUrl || existingRep.caLink || '';
-          draft.pdfUrl = draft.pdfUrl || existingRep.pdfUrl || '';
-          draft.qscPdfUrl = draft.qscPdfUrl || existingRep.qscPdfUrl || '';
-          draft.driveFolderUrl = draft.driveFolderUrl || existingRep.driveFolderUrl || '';
-          draft.createdAt = existingRep.createdAt || draft.createdAt;
-          draft.isArchivedView = true;
+      // 3. AUTOSAVE KE REPORTS (HISTORY STORE):
+      // Jika laporan toko sudah ada di History Store ATAU user sudah menginput foto/teks bermakna di form,
+      // langsung simpan/perbarui juga di koleksi reports agar saat aplikasi di-close dan dibuka lewat History Store,
+      // seluruh foto dan teks di semua section tetap tersimpan utuh 100%!
+      const hasMeaningful = window.FMCUData.hasMeaningfulVisitContent(draft);
+      const isArchived = Boolean(activeCheckIn.isArchivedView || existingRep || hasMeaningful);
+      if (existingRep || hasMeaningful) {
+        const repIdInput = document.getElementById('form-report-id');
+        if (repIdInput && !repIdInput.value) {
+          repIdInput.value = draft.id;
         }
         window.FMCUData.saveReport(draft);
       }
@@ -6121,12 +6171,15 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
   },
 
   _formDirty: false,
+  _lastLocalFormEditMs: 0,
   triggerAutoSaveDraft() {
+    if (this._isHydratingForm) return;
     this._formDirty = true;
+    this._lastLocalFormEditMs = Date.now();
     if (this._draftSaveTimer) clearTimeout(this._draftSaveTimer);
     this._draftSaveTimer = setTimeout(() => {
       this.saveCurrentFormDraft();
-    }, 600);
+    }, 350);
   },
 
   populateStoreFields(st) {
@@ -6186,27 +6239,35 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     const todayStr = this.getLocalDateISO();
     const targetDate = sch?.scheduledDate || todayStr;
 
-    // 1. Cek draft khusus untuk kombinasi toko + jadwal ini (atau dari memory cache / IndexedDB)
+    // 1. Ambil draft toko dan laporan existing dari database
     const draft = window.FMCUData.getStoreDraft(targetStoreCode, scheduleId);
+    let existingRep = null;
+    if (scheduleId) {
+      existingRep = reports.find((r) => r.scheduleId === scheduleId);
+    }
+    if (!existingRep && draft && draft.id) {
+      existingRep = reports.find((r) => String(r.id) === String(draft.id));
+    }
+    if (!existingRep) {
+      existingRep = reports.find((r) => r.storeCode === targetStoreCode && r.visitDate === targetDate);
+    }
 
-    // Kriteria draft yang memiliki isi (meskipun hanya sebagian):
-    const hasAnyDraftData =
-      draft &&
-      ((draft.observations && draft.observations.some(o => o && (o.temuan || o.dampak || o.penyebab || o.tindakanPerbaikan || o.hasil))) ||
-        (draft.opiObservations && draft.opiObservations.some(o => o && (o.temuan || o.dampak || o.penyebab || o.tindakanPerbaikan || o.hasil))) ||
-        (draft.qscPhotos && draft.qscPhotos.some(p => p && (p.dataUrl || p.driveFileId || p.fullPhotoDataUrl))) ||
-        (draft.evidencePhotos && draft.evidencePhotos.some(p => p && (p.dataUrl || p.driveFileId || p.description))) ||
-        (draft.caPhotos && draft.caPhotos.some(p => p && (p.dataUrl || p.driveFileId || p.description))) ||
-        (draft.qscScore && Number(draft.qscScore) > 0) ||
-        (draft.storeHead && draft.storeHead.trim() !== '' && draft.storeHead !== '-') ||
-        (draft.areaManager && draft.areaManager.trim() !== '' && draft.areaManager !== '-') ||
-        (draft.storeEmail && draft.storeEmail.trim() !== '') ||
-        (draft.caLink && draft.caLink.trim() !== '') ||
-        (draft.actualIn && draft.actualIn !== '-' && draft.actualIn !== '--:-- WIB') ||
-        (draft.crewList && draft.crewList.some((c) => c && c.name && c.name.trim())));
+    const hasDraftContent = draft && window.FMCUData.hasMeaningfulVisitContent(draft);
 
-    // JIKA ADA DRAFT BERISI: UTAMAKAN DRAFT AGAR SELURUH DATA YANG DIKETIK / DIUPLOAD TETAP UTUH!
-    if (draft && hasAnyDraftData) {
+    // 2. Jika KEDUANYA ada (baik di Drafts maupun di Reports), gabungkan versi terlengkap & terbaru!
+    if (draft && existingRep) {
+      const merged = window.FMCUData.mergeReportAndDraft(existingRep, draft);
+      merged.id = existingRep.id;
+      if (scheduleId) merged.scheduleId = scheduleId;
+      this.loadReportObjectToForm(merged);
+      this.hasActiveStoreForm = true;
+      this.activePreviewReportId = merged.id;
+      this.updateFormGuardVisibility();
+      return true;
+    }
+
+    // 3. Jika ada draft yang memiliki isi foto/temuan/teks
+    if (draft && hasDraftContent) {
       if (scheduleId && draft.scheduleId && draft.scheduleId !== scheduleId) {
         draft.id = 'rep-' + Date.now();
         draft.scheduleId = scheduleId;
@@ -6218,15 +6279,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       return true;
     }
 
-    // 2. Cek laporan yang SUDAH SELESAI di database untuk jadwal spesifik ini (hanya jika tidak ada draft aktif)
-    let existingRep = null;
-    if (scheduleId) {
-      existingRep = reports.find((r) => r.scheduleId === scheduleId);
-    }
-    if (!existingRep) {
-      existingRep = reports.find((r) => r.storeCode === targetStoreCode && r.visitDate === targetDate);
-    }
-
+    // 4. Jika ada laporan yang sudah tersimpan di History Store (reports)
     if (existingRep) {
       this.loadReportObjectToForm(existingRep);
       this.hasActiveStoreForm = true;
@@ -6235,7 +6288,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       return true;
     }
 
-    // Jika draft ada meskipun minimalis:
+    // 5. Jika draft ada (meskipun baru berisi identitas toko)
     if (draft) {
       this.loadReportObjectToForm(draft);
       this.hasActiveStoreForm = true;
@@ -6244,7 +6297,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       return true;
     }
 
-    // 3. Jika tidak ada draft maupun arsip untuk jadwal ini, MULAI FORM BARU BERSIH
+    // 6. Jika tidak ada draft maupun arsip untuk jadwal ini, MULAI FORM BARU BERSIH
     this.resetVisitForm(true);
     this.hasActiveStoreForm = true;
     this.activePreviewReportId = '__LIVE_FORM__';
@@ -6310,6 +6363,8 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
   },
 
   resetVisitForm(silent = false) {
+    this._isHydratingForm = true;
+    this._formDirty = false;
     this.populateMasterStoreSelect();
     const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -6370,6 +6425,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
 
     this.renderFormDynamicSections();
     this.switchFormSection(1, false);
+    this._isHydratingForm = false;
     if (!silent) {
       this.showToast('Form berhasil dikosongkan.', 'info');
     }
@@ -6378,6 +6434,9 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
   loadReportObjectToForm(rep) {
     if (!rep) return;
     this._isHydratingForm = true;
+    this._formDirty = false;
+    this.activeStoreCode = rep.storeCode || '';
+    this.activeScheduleId = rep.scheduleId || null;
     this.populateMasterStoreSelect();
     this.hasActiveStoreForm = true;
     this.updateFormGuardVisibility();
@@ -6450,7 +6509,8 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     if (!Array.isArray(qscList) || qscList.length === 0) {
       const qscTs = Date.now();
       qscList = [
-        { id: `qsc-${qscTs}`, caption: 'Lembar Form QSC / FamiTrack (Full)', dataUrl: '', driveFileId: '', driveUrl: '' }
+        { id: `qsc-${qscTs}-1`, caption: 'Lembar Form QSC / FamiTrack #1 (Bagian Atas)', dataUrl: '', driveFileId: '', driveUrl: '' },
+        { id: `qsc-${qscTs}-2`, caption: 'Lembar Form QSC / FamiTrack #2 (Bagian Bawah)', dataUrl: '', driveFileId: '', driveUrl: '' }
       ];
     } else {
       qscList = qscList.map(hydratePhoto);
@@ -6476,37 +6536,81 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     this.renderFormDynamicSections();
     this.switchFormSection(1, false);
 
-    // Asynchronous IndexedDB photo hydration (apabila tab sempat di-refresh atau memory cache kosong)
-    if (window.FMCUData && typeof window.FMCUData.getPhotoFromDb === 'function') {
-      const allFormPhotos = [...this.formQscPhotos, ...this.formEvidencePhotos, ...this.formCaPhotos];
-      // Hydrate seluruh foto yang belum memiliki dataUrl tapi memiliki ID valid di IndexedDB
-      const needsHydration = allFormPhotos.filter(
-        (p) => p && (!p.dataUrl || !p.dataUrl.startsWith('data:image')) && p.id && p.id !== 'qsc-1' && p.id !== 'qsc-2'
-      );
-      if (needsHydration.length > 0) {
-        Promise.all(
-          needsHydration.map(async (p) => {
-            let b64 =
-              (p.id ? await window.FMCUData.getPhotoFromDb(p.id) : '') ||
-              (p.driveFileId ? await window.FMCUData.getPhotoFromDb(p.driveFileId) : '');
-            if (b64 && b64.startsWith('data:image')) {
-              p.dataUrl = b64;
-              window.FMCUData.cachePhotoInMemory(p.id, p.driveFileId, b64);
+    // Asynchronous IndexedDB & Google Drive photo hydration
+    (async () => {
+      try {
+        if (window.FMCUData && typeof window.FMCUData.getPhotoFromDb === 'function') {
+          const allFormPhotos = [...this.formQscPhotos, ...this.formEvidencePhotos, ...this.formCaPhotos];
+          let anyUpdated = false;
+
+          for (const p of allFormPhotos) {
+            if (!p || p.id === 'qsc-1' || p.id === 'qsc-2') continue;
+            if (!p.dataUrl || !p.dataUrl.startsWith('data:image')) {
+              const isQscPiece = String(p.id || '').startsWith('qsc-') && !String(p.id || '').startsWith('qsc-full-');
+              let b64 = p.id ? await window.FMCUData.getPhotoFromDb(p.id) : '';
+              if (!b64 && p.driveFileId && !isQscPiece) {
+                b64 = await window.FMCUData.getPhotoFromDb(p.driveFileId);
+              }
+              if (b64 && b64.startsWith('data:image')) {
+                p.dataUrl = b64;
+                window.FMCUData.cachePhotoInMemory(p.id, isQscPiece ? null : p.driveFileId, b64);
+                anyUpdated = true;
+              }
             }
-          })
-        ).then(() => {
-          this._isHydratingForm = false;
-          this.renderFormDynamicSections();
-        }).catch((e) => {
-          console.warn('Photo hydration warning:', e);
-          this._isHydratingForm = false;
-        });
-      } else {
+          }
+
+          // Jika foto QSC memiliki driveFileId (foto utuh di Google Drive) namun potongan atas/bawah belum ada di IndexedDB,
+          // ambil foto utuh dari IndexedDB atau Google Drive lalu split otomatis menjadi 2 bagian (Atas & Bawah)
+          const q0 = this.formQscPhotos?.[0];
+          const q1 = this.formQscPhotos?.[1];
+          if (
+            q0 &&
+            q1 &&
+            (q0.driveFileId || q1.driveFileId) &&
+            (!q0.dataUrl || !q0.dataUrl.startsWith('data:image') || !q1.dataUrl || !q1.dataUrl.startsWith('data:image'))
+          ) {
+            const fullDriveId = q0.driveFileId || q1.driveFileId;
+            let fullB64 = await window.FMCUData.getPhotoFromDb(fullDriveId);
+            if (!fullB64 && typeof window.FMCUData.fetchDrivePhotosBase64 === 'function') {
+              await window.FMCUData.fetchDrivePhotosBase64([fullDriveId]);
+              fullB64 = window.FMCUData.photoMemoryCache[fullDriveId] || '';
+            }
+            if (fullB64 && fullB64.startsWith('data:image') && window.FMCUPdf?.splitImageTopBottom) {
+              const { topDataUrl, bottomDataUrl } = await window.FMCUPdf.splitImageTopBottom(fullB64);
+              q0.dataUrl = topDataUrl;
+              q1.dataUrl = bottomDataUrl;
+              window.FMCUData.cachePhotoInMemory(q0.id, null, topDataUrl);
+              window.FMCUData.cachePhotoInMemory(q1.id, null, bottomDataUrl);
+              anyUpdated = true;
+            }
+          }
+
+          // Jika ada foto Evidence atau CA yang memiliki driveFileId tapi belum ada Base64 di lokal, tarik dari Google Drive
+          const missingDrivePhotos = [...this.formEvidencePhotos, ...this.formCaPhotos].filter(
+            (p) => p && p.driveFileId && (!p.dataUrl || !p.dataUrl.startsWith('data:image'))
+          );
+          if (missingDrivePhotos.length > 0 && typeof window.FMCUData.fetchDrivePhotosBase64 === 'function') {
+            await window.FMCUData.fetchDrivePhotosBase64(missingDrivePhotos.map((p) => p.driveFileId));
+            missingDrivePhotos.forEach((p) => {
+              const fetched = window.FMCUData.photoMemoryCache[p.driveFileId];
+              if (fetched && fetched.startsWith('data:image')) {
+                p.dataUrl = fetched;
+                window.FMCUData.cachePhotoInMemory(p.id, p.driveFileId, fetched);
+                anyUpdated = true;
+              }
+            });
+          }
+
+          if (anyUpdated) {
+            this.renderFormDynamicSections();
+          }
+        }
+      } catch (e) {
+        console.warn('Photo hydration warning:', e);
+      } finally {
         this._isHydratingForm = false;
       }
-    } else {
-      this._isHydratingForm = false;
-    }
+    })();
   },
 
   renderFormDynamicSections() {
@@ -7135,14 +7239,22 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         compact: true,
         photoType: 'QSC'
       });
+      photoObj.id = photoObj.id && photoObj.id !== 'qsc-1' && photoObj.id !== 'qsc-2' ? photoObj.id : `qsc-${Date.now()}-${idx + 1}`;
       photoObj.dataUrl = dataUrl;
-      photoObj.driveFileId = '';
-      photoObj.driveUrl = '';
-      photoObj._uploading = false;
+      photoObj._uploading = true;
       window.FMCUData.cachePhotoInMemory(photoObj.id, null, dataUrl);
       this.renderQscPhotosGrid();
       this.saveCurrentFormDraft();
-      this.showToast('Potongan lembar QSC berhasil diperbarui.', 'success');
+
+      await window.FMCUData.uploadPhotoToGDrive(photoObj, {
+        storeCode,
+        storeName,
+        photoType: 'QSC'
+      });
+      photoObj._uploading = false;
+      this.renderQscPhotosGrid();
+      this.saveCurrentFormDraft();
+      this.showToast('Potongan lembar QSC berhasil diperbarui & tersimpan!', 'success');
     });
   },
 
@@ -7211,7 +7323,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
           photoType: 'QSC'
         });
 
-        // Bagikan ID & URL Drive foto utuh ke kedua slot
+        // Bagikan ID & URL Drive foto utuh ke kedua slot, namun pertahankan dataUrl terpisah (atas & bawah) di IndexedDB
         if (fullPhotoObj.driveFileId) {
           p0.driveFileId = fullPhotoObj.driveFileId;
           p0.driveUrl = fullPhotoObj.driveUrl;
@@ -7219,7 +7331,10 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
           p1.driveFileId = fullPhotoObj.driveFileId;
           p1.driveUrl = fullPhotoObj.driveUrl;
           p1.driveViewUrl = fullPhotoObj.driveViewUrl;
+          window.FMCUData.cachePhotoInMemory(fullPhotoObj.id, fullPhotoObj.driveFileId, fullStampedDataUrl);
         }
+        window.FMCUData.cachePhotoInMemory(p0.id, null, topDataUrl);
+        window.FMCUData.cachePhotoInMemory(p1.id, null, bottomDataUrl);
         p0._uploading = false;
         p1._uploading = false;
 
@@ -7258,15 +7373,25 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         this.formQscPhotos[idx] = { id: `qsc-${Date.now()}-${idx + 1}`, caption: idx === 0 ? 'Lembar Form QSC / FamiTrack #1 (Bagian Atas)' : 'Lembar Form QSC / FamiTrack #2 (Bagian Bawah)' };
       }
       const p = this.formQscPhotos[idx];
+      p.id = p.id && p.id !== 'qsc-1' && p.id !== 'qsc-2' ? p.id : `qsc-${Date.now()}-${idx + 1}`;
       p.dataUrl = dataUrl;
       p.driveFileId = '';
       p.driveUrl = '';
-      p._uploading = false;
+      p._uploading = true;
       window.FMCUData.cachePhotoInMemory(p.id, null, dataUrl);
       this.renderQscPhotosGrid();
       this.saveCurrentFormDraft();
+
+      await window.FMCUData.uploadPhotoToGDrive(p, {
+        storeCode,
+        storeName,
+        photoType: 'QSC'
+      });
+      p._uploading = false;
+      this.renderQscPhotosGrid();
+      this.saveCurrentFormDraft();
       this.updateFormProgress();
-      this.showToast(`Foto lembar QSC #${idx + 1} berhasil diperbarui.`, 'success');
+      this.showToast(`Foto lembar QSC #${idx + 1} berhasil diperbarui & disimpan!`, 'success');
     });
   },
 
@@ -8610,6 +8735,7 @@ Instruksi:
   },
 
   async collectAndSaveFormReport() {
+    this.syncAllFormInputsToMemory();
     if (!document.getElementById('form-actual-out').value.trim()) {
       document.getElementById('form-actual-out').value = this.getCurrentTimeWIB();
     }
@@ -8619,14 +8745,7 @@ Instruksi:
     // sebelum menyimpan data laporan ke Cloud Firestore
     await window.FMCUData.ensureReportPhotosUploadedToGDrive(reportObj);
 
-    const reports = window.FMCUData.getReports();
-    const idx = reports.findIndex((r) => r.id === reportObj.id);
-    if (idx !== -1) {
-      reports[idx] = reportObj;
-    } else {
-      reports.unshift(reportObj);
-    }
-    window.FMCUData.saveReports(reports);
+    window.FMCUData.saveReport(reportObj);
 
     // Update linked Schedule if any
     const schedules = window.FMCUData.getSchedules();
@@ -8645,8 +8764,8 @@ Instruksi:
       window.FMCUData.saveSchedules(schedules);
     }
 
-    // Hapus draft toko ini karena laporan sudah final disimpan
-    window.FMCUData.deleteStoreDraft(reportObj.storeCode);
+    // Hapus draft toko ini karena laporan sudah final disimpan ke reports
+    window.FMCUData.deleteStoreDraft(reportObj.storeCode, reportObj.scheduleId);
 
     window.FMCUData.setActiveCheckIn(null);
     this.hasActiveStoreForm = false;
@@ -8935,13 +9054,18 @@ Instruksi:
     }
 
     if (this.activePreviewReportId) {
-      const found = reports.find((r) => r.id === this.activePreviewReportId);
-      if (found) return found;
+      const found = reports.find((r) => String(r.id) === String(this.activePreviewReportId));
+      if (found) {
+        const draft = window.FMCUData.getStoreDraft(found.storeCode, found.scheduleId);
+        return draft ? window.FMCUData.mergeReportAndDraft(found, draft) : found;
+      }
     }
 
     if (reports.length > 0) {
       this.activePreviewReportId = reports[0].id;
-      return reports[0];
+      const first = reports[0];
+      const draft = window.FMCUData.getStoreDraft(first.storeCode, first.scheduleId);
+      return draft ? window.FMCUData.mergeReportAndDraft(first, draft) : first;
     }
 
     if (this.hasActiveStoreForm && this.hasMeaningfulVisitData()) {
@@ -9600,17 +9724,35 @@ Instruksi:
 
   async downloadReportById(reportId) {
     const reports = window.FMCUData.getReports();
-    const rep = reports.find((r) => r.id === reportId);
+    let rep = reports.find((r) => String(r.id) === String(reportId));
     if (!rep) return;
+    const draft = window.FMCUData.getStoreDraft(rep.storeCode, rep.scheduleId);
+    if (draft) {
+      rep = window.FMCUData.mergeReportAndDraft(rep, draft);
+    }
     this.showToast(`Membuat & mengunduh file PDF ${window.FMCUPdf.getFileName(rep)}...`, 'info');
     await window.FMCUPdf.downloadReportPdf(rep);
     this.showToast(`PDF ${window.FMCUPdf.getFileName(rep)} berhasil diunduh!`, 'success');
   },
 
   editReportById(reportId) {
+    // Simpan form toko sebelumnya apabila user berpindah toko
+    const currentStoreCode = document.getElementById('form-store-code')?.value.trim();
+    if (currentStoreCode && currentStoreCode !== '-' && this._formDirty) {
+      this.saveCurrentFormDraft();
+    }
+
     const reports = window.FMCUData.getReports();
-    const rep = reports.find((r) => r.id === reportId);
+    let rep = reports.find((r) => String(r.id) === String(reportId));
     if (!rep) return;
+
+    // Gabungkan dengan draft toko (Memory / IndexedDB / LocalStorage) apabila ada perubahan sebelum app di-close
+    const draft = window.FMCUData.getStoreDraft(rep.storeCode, rep.scheduleId);
+    if (draft) {
+      rep = window.FMCUData.mergeReportAndDraft(rep, draft);
+      rep.id = reportId;
+    }
+
     this.loadReportObjectToForm(rep);
     this.hasActiveStoreForm = true;
     this.updateFormGuardVisibility();
@@ -9632,6 +9774,29 @@ Instruksi:
     this.activePreviewReportId = rep.id;
     this.navigate('form');
     this.showToast(`Membuka form toko ${rep.storeName}`, 'info');
+
+    // Pastikan jika ada data lebih lengkap di IndexedDB (reports/drafts), dipulihkan secara asinkron
+    if (window.FMCUData && typeof window.FMCUData.getReportFromDb === 'function') {
+      Promise.all([
+        window.FMCUData.getReportFromDb(reportId),
+        window.FMCUData.getDraftFromDb(rep.storeCode),
+        rep.scheduleId ? window.FMCUData.getDraftFromDb(`${rep.storeCode}_${rep.scheduleId}`) : Promise.resolve(null)
+      ])
+        .then(([idbRep, idbDraftStore, idbDraftSch]) => {
+          let richest = rep;
+          if (idbRep) richest = window.FMCUData.mergeReportAndDraft(richest, idbRep);
+          if (idbDraftStore) richest = window.FMCUData.mergeReportAndDraft(richest, idbDraftStore);
+          if (idbDraftSch) richest = window.FMCUData.mergeReportAndDraft(richest, idbDraftSch);
+          richest.id = reportId;
+          if (
+            window.FMCUData.getReportCompletenessScore(richest) > window.FMCUData.getReportCompletenessScore(rep) &&
+            !this._formDirty
+          ) {
+            this.loadReportObjectToForm(richest);
+          }
+        })
+        .catch(() => {});
+    }
   },
 
   // ==========================================================================

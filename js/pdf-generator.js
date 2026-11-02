@@ -340,7 +340,8 @@ window.FMCUPdf = {
               continue;
             }
           }
-          if (p.driveFileId) {
+          const isSplitQscPiece = String(p.id || '').startsWith('qsc-') && !String(p.id || '').startsWith('qsc-full-');
+          if (p.driveFileId && !isSplitQscPiece) {
             const b64 = await window.FMCUData.getPhotoFromDb(p.driveFileId);
             if (b64 && b64.startsWith('data:image')) {
               p.dataUrl = b64;
@@ -361,6 +362,31 @@ window.FMCUPdf = {
       });
       if (driveIdsToFetch.length > 0) {
         await window.FMCUData.fetchDrivePhotosBase64(driveIdsToFetch);
+      }
+    }
+
+    // Khusus untuk 2 slot lembar QSC yang berbagi driveFileId foto utuh dari Google Drive:
+    // belah otomatis menjadi bagian atas (#1) dan bagian bawah (#2) apabila belum terpisah
+    const q0 = report.qscPhotos?.[0];
+    const q1 = report.qscPhotos?.[1];
+    if (
+      q0 &&
+      q1 &&
+      (q0.driveFileId || q1.driveFileId) &&
+      (!q0.dataUrl || !q0.dataUrl.startsWith('data:image') || !q1.dataUrl || !q1.dataUrl.startsWith('data:image') || q0.dataUrl === q1.dataUrl)
+    ) {
+      const fullFid = q0.driveFileId || q1.driveFileId;
+      const fullB64 =
+        window.FMCUData?.photoMemoryCache?.[fullFid] ||
+        (window.FMCUData?.getPhotoFromDb ? await window.FMCUData.getPhotoFromDb(fullFid) : '');
+      if (fullB64 && fullB64.startsWith('data:image')) {
+        try {
+          const { topDataUrl, bottomDataUrl } = await this.splitImageTopBottom(fullB64);
+          q0.dataUrl = topDataUrl;
+          q1.dataUrl = bottomDataUrl;
+          window.FMCUData?.cachePhotoInMemory?.(q0.id, null, topDataUrl);
+          window.FMCUData?.cachePhotoInMemory?.(q1.id, null, bottomDataUrl);
+        } catch (e) {}
       }
     }
 
