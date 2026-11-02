@@ -396,14 +396,8 @@ window.FMCUApp = {
       return;
     }
 
-    // Guard 3: Jika ada perubahan draft form lintas device, sinkronkan form aktif saja tanpa membongkar ulang DOM Home/Admin
+    // Guard 3: Data Form Visit disimpan 100% lokal, sehingga update cloud tidak pernah menimpa Form Visit aktif
     if (collectionName === 'drafts') {
-      if (this.currentView === 'form' && this.activeStoreCode) {
-        this.syncActiveFormDraftFromCloud();
-      }
-      if (this.currentView === 'home') {
-        this.updateHomeSubSectionPills();
-      }
       return;
     }
 
@@ -6153,7 +6147,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         draft.createdAt = existingRep.createdAt || draft.createdAt;
       }
 
-      // 1. Simpan ke Drafts (Memory + IndexedDB + LocalStorage + Firestore)
+      // 1. Simpan 100% Lokal ke Drafts (RAM Memory + IndexedDB + LocalStorage)
       window.FMCUData.saveStoreDraft(storeCode, draft, scheduleId);
 
       // 2. Simpan referensi toko draft aktif ke activeCheckIn
@@ -6165,10 +6159,9 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       activeCheckIn.lastSavedAt = Date.now();
       window.FMCUData.setActiveCheckIn(activeCheckIn);
 
-      // 3. AUTOSAVE KE REPORTS (HISTORY STORE):
-      // Jika laporan toko sudah ada di History Store ATAU user sudah menginput foto/teks bermakna di form,
-      // langsung simpan/perbarui juga di koleksi reports agar saat aplikasi di-close dan dibuka lewat History Store,
-      // seluruh foto dan teks di semua section tetap tersimpan utuh 100%!
+      // 3. AUTOSAVE LOKAL KE REPORTS (HISTORY STORE LOKAL):
+      // Simpan ke koleksi reports lokal (syncCloud: false) agar saat aplikasi ditutup dan dibuka lewat History Store,
+      // seluruh foto dan teks di semua section tetap tersimpan utuh 100% di lokal tanpa trafik jaringan!
       const hasMeaningful = window.FMCUData.hasMeaningfulVisitContent(draft);
       const isArchived = Boolean(activeCheckIn.isArchivedView || existingRep || hasMeaningful);
       if (existingRep || hasMeaningful) {
@@ -6176,7 +6169,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         if (repIdInput && !repIdInput.value) {
           repIdInput.value = draft.id;
         }
-        window.FMCUData.saveReport(draft);
+        window.FMCUData.saveReport(draft, { syncCloud: false });
       }
 
       this.updateLiveAutosaveBadge(isArchived ? 'archive' : 'draft');
@@ -6840,21 +6833,13 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
           dataUrl,
           driveFileId: '',
           driveUrl: '',
-          _uploading: true
+          _uploading: false
         };
-        window.FMCUData.cachePhotoInMemory(caObj.id, null, dataUrl);
+        window.FMCUData.cachePhotoInMemory(caObj.id, null, dataUrl, true);
         this.formCaPhotos.push(caObj);
         this.renderCaPhotosGrid();
         this.saveCurrentFormDraft();
-        await window.FMCUData.uploadPhotoToGDrive(caObj, {
-          storeCode,
-          storeName,
-          photoType: 'CORRECTIVE_ACTION'
-        });
-        caObj._uploading = false;
-        this.renderCaPhotosGrid();
-        this.saveCurrentFormDraft();
-        this.showToast('Foto perbaikan (CA) berhasil ditambahkan!', 'success');
+        this.showToast('Foto perbaikan (CA) tersimpan lokal di perangkat!', 'success');
       } else {
         if (!this.formEvidencePhotos) this.formEvidencePhotos = [];
         const evObj = {
@@ -6863,21 +6848,13 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
           dataUrl,
           driveFileId: '',
           driveUrl: '',
-          _uploading: true
+          _uploading: false
         };
-        window.FMCUData.cachePhotoInMemory(evObj.id, null, dataUrl);
+        window.FMCUData.cachePhotoInMemory(evObj.id, null, dataUrl, true);
         this.formEvidencePhotos.push(evObj);
         this.renderEvidenceGrid();
         this.saveCurrentFormDraft();
-        await window.FMCUData.uploadPhotoToGDrive(evObj, {
-          storeCode,
-          storeName,
-          photoType: 'EVIDENCE'
-        });
-        evObj._uploading = false;
-        this.renderEvidenceGrid();
-        this.saveCurrentFormDraft();
-        this.showToast('Foto bukti temuan berhasil ditambahkan!', 'success');
+        this.showToast('Foto bukti temuan tersimpan lokal di perangkat!', 'success');
       }
       this.updateFormProgress();
     });
@@ -6892,9 +6869,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     const processFile = (file) => {
       return new Promise((resolve) => {
         this.promptPhotoEdit(file, async (editedDataUrl) => {
-          const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
           const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
-          const settings = window.FMCUData.getSettings();
           const applyWm = true;
 
           const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
@@ -6912,21 +6887,12 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
               dataUrl,
               driveFileId: '',
               driveUrl: '',
-              _uploading: true
+              _uploading: false
             };
-            window.FMCUData.cachePhotoInMemory(caObj.id, null, dataUrl);
+            window.FMCUData.cachePhotoInMemory(caObj.id, null, dataUrl, true);
             this.formCaPhotos.push(caObj);
             this.renderCaPhotosGrid();
             this.saveCurrentFormDraft();
-            window.FMCUData.uploadPhotoToGDrive(caObj, {
-              storeCode,
-              storeName,
-              photoType: 'CORRECTIVE_ACTION'
-            }).then(() => {
-              caObj._uploading = false;
-              this.renderCaPhotosGrid();
-              this.saveCurrentFormDraft();
-            });
           } else {
             if (!this.formEvidencePhotos) this.formEvidencePhotos = [];
             const evObj = {
@@ -6935,21 +6901,12 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
               dataUrl,
               driveFileId: '',
               driveUrl: '',
-              _uploading: true
+              _uploading: false
             };
-            window.FMCUData.cachePhotoInMemory(evObj.id, null, dataUrl);
+            window.FMCUData.cachePhotoInMemory(evObj.id, null, dataUrl, true);
             this.formEvidencePhotos.push(evObj);
             this.renderEvidenceGrid();
             this.saveCurrentFormDraft();
-            window.FMCUData.uploadPhotoToGDrive(evObj, {
-              storeCode,
-              storeName,
-              photoType: 'EVIDENCE'
-            }).then(() => {
-              evObj._uploading = false;
-              this.renderEvidenceGrid();
-              this.saveCurrentFormDraft();
-            });
           }
           this.updateFormProgress();
           resolve();
@@ -6961,7 +6918,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       await processFile(f);
     }
     this.saveCurrentFormDraft();
-    this.showToast(`${files.length} foto berhasil diproses!`, 'success');
+    this.showToast(`${files.length} foto berhasil diproses & tersimpan lokal!`, 'success');
   },
 
   // --- Section 1B: Crew Table ---
@@ -7151,7 +7108,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
           : p.driveFileId
           ? `<a href="${p.driveViewUrl || p.driveUrl || '#'}" target="_blank" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 hover:underline"><i class="fa-brands fa-google-drive mr-1"></i>Tersimpan di Google Drive</a>`
           : displaySrc
-          ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-[#0099A6] border border-teal-200"><i class="fa-solid fa-cloud-arrow-up mr-1"></i>Siap Sync ke Google Drive</span>`
+          ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200"><i class="fa-solid fa-hard-drive mr-1"></i>Tersimpan Lokal di Perangkat</span>`
           : '';
 
         return `
@@ -7248,7 +7205,6 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       return;
     }
     this.promptPhotoEdit(currentSrc, async (editedDataUrl) => {
-      const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
       const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
       const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
         storeName,
@@ -7260,33 +7216,23 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       });
       photoObj.id = photoObj.id && photoObj.id !== 'qsc-1' && photoObj.id !== 'qsc-2' ? photoObj.id : `qsc-${Date.now()}-${idx + 1}`;
       photoObj.dataUrl = dataUrl;
-      photoObj._uploading = true;
-      window.FMCUData.cachePhotoInMemory(photoObj.id, null, dataUrl);
-      this.renderQscPhotosGrid();
-      this.saveCurrentFormDraft();
-
-      await window.FMCUData.uploadPhotoToGDrive(photoObj, {
-        storeCode,
-        storeName,
-        photoType: 'QSC'
-      });
       photoObj._uploading = false;
+      window.FMCUData.cachePhotoInMemory(photoObj.id, null, dataUrl, true);
       this.renderQscPhotosGrid();
       this.saveCurrentFormDraft();
-      this.showToast('Potongan lembar QSC berhasil diperbarui & tersimpan!', 'success');
+      this.showToast('Potongan lembar QSC berhasil diperbarui & tersimpan lokal!', 'success');
     });
   },
 
-  // Handler untuk mengunggah 1x foto penuh Form QSC dan otomatis membelah jadi 2 (atas & bawah)
+  // Handler untuk mengunggah 1x foto penuh Form QSC dan otomatis membelah jadi 2 (atas & bawah) secara lokal
   async handleQscSingleFullUpload(event) {
     const file = event.target.files?.[0];
     if (!file) return;
     event.target.value = '';
 
     this.promptPhotoEdit(file, async (editedFullDataUrl) => {
-      const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
       const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
-      this.showToast('Memproses & membelah foto Form QSC menjadi 2 bagian...', 'info', 2500);
+      this.showToast('Memproses & membelah foto Form QSC menjadi 2 bagian...', 'info', 2000);
 
       try {
         // 1. Watermark & GPS pada foto penuh (utuh)
@@ -7303,69 +7249,36 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         const { topDataUrl, bottomDataUrl } = await window.FMCUPdf.splitImageTopBottom(fullStampedDataUrl);
 
         const qscTs = Date.now();
+        const fullPhotoId = `qsc-full-${qscTs}`;
         const p0 = {
           id: `qsc-${qscTs}-1`,
           caption: 'Lembar Form QSC / FamiTrack #1 (Bagian Atas)',
           dataUrl: topDataUrl,
-          fullPhotoDataUrl: fullStampedDataUrl,
+          fullPhotoId,
           driveFileId: '',
           driveUrl: '',
-          _uploading: true
+          _uploading: false
         };
         const p1 = {
           id: `qsc-${qscTs}-2`,
           caption: 'Lembar Form QSC / FamiTrack #2 (Bagian Bawah)',
           dataUrl: bottomDataUrl,
-          fullPhotoDataUrl: fullStampedDataUrl,
+          fullPhotoId,
           driveFileId: '',
           driveUrl: '',
-          _uploading: true
+          _uploading: false
         };
 
         this.formQscPhotos = [p0, p1];
-        window.FMCUData.cachePhotoInMemory(p0.id, null, topDataUrl);
-        window.FMCUData.cachePhotoInMemory(p1.id, null, bottomDataUrl);
-        this.renderQscPhotosGrid();
-        this.saveCurrentFormDraft();
-
-        // 3. Simpan foto penuh (foto utuh tanpa split) ke Google Drive
-        const fullPhotoObj = {
-          id: `qsc-full-${qscTs}`,
-          caption: 'Lembar_Form_QSC_Full',
-          dataUrl: fullStampedDataUrl,
-          fullPhotoDataUrl: fullStampedDataUrl
-        };
-
-        await window.FMCUData.uploadPhotoToGDrive(fullPhotoObj, {
-          storeCode,
-          storeName,
-          photoType: 'QSC'
-        });
-
-        // Bagikan ID & URL Drive foto utuh ke kedua slot, namun pertahankan dataUrl terpisah (atas & bawah) di IndexedDB
-        if (fullPhotoObj.driveFileId) {
-          p0.driveFileId = fullPhotoObj.driveFileId;
-          p0.driveUrl = fullPhotoObj.driveUrl;
-          p0.driveViewUrl = fullPhotoObj.driveViewUrl;
-          p1.driveFileId = fullPhotoObj.driveFileId;
-          p1.driveUrl = fullPhotoObj.driveUrl;
-          p1.driveViewUrl = fullPhotoObj.driveViewUrl;
-          window.FMCUData.cachePhotoInMemory(fullPhotoObj.id, fullPhotoObj.driveFileId, fullStampedDataUrl);
-        }
-        window.FMCUData.cachePhotoInMemory(p0.id, null, topDataUrl);
-        window.FMCUData.cachePhotoInMemory(p1.id, null, bottomDataUrl);
-        p0._uploading = false;
-        p1._uploading = false;
+        // Simpan potongan atas, potongan bawah, dan foto utuh penuh ke IndexedDB & Memory Cache Lokal
+        window.FMCUData.cachePhotoInMemory(p0.id, null, topDataUrl, true);
+        window.FMCUData.cachePhotoInMemory(p1.id, null, bottomDataUrl, true);
+        window.FMCUData.cachePhotoInMemory(fullPhotoId, null, fullStampedDataUrl, true);
 
         this.renderQscPhotosGrid();
         this.saveCurrentFormDraft();
         this.updateFormProgress();
-        this.showToast(
-          fullPhotoObj.driveFileId
-            ? 'Foto Form QSC berhasil di-split jadi 2 bagian & foto utuh tersimpan di Google Drive!'
-            : 'Foto Form QSC berhasil diunggah & di-split jadi 2 bagian.',
-          'success'
-        );
+        this.showToast('Foto Form QSC berhasil di-split jadi 2 bagian & tersimpan lokal!', 'success');
       } catch (err) {
         console.error('Gagal memproses split foto QSC:', err);
         this.showToast('Gagal memproses split foto QSC: ' + err.message, 'error');
@@ -7378,7 +7291,6 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     if (!file) return;
     event.target.value = '';
     this.promptPhotoEdit(file, async (editedDataUrl) => {
-      const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
       const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
       const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
         storeName,
@@ -7396,21 +7308,12 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       p.dataUrl = dataUrl;
       p.driveFileId = '';
       p.driveUrl = '';
-      p._uploading = true;
-      window.FMCUData.cachePhotoInMemory(p.id, null, dataUrl);
-      this.renderQscPhotosGrid();
-      this.saveCurrentFormDraft();
-
-      await window.FMCUData.uploadPhotoToGDrive(p, {
-        storeCode,
-        storeName,
-        photoType: 'QSC'
-      });
       p._uploading = false;
+      window.FMCUData.cachePhotoInMemory(p.id, null, dataUrl, true);
       this.renderQscPhotosGrid();
       this.saveCurrentFormDraft();
       this.updateFormProgress();
-      this.showToast(`Foto lembar QSC #${idx + 1} berhasil diperbarui & disimpan!`, 'success');
+      this.showToast(`Foto lembar QSC #${idx + 1} berhasil diperbarui & tersimpan lokal!`, 'success');
     });
   },
 
@@ -8216,7 +8119,7 @@ Instruksi:
           : ev.driveFileId
           ? `<a href="${ev.driveViewUrl || ev.driveUrl || '#'}" target="_blank" class="mt-1 text-[10px] font-bold text-emerald-700 hover:underline inline-flex items-center gap-1"><i class="fa-brands fa-google-drive"></i><span>Tersimpan di Google Drive</span></a>`
           : displaySrc
-          ? `<div class="mt-1 text-[10px] font-semibold text-[#0099A6] flex items-center gap-1"><i class="fa-solid fa-cloud-arrow-up"></i><span>Siap Sync ke Google Drive</span></div>`
+          ? `<div class="mt-1 text-[10px] font-bold text-emerald-700 flex items-center gap-1"><i class="fa-solid fa-hard-drive"></i><span>Tersimpan Lokal di Perangkat</span></div>`
           : '';
 
         return `
@@ -8306,9 +8209,7 @@ Instruksi:
     if (!file) return;
     event.target.value = '';
     this.promptPhotoEdit(file, async (editedDataUrl) => {
-      const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
       const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
-      const settings = window.FMCUData.getSettings();
       const applyWm = true;
       const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
         storeName,
@@ -8321,24 +8222,11 @@ Instruksi:
       evObj.dataUrl = dataUrl;
       evObj.driveFileId = '';
       evObj.driveUrl = '';
-      evObj._uploading = true;
-      window.FMCUData.cachePhotoInMemory(evObj.id, null, dataUrl);
-      this.renderEvidenceGrid();
-
-      await window.FMCUData.uploadPhotoToGDrive(evObj, {
-        storeCode,
-        storeName,
-        photoType: 'EVIDENCE'
-      });
       evObj._uploading = false;
+      window.FMCUData.cachePhotoInMemory(evObj.id, null, dataUrl, true);
       this.renderEvidenceGrid();
       this.saveCurrentFormDraft();
-      this.showToast(
-        evObj.driveFileId
-          ? `Foto bukti #${idx + 1} berhasil disimpan ke Google Drive!`
-          : `Foto bukti #${idx + 1} berhasil disesuaikan & diproses`,
-        'success'
-      );
+      this.showToast(`Foto bukti #${idx + 1} berhasil diproses & tersimpan lokal!`, 'success');
     });
   },
 
@@ -8351,7 +8239,6 @@ Instruksi:
       return;
     }
     this.promptPhotoEdit(currentSrc, async (editedDataUrl) => {
-      const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
       const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
       const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
         storeName,
@@ -8363,36 +8250,20 @@ Instruksi:
       evObj.dataUrl = dataUrl;
       evObj.driveFileId = '';
       evObj.driveUrl = '';
-      evObj._uploading = true;
-      window.FMCUData.cachePhotoInMemory(evObj.id, null, dataUrl);
-      this.renderEvidenceGrid();
-
-      await window.FMCUData.uploadPhotoToGDrive(evObj, {
-        storeCode,
-        storeName,
-        photoType: 'EVIDENCE'
-      });
       evObj._uploading = false;
+      window.FMCUData.cachePhotoInMemory(evObj.id, null, dataUrl, true);
       this.renderEvidenceGrid();
       this.saveCurrentFormDraft();
-      this.showToast(
-        evObj.driveFileId
-          ? `Foto bukti #${idx + 1} berhasil diperbarui & disimpan ke Google Drive!`
-          : `Foto bukti #${idx + 1} berhasil diperbarui.`,
-        'success'
-      );
+      this.showToast(`Foto bukti #${idx + 1} berhasil diperbarui & tersimpan lokal!`, 'success');
     });
   },
 
   async handleBulkEvidenceUpload(event) {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
-    const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
     const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
-    const settings = window.FMCUData.getSettings();
     const applyWm = true;
 
-    const newCards = [];
     for (const file of files) {
       const dataUrl = await window.FMCUPdf.processAndStampImage(file, {
         storeName,
@@ -8406,35 +8277,14 @@ Instruksi:
         dataUrl,
         driveFileId: '',
         driveUrl: '',
-        _uploading: true
+        _uploading: false
       };
-      window.FMCUData.cachePhotoInMemory(evObj.id, null, dataUrl);
+      window.FMCUData.cachePhotoInMemory(evObj.id, null, dataUrl, true);
       this.formEvidencePhotos.push(evObj);
-      newCards.push(evObj);
     }
     this.renderEvidenceGrid();
     this.saveCurrentFormDraft();
-
-    await Promise.all(
-      newCards.map((evObj) =>
-        window.FMCUData.uploadPhotoToGDrive(evObj, {
-          storeCode,
-          storeName,
-          photoType: 'EVIDENCE'
-        }).finally(() => {
-          evObj._uploading = false;
-        })
-      )
-    );
-    this.renderEvidenceGrid();
-    this.saveCurrentFormDraft();
-    const uploadedCount = newCards.filter((c) => Boolean(c.driveFileId)).length;
-    this.showToast(
-      uploadedCount > 0
-        ? `${files.length} foto bukti berhasil diunggah & disimpan ke Google Drive!`
-        : `${files.length} foto bukti berhasil diunggah!`,
-      'success'
-    );
+    this.showToast(`${files.length} foto bukti berhasil diunggah & tersimpan lokal!`, 'success');
   },
 
   // --- Section 3: Corrective Action Evidence & Result Photos ---
@@ -8470,7 +8320,7 @@ Instruksi:
           : ca.driveFileId
           ? `<a href="${ca.driveViewUrl || ca.driveUrl || '#'}" target="_blank" class="mt-1 text-[10px] font-bold text-emerald-700 hover:underline inline-flex items-center gap-1"><i class="fa-brands fa-google-drive"></i><span>Tersimpan di Google Drive</span></a>`
           : displaySrc
-          ? `<div class="mt-1 text-[10px] font-semibold text-purple-700 flex items-center gap-1"><i class="fa-solid fa-cloud-arrow-up"></i><span>Siap Sync ke Google Drive</span></div>`
+          ? `<div class="mt-1 text-[10px] font-bold text-emerald-700 flex items-center gap-1"><i class="fa-solid fa-hard-drive"></i><span>Tersimpan Lokal di Perangkat</span></div>`
           : '';
 
         return `
@@ -8562,9 +8412,7 @@ Instruksi:
     if (!file) return;
     event.target.value = '';
     this.promptPhotoEdit(file, async (editedDataUrl) => {
-      const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
       const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
-      const settings = window.FMCUData.getSettings();
       const applyWm = true;
       const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
         storeName,
@@ -8579,24 +8427,11 @@ Instruksi:
       caObj.dataUrl = dataUrl;
       caObj.driveFileId = '';
       caObj.driveUrl = '';
-      caObj._uploading = true;
-      window.FMCUData.cachePhotoInMemory(caObj.id, null, dataUrl);
-      this.renderCaPhotosGrid();
-
-      await window.FMCUData.uploadPhotoToGDrive(caObj, {
-        storeCode,
-        storeName,
-        photoType: 'CORRECTIVE_ACTION'
-      });
       caObj._uploading = false;
+      window.FMCUData.cachePhotoInMemory(caObj.id, null, dataUrl, true);
       this.renderCaPhotosGrid();
       this.saveCurrentFormDraft();
-      this.showToast(
-        caObj.driveFileId
-          ? `Foto perbaikan #${idx + 1} berhasil disimpan ke Google Drive!`
-          : `Foto perbaikan #${idx + 1} berhasil disesuaikan & diproses`,
-        'success'
-      );
+      this.showToast(`Foto perbaikan #${idx + 1} berhasil diproses & tersimpan lokal!`, 'success');
     });
   },
 
@@ -8609,7 +8444,6 @@ Instruksi:
       return;
     }
     this.promptPhotoEdit(currentSrc, async (editedDataUrl) => {
-      const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
       const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
       const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
         storeName,
@@ -8621,37 +8455,21 @@ Instruksi:
       caObj.dataUrl = dataUrl;
       caObj.driveFileId = '';
       caObj.driveUrl = '';
-      caObj._uploading = true;
-      window.FMCUData.cachePhotoInMemory(caObj.id, null, dataUrl);
-      this.renderCaPhotosGrid();
-
-      await window.FMCUData.uploadPhotoToGDrive(caObj, {
-        storeCode,
-        storeName,
-        photoType: 'CORRECTIVE_ACTION'
-      });
       caObj._uploading = false;
+      window.FMCUData.cachePhotoInMemory(caObj.id, null, dataUrl, true);
       this.renderCaPhotosGrid();
       this.saveCurrentFormDraft();
-      this.showToast(
-        caObj.driveFileId
-          ? `Foto perbaikan #${idx + 1} berhasil diperbarui & disimpan ke Google Drive!`
-          : `Foto perbaikan #${idx + 1} berhasil diperbarui.`,
-        'success'
-      );
+      this.showToast(`Foto perbaikan #${idx + 1} berhasil diperbarui & tersimpan lokal!`, 'success');
     });
   },
 
   async handleBulkCaUpload(event) {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
-    const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
     const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
-    const settings = window.FMCUData.getSettings();
     const applyWm = true;
 
     if (!this.formCaPhotos) this.formCaPhotos = [];
-    const newCards = [];
     for (const file of files) {
       const dataUrl = await window.FMCUPdf.processAndStampImage(file, {
         storeName,
@@ -8665,35 +8483,14 @@ Instruksi:
         dataUrl,
         driveFileId: '',
         driveUrl: '',
-        _uploading: true
+        _uploading: false
       };
-      window.FMCUData.cachePhotoInMemory(caObj.id, null, dataUrl);
+      window.FMCUData.cachePhotoInMemory(caObj.id, null, dataUrl, true);
       this.formCaPhotos.push(caObj);
-      newCards.push(caObj);
     }
     this.renderCaPhotosGrid();
     this.saveCurrentFormDraft();
-
-    await Promise.all(
-      newCards.map((caObj) =>
-        window.FMCUData.uploadPhotoToGDrive(caObj, {
-          storeCode,
-          storeName,
-          photoType: 'CORRECTIVE_ACTION'
-        }).finally(() => {
-          caObj._uploading = false;
-        })
-      )
-    );
-    this.renderCaPhotosGrid();
-    this.saveCurrentFormDraft();
-    const uploadedCount = newCards.filter((c) => Boolean(c.driveFileId)).length;
-    this.showToast(
-      uploadedCount > 0
-        ? `${files.length} foto perbaikan berhasil diunggah & disimpan ke Google Drive!`
-        : `${files.length} foto perbaikan berhasil diunggah!`,
-      'success'
-    );
+    this.showToast(`${files.length} foto perbaikan berhasil diunggah & tersimpan lokal!`, 'success');
   },
 
     buildCurrentFormReportObject() {
@@ -8733,6 +8530,7 @@ Instruksi:
         id: p.id || `qsc-${Date.now()}-${idx + 1}`,
         caption: p.caption || (idx === 0 ? 'Lembar Form QSC / FamiTrack #1 (Wajib)' : 'Lembar Form QSC / FamiTrack #2 (Wajib)'),
         dataUrl: p.dataUrl || '',
+        fullPhotoId: p.fullPhotoId || '',
         driveFileId: p.driveFileId || '',
         driveUrl: p.driveUrl || '',
         driveViewUrl: p.driveViewUrl || ''
@@ -8759,14 +8557,12 @@ Instruksi:
       document.getElementById('form-actual-out').value = this.getCurrentTimeWIB();
     }
     const reportObj = this.buildCurrentFormReportObject();
+    reportObj._isLocalDraftOnly = false;
 
-    // Pastikan seluruh foto QSC & Evidence telah ter-upload ke Google Drive (jika URL Apps Script aktif)
-    // sebelum menyimpan data laporan ke Cloud Firestore
-    await window.FMCUData.ensureReportPhotosUploadedToGDrive(reportObj);
+    // 1. Simpan segera ke Lokal (IndexedDB + LocalStorage) & sinkronkan Online ke Cloud Firestore (reports)
+    window.FMCUData.saveReport(reportObj, { syncCloud: true });
 
-    window.FMCUData.saveReport(reportObj);
-
-    // Update linked Schedule if any
+    // 2. Sinkronkan status jadwal (COMPLETED) secara Online ke Cloud Firestore (schedules)
     const schedules = window.FMCUData.getSchedules();
     const schIdx = schedules.findIndex(
       (s) =>
@@ -8783,8 +8579,14 @@ Instruksi:
       window.FMCUData.saveSchedules(schedules);
     }
 
-    // Hapus draft toko ini karena laporan sudah final disimpan ke reports
-    window.FMCUData.deleteStoreDraft(reportObj.storeCode, reportObj.scheduleId);
+    // 3. Sinkronkan foto ke Google Drive di latar belakang untuk integritas Online lintas perangkat
+    window.FMCUData.ensureReportPhotosUploadedToGDrive(reportObj)
+      .then((updatedRep) => {
+        if (updatedRep) {
+          window.FMCUData.saveReport(updatedRep, { syncCloud: true });
+        }
+      })
+      .catch(() => {});
 
     window.FMCUData.setActiveCheckIn(null);
     this.hasActiveStoreForm = false;
@@ -9992,6 +9794,10 @@ Instruksi:
         }
       }
 
+      if (window.FMCUData && typeof window.FMCUData.ensureReportPhotosUploadedToGDrive === 'function') {
+        await window.FMCUData.ensureReportPhotosUploadedToGDrive(rep);
+      }
+
       const pdfBase64 = await window.FMCUPdf.getPdfBase64(rep);
       const qscPdfBase64 = await window.FMCUPdf.getVerticalQscPdfBase64(rep);
 
@@ -10048,7 +9854,7 @@ Instruksi:
         }
 
         if (window.FMCUData && typeof window.FMCUData.saveReport === 'function') {
-          window.FMCUData.saveReport(rep);
+          window.FMCUData.saveReport(rep, { syncCloud: true });
         } else {
           const reports = window.FMCUData.getReports();
           const idx = reports.findIndex((r) => String(r.id) === String(rep.id));
@@ -13943,7 +13749,7 @@ Instruksi:
     if (!badge || !textEl) return;
     const now = new Date();
     const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    textEl.textContent = mode === 'archive' ? `Arsip tersimpan otomatis pk. ${timeStr}` : `Tersimpan otomatis pk. ${timeStr}`;
+    textEl.textContent = mode === 'archive' ? `Tersimpan lokal otomatis pk. ${timeStr}` : `Tersimpan lokal pk. ${timeStr}`;
     badge.classList.remove('bg-white/15', 'text-emerald-200');
     badge.classList.add('bg-emerald-400/30', 'text-white', 'border-emerald-300');
     setTimeout(() => {

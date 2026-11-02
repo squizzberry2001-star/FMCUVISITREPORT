@@ -455,6 +455,7 @@ function stripPhotoBinaryForLocalStorage(photo) {
     description: photo.description || '',
     category: photo.category || '',
     timestamp: photo.timestamp || '',
+    fullPhotoId: photo.fullPhotoId || '',
     driveFileId: photo.driveFileId || '',
     driveUrl: directUrl,
     driveViewUrl: photo.driveViewUrl || '',
@@ -1222,59 +1223,9 @@ window.FMCUData = {
     );
     this.unsubscribers.push(unsubSchedules);
 
-    // 5. REAL-TIME LISTENER: DRAFTS (Sinkronisasi Form & Foto Real-Time Lintas Device, Incremental & Non-Blocking)
-    const unsubDrafts = this.db.collection('drafts').onSnapshot(
-      (snapshot) => {
-        if (!this._draftsCacheHydrated) {
-          this._draftsCacheHydrated = true;
-          try {
-            const initialLocal = JSON.parse(localStorage.getItem(STORAGE_KEYS.DRAFT_REPORT) || '{}');
-            Object.entries(initialLocal).forEach(([k, v]) => {
-              if (!this.draftMemoryCache[k]) {
-                this.draftMemoryCache[k] = v;
-              } else {
-                this.draftMemoryCache[k] = this.mergeReportAndDraft(this.draftMemoryCache[k], v);
-              }
-            });
-          } catch (e) {}
-        }
-        const changedDraftKeys = [];
-        const applyCloudDraft = (cloudDraft) => {
-          if (!cloudDraft || !cloudDraft.storeCode) return;
-          this.cacheReportPhotosInMemory(cloudDraft);
-          const storeCode = String(cloudDraft.storeCode);
-          const schId = cloudDraft.scheduleId || null;
-          const schKey = schId ? `${storeCode}_${schId}` : null;
-          const existingLocal = (schKey && this.draftMemoryCache[schKey]) || this.draftMemoryCache[storeCode] || null;
-          const merged = existingLocal ? this.mergeReportAndDraft(existingLocal, cloudDraft) : this.hydrateReportPhotos(cloudDraft);
-          this.draftMemoryCache[storeCode] = merged;
-          if (schKey) this.draftMemoryCache[schKey] = merged;
-          changedDraftKeys.push(storeCode);
-          if (schKey) changedDraftKeys.push(schKey);
-        };
-        const changes = typeof snapshot.docChanges === 'function' ? snapshot.docChanges() : [];
-        if (changes.length > 0) {
-          changes.forEach((change) => {
-            if (change.type === 'removed') return;
-            applyCloudDraft(change.doc.data());
-          });
-        } else {
-          snapshot.forEach((doc) => {
-            applyCloudDraft(doc.data());
-          });
-        }
-
-        if (changedDraftKeys.length > 0) {
-          if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
-            window.FMCUApp.onCloudDataUpdated('drafts', { changedDraftKeys });
-          }
-        }
-      },
-      (err) => handleSnapshotError('drafts', err)
-    );
-    this.unsubscribers.push(unsubDrafts);
-
-    // 4. REAL-TIME LISTENER: REPORTS
+    // 4. REAL-TIME LISTENER: REPORTS (Online Integrity untuk Laporan Final & History Lintas Perangkat)
+    // Catatan Arsitektur: Seluruh input aktif pada Form Visit disimpan 100% Lokal (IndexedDB + LocalStorage).
+    // Sinkronisasi Cloud Firestore hanya berjalan untuk laporan yang membutuhkan integritas online.
     const unsubReports = this.db.collection('reports').onSnapshot(
       (snapshot) => {
         this.setCloudStatus('ONLINE');
@@ -1293,14 +1244,15 @@ window.FMCUData = {
           }
         });
 
-        // Pertahankan laporan lokal (dari IndexedDB / LocalStorage) yang belum sempat terkirim ke Firestore saat app ditutup
+        // Pertahankan laporan lokal dari Form Visit (IndexedDB / LocalStorage)
         localReports.forEach((localRep) => {
           if (!localRep || !localRep.id) return;
           const lid = String(localRep.id);
           if (!seenIds.has(lid) && !this._deletedReportIds.has(lid)) {
             seenIds.add(lid);
             cloudReports.push(this.hydrateReportPhotos(localRep));
-            if (this.db && !this._pushedUnsyncedReportIds.has(lid)) {
+            // Hanya push ke Cloud Firestore apabila laporan sudah difinalisasi (bukan draf form lokal)
+            if (this.db && !localRep._isLocalDraftOnly && !this._pushedUnsyncedReportIds.has(lid)) {
               this._pushedUnsyncedReportIds.add(lid);
               this.db
                 .collection('reports')
@@ -2164,6 +2116,7 @@ window.FMCUData = {
         id: item.id || match.id,
         caption: item.caption || match.caption || '',
         description: item.description && String(item.description).trim() ? item.description : match.description || '',
+        fullPhotoId: item.fullPhotoId || match.fullPhotoId || '',
         driveFileId: item.driveFileId || match.driveFileId || '',
         driveUrl: item.driveUrl || match.driveUrl || '',
         driveViewUrl: item.driveViewUrl || match.driveViewUrl || '',
@@ -2606,11 +2559,46 @@ window.FMCUData = {
     const storeName = report.storeName || 'VISIT';
     const tasks = [];
 
-    (report.qscPhotos || []).forEach((p) => {
-      if (p && !p.driveFileId && (p.dataUrl?.startsWith('data:image') || this.getPhotoFromMemory(p.id, null))) {
-        tasks.push(this.uploadPhotoToGDrive(p, { storeCode, storeName, photoType: 'QSC' }));
-      }
-    });
+    // Jika foto QSC memiliki fullPhotoId (1 foto penuh yang di-split jadi 2 bagian atas & bawah di lokal),
+    // unggah 1 foto utuh ke Google Drive lalu tautkan driveFileId ke kedua slot QSC
+    const q0 = report.qscPhotos?.[0];
+    const q1 = report.qscPhotos?.[1];
+    const sharedFullId = (q0 && q0.fullPhotoId) || (q1 && q1.fullPhotoId) || '';
+    if (sharedFullId && q0 && !q0.driveFileId) {
+      tasks.push(
+        (async () => {
+          let fullB64 = this.getPhotoFromMemory(sharedFullId, null) || (await this.getPhotoFromDb(sharedFullId)) || q0.fullPhotoDataUrl || '';
+          if (fullB64 && fullB64.startsWith('data:image')) {
+            const fullPhotoObj = {
+              id: sharedFullId,
+              caption: 'Lembar_Form_QSC_Full',
+              dataUrl: fullB64,
+              fullPhotoDataUrl: fullB64
+            };
+            await this.uploadPhotoToGDrive(fullPhotoObj, { storeCode, storeName, photoType: 'QSC' });
+            if (fullPhotoObj.driveFileId) {
+              if (q0) {
+                q0.driveFileId = fullPhotoObj.driveFileId;
+                q0.driveUrl = fullPhotoObj.driveUrl;
+                q0.driveViewUrl = fullPhotoObj.driveViewUrl;
+              }
+              if (q1) {
+                q1.driveFileId = fullPhotoObj.driveFileId;
+                q1.driveUrl = fullPhotoObj.driveUrl;
+                q1.driveViewUrl = fullPhotoObj.driveViewUrl;
+              }
+              this.cachePhotoInMemory(fullPhotoObj.id, fullPhotoObj.driveFileId, fullB64, true);
+            }
+          }
+        })()
+      );
+    } else {
+      (report.qscPhotos || []).forEach((p) => {
+        if (p && !p.driveFileId && (p.dataUrl?.startsWith('data:image') || this.getPhotoFromMemory(p.id, null))) {
+          tasks.push(this.uploadPhotoToGDrive(p, { storeCode, storeName, photoType: 'QSC' }));
+        }
+      });
+    }
 
     (report.evidencePhotos || []).forEach((p) => {
       if (p && !p.driveFileId && (p.dataUrl?.startsWith('data:image') || this.getPhotoFromMemory(p.id, null))) {
@@ -2756,6 +2744,7 @@ window.FMCUData = {
     if (schKey) this.saveDraftInDb(schKey, hydratedDraft);
 
     // 4. Simpan versi lightweight (tanpa Base64 biner raksasa) di LocalStorage agar kuota 5MB tidak pernah jebol
+    // Catatan: Seluruh data Form Visit disimpan 100% di lokal (RAM + IndexedDB + LocalStorage) tanpa trafik jaringan.
     try {
       const lightweightLocal = {
         ...prepareReportForLocalStorage(hydratedDraft),
@@ -2769,24 +2758,6 @@ window.FMCUData = {
       console.warn('LocalStorage draft quota warning, draft safely preserved in IndexedDB & RAM:', e);
     }
 
-    // 5. Sinkronisasi Real-Time ke Cloud Firestore collection 'drafts' (jika diizinkan oleh rules)
-    if (this.db && !this._draftsCloudDenied) {
-      try {
-        const firestoreEntry = {
-          ...prepareReportForFirestore(hydratedDraft),
-          storeCode: String(storeCode),
-          scheduleId: schId,
-          updatedAt: nowIso
-        };
-        const docId = schKey || String(storeCode);
-        this.db.collection('drafts').doc(docId).set(firestoreEntry, { merge: true }).catch((err) => {
-          if (err && err.code === 'permission-denied') {
-            this._draftsCloudDenied = true;
-          }
-        });
-      } catch (eDb) {}
-    }
-
     return true;
   },
 
@@ -2797,10 +2768,6 @@ window.FMCUData = {
     if (schKey) delete this.draftMemoryCache[schKey];
     this.deleteDraftFromDb(storeCode);
     if (schKey) this.deleteDraftFromDb(schKey);
-    if (this.db && !this._draftsCloudDenied) {
-      if (schKey) this.db.collection('drafts').doc(schKey).delete().catch(() => {});
-      this.db.collection('drafts').doc(String(storeCode)).delete().catch(() => {});
-    }
     try {
       const drafts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DRAFT_REPORT) || '{}');
       delete drafts[String(storeCode)];
@@ -2812,12 +2779,14 @@ window.FMCUData = {
     }
   },
 
-  saveReport(report) {
+  saveReport(report, options = {}) {
     if (!report || !report.id) return false;
+    const syncCloud = options.syncCloud !== false;
     this._deletedReportIds.delete(String(report.id));
     const nowIso = new Date().toISOString();
     const incoming = {
       ...report,
+      _isLocalDraftOnly: syncCloud ? false : Boolean(report._isLocalDraftOnly ?? true),
       updatedAt: nowIso
     };
     this.cacheReportPhotosInMemory(incoming, true);
@@ -2830,9 +2799,11 @@ window.FMCUData = {
       if (!this.hasMeaningfulVisitContent(incoming) && this.hasMeaningfulVisitContent(reports[idx])) {
         return false;
       }
+      const wasAlreadyFinalized = reports[idx]._isLocalDraftOnly === false;
       merged = this.hydrateReportPhotos({
         ...reports[idx],
         ...incoming,
+        _isLocalDraftOnly: syncCloud || wasAlreadyFinalized ? false : true,
         qscPhotos: this.mergePhotoArrays(incoming.qscPhotos, reports[idx].qscPhotos, true),
         evidencePhotos: this.mergePhotoArrays(incoming.evidencePhotos, reports[idx].evidencePhotos, false),
         caPhotos: this.mergePhotoArrays(
@@ -2852,9 +2823,10 @@ window.FMCUData = {
     }
     const ok = this.saveReportsLocalOnly(reports, merged);
 
-    // Single-document atomic update ke Cloud Firestore agar cepat, ringan & hemat kuota
-    if (this.db && merged.id) {
+    // Hanya sinkronkan ke Cloud Firestore apabila syncCloud === true (saat finalisasi laporan / integrasi online)
+    if (syncCloud && this.db && merged.id) {
       const docId = String(merged.id);
+      this._pushedUnsyncedReportIds.add(docId);
       this.db
         .collection('reports')
         .doc(docId)
