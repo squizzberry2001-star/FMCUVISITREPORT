@@ -507,6 +507,31 @@ window.FMCUData = {
   // Cache sementara di RAM sesi aktif untuk merender PDF dengan cepat tanpa membebani Firestore/localStorage
   photoMemoryCache: {},
   draftMemoryCache: {},
+  _cachedUsers: null,
+  _cachedStores: null,
+  _cachedSchedules: null,
+  _cachedReports: null,
+  _cachedBestieInCharge: null,
+
+  clearCache(key = null) {
+    if (!key) {
+      this._cachedUsers = null;
+      this._cachedStores = null;
+      this._cachedSchedules = null;
+      this._cachedReports = null;
+      this._cachedBestieInCharge = null;
+    } else if (key === 'users') {
+      this._cachedUsers = null;
+    } else if (key === 'stores') {
+      this._cachedStores = null;
+    } else if (key === 'schedules') {
+      this._cachedSchedules = null;
+    } else if (key === 'reports') {
+      this._cachedReports = null;
+    } else if (key === 'bestie') {
+      this._cachedBestieInCharge = null;
+    }
+  },
 
   init() {
     // Hapus seluruh cache data dummy versi lama (v1) dan hapus sesi persisten lama di localStorage
@@ -1006,6 +1031,7 @@ window.FMCUData = {
             }
           }
 
+          this._cachedUsers = cloudUsers;
           localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(cloudUsers));
           const activeSession = this.getSession();
           if (activeSession) {
@@ -1063,6 +1089,7 @@ window.FMCUData = {
                 this.saveStoresCatalogToCloud(enriched, false).catch((e) => console.warn('Sync coords to cloud error:', e));
               }
             }
+            this._cachedStores = enriched;
             localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(enriched));
             if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
               window.FMCUApp.onCloudDataUpdated('stores');
@@ -1085,6 +1112,7 @@ window.FMCUData = {
           }
         });
         cloudSchedules.sort((a, b) => String(a.scheduledDate || '').localeCompare(String(b.scheduledDate || '')));
+        this._cachedSchedules = cloudSchedules;
         localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(cloudSchedules));
         if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
           window.FMCUApp.onCloudDataUpdated('schedules');
@@ -1156,6 +1184,7 @@ window.FMCUData = {
           }
         });
         cloudReports.sort((a, b) => String(b.createdAt || b.visitDate || '').localeCompare(String(a.createdAt || a.visitDate || '')));
+        this._cachedReports = cloudReports;
         this.saveReportsLocalOnly(cloudReports);
         if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
           window.FMCUApp.onCloudDataUpdated('reports');
@@ -1356,7 +1385,10 @@ window.FMCUData = {
     }
   },
 
-  getUsers() {
+  getUsers(forceRefresh = false) {
+    if (!forceRefresh && Array.isArray(this._cachedUsers) && this._cachedUsers.length > 0) {
+      return this._cachedUsers;
+    }
     let raw = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
     if (!Array.isArray(raw) || raw.length === 0) {
       raw = [...INITIAL_USERS];
@@ -1400,11 +1432,13 @@ window.FMCUData = {
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(deduped));
     }
 
-    return deduped.map((u) => ({
+    const result = deduped.map((u) => ({
       ...u,
       name: u.name === 'Auditor FMCU' ? 'Visitor FMCU' : u.name,
       roleBadge: String(u.roleBadge || '').replace(/Auditor/gi, 'Visitor')
     }));
+    this._cachedUsers = result;
+    return result;
   },
   saveUsers(users) {
     // Deduplikasi ketat sebelum menyimpan ke LocalStorage & Cloud Firestore
@@ -1417,6 +1451,7 @@ window.FMCUData = {
       seen.add(norm);
       cleanUsers.push(u);
     });
+    this._cachedUsers = cleanUsers;
     const prevUsers = this.getUsers();
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(cleanUsers));
 
@@ -1484,6 +1519,7 @@ window.FMCUData = {
         users[idx].lastLocation.isExited = true;
         users[idx].lastLocation.exitedAt = new Date().toISOString();
         users[idx].lastLocation.status = 'EXITED';
+        this._cachedUsers = users;
         localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
 
         if (this.db) {
@@ -1503,9 +1539,25 @@ window.FMCUData = {
         String(u.username).toLowerCase() === String(userId).toLowerCase()
     );
     if (idx === -1) return;
+    const nLat = Number(Number(lat).toFixed(5));
+    const nLng = Number(Number(lng).toFixed(5));
+    const curLoc = users[idx].lastLocation;
+
+    // Guard: Jika posisi dan status sama, abaikan untuk menghemat I/O disk & loop re-render
+    if (
+      curLoc &&
+      curLoc.lat === nLat &&
+      curLoc.lng === nLng &&
+      curLoc.status === status &&
+      curLoc.storeVisit === storeVisit &&
+      !curLoc.isExited
+    ) {
+      return;
+    }
+
     const loc = {
-      lat: Number(Number(lat).toFixed(5)),
-      lng: Number(Number(lng).toFixed(5)),
+      lat: nLat,
+      lng: nLng,
       updatedAt: new Date().toISOString(),
       storeVisit: storeVisit || users[idx].lastLocation?.storeVisit || null,
       status: status || users[idx].lastLocation?.status || 'LIVE_GPS',
@@ -1514,6 +1566,7 @@ window.FMCUData = {
       exitedAt: null
     };
     users[idx].lastLocation = loc;
+    this._cachedUsers = users;
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
 
     if (this.db) {
@@ -1527,11 +1580,15 @@ window.FMCUData = {
     }
   },
 
-  getStores() {
+  getStores(forceRefresh = false) {
+    if (!forceRefresh && Array.isArray(this._cachedStores) && this._cachedStores.length > 0) {
+      return this._cachedStores;
+    }
     let stores = JSON.parse(localStorage.getItem(STORAGE_KEYS.STORES) || '[]');
     if (!Array.isArray(stores) || stores.length === 0) {
       stores = Array.isArray(window.FMCU_INITIAL_STORES) ? [...window.FMCU_INITIAL_STORES] : [];
       localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(stores));
+      this._cachedStores = stores;
       return stores;
     }
     // Pastikan seluruh 610 Master Toko selalu lengkap terisi tanpa ada toko yang terpotong / tertinggal
@@ -1564,9 +1621,11 @@ window.FMCUData = {
         localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(stores));
       }
     }
+    this._cachedStores = stores;
     return stores;
   },
   saveStores(stores, changedStore = null, deletedCode = null) {
+    this._cachedStores = stores;
     localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(stores));
 
     if (this.db) {
@@ -1609,12 +1668,18 @@ window.FMCUData = {
     } catch (e) {}
   },
 
-  getSchedules() {
+  getSchedules(forceRefresh = false) {
+    if (!forceRefresh && Array.isArray(this._cachedSchedules)) {
+      return this._cachedSchedules;
+    }
     const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.SCHEDULES) || '[]');
     // Urutkan jadwal toko dimulai dari tanggal terdekat secara kronologis
-    return list.sort((a, b) => String(a.scheduledDate || '').localeCompare(String(b.scheduledDate || '')));
+    const sorted = list.sort((a, b) => String(a.scheduledDate || '').localeCompare(String(b.scheduledDate || '')));
+    this._cachedSchedules = sorted;
+    return sorted;
   },
   saveSchedules(schedules) {
+    this._cachedSchedules = schedules;
     const prevSchedules = this.getSchedules();
     localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
 
@@ -2041,9 +2106,12 @@ window.FMCUData = {
     return this.photoMemoryCache;
   },
 
-  getReports() {
+  getReports(forceRefresh = false) {
+    if (!forceRefresh && Array.isArray(this._cachedReports)) {
+      return this._cachedReports;
+    }
     const raw = JSON.parse(localStorage.getItem(STORAGE_KEYS.REPORTS) || '[]');
-    return (raw || []).map((rep) => {
+    const hydrated = (raw || []).map((rep) => {
       const hydrate = (p) => {
         if (!p) return p;
         if (!p.dataUrl || !p.dataUrl.startsWith('data:image')) {
@@ -2058,9 +2126,12 @@ window.FMCUData = {
       if (Array.isArray(rep.correctiveActionPhotos)) rep.correctiveActionPhotos = rep.correctiveActionPhotos.map(hydrate);
       return rep;
     });
+    this._cachedReports = hydrated;
+    return hydrated;
   },
 
   saveReportsLocalOnly(reports) {
+    this._cachedReports = reports;
     try {
       (reports || []).forEach((r) => {
         this.cacheReportPhotosInMemory(r);
@@ -2241,12 +2312,16 @@ window.FMCUData = {
   // MASTER DATA TOKO KEPEMILIKAN BESTIE (BESTIE IN CHARGE GOOGLE SPREADSHEET)
   // URL: https://docs.google.com/spreadsheets/d/1XAAfV0Pa6bU3CVH3umJBBSbNObOHorLcWl8UzLPtFp4/edit?gid=1813325087
   // ==========================================================================
-  getBestieInChargeAssignments() {
+  getBestieInChargeAssignments(forceRefresh = false) {
+    if (!forceRefresh && Array.isArray(this._cachedBestieInCharge) && this._cachedBestieInCharge.length > 0) {
+      return this._cachedBestieInCharge;
+    }
     let list = JSON.parse(localStorage.getItem(STORAGE_KEYS.BESTIE_IN_CHARGE) || '[]');
     if (!Array.isArray(list) || list.length === 0) {
       list = Array.isArray(window.FMCU_BESTIE_IN_CHARGE_SEED) ? [...window.FMCU_BESTIE_IN_CHARGE_SEED] : [];
       localStorage.setItem(STORAGE_KEYS.BESTIE_IN_CHARGE, JSON.stringify(list));
     }
+    this._cachedBestieInCharge = list;
     return list;
   },
 
@@ -2290,6 +2365,7 @@ window.FMCUData = {
       const csvText = await resp.text();
       const parsed = this.parseBestieInChargeCsv(csvText);
       if (parsed && parsed.length > 0) {
+        this._cachedBestieInCharge = parsed;
         localStorage.setItem(STORAGE_KEYS.BESTIE_IN_CHARGE, JSON.stringify(parsed));
         if (this.db) {
           this.db.collection('settings').doc('bestie_in_charge').set({

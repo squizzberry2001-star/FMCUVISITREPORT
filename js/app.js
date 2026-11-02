@@ -399,14 +399,14 @@ window.FMCUApp = {
     }
     this.updateAdminFirestoreSummary();
 
-    // Debounce rendering agar jika Firestore mengirim multi-snapshot sekaligus saat startup,
-    // browser tidak melakukan renderAllViews berkali-kali berturut-turut.
+    // Debounce rendering agar jika Firestore mengirim multi-snapshot sekaligus saat startup/login,
+    // browser tidak melakukan render berkali-kali berturut-turut.
     if (this._cloudDebounceTimer) {
       clearTimeout(this._cloudDebounceTimer);
     }
     this._cloudDebounceTimer = setTimeout(() => {
       this.renderCurrentActiveView();
-    }, 150);
+    }, 250);
   },
 
   renderCurrentActiveView() {
@@ -1056,7 +1056,8 @@ window.FMCUApp = {
     }
     this.populateHeaderRoleSwitcher();
     this.updateUserHeaderUI();
-    this.renderAllViews();
+    // Optimasi: Hindari renderAllViews() berlebihan saat login.
+    // navigate(allowedView) di bawah akan langsung merender view aktif yang tepat.
     this.checkAndDispatchUserVisitNotifications(true);
 
     // Prioritaskan savedView jika masih valid untuk role baru, atau ambil default role
@@ -1682,7 +1683,14 @@ window.FMCUApp = {
     });
   },
 
-  populateCustomUserDropdown() {
+  populateCustomUserDropdown(force = false) {
+    const authScreen = document.getElementById('auth-screen');
+    const container = document.getElementById('custom-user-options-list');
+    // Jika modal login tersembunyi (user sudah login) dan opsi sudah terisi, skip render ulang
+    if (!force && authScreen && authScreen.classList.contains('hidden') && container && container.children.length > 0) {
+      return;
+    }
+
     const users = window.FMCUData.getUsers();
     const visibleLoginUsers = users
       .filter((u) => u.role !== 'SUPER_ADMIN')
@@ -1948,6 +1956,15 @@ window.FMCUApp = {
     const sortedUsers = [...users].sort((a, b) =>
       String(a.name || '').localeCompare(String(b.name || ''), 'id', { sensitivity: 'base' })
     );
+
+    // Fast-path: jika opsi sudah pernah dibuat dan jumlahnya sama, update value saja tanpa re-parse innerHTML
+    if (sel.options && sel.options.length === sortedUsers.length + 1) {
+      if (this.currentUser) {
+        sel.value = this.currentUser.id;
+      }
+      return;
+    }
+
     const newHeaderHtml =
       sortedUsers
         .map(
@@ -1957,6 +1974,9 @@ window.FMCUApp = {
         .join('') + `<option value="__LOGOUT__">🚪 Ganti Login / Keluar...</option>`;
     if (sel.innerHTML !== newHeaderHtml) {
       sel.innerHTML = newHeaderHtml;
+    }
+    if (this.currentUser) {
+      sel.value = this.currentUser.id;
     }
   },
 
@@ -4042,13 +4062,8 @@ window.FMCUApp = {
   // HALAMAN 1A & 1B: HOME VIEW & ANALYTICS VIEW (SEPARATED)
   // ==========================================================================
   renderAllViews() {
-    this.renderHomeView();
-    this.renderAnalyticsView();
-    this.renderPreviewSelector();
-    this.renderAdminView();
-    if (this.currentView === 'live-maps') {
-      this.renderLiveLocView();
-    }
+    // Render view yang saat ini sedang aktif secara instan tanpa membebani browser dengan merender view tersembunyi
+    this.renderCurrentActiveView();
   },
 
   currentHomeSubSection: 'overview',
@@ -4178,6 +4193,9 @@ window.FMCUApp = {
   },
 
   renderHomeView() {
+    const homeEl = document.getElementById('view-home');
+    if (homeEl && homeEl.classList.contains('hidden')) return;
+
     let savedSubSec = 'overview';
     try {
       savedSubSec = sessionStorage.getItem('fmcu_active_home_subtab') || 'overview';
@@ -4194,6 +4212,9 @@ window.FMCUApp = {
   },
 
   renderAnalyticsView() {
+    const analyticsEl = document.getElementById('view-analytics');
+    if (analyticsEl && analyticsEl.classList.contains('hidden')) return;
+
     const isAdmin = Boolean(
       this.currentUser &&
       (this.currentUser.role === 'ADMIN_SCHEDULE' || this.currentUser.role === 'SUPER_ADMIN')
@@ -9095,6 +9116,9 @@ Instruksi:
   },
 
   renderPreviewView() {
+    const previewEl = document.getElementById('view-preview');
+    if (previewEl && previewEl.classList.contains('hidden')) return;
+
     this.renderPreviewSelector();
     const report = this.getActivePreviewReport();
     if (!report) return;
@@ -10252,6 +10276,9 @@ Instruksi:
   },
 
   renderAdminView() {
+    const adminEl = document.getElementById('view-admin');
+    if (adminEl && adminEl.classList.contains('hidden')) return;
+
     const users = window.FMCUData.getUsers();
     const auditorsOnly = this.getSchedulableAuditors();
     const schedules = window.FMCUData.getSchedules();
@@ -15758,6 +15785,8 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
   },
 
   renderLiveLocView() {
+    const liveMapsEl = document.getElementById('view-live-maps');
+    if (liveMapsEl && liveMapsEl.classList.contains('hidden')) return;
     if (!this.canAccessLiveMaps()) return;
 
     const users = window.FMCUData.getUsers();
