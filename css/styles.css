@@ -869,3 +869,64 @@ input[type="date"]::-webkit-date-and-time-value {
   border-radius: 0.75rem;
   box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.15), 0 0 0 1px rgba(15, 23, 42, 0.08);
 }
+
+/* Accessibility (WCAG 2.1 AA): Skip to Main Content & Keyboard Focus Ring */
+.skip-to-main-link {
+  position: absolute;
+  top: -100px;
+  left: 1rem;
+  z-index: 9999;
+  background: #009944;
+  color: #ffffff;
+  padding: 0.625rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 700;
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: top 0.15s ease;
+}
+.skip-to-main-link:focus {
+  top: 0.75rem;
+  outline: 3px solid #0080c6;
+  outline-offset: 2px;
+}
+
+:focus-visible {
+  outline: 2px solid #009944;
+  outline-offset: 2px;
+}
+
+/* Accessibility: Respect Reduced Motion Preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Print Stylesheet for Audit & Report Printouts */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  aside,
+  header,
+  nav,
+  #mobile-bottom-nav,
+  #gps-gate-screen,
+  #notification-gate-screen,
+  #auth-screen {
+    display: none !important;
+  }
+  main,
+  .view-section {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+}

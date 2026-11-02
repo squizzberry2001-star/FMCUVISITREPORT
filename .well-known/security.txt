@@ -1,0 +1,5 @@
+Contact: mailto:fmcu@familymartindonesia.com
+Expires: 2027-12-31T23:59:59.000Z
+Preferred-Languages: id, en
+Canonical: https://squizzberry2001-star.github.io/FMCUVISITREPORT/.well-known/security.txt
+Policy: https://squizzberry2001-star.github.io/FMCUVISITREPORT/privacy.html

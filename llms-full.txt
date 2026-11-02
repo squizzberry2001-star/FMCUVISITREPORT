@@ -1,0 +1,22 @@
+# FMCU Visit Store Report — Full Technical & Functional Specification (llms-full.txt)
+
+> Dokumentasi lengkap arsitektur, alur kerja, dan standar kualitas sistem FMCU Visit Store Report (FMCU-ONEGATESYSTEM) FamilyMart Indonesia.
+
+## 1. Identitas Sistem & Organisasi
+- **Nama Aplikasi**: FMCU Visit Store Report — Audit & Analitik Toko FamilyMart
+- **Pengembang**: FamilyMart Corporate University (FMCU) Digital Audit Team — PT Fajar Mitra Indah
+- **Bahasa Utama**: Bahasa Indonesia (`id-ID`)
+- **Platform**: Progressive Web Application (PWA) responsif untuk iOS, Android, dan Desktop
+
+## 2. Modul Fungsional
+1. **Portal Otoritas & Keamanan Sesi**: Autentikasi berbasis Nama Karyawan dan NIK/Password Otoritas dengan manajemen sesi otomatis (auto-logout saat idle 15 menit).
+2. **Dashboard Beranda (Home)**: Ringkasan berita operasional FMCU, peta interaktif 610 lokasi toko FamilyMart, daftar jadwal kunjungan aktif, dan riwayat laporan PDF.
+3. **Analitik & T.A.R.O. AI**: Analisis tren temuan QSC, perbandingan OPI vs QSC per toko, serta asisten AI operasional T.A.R.O. (Trainer Asyik Rekan Operasional).
+4. **Form Kunjungan Toko (Store Visit Form)**: Input terstruktur 3 bagian (General Info & QSC, Observation, Evidence & Corrective Action) dengan penyimpanan draf real-time lintas perangkat (Cloud Firestore + IndexedDB).
+5. **Control Center Admin**: Pengaturan jadwal mingguan (Planner 1 Week), impor/ekspor Excel jadwal, manajemen database 610 toko, manajemen otoritas karyawan, dan standar Holding Time QC.
+
+## 3. Kontak & Kepatuhan Keamanan
+- **Email Dukungan**: fmcu@familymartindonesia.com
+- **Kebijakan Privasi**: https://squizzberry2001-star.github.io/FMCUVISITREPORT/privacy.html
+- **Syarat & Ketentuan**: https://squizzberry2001-star.github.io/FMCUVISITREPORT/terms.html
+- **Security Policy**: https://squizzberry2001-star.github.io/FMCUVISITREPORT/.well-known/security.txt
