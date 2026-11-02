@@ -4362,227 +4362,22 @@ window.FMCUApp = {
     const analyticsEl = document.getElementById('view-analytics');
     if (analyticsEl && analyticsEl.classList.contains('hidden')) return;
 
-    const isAdmin = Boolean(
-      this.currentUser &&
-      (this.currentUser.role === 'ADMIN_SCHEDULE' || this.currentUser.role === 'SUPER_ADMIN')
-    );
-
-    // Sesuai instruksi: Halaman admin jadwal di bagian analitik HANYA menampilkan halaman analitik saja
-    const switcherBox = document.getElementById('analytics-admin-switcher-box');
-    if (switcherBox) {
-      switcherBox.classList.add('hidden');
-    }
-
-    const historySec = document.getElementById('analytics-subsection-history');
     const perfSec = document.getElementById('analytics-subsection-performance');
-    if (historySec) historySec.classList.add('hidden');
     if (perfSec) perfSec.classList.remove('hidden');
 
     this.currentAnalyticsSubSection = 'performance';
-    try {
-      sessionStorage.setItem('fmcu_active_analytics_subtab', 'performance');
-    } catch (e) {}
-
     this.renderAnalyticsPerformance();
   },
 
   switchAnalyticsSubSection(subSec, scrollTop = true) {
-    const mode = subSec === 'performance' ? 'performance' : 'history';
-    this.currentAnalyticsSubSection = mode;
-    try {
-      sessionStorage.setItem('fmcu_active_analytics_subtab', mode);
-    } catch (e) {}
-
-    const historySec = document.getElementById('analytics-subsection-history');
-    const perfSec = document.getElementById('analytics-subsection-performance');
-    const btnHistory = document.getElementById('analytics-subtab-btn-history');
-    const btnPerf = document.getElementById('analytics-subtab-btn-performance');
-    const countPill = document.getElementById('analytics-history-count-pill');
-
-    if (historySec) historySec.classList.toggle('hidden', mode !== 'history');
-    if (perfSec) perfSec.classList.toggle('hidden', mode !== 'performance');
-
-    if (btnHistory) {
-      btnHistory.className =
-        mode === 'history'
-          ? 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-[#009944] text-white shadow-xs'
-          : 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white';
-    }
-
-    if (btnPerf) {
-      btnPerf.className =
-        mode === 'performance'
-          ? 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-[#0099A6] text-white shadow-xs'
-          : 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white';
-    }
-
-    if (countPill) {
-      countPill.className =
-        mode === 'history'
-          ? 'px-1.5 py-0.2 rounded-full text-[10px] bg-white/25 text-white font-extrabold'
-          : 'px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-extrabold';
-    }
-
-    if (mode === 'history') {
-      this.renderAnalyticsHistory();
-    } else {
-      this.renderAnalyticsPerformance();
-    }
-
+    this.renderAnalyticsPerformance();
     if (scrollTop) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   },
 
   renderAnalyticsHistory() {
-    const container = document.getElementById('analytics-history-list');
-    const countPill = document.getElementById('analytics-history-count-pill');
-    if (!container) return;
-
-    const isVisitor = this.isAuditorUser(this.currentUser) || !this.isPrivilegedAdmin(this.currentUser);
-    let allReports = window.FMCUData.getReports().filter((r) => r && r.id && r.storeCode);
-    if (isVisitor) {
-      allReports = allReports.filter((r) => this.isReportOwnedByUser(r, this.currentUser));
-    }
-    if (countPill) countPill.textContent = String(allReports.length);
-
-    // Populate Visitor Filter dropdown
-    const visFilterEl = document.getElementById('analytics-history-visitor-filter');
-    if (visFilterEl) {
-      if (isVisitor) {
-        visFilterEl.innerHTML = `<option value="${this.currentUser.id || this.currentUser.username}">${this.currentUser.name} (${allReports.length} Laporan)</option>`;
-        visFilterEl.disabled = true;
-        visFilterEl.classList.add('opacity-75');
-      } else {
-        visFilterEl.disabled = false;
-        visFilterEl.classList.remove('opacity-75');
-        const auditors = this.getSchedulableAuditors();
-        const curVal = visFilterEl.value || 'ALL';
-        visFilterEl.innerHTML =
-          `<option value="ALL">Semua Visitor (${allReports.length} Laporan)</option>` +
-          auditors
-            .map((u) => {
-              const count = allReports.filter((r) => r.auditorId === u.id || r.auditorName === u.name).length;
-              return `<option value="${u.id}" ${u.id === curVal ? 'selected' : ''}>${u.name} (${count})</option>`;
-            })
-            .join('');
-      }
-    }
-
-    const searchQ = (document.getElementById('analytics-history-search')?.value || '').trim().toLowerCase();
-    const selectedVis = document.getElementById('analytics-history-visitor-filter')?.value || 'ALL';
-
-    const filtered = allReports.filter((r) => {
-      if (selectedVis !== 'ALL' && r.auditorId !== selectedVis && r.auditorName !== selectedVis) {
-        return false;
-      }
-      if (!searchQ) return true;
-      return (
-        String(r.storeName || '').toLowerCase().includes(searchQ) ||
-        String(r.storeCode || '').toLowerCase().includes(searchQ) ||
-        String(r.auditorName || '').toLowerCase().includes(searchQ) ||
-        String(r.storeHead || '').toLowerCase().includes(searchQ) ||
-        String(r.visitDate || '').toLowerCase().includes(searchQ)
-      );
-    });
-
-    if (filtered.length === 0) {
-      container.innerHTML = `
-        <div class="border border-dashed border-slate-200 rounded-2xl py-12 px-4 text-center space-y-2 bg-slate-50/50">
-          <div class="text-3xl text-slate-300"><i class="fa-solid fa-file-circle-question"></i></div>
-          <div class="text-slate-600 text-xs sm:text-sm font-bold">Tidak ada riwayat visit yang sesuai filter / pencarian.</div>
-          <p class="text-xs text-slate-400">Silakan ubah filter Visitor atau kata kunci pencarian toko.</p>
-        </div>
-      `;
-      return;
-    }
-
-    const isAdmin = Boolean(
-      this.currentUser &&
-      (this.currentUser.role === 'ADMIN_SCHEDULE' || this.currentUser.role === 'SUPER_ADMIN')
-    );
-    const canDelete = isAdmin;
-
-    container.innerHTML = filtered
-      .map((r) => {
-        const obsCount = (r.observations || []).length;
-        const evCount = (r.evidencePhotos || []).length;
-        const dateText = r.visitDayDateFormatted || window.FMCUPdf.formatIndonesianDate(r.visitDate, true);
-        return `
-          <div class="border border-slate-200 hover:border-teal-300 rounded-2xl p-4 sm:p-5 bg-white flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition shadow-xs hover:shadow-sm">
-            <div class="space-y-1.5">
-              <div class="flex flex-wrap items-center gap-2">
-                <span class="px-2.5 py-0.5 rounded-md bg-teal-50 text-[#0099A6] font-extrabold text-xs">
-                  Site ${r.storeCode} • ${r.storeType || 'CVS'}
-                </span>
-                <h4 class="font-extrabold text-base sm:text-lg text-slate-900">FamilyMart ${r.storeName}</h4>
-                ${this.renderStoreVisitBadgeHtml(r.storeCode)}
-                <span class="text-xs text-slate-400">•</span>
-                <span class="text-xs font-semibold text-slate-600">${dateText}</span>
-              </div>
-
-              <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
-                <span><i class="fa-regular fa-user text-[#0099A6] mr-1"></i>Visitor: <strong>${r.auditorName || '-'}</strong></span>
-                <span><i class="fa-solid fa-user-tie text-emerald-600 mr-1"></i>Store Head: <strong>${r.storeHead || '-'}</strong></span>
-                <span><i class="fa-regular fa-clock text-amber-600 mr-1"></i>Actual In-Out: <strong>${r.actualIn || '-'} s/d ${r.actualOut || '-'}</strong></span>
-                <span><i class="fa-solid fa-location-dot text-rose-500 mr-1"></i>GPS: <span class="font-mono">${r.gpsLat || '-'}, ${r.gpsLng || '-'}</span></span>
-              </div>
-
-              <div class="flex flex-wrap items-center gap-2 pt-1">
-                <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
-                  ${obsCount} Temuan Observasi
-                </span>
-                <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-800 border border-sky-200">
-                  ${evCount} Foto Bukti Evidence
-                </span>
-
-              </div>
-            </div>
-
-            <div class="flex flex-wrap items-center gap-2 shrink-0">
-              ${
-                isAdmin
-                  ? `
-                <!-- 1. Folder toko -->
-                <a href="${r.storeFolderUrl || r.visitorFolderUrl || 'https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8'}" target="_blank" rel="noopener noreferrer" class="px-3 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Buka Folder Toko di Google Drive">
-                  <i class="fa-solid fa-folder-open text-[#009944]"></i>
-                  <span>Folder Toko</span>
-                </a>
-                <!-- 2. Preview PDF (langsung pdf yang tersimpan di gdrive) -->
-                <button type="button" onclick="FMCUApp.previewReportPdfFromGDrive('${r.id}')" class="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Preview PDF langsung yang tersimpan di Google Drive">
-                  <i class="fa-solid fa-file-pdf text-rose-600"></i>
-                  <span>Preview PDF</span>
-                </button>
-                <!-- 3. Unduh PDF -->
-                <button type="button" onclick="FMCUApp.downloadReportById('${r.id}')" class="px-3 py-2 rounded-xl fm-gradient hover:opacity-95 text-white font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Unduh file PDF laporan lengkap">
-                  <i class="fa-solid fa-file-arrow-down"></i>
-                  <span>Unduh PDF</span>
-                </button>
-                <!-- 4. Hapus -->
-                <button type="button" onclick="FMCUApp.promptDeleteVisitReport('${r.id}')" class="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Hapus riwayat laporan visit toko ini">
-                  <i class="fa-solid fa-trash-can"></i>
-                  <span>Hapus</span>
-                </button>
-              `
-                  : `
-                <button type="button" onclick="FMCUApp.editReportById('${r.id}')" class="px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition cursor-pointer">
-                  <i class="fa-solid fa-pen mr-1"></i>Buka Form
-                </button>
-                <button type="button" onclick="FMCUApp.openReportPreview('${r.id}')" class="px-3.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition flex items-center gap-1.5 cursor-pointer">
-                  <i class="fa-solid fa-display"></i>
-                  <span>Preview Slide PDF</span>
-                </button>
-                <button type="button" onclick="FMCUApp.downloadReportById('${r.id}')" class="fm-gradient hover:opacity-95 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer">
-                  <i class="fa-solid fa-file-arrow-down"></i>
-                  <span>Unduh PDF</span>
-                </button>
-              `
-              }
-            </div>
-          </div>
-        `;
-      })
-      .join('');
+    // Sub-section history telah dihapus permanen dari Analitik
   },
 
   renderAnalyticsPerformance() {
