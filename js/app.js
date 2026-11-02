@@ -2287,6 +2287,11 @@ window.FMCUApp = {
       }
     }
 
+    // Batalkan render PDF jika berpindah dari halaman preview ke halaman lain
+    if (this.currentView === 'preview' && viewName !== 'preview') {
+      this.cancelRunningPdfRender();
+    }
+
     // Toggle Floating Action Buttons di Form (Hanya tampil di Form Visit)
     if (viewName !== 'form') {
       const fabObs = document.getElementById('floating-obs-actions');
@@ -4362,24 +4367,23 @@ window.FMCUApp = {
       (this.currentUser.role === 'ADMIN_SCHEDULE' || this.currentUser.role === 'SUPER_ADMIN')
     );
 
+    // Sesuai instruksi: Halaman admin jadwal di bagian analitik HANYA menampilkan halaman analitik saja
     const switcherBox = document.getElementById('analytics-admin-switcher-box');
     if (switcherBox) {
-      switcherBox.classList.toggle('hidden', !isAdmin);
+      switcherBox.classList.add('hidden');
     }
 
-    if (isAdmin) {
-      const savedSub = sessionStorage.getItem('fmcu_active_analytics_subtab');
-      const targetSub = savedSub && (savedSub === 'performance' || savedSub === 'history')
-        ? savedSub
-        : this.currentAnalyticsSubSection || 'history';
-      this.switchAnalyticsSubSection(targetSub, false);
-    } else {
-      const historySec = document.getElementById('analytics-subsection-history');
-      const perfSec = document.getElementById('analytics-subsection-performance');
-      if (historySec) historySec.classList.add('hidden');
-      if (perfSec) perfSec.classList.remove('hidden');
-      this.renderAnalyticsPerformance();
-    }
+    const historySec = document.getElementById('analytics-subsection-history');
+    const perfSec = document.getElementById('analytics-subsection-performance');
+    if (historySec) historySec.classList.add('hidden');
+    if (perfSec) perfSec.classList.remove('hidden');
+
+    this.currentAnalyticsSubSection = 'performance';
+    try {
+      sessionStorage.setItem('fmcu_active_analytics_subtab', 'performance');
+    } catch (e) {}
+
+    this.renderAnalyticsPerformance();
   },
 
   switchAnalyticsSubSection(subSec, scrollTop = true) {
@@ -8977,6 +8981,7 @@ Instruksi:
   },
 
   onChangePreviewReport(reportId) {
+    this.cancelRunningPdfRender();
     this.activePreviewReportId = reportId;
     this.currentSlideIndex = 0;
     this.renderPreviewView();
@@ -9036,22 +9041,62 @@ Instruksi:
     }
   },
 
+  _activePdfRenderTasks: [],
+  _pdfRenderGeneration: 0,
+
+  cancelRunningPdfRender() {
+    this._pdfRenderGeneration++;
+    if (Array.isArray(this._activePdfRenderTasks)) {
+      this._activePdfRenderTasks.forEach((task) => {
+        try {
+          if (task && typeof task.cancel === 'function') {
+            task.cancel();
+          }
+        } catch (e) {}
+      });
+      this._activePdfRenderTasks = [];
+    }
+  },
+
   async renderActualPdfViewer() {
+    // 1. Batalkan proses render sebelumnya agar tidak terjadi race condition / rendering glitch
+    this.cancelRunningPdfRender();
+    const currentGen = this._pdfRenderGeneration;
+
     const report = this.getActivePreviewReport();
     if (!report) return;
+
     const loadingEl = document.getElementById('preview-pdf-loading');
     const allPagesEl = document.getElementById('preview-actual-pdf-all-pages');
     const frameContainer = document.getElementById('preview-actual-pdf-frame-container');
     const iframe = document.getElementById('preview-actual-pdf-iframe');
+    const pagesBadge = document.getElementById('preview-pdf-total-pages-badge');
 
-    if (loadingEl) loadingEl.classList.remove('hidden');
-    if (allPagesEl) allPagesEl.innerHTML = '';
+    if (loadingEl) {
+      loadingEl.classList.remove('hidden');
+      const textSpan = loadingEl.querySelector('span');
+      if (textSpan) textSpan.textContent = 'Menyiapkan Dokumen PDF Asli...';
+    }
+    if (pagesBadge) {
+      pagesBadge.textContent = 'Menyusun Halaman...';
+    }
+
+    // Bersihkan Blob URL lama agar memori RAM tidak bocor
+    if (this.currentPdfBlobUrl) {
+      try { URL.revokeObjectURL(this.currentPdfBlobUrl); } catch (e) {}
+      this.currentPdfBlobUrl = null;
+    }
 
     try {
+      // 2. Hydrate foto dari Google Drive / IndexedDB
       await window.FMCUPdf.hydrateReportPhotosFromGDrive(report);
+      if (this._pdfRenderGeneration !== currentGen) return;
+
+      // 3. Generate dokumen PDF standar korporat (16:9 Landscape)
       const doc = window.FMCUPdf.generatePdfDoc(report);
       const blobUrl = doc.output('bloburl');
       this.currentPdfBlobUrl = blobUrl;
+      if (this._pdfRenderGeneration !== currentGen) return;
 
       // Update doc name banner
       const fileName = window.FMCUPdf.getFileName(report);
@@ -9061,55 +9106,139 @@ Instruksi:
         docTrack.innerHTML = `<span class="inline-block font-extrabold text-white">${docFullName}</span>`;
       }
 
-      if (iframe) {
-        iframe.src = `${blobUrl}#view=FitH&toolbar=0&navpanes=0&scrollbar=1`;
+      // Pastikan workerSrc PDF.js terinisialisasi
+      if (window.pdfjsLib && !window.pdfjsLib.GlobalWorkerOptions.workerSrc) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
       }
 
-      // Render SELURUH HALAMAN PDF secara kontinyu menggunakan PDF.js
+      // 4. Render SELURUH HALAMAN PDF secara kontinyu menggunakan PDF.js
       if (window.pdfjsLib && allPagesEl) {
         const arrayBuffer = doc.output('arraybuffer');
         const loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer });
         this.pdfJsDoc = await loadingTask.promise;
+        if (this._pdfRenderGeneration !== currentGen) return;
+
         const totalPages = this.pdfJsDoc.numPages;
+        this.pdfTotalPages = totalPages;
+
+        if (pagesBadge) {
+          pagesBadge.textContent = `${totalPages} Halaman (16:9 Landscape)`;
+        }
+
+        // 5. STABLE SKELETON LAYOUT (BATCH MOUNT):
+        // Bangun seluruh placeholder kartu halaman dengan aspect-ratio 16 / 9 sekaligus
+        // agar scrollbar dan tinggi kontainer langsung stabil seketika (Zero Layout Shifts, Zero Glitch)
+        const fragment = document.createDocumentFragment();
+        const pageElements = [];
 
         for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
-          const page = await this.pdfJsDoc.getPage(pageNum);
-          const viewport = page.getViewport({ scale: 2.0 });
-
           const card = document.createElement('div');
-          card.className = 'pdf-page-card bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden mb-6 p-2 sm:p-4';
+          card.id = `preview-pdf-card-${pageNum}`;
+          card.className = 'pdf-page-card bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden mb-6 p-2.5 sm:p-4';
 
           const header = document.createElement('div');
           header.className = 'flex items-center justify-between text-xs font-bold text-slate-500 pb-2 mb-2 border-b border-slate-100';
-          header.innerHTML = `<span>Halaman ${pageNum} dari ${totalPages}</span><span class="text-[11px] font-semibold text-teal-700">Dokumen PDF Asli</span>`;
+          header.innerHTML = `
+            <span class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-teal-500"></span>
+              <span>Halaman ${pageNum} dari ${totalPages}</span>
+            </span>
+            <span class="text-[10px] sm:text-[11px] font-semibold text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200">
+              Dokumen PDF Asli 16:9
+            </span>
+          `;
           card.appendChild(header);
 
           const canvasWrapper = document.createElement('div');
-          canvasWrapper.className = 'w-full flex justify-center overflow-x-auto';
+          canvasWrapper.className = 'pdf-canvas-wrapper';
+
+          // Skeleton loader
+          const skeleton = document.createElement('div');
+          skeleton.id = `preview-pdf-skeleton-${pageNum}`;
+          skeleton.className = 'absolute inset-0 flex flex-col items-center justify-center bg-slate-50 text-slate-400';
+          skeleton.innerHTML = `
+            <div class="w-7 h-7 rounded-full border-2 border-teal-600 border-t-transparent animate-spin mb-2"></div>
+            <span class="text-[11px] font-bold text-slate-500">Merender Halaman ${pageNum}...</span>
+          `;
+          canvasWrapper.appendChild(skeleton);
+
+          // Canvas element
           const canvas = document.createElement('canvas');
-          canvas.className = 'rounded-lg shadow-sm border border-slate-100 w-full max-w-full';
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
+          canvas.id = `preview-pdf-canvas-${pageNum}`;
+          canvas.className = 'rounded-lg shadow-sm border border-slate-100 opacity-0 transition-opacity duration-200';
           canvasWrapper.appendChild(canvas);
+
           card.appendChild(canvasWrapper);
+          fragment.appendChild(card);
 
-          allPagesEl.appendChild(card);
-
-          const ctx = canvas.getContext('2d');
-          await page.render({ canvasContext: ctx, viewport }).promise;
+          pageElements.push({ pageNum, canvas, skeleton });
         }
 
-        if (frameContainer) frameContainer.classList.add('hidden');
+        allPagesEl.innerHTML = '';
+        allPagesEl.appendChild(fragment);
         allPagesEl.classList.remove('hidden');
+        if (frameContainer) frameContainer.classList.add('hidden');
+        if (loadingEl) loadingEl.classList.add('hidden');
+
+        // 6. ADAPTIVE MEMORY-SAFE DPI SCALING:
+        // Hitung target scale berdasarkan lebar viewport & DPR layar untuk mencegah GPU memory exhaustion di mobile
+        const containerWidth = Math.min(allPagesEl.clientWidth || window.innerWidth || 900, 1200);
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const baseWidth = 907.08; // 320mm / 25.4 * 72 pt base width
+        const fitScale = (containerWidth - 32) / baseWidth;
+        const targetScale = Math.max(1.1, Math.min(2.0, fitScale * dpr));
+
+        // 7. Render halaman secara berurutan dan progresif
+        for (const { pageNum, canvas, skeleton } of pageElements) {
+          if (this._pdfRenderGeneration !== currentGen) return;
+
+          try {
+            const page = await this.pdfJsDoc.getPage(pageNum);
+            if (this._pdfRenderGeneration !== currentGen) return;
+
+            const viewport = page.getViewport({ scale: targetScale });
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+
+            const ctx = canvas.getContext('2d', { alpha: false });
+            const renderTask = page.render({ canvasContext: ctx, viewport });
+            this._activePdfRenderTasks.push(renderTask);
+
+            await renderTask.promise;
+            if (this._pdfRenderGeneration !== currentGen) return;
+
+            // Transisi halus: sembunyikan skeleton, tampilkan canvas
+            if (skeleton) skeleton.classList.add('hidden');
+            if (canvas) canvas.classList.remove('opacity-0');
+          } catch (renderErr) {
+            if (renderErr && renderErr.name === 'RenderingCancelledException') {
+              return;
+            }
+            console.warn(`Error rendering PDF page ${pageNum}:`, renderErr);
+            if (skeleton) {
+              skeleton.innerHTML = `<span class="text-xs text-rose-500 font-bold">Gagal memuat halaman ${pageNum}</span>`;
+            }
+          }
+        }
       } else {
+        // Fallback Native PDF Viewer jika PDF.js tidak ada
+        if (iframe) {
+          iframe.src = `${blobUrl}#view=FitH&toolbar=0&navpanes=0&scrollbar=1`;
+        }
+        if (frameContainer) frameContainer.classList.remove('hidden');
+        if (allPagesEl) allPagesEl.classList.add('hidden');
+        if (loadingEl) loadingEl.classList.add('hidden');
+      }
+    } catch (e) {
+      if (this._pdfRenderGeneration !== currentGen) return;
+      console.warn('Error generating actual PDF preview:', e);
+      if (this.currentPdfBlobUrl && iframe) {
+        iframe.src = `${this.currentPdfBlobUrl}#view=FitH&toolbar=0&navpanes=0&scrollbar=1`;
         if (frameContainer) frameContainer.classList.remove('hidden');
         if (allPagesEl) allPagesEl.classList.add('hidden');
       }
-    } catch (e) {
-      console.warn('Error generating actual PDF preview:', e);
-      if (frameContainer) frameContainer.classList.remove('hidden');
     } finally {
-      if (loadingEl) {
+      if (this._pdfRenderGeneration === currentGen && loadingEl) {
         loadingEl.classList.add('hidden');
       }
     }
@@ -9208,13 +9337,6 @@ Instruksi:
     const report = this.getActivePreviewReport();
     if (!report) return;
 
-    this.previewSlides = window.FMCUPdf.buildHtmlSlides(report);
-    if (this.currentSlideIndex >= this.previewSlides.length) {
-      this.currentSlideIndex = 0;
-    }
-
-    this.renderActiveSlide();
-    this.renderAllSlidesGrid();
     this.renderActualPdfViewer();
   },
 
@@ -9306,6 +9428,23 @@ Instruksi:
     await this.openInAppPdfModal(reportId);
   },
 
+  _modalPdfRenderTasks: [],
+  _modalPdfRenderGen: 0,
+
+  cancelRunningModalPdfRender() {
+    this._modalPdfRenderGen++;
+    if (Array.isArray(this._modalPdfRenderTasks)) {
+      this._modalPdfRenderTasks.forEach((task) => {
+        try {
+          if (task && typeof task.cancel === 'function') {
+            task.cancel();
+          }
+        } catch (e) {}
+      });
+      this._modalPdfRenderTasks = [];
+    }
+  },
+
   async openInAppPdfModal(reportId) {
     this.triggerHaptic('light');
     const reports = window.FMCUData.getReports() || [];
@@ -9314,6 +9453,9 @@ Instruksi:
       this.showToast('Laporan visit toko tidak ditemukan.', 'warning');
       return;
     }
+
+    this.cancelRunningModalPdfRender();
+    const currentGen = this._modalPdfRenderGen;
 
     this.currentModalReportId = reportId;
     const modalEl = document.getElementById('modal-in-page-pdf-preview');
@@ -9326,7 +9468,6 @@ Instruksi:
     const iframe = document.getElementById('modal-pdf-iframe');
 
     if (!modalEl) {
-      // Fallback ke halaman preview jika elemen modal tidak ada
       this.openReportPreview(reportId);
       return;
     }
@@ -9345,6 +9486,12 @@ Instruksi:
     }
     if (frameContainer) frameContainer.classList.add('hidden');
 
+    // Revoke URL blob lama
+    if (this.currentModalPdfBlobUrl) {
+      try { URL.revokeObjectURL(this.currentModalPdfBlobUrl); } catch (e) {}
+      this.currentModalPdfBlobUrl = null;
+    }
+
     try {
       // 1. Ekstrak file ID dari Google Drive jika ada
       const drivePdfUrl = rep.pdfDriveUrl || rep.pdfUrl || rep.drivePdfUrl || rep.gdrivePdfUrl || '';
@@ -9356,50 +9503,111 @@ Instruksi:
 
       // 2. Hydrate foto dan generate PDF lokal via FMCUPdf
       await window.FMCUPdf.hydrateReportPhotosFromGDrive(rep);
+      if (this._modalPdfRenderGen !== currentGen) return;
+
       const doc = window.FMCUPdf.generatePdfDoc(rep);
       const blobUrl = doc.output('bloburl');
       this.currentModalPdfBlobUrl = blobUrl;
+      if (this._modalPdfRenderGen !== currentGen) return;
+
+      if (window.pdfjsLib && !window.pdfjsLib.GlobalWorkerOptions.workerSrc) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      }
 
       // 3. Render all pages secara in-page langsung di web via PDF.js
       if (window.pdfjsLib && pagesContainer) {
         const arrayBuffer = doc.output('arraybuffer');
         const loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer });
         const pdfDoc = await loadingTask.promise;
-        const totalPages = pdfDoc.numPages;
+        if (this._modalPdfRenderGen !== currentGen) return;
 
-        if (pagesBadge) pagesBadge.textContent = `Hal 1 s/d ${totalPages} (Dokumen PDF Asli)`;
+        const totalPages = pdfDoc.numPages;
+        if (pagesBadge) pagesBadge.textContent = `Hal 1 s/d ${totalPages} (16:9 Landscape)`;
+
+        // Pre-allocate skeleton cards untuk stabilitas layout seketika (Zero CLS)
+        const fragment = document.createDocumentFragment();
+        const pageElements = [];
 
         for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
-          const page = await pdfDoc.getPage(pageNum);
-          const viewport = page.getViewport({ scale: 2.0 });
-
           const card = document.createElement('div');
-          card.className = 'pdf-page-card bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden p-2 sm:p-4 mb-4';
+          card.id = `modal-pdf-card-${pageNum}`;
+          card.className = 'pdf-page-card bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden p-2.5 sm:p-4 mb-4';
 
           const header = document.createElement('div');
           header.className = 'flex items-center justify-between text-xs font-bold text-slate-500 pb-2 mb-2 border-b border-slate-100';
-          header.innerHTML = `<span>Halaman ${pageNum} dari ${totalPages}</span><span class="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200"><i class="fa-solid fa-circle-check mr-1"></i>Dokumen PDF Asli</span>`;
+          header.innerHTML = `
+            <span class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-teal-500"></span>
+              <span>Halaman ${pageNum} dari ${totalPages}</span>
+            </span>
+            <span class="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+              <i class="fa-solid fa-circle-check mr-1"></i>Dokumen PDF Asli
+            </span>
+          `;
           card.appendChild(header);
 
           const canvasWrapper = document.createElement('div');
-          canvasWrapper.className = 'w-full flex justify-center overflow-x-auto';
+          canvasWrapper.className = 'pdf-canvas-wrapper';
+
+          const skeleton = document.createElement('div');
+          skeleton.id = `modal-pdf-skeleton-${pageNum}`;
+          skeleton.className = 'absolute inset-0 flex flex-col items-center justify-center bg-slate-50 text-slate-400';
+          skeleton.innerHTML = `
+            <div class="w-6 h-6 rounded-full border-2 border-teal-600 border-t-transparent animate-spin mb-1.5"></div>
+            <span class="text-[11px] font-bold text-slate-500">Merender Hal ${pageNum}...</span>
+          `;
+          canvasWrapper.appendChild(skeleton);
+
           const canvas = document.createElement('canvas');
-          canvas.className = 'rounded-lg shadow-sm border border-slate-100 w-full max-w-full';
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
+          canvas.id = `modal-pdf-canvas-${pageNum}`;
+          canvas.className = 'rounded-lg shadow-sm border border-slate-100 opacity-0 transition-opacity duration-200';
           canvasWrapper.appendChild(canvas);
+
           card.appendChild(canvasWrapper);
+          fragment.appendChild(card);
 
-          pagesContainer.appendChild(card);
-
-          const ctx = canvas.getContext('2d');
-          await page.render({ canvasContext: ctx, viewport }).promise;
+          pageElements.push({ pageNum, canvas, skeleton });
         }
 
-        if (frameContainer) frameContainer.classList.add('hidden');
+        pagesContainer.innerHTML = '';
+        pagesContainer.appendChild(fragment);
         pagesContainer.classList.remove('hidden');
+        if (frameContainer) frameContainer.classList.add('hidden');
+        if (loadingEl) loadingEl.classList.add('hidden');
+
+        // Adaptive DPR & Mobile scale
+        const containerWidth = Math.min(pagesContainer.clientWidth || window.innerWidth || 800, 1100);
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const baseWidth = 907.08;
+        const fitScale = (containerWidth - 32) / baseWidth;
+        const targetScale = Math.max(1.1, Math.min(2.0, fitScale * dpr));
+
+        for (const { pageNum, canvas, skeleton } of pageElements) {
+          if (this._modalPdfRenderGen !== currentGen) return;
+
+          try {
+            const page = await pdfDoc.getPage(pageNum);
+            if (this._modalPdfRenderGen !== currentGen) return;
+
+            const viewport = page.getViewport({ scale: targetScale });
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+
+            const ctx = canvas.getContext('2d', { alpha: false });
+            const renderTask = page.render({ canvasContext: ctx, viewport });
+            this._modalPdfRenderTasks.push(renderTask);
+
+            await renderTask.promise;
+            if (this._modalPdfRenderGen !== currentGen) return;
+
+            if (skeleton) skeleton.classList.add('hidden');
+            if (canvas) canvas.classList.remove('opacity-0');
+          } catch (renderErr) {
+            if (renderErr && renderErr.name === 'RenderingCancelledException') return;
+            console.warn(`Error rendering modal PDF page ${pageNum}:`, renderErr);
+          }
+        }
       } else {
-        // Fallback ke iframe in-page (Google Drive preview atau blobUrl)
         const frameSrc = driveFileId
           ? `https://drive.google.com/file/d/${driveFileId}/preview`
           : `${blobUrl}#view=FitH&toolbar=0&navpanes=0&scrollbar=1`;
@@ -9407,8 +9615,10 @@ Instruksi:
         if (frameContainer) frameContainer.classList.remove('hidden');
         if (pagesContainer) pagesContainer.classList.add('hidden');
         if (pagesBadge) pagesBadge.textContent = 'Dokumen PDF Asli (In-Page)';
+        if (loadingEl) loadingEl.classList.add('hidden');
       }
     } catch (err) {
+      if (this._modalPdfRenderGen !== currentGen) return;
       console.warn('In-page modal PDF render error:', err);
       if (this.currentModalPdfBlobUrl && iframe) {
         iframe.src = `${this.currentModalPdfBlobUrl}#view=FitH&toolbar=0&navpanes=0&scrollbar=1`;
@@ -9416,18 +9626,25 @@ Instruksi:
         if (pagesContainer) pagesContainer.classList.add('hidden');
       }
     } finally {
-      if (loadingEl) loadingEl.classList.add('hidden');
+      if (this._modalPdfRenderGen === currentGen && loadingEl) {
+        loadingEl.classList.add('hidden');
+      }
     }
   },
 
   closeInAppPdfModal() {
     this.triggerHaptic('light');
+    this.cancelRunningModalPdfRender();
     const modalEl = document.getElementById('modal-in-page-pdf-preview');
     if (modalEl) modalEl.classList.add('hidden');
     const pagesContainer = document.getElementById('modal-pdf-pages-container');
     if (pagesContainer) pagesContainer.innerHTML = '';
     const iframe = document.getElementById('modal-pdf-iframe');
     if (iframe) iframe.src = 'about:blank';
+    if (this.currentModalPdfBlobUrl) {
+      try { URL.revokeObjectURL(this.currentModalPdfBlobUrl); } catch (e) {}
+      this.currentModalPdfBlobUrl = null;
+    }
   },
 
   openReportPreviewFromModal() {

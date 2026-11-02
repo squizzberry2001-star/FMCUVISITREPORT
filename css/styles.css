@@ -946,3 +946,32 @@ input[type="date"]::-webkit-date-and-time-value {
     max-width: 100% !important;
   }
 }
+
+/* ==========================================================================
+   Smooth & Stable 16:9 PDF Preview Styles (Anti-Jank, Zero CLS, 60fps)
+   ========================================================================== */
+.pdf-page-card {
+  contain: layout style paint;
+  content-visibility: auto;
+  contain-intrinsic-size: 800px 480px;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+.pdf-canvas-wrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background-color: #f1f5f9;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pdf-canvas-wrapper canvas {
+  width: 100% !important;
+  height: auto !important;
+  aspect-ratio: 16 / 9;
+  max-height: 85vh;
+  display: block;
+}
