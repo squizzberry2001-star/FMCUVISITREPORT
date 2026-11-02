@@ -179,8 +179,8 @@ const DEFAULT_NEWS_ITEMS = [
   {
     id: 'news-2',
     category: 'GPS & Geofence',
-    title: 'Radius Akurat 15 Meter',
-    content: 'Pastikan titik GPS perangkat aktif dan berada dalam radius 15 meter dari pinpoint toko agar jam kehadiran Actual In & Actual Out terekam secara otomatis dan akurat.',
+    title: 'Radius Akurat 1m - 50m',
+    content: 'Pastikan titik GPS perangkat aktif dan berada dalam radius 1m - 50m dari pinpoint toko agar jam kehadiran Actual In & Actual Out terekam secara otomatis dan akurat.',
     active: true,
     createdAt: new Date().toISOString()
   },

@@ -1,6 +1,6 @@
 # FMCU Visit Store Report — FamilyMart Indonesia (FMCU-ONEGATESYSTEM)
 
-> Platform digital terpadu milik FamilyMart Corporate University (FMCU) Indonesia (PT Fajar Mitra Indah) untuk pengelolaan jadwal kunjungan toko, laporan audit Quality, Service & Cleanliness (QSC), pemantauan Live GPS Location & Geofence 15 meter (Actual In-Out), analitik performa Regional Bestie, serta pembuatan laporan presentasi PDF 16:9 otomatis yang terintegrasi dengan Google Drive dan Cloud Firestore.
+> Platform digital terpadu milik FamilyMart Corporate University (FMCU) Indonesia (PT Fajar Mitra Indah) untuk pengelolaan jadwal kunjungan toko, laporan audit Quality, Service & Cleanliness (QSC), pemantauan Live GPS Location & Geofence 1m-50m (Actual In-Out), analitik performa Regional Bestie, serta pembuatan laporan presentasi PDF 16:9 otomatis yang terintegrasi dengan Google Drive dan Cloud Firestore.
 
 ## Ringkasan Eksekutif (Answer-First Summary)
 - **Nama Sistem**: FMCU Visit Store Report (`FMCU-ONEGATESYSTEM`)

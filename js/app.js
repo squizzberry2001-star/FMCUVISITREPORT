@@ -238,7 +238,7 @@ window.FMCUApp = {
       }
     });
 
-    // Jalankan continuous Geofence Ticker setiap 4 detik untuk memantau radius 15m & timer 15m
+    // Jalankan continuous Geofence Ticker setiap 4 detik untuk memantau radius 1m-50m & timer 15m
     if (this._geofenceInterval) clearInterval(this._geofenceInterval);
     this._geofenceInterval = setInterval(() => this.checkAutomaticGeofenceInOut(), 4000);
   },
@@ -2665,7 +2665,7 @@ window.FMCUApp = {
       this._homeStoresRendered = true;
     }
 
-    // 2. Layer Toko Aktif & Geofence 15m (Dibuat terpisah agar update instan tanpa memproses 610 marker)
+    // 2. Layer Toko Aktif & Geofence 1m-50m (Dibuat terpisah agar update instan tanpa memproses 610 marker)
     if (!this.homeActiveStoreLayer) {
       this.homeActiveStoreLayer = L.layerGroup().addTo(this.homeMap);
     }
@@ -2688,7 +2688,7 @@ window.FMCUApp = {
           }).addTo(this.homeActiveStoreLayer);
 
           L.circle([aLat, aLng], {
-            radius: 15,
+            radius: 50,
             color: '#009944',
             fillColor: '#009944',
             fillOpacity: 0.15,
@@ -2884,7 +2884,7 @@ window.FMCUApp = {
 
       if (isTarget) {
         L.circle([lat, lng], {
-          radius: 15,
+          radius: 50,
           color: '#009944',
           fillColor: '#009944',
           fillOpacity: 0.2,
@@ -3158,13 +3158,13 @@ window.FMCUApp = {
       };
     }
 
-    // 3. Sedang Visit: lokasi terdeteksi di toko yang terjadwal <= 15m
-    if (myTodaySch && ((distToStore !== null && distToStore <= 15) || myTodaySch.status === 'IN_PROGRESS')) {
+    // 3. Sedang Visit: lokasi terdeteksi di toko yang terjadwal 1m-50m (<= 50m)
+    if (myTodaySch && ((distToStore !== null && distToStore <= 50) || myTodaySch.status === 'IN_PROGRESS')) {
       return {
         key: 'VISITING',
         label: 'Sedang Visit',
         badgeHtml: '<span class="text-[9px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-extrabold border border-emerald-300 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 gps-pulse"></span>Sedang Visit</span>',
-        subtitleHtml: `<span class="text-[10px] text-emerald-700 font-bold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Di Toko (${distToStore !== null ? distToStore + 'm' : '≤15m'}) • ${timeAgoText}</span>`,
+        subtitleHtml: `<span class="text-[10px] text-emerald-700 font-bold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Di Toko (${distToStore !== null ? distToStore + 'm' : '1m-50m'}) • ${timeAgoText}</span>`,
         lat,
         lng,
         hasActualLocation: true,
@@ -3176,8 +3176,8 @@ window.FMCUApp = {
       };
     }
 
-    // 4. Diluar Radius Toko: lokasi terdeteksi di luar radius toko yang dijadwalkan > 15m
-    const distText = distToStore !== null ? (distToStore < 1000 ? `${distToStore}m` : `${(distToStore / 1000).toFixed(1)}km`) : '>15m';
+    // 4. Diluar Radius Toko: lokasi terdeteksi di luar radius toko yang dijadwalkan > 50m
+    const distText = distToStore !== null ? (distToStore < 1000 ? `${distToStore}m` : `${(distToStore / 1000).toFixed(1)}km`) : '>50m';
     return {
       key: 'OUTSIDE_RADIUS',
       label: 'Diluar Radius Toko',
@@ -3455,11 +3455,11 @@ window.FMCUApp = {
   },
 
   stampActualTime(type) {
-    this.showToast('Pencatatan IN & OUT kini otomatis dari sistem via GPS Geofence (Radius 15m & Rentan Waktu 15 Menit).', 'info');
+    this.showToast('Pencatatan IN & OUT kini otomatis dari sistem via GPS Geofence (Radius 1m-50m & Rentan Waktu 15 Menit).', 'info');
   },
 
   // ==========================================================================
-  // AUTOMATIC GEOFENCE GPS IN / OUT ENGINE (15M RADIUS & 15-MINUTE AWAY SPAN)
+  // AUTOMATIC GEOFENCE GPS IN / OUT ENGINE (1M-50M RADIUS & 15-MINUTE AWAY SPAN)
   // ==========================================================================
   calculateDistance(lat1, lon1, lat2, lon2) {
     return this.calculateHaversineDistance(lat1, lon1, lat2, lon2);
@@ -3604,13 +3604,13 @@ window.FMCUApp = {
     let currentInVal = inInput?.value?.trim() || activeCheckIn?.actualIn || '';
     let currentOutVal = outInput?.value?.trim() || activeCheckIn?.actualOut || '';
 
-    const GEOFENCE_RADIUS = this.isMallToleranceActive ? 50 : 15; // Kepatuhan radius toko <= 15m (50m jika Mode Mall/Gedung aktif)
+    const GEOFENCE_RADIUS = 50; // Kepatuhan radius toko 1m-50m (<= 50m)
     const now = new Date();
     const currentTotalMins = now.getHours() * 60 + now.getMinutes();
     const CUTOFF_OUT_MINS = 17 * 60 + 30; // 17:30 WIB
 
     // ========================================================================
-    // KONDISI A: LOKASI TIDAK TERDETEKSI DI DALAM RADIUS TOKO (> 15 METER)
+    // KONDISI A: LOKASI TIDAK TERDETEKSI DI DALAM RADIUS TOKO (> 50 METER)
     // "dan jika di rentan antara jam tersebut tidak terdeteksi lokasi/terdeteksi maka tidak direcord"
     // ========================================================================
     if (distanceMeters === null || distanceMeters > GEOFENCE_RADIUS) {
@@ -3655,7 +3655,7 @@ window.FMCUApp = {
     }
 
     // ========================================================================
-    // KONDISI B: LOKASI TERDETEKSI DI TITIK PINPOINT TOKO (RADIUS <= 15 METER)
+    // KONDISI B: LOKASI TERDETEKSI DI TITIK PINPOINT TOKO (RADIUS 1M-50M)
     // ========================================================================
     
     // 1. ATURAN RECORD IN:
@@ -3687,7 +3687,7 @@ window.FMCUApp = {
 
       this.updateActiveCheckInUI();
       this.showToast(
-        `✓ Actual IN Tercatat: ${autoInTime} (Terdeteksi di titik pinpoint toko, jarak ${distanceMeters}m <= 15m)`,
+        `✓ Actual IN Tercatat: ${autoInTime} (Terdeteksi di titik pinpoint toko, jarak ${distanceMeters}m, Radius 1m-50m)`,
         'success'
       );
     }
@@ -3745,7 +3745,7 @@ window.FMCUApp = {
     if (!radarPill) return;
     if (state === 'INSIDE_WAITING_OUT') {
       radarPill.className = 'w-full bg-emerald-500/20 border border-emerald-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center gap-2';
-      if (titleEl) titleEl.textContent = '✓ Di Titik Pinpoint Toko (Radius ≤ 15m)';
+      if (titleEl) titleEl.textContent = '✓ Di Titik Pinpoint Toko (Radius 1m-50m)';
       if (descEl) descEl.textContent = `Jarak: ${distance}m • In: ${auxInfo || '08:30 WIB'} • Out aktif jam ≥ 17:30`;
       if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0';
       if (outDot) outDot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
@@ -3757,13 +3757,13 @@ window.FMCUApp = {
       if (outDot) outDot.className = 'w-2 h-2 rounded-full bg-teal-400 shrink-0';
     } else if (state === 'OUTSIDE_DENIED_IN') {
       radarPill.className = 'w-full bg-rose-500/20 border border-rose-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center gap-2';
-      if (titleEl) titleEl.textContent = '⛔ Di Luar Radius Toko (> 15m)';
-      if (descEl) descEl.textContent = `Jarak: ${distance}m > 15m • Mendekat ke titik toko untuk record Actual IN`;
+      if (titleEl) titleEl.textContent = '⛔ Di Luar Radius Toko (> 50m)';
+      if (descEl) descEl.textContent = `Jarak: ${distance}m > 50m (Radius 1m-50m) • Mendekat ke titik toko untuk record Actual IN`;
       if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
       if (outDot) outDot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
     } else if (state === 'OUTSIDE_DENIED_OUT') {
       radarPill.className = 'w-full bg-amber-500/20 border border-amber-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center gap-2';
-      if (titleEl) titleEl.textContent = '⛔ Di Luar Radius Toko (> 15m)';
+      if (titleEl) titleEl.textContent = '⛔ Di Luar Radius Toko (> 50m)';
       if (descEl) descEl.textContent = `In: ${auxInfo} • Out TIDAK direcord jika web dibuka di luar lokasi toko`;
       if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-emerald-400 shrink-0';
       if (outDot) outDot.className = 'w-2 h-2 rounded-full bg-amber-400 shrink-0';
@@ -4114,7 +4114,7 @@ window.FMCUApp = {
 
     this.navigate('form');
 
-    // Segera evaluasi geofence otomatis (15m radius & 15m away span)
+    // Segera evaluasi geofence otomatis (1m-50m radius & 15m away span)
     this.checkAutomaticGeofenceInOut();
   },
 
@@ -4774,7 +4774,7 @@ window.FMCUApp = {
                   : `
                 <div class="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
                   <i class="fa-solid fa-satellite-dish text-emerald-600 animate-pulse"></i>
-                  <span>${s.actualIn ? `In: ${s.actualIn} (Auto GPS)` : 'Auto Geofence 15m'}</span>
+                  <span>${s.actualIn ? `In: ${s.actualIn} (Auto GPS)` : 'Auto Geofence 1m-50m'}</span>
                 </div>
                 <div class="flex items-center gap-1.5">
                   <button type="button" onclick="FMCUApp.openGoogleMapsRoute('${s.storeCode}')" class="bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 font-bold px-2.5 py-2 rounded-xl text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Buka Rute di Google Maps">
@@ -5794,9 +5794,9 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
           if (stInfo.isExited) {
             locDesc = `<span class="text-slate-600 font-bold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>Keluar Aplikasi (${stInfo.exitTimeStr})</span>`;
           } else if (stInfo.key === 'VISITING') {
-            locDesc = `<span class="text-emerald-700 font-bold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Di Toko (${stInfo.distToStore !== null ? stInfo.distToStore + 'm' : '≤15m'})</span>`;
+            locDesc = `<span class="text-emerald-700 font-bold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Di Toko (${stInfo.distToStore !== null ? stInfo.distToStore + 'm' : '1m-50m'})</span>`;
           } else {
-            locDesc = `<span class="text-amber-700 font-bold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Diluar Radius Toko (${stInfo.distToStore !== null ? (stInfo.distToStore < 1000 ? stInfo.distToStore + 'm' : (stInfo.distToStore/1000).toFixed(1) + 'km') : '>15m'})</span>`;
+            locDesc = `<span class="text-amber-700 font-bold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Diluar Radius Toko (${stInfo.distToStore !== null ? (stInfo.distToStore < 1000 ? stInfo.distToStore + 'm' : (stInfo.distToStore/1000).toFixed(1) + 'km') : '>50m'})</span>`;
           }
 
           locHtml = `
@@ -13876,7 +13876,7 @@ Instruksi:
             <i class="fa-solid fa-clock text-emerald-600"></i>
             <span>In: ${actualIn} &bull; Out: ${actualOut}</span>
           </div>
-          <div class="text-[10px] text-slate-500">Radius Geofence: ${this.isMallToleranceActive ? 'Toleransi 50m' : 'Standar 15m'}</div>
+          <div class="text-[10px] text-slate-500">Radius Geofence: 1m-50m</div>
         </div>
 
         <div class="p-3 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-1">
@@ -15981,10 +15981,10 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
 
       this._liveLocStoreMarkerMap.set(codeStr, circle);
 
-      // Gambar Geofence 15m jika ada jadwal hari ini
+      // Gambar Geofence 1m-50m jika ada jadwal hari ini
       if (isScheduledToday) {
         L.circle([lat, lng], {
-          radius: 15,
+          radius: 50,
           color: '#009944',
           fillColor: '#009944',
           fillOpacity: 0.15,
@@ -16295,9 +16295,9 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
         if (myTodaySch) {
           let storeDistBadge = '';
           if (statusKey === 'VISITING') {
-            storeDistBadge = `<span class="text-[10px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">Radius ≤15m</span>`;
+            storeDistBadge = `<span class="text-[10px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">Radius 1m-50m</span>`;
           } else if (statusKey === 'OUTSIDE_RADIUS') {
-            storeDistBadge = `<span class="text-[10px] px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">${distTextToStore ? `${distTextToStore} dari toko` : '>15m'}</span>`;
+            storeDistBadge = `<span class="text-[10px] px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">${distTextToStore ? `${distTextToStore} dari toko` : '>50m'}</span>`;
           } else if (statusKey === 'EXITED') {
             storeDistBadge = `<span class="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-bold">Keluar (${stInfo.exitTimeStr})</span>`;
           } else {
