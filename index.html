@@ -76,43 +76,21 @@
   <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
+  <!-- Preload Critical Production Stylesheets -->
+  <link rel="preload" href="css/tailwind.min.css" as="style" />
   <link rel="preload" href="css/styles.css" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
-  <!-- Custom Styles -->
+  <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
+  <link rel="stylesheet" href="css/tailwind.min.css" />
   <link rel="stylesheet" href="css/styles.css" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous" />
-
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif']
-          },
-          colors: {
-            fm: {
-              green: '#009944',
-              greenDark: '#007a37',
-              greenLight: '#e6f7ee',
-              teal: '#0099a6',
-              tealDark: '#007c87',
-              tealLight: '#e6f6f8',
-              blue: '#0080c6'
-            }
-          }
-        }
-      }
-    };
-  </script>
 
   <!-- Deferred & Async Visualization / PDF Libraries -->
   <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
@@ -1048,7 +1026,7 @@
               <div class="flex items-center gap-2">
                 <div class="relative">
                   <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                  <input type="text" id="history-search-input" oninput="FMCUApp.renderHomeHistory()" placeholder="Cari toko / visitor..." class="fm-input pl-8 py-1.5 text-xs w-48 sm:w-60" aria-label="Cari toko / visitor..." />
+                  <input type="text" id="history-search-input" oninput="FMCUApp.debounceAction('history-search', () => FMCUApp.renderHomeHistory(), 200)" placeholder="Cari toko / visitor..." class="fm-input pl-8 py-1.5 text-xs w-48 sm:w-60" aria-label="Cari toko / visitor..." />
                 </div>
               </div>
             </div>
@@ -1107,7 +1085,7 @@
                 </select>
                 <div class="relative">
                   <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                  <input type="text" id="analytics-history-search" oninput="FMCUApp.renderAnalyticsHistory()" placeholder="🔍 Cari Toko / Site / Visitor..." class="fm-input pl-8 py-1.5 text-xs w-48 sm:w-60" aria-label="🔍 Cari Toko / Site / Visitor..." />
+                  <input type="text" id="analytics-history-search" oninput="FMCUApp.debounceAction('analytics-history', () => FMCUApp.renderAnalyticsHistory(), 250)" placeholder="🔍 Cari Toko / Site / Visitor..." class="fm-input pl-8 py-1.5 text-xs w-48 sm:w-60" aria-label="🔍 Cari Toko / Site / Visitor..." />
                 </div>
               </div>
             </div>
@@ -1829,7 +1807,7 @@
                         <input
                           type="text"
                           id="preview-report-search-input"
-                          oninput="FMCUApp.filterPreviewReports(this.value)"
+                          oninput="FMCUApp.debounceAction('filter-preview', () => FMCUApp.filterPreviewReports(this.value), 200)"
                           placeholder="Cari toko, kode, atau tanggal..."
                           class="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-[#0099A6]" aria-label="Cari toko, kode, atau tanggal..." />
                       </div>
@@ -2420,7 +2398,7 @@ service cloud.firestore {
                         <input
                           type="text"
                           id="adm-sch-list-search"
-                          oninput="FMCUApp.renderAdminView()"
+                          oninput="FMCUApp.debounceAction('adm-sch-list-search', () => FMCUApp.renderAdminView(), 200)"
                           placeholder="Cari Toko / Site / Visitor / Tanggal..."
                           class="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50/70 text-slate-800 placeholder-slate-400 text-xs font-semibold focus:outline-none focus:border-[#009944] focus:bg-white" aria-label="Cari Toko / Site / Visitor / Tanggal..." />
                       </div>
@@ -2614,7 +2592,7 @@ service cloud.firestore {
                     <input
                       type="text"
                       id="admin-sch-history-search"
-                      oninput="FMCUApp.renderAdminScheduleHistory()"
+                      oninput="FMCUApp.debounceAction('adm-sch-history-search', () => FMCUApp.renderAdminScheduleHistory(), 200)"
                       placeholder="Cari Toko, Site, Visitor, Store Head, atau Tanggal..."
                       class="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-slate-800 placeholder-slate-400 text-xs font-semibold focus:outline-none focus:border-[#009944] focus:bg-white" aria-label="Cari Toko, Site, Visitor, Store Head, atau Tanggal..." />
                   </div>
@@ -2789,7 +2767,7 @@ service cloud.firestore {
                 <!-- Search, Type Filter & Row Limit Controls -->
                 <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
                   <div class="sm:col-span-6">
-                    <input type="text" id="adm-store-search-input" oninput="FMCUApp.renderAdminStoresTable()" placeholder="🔍 Cari Site (0001), Nama Toko, City, Store Head, AM, RM..." class="fm-input text-xs" aria-label="🔍 Cari Site (0001), Nama Toko, City, Store Head, AM, RM..." />
+                    <input type="text" id="adm-store-search-input" oninput="FMCUApp.debounceAction('adm-store-search', () => FMCUApp.renderAdminStoresTable(), 250)" placeholder="🔍 Cari Site (0001), Nama Toko, City, Store Head, AM, RM..." class="fm-input text-xs" aria-label="🔍 Cari Site (0001), Nama Toko, City, Store Head, AM, RM..." />
                   </div>
                   <div class="sm:col-span-3">
                     <select id="adm-store-type-filter" onchange="FMCUApp.renderAdminStoresTable()" class="fm-input text-xs font-semibold" aria-label="Adm Store Type Filter">
@@ -2967,7 +2945,7 @@ service cloud.firestore {
                     <span id="admin-user-count" class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">0 User</span>
                   </div>
                   <div class="flex flex-wrap items-center gap-2">
-                    <input type="text" id="adm-user-search-input" oninput="FMCUApp.renderAdminView()" placeholder="🔍 Cari Nama, NIK, Jabatan..." class="fm-input text-xs py-1.5 w-48 sm:w-56" aria-label="🔍 Cari Nama, NIK, Jabatan..." />
+                    <input type="text" id="adm-user-search-input" oninput="FMCUApp.debounceAction('adm-user-search', () => FMCUApp.renderAdminView(), 200)" placeholder="🔍 Cari Nama, NIK, Jabatan..." class="fm-input text-xs py-1.5 w-48 sm:w-56" aria-label="🔍 Cari Nama, NIK, Jabatan..." />
                     <button type="button" onclick="FMCUApp.clearAllDataConfirm()" class="text-xs font-bold text-rose-600 hover:underline cursor-pointer">
                       <i class="fa-solid fa-trash-can mr-1"></i>Reset Data
                     </button>
@@ -3308,7 +3286,7 @@ service cloud.firestore {
               <div class="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between">
                 <div class="relative flex-1 max-w-md">
                   <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                  <input type="text" id="adm-holding-search" oninput="FMCUApp.renderAdminHoldingProductsTable()" placeholder="Cari nama produk (misal: Chicken, Siomay, Fresh Milk)..." class="fm-input text-xs pl-8 py-2 w-full" aria-label="Cari nama produk (misal: Chicken, Siomay, Fresh Milk)..." />
+                  <input type="text" id="adm-holding-search" oninput="FMCUApp.debounceAction('adm-holding-search', () => FMCUApp.renderAdminHoldingProductsTable(), 200)" placeholder="Cari nama produk (misal: Chicken, Siomay, Fresh Milk)..." class="fm-input text-xs pl-8 py-2 w-full" aria-label="Cari nama produk (misal: Chicken, Siomay, Fresh Milk)..." />
                 </div>
                 <div class="flex items-center gap-2">
                   <label class="text-xs font-bold text-slate-600 shrink-0">Kategori:</label>
@@ -3401,7 +3379,7 @@ service cloud.firestore {
             <!-- Search Input -->
             <div class="relative flex-1">
               <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-              <input type="text" id="live-loc-search-input" oninput="FMCUApp.onLiveLocSearch(this.value)" placeholder="Cari Nama Bestie, NIK, Toko FamilyMart, atau Kode Toko..." class="fm-input pl-9 text-xs" aria-label="Cari Nama Bestie, NIK, Toko FamilyMart, atau Kode Toko..." />
+              <input type="text" id="live-loc-search-input" oninput="FMCUApp.debounceAction('live-loc-search', () => FMCUApp.onLiveLocSearch(this.value), 200)" placeholder="Cari Nama Bestie, NIK, Toko FamilyMart, atau Kode Toko..." class="fm-input pl-9 text-xs" aria-label="Cari Nama Bestie, NIK, Toko FamilyMart, atau Kode Toko..." />
             </div>
 
             <!-- Bestie Quick Select Dropdown -->
@@ -3802,7 +3780,7 @@ service cloud.firestore {
       <div class="p-3 bg-white border-b border-slate-100 flex items-center gap-2 shrink-0">
         <div class="relative flex-1">
           <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
-          <input type="text" id="modal-map-search-input" oninput="FMCUApp.searchStoreOnModalMap(this.value)" placeholder="Cari toko FamilyMart atau nama Bestie/Visitor (contoh: Aan, Novita, Cindy, Sukajadi, 0001, Bandung)..." class="fm-input text-xs pl-8 py-1.5" aria-label="Cari toko FamilyMart atau nama Bestie/Visitor (contoh: Aan, Novita, Cindy, Sukajadi, 0001, Bandung)..." />
+          <input type="text" id="modal-map-search-input" oninput="FMCUApp.debounceAction('modal-map-search', () => FMCUApp.searchStoreOnModalMap(this.value), 200)" placeholder="Cari toko FamilyMart atau nama Bestie/Visitor (contoh: Aan, Novita, Cindy, Sukajadi, 0001, Bandung)..." class="fm-input text-xs pl-8 py-1.5" aria-label="Cari toko FamilyMart atau nama Bestie/Visitor (contoh: Aan, Novita, Cindy, Sukajadi, 0001, Bandung)..." />
         </div>
         <div id="modal-map-search-status" class="text-xs font-semibold text-slate-500 shrink-0 hidden sm:block"></div>
       </div>
@@ -3887,7 +3865,7 @@ service cloud.firestore {
       <div class="p-3 sm:p-4 border-b border-slate-100 bg-slate-50/70 space-y-2.5 shrink-0">
         <div class="relative">
           <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-          <input type="text" id="holding-user-search" oninput="FMCUApp.filterHoldingTimeModal()" placeholder="Cari nama produk (contoh: Chicken Parting, Siomay, Fresh Milk, Oden, Boba, Rice)..." class="w-full pl-9 pr-8 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-amber-500 shadow-2xs" aria-label="Cari nama produk (contoh: Chicken Parting, Siomay, Fresh Milk, Oden, Boba, Rice)..." />
+          <input type="text" id="holding-user-search" oninput="FMCUApp.debounceAction('holding-modal-search', () => FMCUApp.filterHoldingTimeModal(), 150)" placeholder="Cari nama produk (contoh: Chicken Parting, Siomay, Fresh Milk, Oden, Boba, Rice)..." class="w-full pl-9 pr-8 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-amber-500 shadow-2xs" aria-label="Cari nama produk (contoh: Chicken Parting, Siomay, Fresh Milk, Oden, Boba, Rice)..." />
           <button type="button" onclick="document.getElementById('holding-user-search').value = ''; FMCUApp.filterHoldingTimeModal();" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs" aria-label="Bersihkan pencarian">
             <i class="fa-solid fa-circle-xmark"></i>
           </button>
@@ -4086,7 +4064,7 @@ service cloud.firestore {
             <input
               type="text"
               id="weekly-picker-search-input"
-              oninput="FMCUApp.onWeeklyStorePickerSearch(this.value)"
+              oninput="FMCUApp.debounceAction('weekly-picker-search', () => FMCUApp.onWeeklyStorePickerSearch(this.value), 200)"
               placeholder="Cari Site (0001), Nama Toko, Alamat, Kota, atau Area Manager..."
               class="w-full pl-9 pr-9 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#009944] focus:ring-2 focus:ring-[#009944]/20 shadow-2xs font-semibold" aria-label="Cari Site (0001), Nama Toko, Alamat, Kota, atau Area Manager..." />
             <button

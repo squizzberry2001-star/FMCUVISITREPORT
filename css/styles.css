@@ -49,9 +49,23 @@ html, body, .overflow-y-auto, .overflow-x-auto, .scrollable, [class*="overflow-"
 
 /* Hardware accelerated transitions without CPU layout thrashing */
 .view-section {
-  will-change: transform, opacity;
   transform: translateZ(0);
+  contain: layout style;
   animation: fadeSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.view-section.hidden,
+.view-pane.hidden,
+[id^="view-"].hidden {
+  display: none !important;
+  content-visibility: hidden;
+  contain: strict;
+}
+
+/* Isolate Form and Admin cards from layout reflows */
+.form-section-card,
+.admin-card-section {
+  contain: content;
 }
 
 /* High-performance off-screen content skipping for long lists (Android, iOS 18+, Desktop) */
@@ -610,7 +624,9 @@ html, body, .overflow-y-auto, .overflow-x-auto, .scrollable, [class*="overflow-"
   box-sizing: border-box;
   overflow: hidden;
   resize: none;
-  transition: height 0.1s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  field-sizing: content;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  contain: layout paint;
 }
 
 /* Mobile Date Input normalization & alignment */

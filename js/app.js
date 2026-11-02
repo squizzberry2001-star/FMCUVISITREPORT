@@ -8,6 +8,14 @@
 
 window.FMCUApp = {
   currentView: 'home',
+  _debouncedSearchTimers: {},
+  debounceAction(key, fn, delay = 250) {
+    if (this._debouncedSearchTimers[key]) clearTimeout(this._debouncedSearchTimers[key]);
+    this._debouncedSearchTimers[key] = setTimeout(() => {
+      delete this._debouncedSearchTimers[key];
+      if (typeof fn === 'function') fn();
+    }, delay);
+  },
   currentAdminTab: 'schedules',
   currentScheduleSubSection: 'create',
   currentAnalyticsSubSection: 'history',
@@ -2344,16 +2352,31 @@ window.FMCUApp = {
 
   autoExpandTextarea(el) {
     if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = Math.max(el.scrollHeight, 42) + 'px';
+    if (typeof CSS !== 'undefined' && CSS.supports && CSS.supports('field-sizing', 'content')) {
+      return;
+    }
+    if (el._rafExpand) cancelAnimationFrame(el._rafExpand);
+    el._rafExpand = requestAnimationFrame(() => {
+      const newH = Math.max(el.scrollHeight, 42);
+      if (Math.abs(el.clientHeight - newH) > 4) {
+        el.style.height = 'auto';
+        el.style.height = newH + 'px';
+      }
+    });
   },
 
   expandAllVisibleTextareas() {
+    if (typeof CSS !== 'undefined' && CSS.supports && CSS.supports('field-sizing', 'content')) {
+      return;
+    }
     requestAnimationFrame(() => {
       document.querySelectorAll('#view-form textarea.fm-auto-textarea, #view-form textarea').forEach((ta) => {
         if (ta.offsetParent !== null) {
-          ta.style.height = 'auto';
-          ta.style.height = Math.max(ta.scrollHeight, 42) + 'px';
+          const newH = Math.max(ta.scrollHeight, 42);
+          if (Math.abs(ta.clientHeight - newH) > 4) {
+            ta.style.height = 'auto';
+            ta.style.height = newH + 'px';
+          }
         }
       });
     });
@@ -6012,13 +6035,19 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
   // ==========================================================================
   // HALAMAN 2: FORM VISIT STORE LOGIC & DYNAMIC SECTIONS
   // ==========================================================================
-  populateMasterStoreSelect() {
+  _masterStoreSelectHtml: null,
+  populateMasterStoreSelect(forceRefresh = false) {
     const sel = document.getElementById('form-store-select');
     if (!sel) return;
-    const stores = window.FMCUData.getStores();
-    sel.innerHTML =
-      `<option value="">-- Pilih dari Master Toko --</option>` +
-      stores.map((s) => `<option value="${s.code}">${s.code} - ${s.name} (${s.type})</option>`).join('');
+    if (!this._masterStoreSelectHtml || forceRefresh) {
+      const stores = window.FMCUData.getStores(forceRefresh);
+      this._masterStoreSelectHtml =
+        `<option value="">-- Pilih dari Master Toko --</option>` +
+        stores.map((s) => `<option value="${s.code}">${s.code} - ${s.name} (${s.type})</option>`).join('');
+    }
+    if (sel.innerHTML !== this._masterStoreSelectHtml) {
+      sel.innerHTML = this._masterStoreSelectHtml;
+    }
   },
 
   setupFormAutoDraftListeners() {
@@ -6180,14 +6209,28 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
 
   _formDirty: false,
   _lastLocalFormEditMs: 0,
-  triggerAutoSaveDraft() {
+  triggerAutoSaveDraft(immediate = false) {
     if (this._isHydratingForm) return;
     this._formDirty = true;
     this._lastLocalFormEditMs = Date.now();
-    if (this._draftSaveTimer) clearTimeout(this._draftSaveTimer);
-    this._draftSaveTimer = setTimeout(() => {
+    if (this._draftSaveTimer) {
+      clearTimeout(this._draftSaveTimer);
+      this._draftSaveTimer = null;
+    }
+    if (immediate) {
       this.saveCurrentFormDraft();
-    }, 350);
+      return;
+    }
+    this._draftSaveTimer = setTimeout(() => {
+      this._draftSaveTimer = null;
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(() => {
+          if (this._formDirty) this.saveCurrentFormDraft();
+        }, { timeout: 1000 });
+      } else {
+        this.saveCurrentFormDraft();
+      }
+    }, 1200);
   },
 
   populateStoreFields(st) {
@@ -6367,7 +6410,14 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         this.formCrew.unshift({ role: 'Store Head', name: storeHeadName || '', jobLevel: '' });
       }
     }
-    this.renderCrewTable();
+    const desktopInput = document.querySelector('#form-crew-tbody tr:first-child input[type="text"]');
+    if (desktopInput && desktopInput.value !== (storeHeadName || '')) {
+      desktopInput.value = storeHeadName || '';
+    }
+    const mobileInput = document.querySelector('#form-crew-mobile-list > div:first-child input[type="text"]');
+    if (mobileInput && mobileInput.value !== (storeHeadName || '')) {
+      mobileInput.value = storeHeadName || '';
+    }
   },
 
   resetVisitForm(silent = false) {
@@ -8499,6 +8549,10 @@ Instruksi:
     const visitDate = document.getElementById('form-visit-date')?.value || new Date().toISOString().slice(0, 10);
     const settings = window.FMCUData.getSettings();
 
+    const clonePhotos = (arr) => Array.isArray(arr) ? arr.map((p) => ({ ...p })) : [];
+    const cloneCrew = (arr) => Array.isArray(arr) ? arr.map((c) => ({ ...c })) : [];
+    const caClones = clonePhotos(this.formCaPhotos);
+
     return {
       id: existingId || 'rep-' + Date.now(),
       enableOpi: this.enableOpi !== false,
@@ -8525,7 +8579,7 @@ Instruksi:
       gpsLat: this.liveGps.lat,
       gpsLng: this.liveGps.lng,
       qscScore: Number(document.getElementById('form-qsc-score')?.value || 0),
-      crewList: JSON.parse(JSON.stringify(this.formCrew)),
+      crewList: cloneCrew(this.formCrew),
       qscPhotos: (this.formQscPhotos || []).map((p, idx) => ({
         id: p.id || `qsc-${Date.now()}-${idx + 1}`,
         caption: p.caption || (idx === 0 ? 'Lembar Form QSC / FamiTrack #1 (Wajib)' : 'Lembar Form QSC / FamiTrack #2 (Wajib)'),
@@ -8543,9 +8597,9 @@ Instruksi:
         ...o,
         deadlineFormatted: o.deadlineFormatted || window.FMCUPdf.formatIndonesianDate(o.deadline, false)
       })),
-      evidencePhotos: JSON.parse(JSON.stringify(this.formEvidencePhotos)),
-      caPhotos: JSON.parse(JSON.stringify(this.formCaPhotos || [])),
-      correctiveActionPhotos: JSON.parse(JSON.stringify(this.formCaPhotos || [])),
+      evidencePhotos: clonePhotos(this.formEvidencePhotos),
+      caPhotos: caClones,
+      correctiveActionPhotos: caClones,
       caLink: document.getElementById('form-ca-link')?.value?.trim() || '',
       createdAt: new Date().toISOString()
     };
@@ -16948,7 +17002,16 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
   },
 
   // Point 6: Circular Progress Ring & Audit Completion Calculator
+  _updateProgressTimer: null,
   updateFormProgress() {
+    if (this._updateProgressTimer) return;
+    this._updateProgressTimer = setTimeout(() => {
+      this._updateProgressTimer = null;
+      this._calculateFormProgress();
+    }, 250);
+  },
+
+  _calculateFormProgress() {
     let progress = 0;
     const storeName = document.getElementById('form-store-name')?.value;
     if (storeName && storeName.trim()) progress += 25;
@@ -16980,10 +17043,6 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
       const offset = circumference - (progress / 100) * circumference;
       circle.style.strokeDashoffset = offset;
       text.textContent = `${progress}%`;
-    }
-
-    if (typeof this.debounceSaveDraft === 'function') {
-      this.debounceSaveDraft();
     }
   },
 

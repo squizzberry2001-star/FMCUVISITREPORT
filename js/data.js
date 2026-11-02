@@ -649,7 +649,10 @@ window.FMCUData = {
 
     // Otomatis isi & sinkronisasi lengkap Master Toko dari hasil ekstraksi "10. List PIC Oktober 2026_rev01.xlsx"
     const currentStores = JSON.parse(localStorage.getItem(STORAGE_KEYS.STORES) || '[]');
-    if (Array.isArray(window.FMCU_INITIAL_STORES) && window.FMCU_INITIAL_STORES.length > 0) {
+    const seedLen = Array.isArray(window.FMCU_INITIAL_STORES) ? window.FMCU_INITIAL_STORES.length : 0;
+    if (currentStores.length > 0 && currentStores.length >= seedLen && currentStores[0] && currentStores[0].lat !== undefined) {
+      this._cachedStores = currentStores;
+    } else if (seedLen > 0) {
       const existingMap = new Map();
       currentStores.forEach((s) => existingMap.set(String(s.code), s));
       let hasUpdate = false;
@@ -675,6 +678,7 @@ window.FMCUData = {
         const fullStores = Array.from(existingMap.values()).sort((a, b) =>
           String(a.code || '').localeCompare(String(b.code || ''), undefined, { numeric: true })
         );
+        this._cachedStores = fullStores;
         localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(fullStores));
       }
     } else if (!localStorage.getItem(STORAGE_KEYS.STORES)) {
