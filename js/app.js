@@ -274,9 +274,10 @@ window.FMCUApp = {
       }
     });
     window.addEventListener('blur', () => {
-      if (this.currentView === 'form') {
+      if (this.currentView === 'form' && this._formDirty) {
         this.syncAllFormInputsToMemory();
         this.saveCurrentFormDraft();
+        this._formDirty = false;
       }
     });
     setInterval(() => {
@@ -387,6 +388,7 @@ window.FMCUApp = {
       }
     }
     if (collectionName === 'stores') {
+      this._homeStoresRendered = false;
       this.populateMasterStoreSelect();
     }
     if (collectionName === 'schedules') {
@@ -2371,6 +2373,7 @@ window.FMCUApp = {
 
     if (mode === 'create') {
       this.switchScheduleCreateMode('weekly');
+      this.renderWeeklySchedulePlanner();
     } else if (mode === 'calendar') {
       this.renderAdminCalendarView();
     } else if (mode === 'history') {
@@ -2537,7 +2540,10 @@ window.FMCUApp = {
   _modalStoreMarkerMap: null,
   _modalBestieMarkerMap: null,
 
-  initOrUpdateHomeMap() {
+  _homeStoresRendered: false,
+  homeActiveStoreLayer: null,
+
+  initOrUpdateHomeMap(forceStoreRefresh = false) {
     const mapContainer = document.getElementById('home-live-map');
     if (!mapContainer || typeof L === 'undefined') return;
 
@@ -2547,7 +2553,8 @@ window.FMCUApp = {
     if (!this.homeMap) {
       this.homeMap = L.map('home-live-map', {
         zoomControl: true,
-        attributionControl: false
+        attributionControl: false,
+        preferCanvas: true // HTML5 Canvas: 10x lebih cepat & hemat baterai/RAM di iOS/Android
       }).setView([centerLat, centerLng], 12);
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -2557,88 +2564,95 @@ window.FMCUApp = {
       this.homeMap.setView([centerLat, centerLng], this.isHomeMapExpanded ? 13 : 12);
     }
 
-    // Bersihkan marker layer lama jika ada
-    if (this.homeStoreLayer) {
-      this.homeMap.removeLayer(this.homeStoreLayer);
+    // 1. Layer Master Toko Statis (Dibuat 1x agar tidak membebani memori smartphone)
+    if (!this.homeStoreLayer) {
+      this.homeStoreLayer = L.layerGroup().addTo(this.homeMap);
+      this._homeStoresRendered = false;
     }
-    this.homeStoreLayer = L.layerGroup().addTo(this.homeMap);
 
-    if (this.homeBestieLayer) {
-      this.homeMap.removeLayer(this.homeBestieLayer);
-    }
-    this.homeBestieLayer = L.layerGroup().addTo(this.homeMap);
-
-    // Ambil Master Toko (pastikan selalu memiliki koordinat)
     let stores = window.FMCUData.getStores();
     if (!stores || stores.length === 0 || !stores.some((s) => s.lat || s.latitude)) {
       stores = Array.isArray(window.FMCU_INITIAL_STORES) ? window.FMCU_INITIAL_STORES : [];
     }
 
+    if (forceStoreRefresh || !this._homeStoresRendered) {
+      this.homeStoreLayer.clearLayers();
+      stores.forEach((st) => {
+        const lat = Number(st.lat ?? st.latitude);
+        const lng = Number(st.lng ?? st.longitude);
+        if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) return;
+
+        const m = L.circleMarker([lat, lng], {
+          radius: 5,
+          fillColor: '#009944',
+          color: '#ffffff',
+          weight: 1.5,
+          fillOpacity: 0.95
+        }).addTo(this.homeStoreLayer);
+
+        m.bindPopup(`
+          <div class="text-xs p-1 space-y-1.5" style="min-width: 210px;">
+            <div class="font-extrabold text-emerald-800 text-sm flex items-center gap-1.5">
+              <i class="fa-solid fa-store text-[#009944]"></i>
+              <span>FamilyMart ${st.name}</span>
+            </div>
+            <div class="text-[11px] font-mono text-slate-500 font-bold">
+              Site: ${st.code} • ${st.type || 'CVS'}
+            </div>
+            <div class="text-[11px] text-slate-700 leading-snug">
+              ${st.address || st.city || '-'}
+            </div>
+            <div class="pt-1 flex items-center justify-between border-t border-slate-100 text-[10px]">
+              <span class="text-slate-500">PIC: <strong>${st.storeHead || '-'}</strong></span>
+              <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener noreferrer" class="font-bold text-[#0099A6] hover:underline flex items-center gap-1">
+                <span>Buka Rute</span>
+                <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+              </a>
+            </div>
+          </div>
+        `);
+      });
+      this._homeStoresRendered = true;
+    }
+
+    // 2. Layer Toko Aktif & Geofence 15m (Dibuat terpisah agar update instan tanpa memproses 610 marker)
+    if (!this.homeActiveStoreLayer) {
+      this.homeActiveStoreLayer = L.layerGroup().addTo(this.homeMap);
+    }
+    this.homeActiveStoreLayer.clearLayers();
+
     const activeCheckIn = window.FMCUData.getActiveCheckIn();
     const activeStoreCode = activeCheckIn?.storeCode || null;
+    if (activeStoreCode) {
+      const activeStore = stores.find((s) => String(s.code) === String(activeStoreCode));
+      if (activeStore) {
+        const aLat = Number(activeStore.lat ?? activeStore.latitude);
+        const aLng = Number(activeStore.lng ?? activeStore.longitude);
+        if (!isNaN(aLat) && !isNaN(aLng) && aLat !== 0 && aLng !== 0) {
+          L.circleMarker([aLat, aLng], {
+            radius: 9,
+            fillColor: '#f59e0b',
+            color: '#ffffff',
+            weight: 3,
+            fillOpacity: 0.95
+          }).addTo(this.homeActiveStoreLayer);
 
-    // Render seluruh titik toko FamilyMart
-    stores.forEach((st) => {
-      const lat = Number(st.lat ?? st.latitude);
-      const lng = Number(st.lng ?? st.longitude);
-      if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) return;
-
-      const isTargetActive = activeStoreCode && String(st.code) === String(activeStoreCode);
-
-      const m = L.circleMarker([lat, lng], {
-        radius: isTargetActive ? 9 : 6,
-        fillColor: isTargetActive ? '#f59e0b' : '#009944',
-        color: '#ffffff',
-        weight: isTargetActive ? 3 : 2,
-        fillOpacity: 0.95
-      }).addTo(this.homeStoreLayer);
-
-      // Jika toko aktif, gambarkan lingkaran radius geofence 15m
-      if (isTargetActive) {
-        L.circle([lat, lng], {
-          radius: 15,
-          color: '#009944',
-          fillColor: '#009944',
-          fillOpacity: 0.15,
-          weight: 2,
-          dashArray: '4, 4'
-        }).addTo(this.homeStoreLayer);
-      }
-
-      // Jarak dari posisi user
-      let distText = '';
-      if (this.liveGps.lat !== null && this.liveGps.lng !== null) {
-        const d = this.calculateHaversineDistance(this.liveGps.lat, this.liveGps.lng, lat, lng);
-        if (d !== null) {
-          distText = d < 1000 ? `${d} meter` : `${(d / 1000).toFixed(1)} km`;
+          L.circle([aLat, aLng], {
+            radius: 15,
+            color: '#009944',
+            fillColor: '#009944',
+            fillOpacity: 0.15,
+            weight: 2,
+            dashArray: '4, 4'
+          }).addTo(this.homeActiveStoreLayer);
         }
       }
+    }
 
-      m.bindPopup(`
-        <div class="text-xs p-1 space-y-1.5" style="min-width: 210px;">
-          <div class="font-extrabold text-emerald-800 text-sm flex items-center gap-1.5">
-            <i class="fa-solid fa-store text-[#009944]"></i>
-            <span>FamilyMart ${st.name}</span>
-          </div>
-          <div class="text-[11px] font-mono text-slate-500 font-bold">
-            Site: ${st.code} • ${st.type || 'CVS'}
-          </div>
-          <div class="text-[11px] text-slate-700 leading-snug">
-            ${st.address || st.city || '-'}
-          </div>
-          <div class="text-[10px] font-mono text-slate-600 bg-slate-50 p-1 rounded border border-slate-200">
-            📍 ${lat.toFixed(5)}, ${lng.toFixed(5)} ${distText ? `• <strong>${distText}</strong>` : ''}
-          </div>
-          <div class="pt-1 flex items-center justify-between border-t border-slate-100 text-[10px]">
-            <span class="text-slate-500">PIC: <strong>${st.storeHead || '-'}</strong></span>
-            <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener noreferrer" class="font-bold text-[#0099A6] hover:underline flex items-center gap-1">
-              <span>Buka Rute</span>
-              <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
-            </a>
-          </div>
-        </div>
-      `);
-    });
+    // 3. Layer Bestie
+    if (!this.homeBestieLayer) {
+      this.homeBestieLayer = L.layerGroup().addTo(this.homeMap);
+    }
 
     // Render User Live GPS Marker
     if (this.userMarker) {
@@ -4141,7 +4155,7 @@ window.FMCUApp = {
     // Subtle auto-peek reminder berkala setiap 9 detik jika masih di section overview
     if (this._subtabInterval) clearInterval(this._subtabInterval);
     this._subtabInterval = setInterval(() => {
-      if (this.currentView !== 'home' || this.currentHomeSubSection !== 'overview') return;
+      if (this.currentView !== 'home' || this.currentHomeSubSection !== 'overview' || document.hidden) return;
       const maxScroll = track.scrollWidth - track.clientWidth;
       if (maxScroll > 10 && track.scrollLeft <= 5) {
         track.scrollTo({ left: Math.min(80, maxScroll), behavior: 'smooth' });
@@ -6055,7 +6069,9 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     }
   },
 
+  _formDirty: false,
   triggerAutoSaveDraft() {
+    this._formDirty = true;
     if (this._draftSaveTimer) clearTimeout(this._draftSaveTimer);
     this._draftSaveTimer = setTimeout(() => {
       this.saveCurrentFormDraft();
@@ -10307,9 +10323,10 @@ Instruksi:
     // 0. Render Food Safety & Critical Findings Widget
     this.renderAdminCriticalFindingsWidget();
 
-    // 0. Render Interactive 5-Day Multi-Visitor Planner
-    this.renderWeeklySchedulePlanner();
-    if (this.currentScheduleSubSection === 'calendar') {
+    // 0. Render Interactive 5-Day Multi-Visitor Planner (HANYA saat sub-section 'create' aktif)
+    if (!this.currentScheduleSubSection || this.currentScheduleSubSection === 'create') {
+      this.renderWeeklySchedulePlanner();
+    } else if (this.currentScheduleSubSection === 'calendar') {
       this.renderAdminCalendarView();
     } else if (this.currentScheduleSubSection === 'history') {
       this.renderAdminScheduleHistory();
@@ -16600,6 +16617,7 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
     this.stopNewsAutoSlide();
     if (this.newsItems && this.newsItems.length > 1) {
       this.newsTimer = setInterval(() => {
+        if (this.currentView !== 'home' || document.hidden) return;
         this.nextNewsSlide();
       }, 6000);
     }

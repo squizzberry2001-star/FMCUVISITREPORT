@@ -25,17 +25,39 @@
 html {
   scroll-behavior: smooth;
   font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeSpeed;
 }
 
 body {
   background-color: #f4f7f9;
   color: var(--text-main);
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Smooth Page & Section Transitions */
+/* Fast tap response for touch devices (iOS Safari, Android Chrome) */
+button, a, input, select, textarea, [role="button"], label {
+  touch-action: manipulation;
+}
+
+/* Native smooth momentum scrolling on iOS Safari */
+html, body, .overflow-y-auto, .overflow-x-auto, .scrollable, [class*="overflow-"] {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Hardware accelerated transitions without CPU layout thrashing */
 .view-section {
-  animation: fadeSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  animation: fadeSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* High-performance off-screen content skipping for long lists (Android, iOS 18+, Desktop) */
+#home-schedule-list > div, #home-history-list > div, #admin-sch-history-list > div {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 110px;
 }
 
 @keyframes fadeSlideUp {
