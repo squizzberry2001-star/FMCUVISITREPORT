@@ -1242,10 +1242,10 @@ window.FMCUData = {
 
   initGasDatabaseSync() {
     // 1. Sinkronisasi pertama saat web app dimuat
-    setTimeout(() => this.syncAllFromGasDatabase(), 1200);
+    setTimeout(() => this.syncAllFromGasDatabase(), 800);
 
-    // 2. Smart Polling berkala (setiap 20 detik):
-    // Memperbarui Jadwal baru & Lokasi Live GPS Bestie secara otomatis tanpa limit 429
+    // 2. High-Frequency Edge Polling (setiap 4 detik saat tab aktif):
+    // Memperbarui Jadwal baru & Lokasi Live GPS Bestie seketika via Cloudflare D1 (~20ms)
     if (this._gasPollingInterval) {
       clearInterval(this._gasPollingInterval);
     }
@@ -1253,7 +1253,20 @@ window.FMCUData = {
       if (typeof document !== 'undefined' && !document.hidden) {
         this.syncAllFromGasDatabase(true);
       }
-    }, 20000);
+    }, 4000);
+
+    // 3. Instant Sync saat tab kembali aktif atau difokuskan oleh user
+    if (typeof document !== 'undefined' && !this._hasAttachedVisibilitySync) {
+      this._hasAttachedVisibilitySync = true;
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+          this.syncAllFromGasDatabase(true);
+        }
+      });
+      window.addEventListener('focus', () => {
+        this.syncAllFromGasDatabase(true);
+      });
+    }
   },
 
 
@@ -1517,6 +1530,12 @@ window.FMCUData = {
         const cloudSchedules = [];
         const seenIds = new Set();
 
+        // Inisialisasi daftar id jadwal yang pernah dihapus agar tidak hidup lagi
+        try {
+          const persisted = JSON.parse(localStorage.getItem('fmcu_deleted_sch_ids_v1') || '[]');
+          persisted.forEach((id) => this._deletedScheduleIds.add(String(id)));
+        } catch (e) {}
+
         snapshot.forEach((doc) => {
           const d = doc.data();
           if (d && d.id && !this._deletedScheduleIds.has(String(d.id))) {
@@ -1526,11 +1545,12 @@ window.FMCUData = {
           }
         });
 
-        // Pertahankan jadwal lokal yang baru dibuat Admin/User yang belum sempat ter-broadcast atau saat quota limit
+        // HANYA pertahankan jadwal lokal yang benar-benar dibuat saat offline (isOfflineCreated === true).
+        // Mencegah jadwal yang sudah dihapus oleh admin lain ter-upload ulang ke Firestore.
         localSchedules.forEach((locSch) => {
           if (!locSch || !locSch.id) return;
           const sid = String(locSch.id);
-          if (!seenIds.has(sid) && !this._deletedScheduleIds.has(sid)) {
+          if (locSch.isOfflineCreated && !seenIds.has(sid) && !this._deletedScheduleIds.has(sid)) {
             seenIds.add(sid);
             cloudSchedules.push(locSch);
             if (this.db) {
@@ -2199,8 +2219,8 @@ window.FMCUData = {
     this._cachedSchedules = schedules;
     localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
 
-    // 1. Simpan atomic ke Google Apps Script Hidden Vault (1 single request, 0 queue delay)
-    this.callGasDatabase('db_save_collection', { collection: 'schedules', data: schedules });
+    // 1. Simpan atomic ke Cloudflare D1 Edge DB (1 single request ~20ms)
+    this.callGasDatabase('db_save_item', { collection: 'schedules', item: enrichedSch });
 
     // 2. Broadcast instan 0ms ke semua tab/window aktif
     this.broadcastSync({ type: 'SCHEDULE_SAVED', schedule: enrichedSch });
@@ -2213,7 +2233,7 @@ window.FMCUData = {
         .set(sanitizeForFirestore(enrichedSch), { merge: true })
         .catch((e) => {
           if (e && (e.code === 'resource-exhausted' || e.message?.includes('429'))) {
-            this.setCloudStatus('QUOTA_EXCEEDED', 'Batas kuota harian Firestore tercapai (429). Jadwal tersimpan aman di Google Drive Vault.');
+            this.setCloudStatus('QUOTA_EXCEEDED', 'Batas kuota harian Firestore tercapai (429). Jadwal tersimpan aman di Cloudflare Edge DB.');
           }
         });
     }
@@ -2223,12 +2243,20 @@ window.FMCUData = {
     if (!scheduleId) return;
     const docId = String(scheduleId);
     this._deletedScheduleIds.add(docId);
+    try {
+      const persistedDeleted = JSON.parse(localStorage.getItem('fmcu_deleted_sch_ids_v1') || '[]');
+      if (!persistedDeleted.includes(docId)) {
+        persistedDeleted.push(docId);
+        localStorage.setItem('fmcu_deleted_sch_ids_v1', JSON.stringify(persistedDeleted.slice(-200)));
+      }
+    } catch (e) {}
+
     const schedules = (this.getSchedules() || []).filter((s) => String(s.id) !== docId);
     this._cachedSchedules = schedules;
     localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
 
-    // 1. Simpan langsung perubahan ke Google Apps Script Hidden Vault
-    this.callGasDatabase('db_save_collection', { collection: 'schedules', data: schedules });
+    // 1. Hapus langsung di Cloudflare D1 Edge DB (~20ms atomic delete)
+    this.callGasDatabase('db_delete_item', { collection: 'schedules', id: docId });
 
     this.broadcastSync({ type: 'SCHEDULE_DELETED', scheduleId: docId });
 
@@ -2244,12 +2272,21 @@ window.FMCUData = {
   deleteBulkSchedules(ids = []) {
     if (!ids || ids.length === 0) return;
     const idSet = new Set(ids.map(String));
+    ids.forEach((id) => this._deletedScheduleIds.add(String(id)));
+    try {
+      const persistedDeleted = JSON.parse(localStorage.getItem('fmcu_deleted_sch_ids_v1') || '[]');
+      ids.forEach((id) => {
+        if (!persistedDeleted.includes(String(id))) persistedDeleted.push(String(id));
+      });
+      localStorage.setItem('fmcu_deleted_sch_ids_v1', JSON.stringify(persistedDeleted.slice(-200)));
+    } catch (e) {}
+
     const schedules = (this.getSchedules() || []).filter((s) => !idSet.has(String(s.id)));
     this._cachedSchedules = schedules;
     localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
 
-    // Simpan list terbaru ke Google Apps Script Hidden Vault
-    this.callGasDatabase('db_save_collection', { collection: 'schedules', data: schedules });
+    // Hapus batch di Cloudflare D1 Edge DB
+    this.callGasDatabase('db_delete_items', { collection: 'schedules', ids: ids });
     this.broadcastSync({ type: 'SCHEDULES_UPDATED', count: schedules.length });
 
     if (this.db) {

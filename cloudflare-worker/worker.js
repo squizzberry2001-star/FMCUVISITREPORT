@@ -309,6 +309,48 @@ async function handleRequest(request, env) {
     }
 
     // ========================================================================
+    // 3B. DELETE ITEM TUNGGAL / BANYAK
+    // ========================================================================
+    if (pathname.endsWith('/delete-item') || action === 'db_delete_item') {
+      const coll = payload.collection || '';
+      const id = String(payload.id || '');
+      if (!coll || !id) {
+        return jsonResponse({ status: 'ERROR', message: 'Collection dan id wajib disertakan' }, 400);
+      }
+      if (coll === 'schedules') {
+        await env.DB.prepare('DELETE FROM schedules WHERE id = ?').bind(id).run();
+        return jsonResponse({ status: 'SUCCESS', action: 'db_delete_item', collection: coll, id });
+      }
+      if (coll === 'users') {
+        await env.DB.prepare('DELETE FROM users WHERE id = ?').bind(id).run();
+        return jsonResponse({ status: 'SUCCESS', action: 'db_delete_item', collection: coll, id });
+      }
+      if (coll === 'stores') {
+        await env.DB.prepare('DELETE FROM stores WHERE code = ?').bind(id).run();
+        return jsonResponse({ status: 'SUCCESS', action: 'db_delete_item', collection: coll, code: id });
+      }
+      if (coll === 'reports') {
+        await env.DB.prepare('DELETE FROM reports WHERE id = ?').bind(id).run();
+        return jsonResponse({ status: 'SUCCESS', action: 'db_delete_item', collection: coll, id });
+      }
+      return jsonResponse({ status: 'ERROR', message: `Collection ${coll} tidak dikenali` }, 400);
+    }
+
+    if (pathname.endsWith('/delete-items') || action === 'db_delete_items') {
+      const coll = payload.collection || '';
+      const ids = Array.isArray(payload.ids) ? payload.ids.map(String) : [];
+      if (!coll || ids.length === 0) {
+        return jsonResponse({ status: 'ERROR', message: 'Collection dan ids wajib disertakan' }, 400);
+      }
+      if (coll === 'schedules') {
+        const stmts = ids.map((id) => env.DB.prepare('DELETE FROM schedules WHERE id = ?').bind(id));
+        await env.DB.batch(stmts);
+        return jsonResponse({ status: 'SUCCESS', action: 'db_delete_items', collection: coll, count: ids.length });
+      }
+      return jsonResponse({ status: 'ERROR', message: `Collection ${coll} tidak dikenali` }, 400);
+    }
+
+    // ========================================================================
     // 4. SAVE COLLECTION UTUH (Batch Replacement)
     // ========================================================================
     if (pathname.endsWith('/save-collection') || action === 'db_save_collection') {
