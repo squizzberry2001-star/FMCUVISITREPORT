@@ -258,12 +258,20 @@ window.FMCUApp = {
       if (savedAnalyticsSub && (savedAnalyticsSub === 'history' || savedAnalyticsSub === 'performance')) {
         this.currentAnalyticsSubSection = savedAnalyticsSub;
       }
-      const savedAdminTab = sessionStorage.getItem('fmcu_active_admin_tab');
-      const savedView = sessionStorage.getItem('fmcu_active_view');
+      const savedAdminTab = sessionStorage.getItem('fmcu_active_admin_tab') || localStorage.getItem('fmcu_active_admin_tab');
+      const savedView = localStorage.getItem('fmcu_active_view') || sessionStorage.getItem('fmcu_active_view');
       const targetView = (savedView && this.isViewAllowedForUser(savedView, this.currentUser))
         ? savedView
         : this.getFirstAllowedView(this.currentUser);
       this.navigate(targetView, savedAdminTab || null);
+
+      // Restore active form section jika user sebelumnya sedang mengisi form
+      if (targetView === 'form') {
+        const savedSec = Number(localStorage.getItem('fmcu_active_form_section') || sessionStorage.getItem('fmcu_active_form_section') || 1);
+        if (savedSec >= 1 && savedSec <= 3) {
+          setTimeout(() => this.switchFormSection(savedSec, false), 150);
+        }
+      }
     }
 
     // Aktifkan pemantau Time Session & Tab Close
@@ -318,9 +326,7 @@ window.FMCUApp = {
         this.recordAppHeartbeat();
         flushActiveFormBeforeExit();
         sessionStorage.setItem(window.FMCUData.TAB_UNLOAD_KEY, String(Date.now()));
-        if (this.currentUser && this.isAuditorUser(this.currentUser)) {
-          window.FMCUData.markUserExited(this.currentUser.id);
-        }
+        // Note: markUserExited hanya dipanggil saat user secara sadar mengklik Logout
       } catch (e) {}
     };
     window.addEventListener('pagehide', markUnload);
@@ -350,28 +356,17 @@ window.FMCUApp = {
       const now = Date.now();
       if (now - lastTouch > 10000) {
         lastTouch = now;
-        const ok = window.FMCUData.touchSession();
-        if (!ok) {
-          this.logout('Sesi waktu login Anda telah berakhir. Silakan login kembali.');
-        }
+        window.FMCUData.touchSession();
       }
     };
     ['click', 'keydown', 'touchstart', 'scroll'].forEach((evt) => {
       window.addEventListener(evt, onUserActivity, { passive: true });
     });
 
-    // 3. Cek kedaluwarsa sesi secara berkala & saat kembali ke tab/aplikasi
-    const checkSessionValidity = () => {
-      if (!this.currentUser) return;
-      const validUser = window.FMCUData.getSession();
-      if (!validUser) {
-        this.logout('Sesi waktu login Anda telah berakhir. Silakan login kembali.');
-      }
-    };
-    setInterval(checkSessionValidity, 5000);
+    // 3. Sentuh sesi saat kembali ke tab/aplikasi (tidak pernah logout paksa saat multitasking)
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
-        checkSessionValidity();
+      if (document.visibilityState === 'visible' && this.currentUser) {
+        window.FMCUData.touchSession();
       }
     });
   },
@@ -2359,10 +2354,13 @@ window.FMCUApp = {
 
     this.currentView = viewName;
     try {
+      localStorage.setItem('fmcu_active_view', viewName);
       sessionStorage.setItem('fmcu_active_view', viewName);
       if (subTab) {
+        localStorage.setItem('fmcu_active_subtab', subTab);
         sessionStorage.setItem('fmcu_active_subtab', subTab);
       } else {
+        localStorage.removeItem('fmcu_active_subtab');
         sessionStorage.removeItem('fmcu_active_subtab');
       }
     } catch (e) {}
@@ -2610,6 +2608,10 @@ window.FMCUApp = {
     this.updateFormProgress();
     this.saveCurrentFormDraft();
     this.currentFormSection = targetSec;
+    try {
+      localStorage.setItem('fmcu_active_form_section', String(targetSec));
+      sessionStorage.setItem('fmcu_active_form_section', String(targetSec));
+    } catch (e) {}
     setTimeout(() => this.expandAllVisibleTextareas(), 60);
 
     // Auto-fill nama visitor jika masih kosong
@@ -8486,6 +8488,7 @@ Instruksi:
       .join('');
 
     grid.querySelectorAll('textarea').forEach((ta) => this.autoExpandTextarea(ta));
+    this.updateEvidenceSyncBanners();
   },
 
   addEvidencePhotoCard() {
@@ -8689,6 +8692,7 @@ Instruksi:
       .join('');
 
     grid.querySelectorAll('textarea').forEach((ta) => this.autoExpandTextarea(ta));
+    this.updateEvidenceSyncBanners();
   },
 
   addCaPhotoCard() {
@@ -8803,27 +8807,31 @@ Instruksi:
     const rawData = photoObj.dataUrl || window.FMCUData.getPhotoFromMemory(photoObj.id, photoObj.driveFileId);
     if (!rawData) return photoObj;
 
-    // 1. Simpan di memori & IndexedDB lokal sebagai proteksi offline darurat
+    // 1. Simpan di memori & IndexedDB lokal sebagai proteksi offline darurat otomatis
+    photoObj.storageProvider = photoObj.driveFileId ? 'GOOGLE_DRIVE' : 'LOCAL_OFFLINE';
     window.FMCUData.cachePhotoInMemory(photoObj.id, photoObj.driveFileId, rawData, true);
 
     const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
     const settings = window.FMCUData.getSettings();
     const gasUrl = (settings.gasWebhookUrl || '').trim();
 
-    // 2. Jika offline / belum konfigurasi webhook: mode darurat lokal aktif
+    // 2. Jika offline / belum konfigurasi webhook: foto OTOMATIS berstatus tersimpan lokal (darurat)
     if (!isOnline || !gasUrl || !gasUrl.startsWith('http')) {
       photoObj._uploading = false;
       photoObj.storageProvider = 'LOCAL_OFFLINE';
+      this.saveCurrentFormDraft();
       if (photoType === 'EVIDENCE') this.renderEvidenceGrid();
       else if (photoType === 'CORRECTIVE_ACTION') this.renderCaPhotosGrid();
-      this.showToast('Foto disimpan di memori lokal (Darurat Offline). Otomatis terunggah ke Google Drive saat online.', 'info');
+      this.updateEvidenceSyncBanners();
+      this.showToast('Foto otomatis tersimpan darurat di lokal (Offline). Anda dapat mengunggahnya kapan saja via tombol di atas.', 'info', 3500);
       return photoObj;
     }
 
-    // 3. Jika online: Wajib langsung unggah ke Google Drive!
+    // 3. Jika online: Coba unggah langsung ke Google Drive
     photoObj._uploading = true;
     if (photoType === 'EVIDENCE') this.renderEvidenceGrid();
     else if (photoType === 'CORRECTIVE_ACTION') this.renderCaPhotosGrid();
+    this.updateEvidenceSyncBanners();
 
     const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
     const storeName = document.getElementById('form-store-name')?.value.trim() || 'VISIT';
@@ -8841,52 +8849,201 @@ Instruksi:
         photoType
       });
       if (photoObj.driveFileId) {
+        photoObj.storageProvider = 'GOOGLE_DRIVE';
         this.showToast('Foto ' + (photoType === 'EVIDENCE' ? 'bukti' : 'perbaikan') + ' berhasil terunggah ke Google Drive!', 'success');
       } else {
-        this.showToast('Foto tersimpan aman di lokal (menunggu sinkronisasi Drive).', 'warning');
+        photoObj.storageProvider = 'LOCAL_OFFLINE';
+        this.showToast('Upload tertunda, foto otomatis tersimpan darurat di lokal.', 'info');
       }
     } catch (err) {
       console.warn('Gagal upload langsung foto ke Google Drive:', err);
-      this.showToast('Gagal terhubung ke Google Drive, foto tetap aman di lokal.', 'warning');
+      photoObj.storageProvider = 'LOCAL_OFFLINE';
+      this.showToast('Koneksi terganggu, foto otomatis tersimpan darurat di lokal.', 'warning');
     } finally {
       photoObj._uploading = false;
       this.saveCurrentFormDraft();
       if (photoType === 'EVIDENCE') this.renderEvidenceGrid();
       else if (photoType === 'CORRECTIVE_ACTION') this.renderCaPhotosGrid();
+      this.updateEvidenceSyncBanners();
     }
     return photoObj;
   },
 
   async retryUploadEvidencePhoto(idx) {
     if (!this.formEvidencePhotos || !this.formEvidencePhotos[idx]) return;
-    this.showToast('Mencoba mengunggah foto bukti ke Google Drive...', 'info');
+    this.showToast('Mengunggah foto bukti ke Google Drive...', 'info', 2000);
     await this.uploadSectionPhotoLive(this.formEvidencePhotos[idx], 'EVIDENCE');
   },
 
   async retryUploadCaPhoto(idx) {
     if (!this.formCaPhotos || !this.formCaPhotos[idx]) return;
-    this.showToast('Mencoba mengunggah foto perbaikan ke Google Drive...', 'info');
+    this.showToast('Mengunggah foto perbaikan ke Google Drive...', 'info', 2000);
     await this.uploadSectionPhotoLive(this.formCaPhotos[idx], 'CORRECTIVE_ACTION');
   },
 
-  async syncPendingFormPhotosToDrive() {
-    if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+  // Manual Trigger & Auto-Sync Foto Tertunda ke Google Drive
+  async syncPendingFormPhotosToDrive(isManual = false) {
+    const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
     const settings = window.FMCUData.getSettings();
     const gasUrl = (settings.gasWebhookUrl || '').trim();
-    if (!gasUrl || !gasUrl.startsWith('http')) return;
 
-    const pendingEv = (this.formEvidencePhotos || []).filter(p => p && !p.driveFileId && p.dataUrl && !p._uploading);
-    const pendingCa = (this.formCaPhotos || []).filter(p => p && !p.driveFileId && p.dataUrl && !p._uploading);
+    const pendingEv = (this.formEvidencePhotos || []).filter(
+      (p) => p && !p.driveFileId && (p.dataUrl || window.FMCUData.getPhotoFromMemory(p.id)) && !p._uploading
+    );
+    const pendingCa = (this.formCaPhotos || []).filter(
+      (p) => p && !p.driveFileId && (p.dataUrl || window.FMCUData.getPhotoFromMemory(p.id)) && !p._uploading
+    );
 
-    if (pendingEv.length === 0 && pendingCa.length === 0) return;
+    const totalCount = pendingEv.length + pendingCa.length;
 
-    this.showToast('Mengunggah ' + (pendingEv.length + pendingCa.length) + ' foto ke Google Drive...', 'info');
-
-    for (const p of pendingEv) {
-      await this.uploadSectionPhotoLive(p, 'EVIDENCE');
+    if (totalCount === 0) {
+      if (isManual) {
+        this.showToast('Semua foto bukti dan perbaikan sudah 100% tersimpan di Google Drive!', 'success');
+      }
+      this.updateEvidenceSyncBanners();
+      return;
     }
-    for (const p of pendingCa) {
-      await this.uploadSectionPhotoLive(p, 'CORRECTIVE_ACTION');
+
+    if (!isOnline) {
+      if (isManual) {
+        this.showToast(
+          'Perangkat sedang Offline (' + totalCount + ' foto aman tersimpan di lokal). Silakan hubungkan internet lalu klik unggah kembali.',
+          'warning',
+          4500
+        );
+      }
+      this.updateEvidenceSyncBanners();
+      return;
+    }
+
+    if (!gasUrl || !gasUrl.startsWith('http')) {
+      if (isManual) {
+        this.showToast('URL Google Apps Script Webhook belum dikonfigurasi di Portal Admin.', 'warning');
+      }
+      return;
+    }
+
+    this.showToast('Memulai sinkronisasi ' + totalCount + ' foto ke Google Drive...', 'info', 2500);
+    this.updateEvidenceSyncBanners(true);
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < pendingEv.length; i++) {
+      const p = pendingEv[i];
+      try {
+        await this.uploadSectionPhotoLive(p, 'EVIDENCE');
+        if (p.driveFileId) successCount++;
+        else failCount++;
+      } catch (e) {
+        failCount++;
+      }
+      this.updateEvidenceSyncBanners();
+    }
+
+    for (let i = 0; i < pendingCa.length; i++) {
+      const p = pendingCa[i];
+      try {
+        await this.uploadSectionPhotoLive(p, 'CORRECTIVE_ACTION');
+        if (p.driveFileId) successCount++;
+        else failCount++;
+      } catch (e) {
+        failCount++;
+      }
+      this.updateEvidenceSyncBanners();
+    }
+
+    this.saveCurrentFormDraft();
+    this.updateEvidenceSyncBanners();
+
+    if (failCount === 0) {
+      this.showToast('Alhamdulillah! Seluruh ' + successCount + ' foto berhasil diunggah ke Google Drive!', 'success', 3500);
+    } else if (successCount > 0) {
+      this.showToast(successCount + ' foto berhasil diunggah, ' + failCount + ' foto tetap aman tersimpan darurat di lokal.', 'info', 4000);
+    } else {
+      this.showToast('Gagal mengunggah foto ke Google Drive. Foto tetap aman tersimpan di lokal.', 'warning', 3500);
+    }
+  },
+
+  updateEvidenceSyncBanners(forceUploading = false) {
+    const bannerEv = document.getElementById('evidence-gdrive-sync-banner');
+    const bannerCa = document.getElementById('ca-gdrive-sync-banner');
+    if (!bannerEv && !bannerCa) return;
+
+    const pendingEv = (this.formEvidencePhotos || []).filter(
+      (p) => p && !p.driveFileId && (p.dataUrl || window.FMCUData.getPhotoFromMemory(p.id))
+    );
+    const uploadedEv = (this.formEvidencePhotos || []).filter((p) => p && p.driveFileId);
+
+    const pendingCa = (this.formCaPhotos || []).filter(
+      (p) => p && !p.driveFileId && (p.dataUrl || window.FMCUData.getPhotoFromMemory(p.id))
+    );
+    const uploadedCa = (this.formCaPhotos || []).filter((p) => p && p.driveFileId);
+
+    const renderBannerHtml = (pendingArr, uploadedArr, typeLabel) => {
+      const pendingCount = pendingArr.length;
+      const uploadedCount = uploadedArr.length;
+      const totalCount = pendingCount + uploadedCount;
+      const isAnyUploading = forceUploading || pendingArr.some((p) => p._uploading);
+
+      if (totalCount === 0) {
+        return '';
+      }
+
+      if (isAnyUploading) {
+        return '<div class="p-3 bg-teal-50 border border-teal-200 rounded-2xl flex items-center justify-between gap-3 shadow-2xs">' +
+          '<div class="flex items-center gap-2.5">' +
+            '<div class="w-8 h-8 rounded-xl bg-teal-600 text-white flex items-center justify-center shrink-0">' +
+              '<i class="fa-solid fa-spinner fa-spin text-sm"></i>' +
+            '</div>' +
+            '<div>' +
+              '<p class="text-xs font-black text-teal-900 leading-tight">Sedang Mengunggah Foto ke Google Drive...</p>' +
+              '<p class="text-[11px] text-teal-700 leading-tight">Menyinkronkan foto ' + typeLabel + ' ke folder Drive (1_gbA...)</p>' +
+            '</div>' +
+          '</div>' +
+          '<span class="text-xs font-bold text-teal-800 bg-white px-2.5 py-1 rounded-lg border border-teal-200 shrink-0">Proses...</span>' +
+        '</div>';
+      }
+
+      if (pendingCount > 0) {
+        return '<div class="p-3 bg-amber-50 border border-amber-300 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-2xs">' +
+          '<div class="flex items-center gap-2.5">' +
+            '<div class="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">' +
+              '<i class="fa-solid fa-cloud-arrow-up text-sm"></i>' +
+            '</div>' +
+            '<div>' +
+              '<p class="text-xs font-black text-amber-900 leading-tight">Ada ' + pendingCount + ' Foto ' + typeLabel + ' Tersimpan Lokal (Darurat Offline)</p>' +
+              '<p class="text-[11px] text-amber-800 leading-tight">Foto aman di HP. Klik tombol di kanan untuk mengunggah otomatis ke Google Drive.</p>' +
+            '</div>' +
+          '</div>' +
+          '<button type="button" onclick="FMCUApp.syncPendingFormPhotosToDrive(true)" class="w-full sm:w-auto px-4 py-2 rounded-xl bg-[#009944] hover:bg-[#007f38] text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-xs cursor-pointer transition shrink-0">' +
+            '<i class="fa-solid fa-cloud-arrow-up"></i>' +
+            '<span>Unggah Sekarang ke Drive (' + pendingCount + ')</span>' +
+          '</button>' +
+        '</div>';
+      }
+
+      return '<div class="px-3.5 py-2 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-800 font-bold shadow-2xs">' +
+        '<div class="flex items-center gap-2">' +
+          '<i class="fa-brands fa-google-drive text-[#009944] text-base"></i>' +
+          '<span>Semua Foto ' + typeLabel + ' (' + uploadedCount + ') Sudah 100% Terunggah ke Google Drive</span>' +
+        '</div>' +
+        '<button type="button" onclick="FMCUApp.syncPendingFormPhotosToDrive(true)" class="text-[11px] text-emerald-700 hover:text-emerald-900 hover:underline flex items-center gap-1 cursor-pointer">' +
+          '<i class="fa-solid fa-rotate text-[10px]"></i> Cek Ulang' +
+        '</button>' +
+      '</div>';
+    };
+
+    if (bannerEv) {
+      const htmlEv = renderBannerHtml(pendingEv, uploadedEv, 'Temuan');
+      bannerEv.innerHTML = htmlEv;
+      bannerEv.classList.toggle('hidden', !htmlEv);
+    }
+
+    if (bannerCa) {
+      const htmlCa = renderBannerHtml(pendingCa, uploadedCa, 'Perbaikan (CA)');
+      bannerCa.innerHTML = htmlCa;
+      bannerCa.classList.toggle('hidden', !htmlCa);
     }
   },
 
