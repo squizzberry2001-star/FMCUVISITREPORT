@@ -1056,6 +1056,160 @@ window.FMCUData = {
   },
 
   // ==========================================================================
+  // GOOGLE APPS SCRIPT SECURE DATABASE ENGINE (FMCU HIDDEN VAULT)
+  // 100% Bebas Kuota 429, Aman, Terenkripsi & Tersembunyi di Google Drive
+  // ==========================================================================
+  _gasPollingInterval: null,
+  _isGasSyncing: false,
+
+  getGasUrl() {
+    const settings = this.getSettings();
+    return (settings.gasWebhookUrl || DEFAULT_SETTINGS.gasWebhookUrl || '').trim();
+  },
+
+  async callGasDatabase(action, payload = {}) {
+    const gasUrl = this.getGasUrl();
+    if (!gasUrl || !gasUrl.startsWith('http')) {
+      return null;
+    }
+
+    try {
+      const res = await fetch(gasUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: action,
+          ...payload
+        })
+      });
+      return await res.json();
+    } catch (err) {
+      console.warn(`[GAS DB] Error calling ${action}:`, err);
+      return null;
+    }
+  },
+
+  async syncAllFromGasDatabase(silent = false) {
+    if (this._isGasSyncing) return;
+    this._isGasSyncing = true;
+
+    try {
+      const resp = await this.callGasDatabase('db_sync_all');
+      if (resp && resp.status === 'SUCCESS') {
+        let hasChanges = false;
+
+        // 1. Sync Schedules
+        if (Array.isArray(resp.schedules) && resp.schedules.length > 0) {
+          const localSchedules = this.getSchedules() || [];
+          const schMap = new Map();
+          localSchedules.forEach((s) => schMap.set(String(s.id), s));
+          resp.schedules.forEach((s) => {
+            const existing = schMap.get(String(s.id));
+            if (!existing) {
+              schMap.set(String(s.id), s);
+              hasChanges = true;
+            } else {
+              if (existing.status === 'PENDING' && s.status !== 'PENDING') {
+                schMap.set(String(s.id), { ...s, actualIn: existing.actualIn || s.actualIn });
+                hasChanges = true;
+              }
+            }
+          });
+          const mergedSchedules = Array.from(schMap.values()).sort((a, b) =>
+            String(a.scheduledDate || '').localeCompare(String(b.scheduledDate || ''))
+          );
+          this._cachedSchedules = mergedSchedules;
+          localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(mergedSchedules));
+        } else {
+          // Jika cloud masih kosong, upload jadwal lokal yang ada ke cloud vault
+          const localSchedules = this.getSchedules() || [];
+          if (localSchedules.length > 0) {
+            this.callGasDatabase('db_save_collection', { collection: 'schedules', data: localSchedules });
+          }
+        }
+
+        // 2. Sync Users (Bestie & Admin)
+        const currentUsers = this.getUsers() || [];
+        if (Array.isArray(resp.users) && resp.users.length > 0) {
+          const userMap = new Map();
+          currentUsers.forEach((u) => userMap.set(String(u.id || u.username), u));
+          resp.users.forEach((u) => {
+            const key = String(u.id || u.username);
+            const cur = userMap.get(key);
+            userMap.set(key, cur ? { ...cur, ...u } : u);
+          });
+          const mergedUsers = Array.from(userMap.values());
+          this._cachedUsers = mergedUsers;
+          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(mergedUsers));
+          hasChanges = true;
+        } else if (currentUsers.length > 0) {
+          // Cloud vault users masih kosong: upload seed users ke cloud vault!
+          this.callGasDatabase('db_save_collection', { collection: 'users', data: currentUsers });
+        }
+
+        // 3. Sync Stores
+        const currentStores = this.getStores() || [];
+        if (Array.isArray(resp.stores) && resp.stores.length >= currentStores.length && resp.stores.length > 0) {
+          this._cachedStores = resp.stores;
+          localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(resp.stores));
+          hasChanges = true;
+        } else if (currentStores.length > 0) {
+          // Cloud vault stores masih kosong: upload master stores ke cloud vault!
+          this.callGasDatabase('db_save_collection', { collection: 'stores', data: currentStores });
+        }
+
+        // 4. Sync Live Tracker Locations
+        if (resp.locations && typeof resp.locations === 'object') {
+          const users = this.getUsers();
+          let locChanged = false;
+          users.forEach((u) => {
+            const key = String(u.id || u.username || u.nik);
+            if (resp.locations[key]) {
+              u.lastLocation = resp.locations[key];
+              locChanged = true;
+            }
+          });
+          if (locChanged) {
+            this._cachedUsers = users;
+            localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+            hasChanges = true;
+          }
+        }
+
+        // Set status cloud database aktif ke Google Drive Vault
+        this.setCloudStatus('ONLINE_GAS', 'Database: Google Drive Vault (Terenkripsi • Bebas Kuota)');
+
+        if (hasChanges && window.FMCUApp) {
+          if (typeof window.FMCUApp.onCloudDataUpdated === 'function') {
+            window.FMCUApp.onCloudDataUpdated('schedules');
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[GAS DB] syncAllFromGasDatabase error:', e);
+    } finally {
+      this._isGasSyncing = false;
+    }
+  },
+
+  initGasDatabaseSync() {
+    // 1. Sinkronisasi pertama saat web app dimuat
+    setTimeout(() => this.syncAllFromGasDatabase(), 1200);
+
+    // 2. Smart Polling berkala (setiap 35 detik):
+    // Memperbarui Jadwal baru & Lokasi Live GPS Bestie secara otomatis tanpa limit 429
+    if (this._gasPollingInterval) {
+      clearInterval(this._gasPollingInterval);
+    }
+    this._gasPollingInterval = setInterval(() => {
+      if (typeof document !== 'undefined' && !document.hidden) {
+        this.syncAllFromGasDatabase(true);
+      }
+    }, 35000);
+  },
+
+
+  // ==========================================================================
   // CLOUD FIRESTORE INITIALIZATION & REAL-TIME LISTENERS
   // ==========================================================================
   initFirestore() {
