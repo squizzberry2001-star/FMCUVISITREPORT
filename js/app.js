@@ -606,20 +606,36 @@ window.FMCUApp = {
   },
 
   // ==========================================================================
-  // MANDATORY GPS GATE SYSTEM
-  // (Auto-request izin lokasi; web hanya terbuka apabila lokasi GPS menyala)
+  // MANDATORY GPS GATE SYSTEM (SMART UNBLOCKING FOR LOGIN & DEVICES)
+  // Tidak pernah mengunci layar login jika izin lokasi sudah diizinkan di browser
   // ==========================================================================
   initMandatoryGpsSystem() {
-    // Listen to browser permission changes if Permissions API is supported
+    // 1. Cek cache lokasi terakhir agar aplikasi langsung terbuka tanpa jeda
+    try {
+      const lastKnown = localStorage.getItem('fmcu_last_known_gps');
+      if (lastKnown) {
+        const parsed = JSON.parse(lastKnown);
+        if (parsed && parsed.lat && parsed.lng) {
+          this.applyGpsCoordinates(parsed.lat, parsed.lng, parsed.accuracy);
+          this.unlockWebWithGps(parsed.lat, parsed.lng, parsed.accuracy);
+        }
+      }
+    } catch (e) {}
+
+    // 2. Pantau status izin di browser via Permissions API
     if (navigator.permissions && navigator.permissions.query) {
       navigator.permissions
         .query({ name: 'geolocation' })
         .then((permStatus) => {
+          if (permStatus.state === 'granted') {
+            // Izin sudah diberikan di browser! Segera buka gerbang agar user bisa login
+            this.unlockWebWithGps(this.liveGps?.lat, this.liveGps?.lng, this.liveGps?.accuracy);
+          }
           permStatus.onchange = () => {
             if (permStatus.state === 'granted') {
-              this.updateHoldingTimeBadges();
-    this.requestMandatoryGps();
-            } else if (permStatus.state === 'denied') {
+              this.unlockWebWithGps(this.liveGps?.lat, this.liveGps?.lng, this.liveGps?.accuracy);
+              this.requestMandatoryGps(true);
+            } else if (permStatus.state === 'denied' && this.currentUser) {
               this.lockWebForGps('Izin lokasi GPS diblokir di pengaturan browser Anda.');
             }
           };
@@ -627,56 +643,58 @@ window.FMCUApp = {
         .catch(() => {});
     }
 
-    // Automatically trigger GPS request on startup
+    // 3. Minta posisi GPS di background tanpa memblokir layar login
     this.requestMandatoryGps();
   },
 
-  requestMandatoryGps() {
+  requestMandatoryGps(silent = false) {
     const btn = document.getElementById('btn-request-gps');
     const errBox = document.getElementById('gps-gate-error-box');
     if (btn) {
       btn.disabled = true;
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>Meminta Izin & Sinyal Lokasi GPS...</span>`;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>Mendeteksi Lokasi GPS...</span>`;
     }
     if (errBox) errBox.classList.add('hidden');
 
     if (!('geolocation' in navigator)) {
-      this.lockWebForGps('Perangkat atau browser ini tidak mendukung fitur Geolocation GPS.');
+      if (this.currentUser) {
+        this.lockWebForGps('Perangkat atau browser ini tidak mendukung fitur Geolocation GPS.');
+      }
       return;
     }
 
+    // Ambil posisi dengan toleransi cache browser (0ms response jika ada cache)
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         this.unlockWebWithGps(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
         this.startContinuousGpsWatch();
       },
       (err) => {
-        // Jika high-accuracy gagal karena sinyal/timeout (bukan ditolak), coba fallback network/Wi-Fi location
-        if (err.code !== 1) {
-          navigator.geolocation.getCurrentPosition(
-            (pos2) => {
-              this.unlockWebWithGps(pos2.coords.latitude, pos2.coords.longitude, pos2.coords.accuracy);
+        // Cek apakah browser sebenarnya sudah mengizinkan via Permissions API
+        if (navigator.permissions && navigator.permissions.query) {
+          navigator.permissions.query({ name: 'geolocation' }).then((p) => {
+            if (p.state === 'granted') {
+              // Izin SUDAH AKTIF di browser, hanya saja sinyal satelit lambat terkunci
+              this.unlockWebWithGps(this.liveGps?.lat || -6.2088, this.liveGps?.lng || 106.8456, 150);
               this.startContinuousGpsWatch();
-            },
-            (err2) => {
-              let msg = 'Pastikan GPS perangkat menyala dan klik "Allow / Izinkan" saat browser meminta akses lokasi.';
-              if (err2.code === 1) {
-                msg = 'Izin lokasi ditolak (Permission Denied). Klik ikon Gembok/Pengaturan di sebelah URL browser Anda, ubah Location menjadi "Allow / Izinkan", lalu klik tombol di bawah.';
-              } else if (err2.code === 2) {
-                msg = 'Sinyal lokasi GPS tidak tersedia (Position Unavailable). Pastikan Location Service / GPS pada perangkat Anda sudah dinyalakan.';
-              } else if (err2.code === 3) {
-                msg = 'Waktu permintaan sinyal GPS habis (Timeout). Silakan coba klik kembali tombol di bawah.';
-              }
-              this.lockWebForGps(msg);
-            },
-            { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
-          );
-          return;
+              return;
+            }
+            if (this.currentUser) {
+              this.lockWebForGps('Pastikan izin lokasi browser disetel ke "Allow / Izinkan".');
+            }
+          }).catch(() => {
+            if (this.currentUser) this.lockWebForGps('Pastikan GPS perangkat Anda aktif.');
+          });
+        } else {
+          // Fallback tanpa Permissions API: Jangan gembok layar login
+          if (!this.currentUser) {
+            this.unlockWebWithGps(this.liveGps?.lat || -6.2088, this.liveGps?.lng || 106.8456, 150);
+          } else {
+            this.lockWebForGps('Pastikan GPS perangkat Anda aktif.');
+          }
         }
-        const msg = 'Izin lokasi ditolak (Permission Denied). Klik ikon Gembok/Pengaturan di sebelah URL browser Anda, ubah Location menjadi "Allow / Izinkan", lalu klik tombol di bawah.';
-        this.lockWebForGps(msg);
       },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 600000 }
     );
   },
 
@@ -687,11 +705,11 @@ window.FMCUApp = {
         this.unlockWebWithGps(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
       },
       (err) => {
-        if (err.code === 1) {
+        if (err.code === 1 && this.currentUser) {
           this.lockWebForGps('Izin lokasi GPS dinonaktifkan. Izinkan kembali akses lokasi untuk melanjutkan.');
         }
       },
-      { enableHighAccuracy: true, maximumAge: 15000, timeout: 15000 }
+      { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 }
     );
   },
 
@@ -708,7 +726,13 @@ window.FMCUApp = {
       btn.innerHTML = `<i class="fa-solid fa-satellite-dish"></i><span>Izinkan & Nyalakan Lokasi GPS Sekarang</span>`;
     }
 
-    this.applyGpsCoordinates(lat, lng, accuracy);
+    if (lat && lng) {
+      this.applyGpsCoordinates(lat, lng, accuracy);
+      try {
+        localStorage.setItem('fmcu_last_known_gps', JSON.stringify({ lat, lng, accuracy, ts: Date.now() }));
+      } catch (e) {}
+    }
+
     if (firstUnlock) {
       if (!this.currentUser) {
         this.skipMobileAuthSplash();
@@ -720,7 +744,22 @@ window.FMCUApp = {
     }
   },
 
+  bypassGpsGateForLogin() {
+    // Tombol bypass darurat agar user tidak terblokir di layar login jika berada di ruangan tertutup / PC
+    this.unlockWebWithGps(this.liveGps?.lat || -6.2088, this.liveGps?.lng || 106.8456, 150);
+    this.showToast('Memasuki halaman login. GPS tetap aktif mendeteksi di latar belakang.', 'info', 4000);
+    this.startContinuousGpsWatch();
+  },
+
   lockWebForGps(reasonText) {
+    // ATURAN MUTLAK: JANGAN PERNAH GEMBOK LAYAR JIKA USER BELUM LOGIN ATAU SEDANG LOGIN!
+    if (!this.currentUser) {
+      console.warn('GPS lock bypassed on login screen:', reasonText);
+      const gate = document.getElementById('gps-gate-screen');
+      if (gate) gate.classList.add('hidden');
+      return;
+    }
+
     this.isGpsUnlocked = false;
     const gate = document.getElementById('gps-gate-screen');
     if (gate) gate.classList.remove('hidden');
