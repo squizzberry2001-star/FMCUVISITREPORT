@@ -975,3 +975,193 @@ input[type="date"]::-webkit-date-and-time-value {
   max-height: 85vh;
   display: block;
 }
+
+/* ==========================================================================
+   Form Top Geofence Live Check-In Banner (Actual In / Out & GPS)
+   Restoring rich dark-green emerald/teal gradient and high-contrast badges
+   ========================================================================== */
+#form-top-geofence-banner {
+  background: linear-gradient(135deg, #022c22 0%, #042f2e 50%, #0f172a 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(52, 211, 153, 0.3) !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 10px 25px -5px rgba(2, 44, 34, 0.5), 0 8px 10px -6px rgba(2, 44, 34, 0.4) !important;
+}
+
+#form-top-geofence-banner #form-banner-title {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+}
+
+#form-top-geofence-banner #form-banner-store-badge {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #99f6e4 !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+}
+
+#form-top-geofence-banner #form-banner-gps {
+  color: #cbd5e1 !important;
+}
+
+#form-top-geofence-banner #form-banner-gps i {
+  color: #34d399 !important;
+}
+
+#form-top-geofence-banner #form-live-autosave-badge {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: #a7f3d0 !important;
+}
+
+#form-top-geofence-banner #form-progress-ring-text {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+}
+
+/* Side-by-Side Actual In & Actual Out Cards */
+#form-top-geofence-banner .form-actual-in-card {
+  background: rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(52, 211, 153, 0.35) !important;
+  border-radius: 0.75rem !important;
+}
+
+#form-top-geofence-banner .form-actual-in-card .card-title,
+#form-top-geofence-banner .form-actual-in-card .card-title span,
+#form-top-geofence-banner .form-actual-in-card .card-title i {
+  color: #6ee7b7 !important;
+}
+
+#form-top-geofence-banner .form-actual-in-card .card-subtitle {
+  color: rgba(167, 243, 208, 0.85) !important;
+}
+
+#form-top-geofence-banner .form-actual-out-card {
+  background: rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(251, 191, 36, 0.35) !important;
+  border-radius: 0.75rem !important;
+}
+
+#form-top-geofence-banner .form-actual-out-card .card-title,
+#form-top-geofence-banner .form-actual-out-card .card-title span,
+#form-top-geofence-banner .form-actual-out-card .card-title i {
+  color: #fcd34d !important;
+}
+
+#form-top-geofence-banner .form-actual-out-card .card-subtitle {
+  color: rgba(253, 230, 138, 0.85) !important;
+}
+
+#form-top-geofence-banner #form-actual-in,
+#form-top-geofence-banner #form-actual-out {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+}
+
+#form-top-geofence-banner #form-actual-in::placeholder,
+#form-top-geofence-banner #form-actual-out::placeholder {
+  color: rgba(255, 255, 255, 0.45) !important;
+}
+
+/* Radar Geofence Pill & States */
+#form-geofence-radar-pill {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 0.5rem !important;
+  border-radius: 0.75rem !important;
+  padding: 0.5rem 0.625rem !important;
+  transition: all 0.25s ease-in-out !important;
+}
+
+/* State Inside (Green) */
+#form-geofence-radar-pill.state-inside,
+#form-geofence-radar-pill.bg-emerald-500\/20 {
+  background: rgba(6, 78, 59, 0.6) !important;
+  border: 1px solid rgba(52, 211, 153, 0.5) !important;
+}
+#form-geofence-radar-pill.state-inside #form-geofence-radar-title,
+#form-geofence-radar-pill.bg-emerald-500\/20 #form-geofence-radar-title {
+  color: #a7f3d0 !important;
+}
+#form-geofence-radar-pill.state-inside #form-geofence-radar-desc,
+#form-geofence-radar-pill.bg-emerald-500\/20 #form-geofence-radar-desc {
+  color: rgba(110, 231, 183, 0.95) !important;
+}
+
+/* State Completed (Teal) */
+#form-geofence-radar-pill.state-completed,
+#form-geofence-radar-pill.bg-teal-500\/20 {
+  background: rgba(19, 78, 74, 0.6) !important;
+  border: 1px solid rgba(45, 212, 191, 0.5) !important;
+}
+#form-geofence-radar-pill.state-completed #form-geofence-radar-title,
+#form-geofence-radar-pill.bg-teal-500\/20 #form-geofence-radar-title {
+  color: #99f6e4 !important;
+}
+#form-geofence-radar-pill.state-completed #form-geofence-radar-desc,
+#form-geofence-radar-pill.bg-teal-500\/20 #form-geofence-radar-desc {
+  color: rgba(94, 234, 212, 0.95) !important;
+}
+
+/* State Outside Denied In (Rose) */
+#form-geofence-radar-pill.state-outside-in,
+#form-geofence-radar-pill.bg-rose-500\/20 {
+  background: rgba(136, 19, 55, 0.6) !important;
+  border: 1px solid rgba(251, 113, 133, 0.5) !important;
+}
+#form-geofence-radar-pill.state-outside-in #form-geofence-radar-title,
+#form-geofence-radar-pill.bg-rose-500\/20 #form-geofence-radar-title {
+  color: #fecdd3 !important;
+}
+#form-geofence-radar-pill.state-outside-in #form-geofence-radar-desc,
+#form-geofence-radar-pill.bg-rose-500\/20 #form-geofence-radar-desc {
+  color: rgba(253, 164, 175, 0.95) !important;
+}
+
+/* State Outside Denied Out (Amber) */
+#form-geofence-radar-pill.state-outside-out,
+#form-geofence-radar-pill.state-no-coords,
+#form-geofence-radar-pill.bg-amber-500\/20 {
+  background: rgba(120, 53, 15, 0.65) !important;
+  border: 1px solid rgba(251, 191, 36, 0.5) !important;
+}
+#form-geofence-radar-pill.state-outside-out #form-geofence-radar-title,
+#form-geofence-radar-pill.state-no-coords #form-geofence-radar-title,
+#form-geofence-radar-pill.bg-amber-500\/20 #form-geofence-radar-title {
+  color: #fde68a !important;
+}
+#form-geofence-radar-pill.state-outside-out #form-geofence-radar-desc,
+#form-geofence-radar-pill.state-no-coords #form-geofence-radar-desc,
+#form-geofence-radar-pill.bg-amber-500\/20 #form-geofence-radar-desc {
+  color: rgba(254, 240, 138, 0.95) !important;
+}
+
+/* State No GPS (Slate) */
+#form-geofence-radar-pill.state-no-gps,
+#form-geofence-radar-pill.bg-slate-500\/20 {
+  background: rgba(51, 65, 85, 0.65) !important;
+  border: 1px solid rgba(148, 163, 184, 0.45) !important;
+}
+#form-geofence-radar-pill.state-no-gps #form-geofence-radar-title,
+#form-geofence-radar-pill.bg-slate-500\/20 #form-geofence-radar-title {
+  color: #e2e8f0 !important;
+}
+#form-geofence-radar-pill.state-no-gps #form-geofence-radar-desc,
+#form-geofence-radar-pill.bg-slate-500\/20 #form-geofence-radar-desc {
+  color: rgba(203, 213, 225, 0.9) !important;
+}
+
+/* Refresh GPS Button */
+#form-geofence-radar-pill button {
+  background: rgba(255, 255, 255, 0.18) !important;
+  border: 1px solid rgba(255, 255, 255, 0.28) !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.25) !important;
+}
+#form-geofence-radar-pill button:hover {
+  background: rgba(255, 255, 255, 0.3) !important;
+}

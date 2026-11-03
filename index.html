@@ -1405,8 +1405,8 @@
                 <!-- Row 1: Badge IN & OUT (Berdampingan Horizontal Kiri & Kanan) -->
                 <div class="grid grid-cols-2 gap-2 w-full">
                   <!-- Actual In Card (Kiri) -->
-                  <div class="bg-white/10 backdrop-blur-sm border border-emerald-400/30 rounded-xl p-2 sm:p-2.5 flex flex-col justify-between">
-                    <div class="flex items-center justify-between gap-1 text-[9px] sm:text-[10px] uppercase tracking-wider text-emerald-300 font-extrabold">
+                  <div class="form-actual-in-card bg-white/10 backdrop-blur-sm border border-emerald-400/30 rounded-xl p-2 sm:p-2.5 flex flex-col justify-between">
+                    <div class="card-title flex items-center justify-between gap-1 text-[9px] sm:text-[10px] uppercase tracking-wider text-emerald-300 font-extrabold">
                       <span>Actual In</span>
                       <i class="fa-solid fa-satellite-dish text-[9px] text-emerald-300 animate-pulse"></i>
                     </div>
@@ -1414,12 +1414,12 @@
                       <span id="form-auto-in-status" class="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
                       <input type="text" id="form-actual-in" readonly placeholder="--:-- WIB" class="bg-transparent font-extrabold text-xs sm:text-sm text-white w-full focus:outline-none cursor-default placeholder:text-white/40" value="" aria-label="--:-- WIB" />
                     </div>
-                    <div class="text-[8.5px] sm:text-[9px] text-emerald-200/80 leading-tight">&le; 08:30 (Radius 1m-50m)</div>
+                    <div class="card-subtitle text-[8.5px] sm:text-[9px] text-emerald-200/80 leading-tight">&le; 08:30 (Radius 1m-50m)</div>
                   </div>
 
                   <!-- Actual Out Card (Kanan) -->
-                  <div class="bg-white/10 backdrop-blur-sm border border-amber-400/30 rounded-xl p-2 sm:p-2.5 flex flex-col justify-between">
-                    <div class="flex items-center justify-between gap-1 text-[9px] sm:text-[10px] uppercase tracking-wider text-amber-300 font-extrabold">
+                  <div class="form-actual-out-card bg-white/10 backdrop-blur-sm border border-amber-400/30 rounded-xl p-2 sm:p-2.5 flex flex-col justify-between">
+                    <div class="card-title flex items-center justify-between gap-1 text-[9px] sm:text-[10px] uppercase tracking-wider text-amber-300 font-extrabold">
                       <span>Actual Out</span>
                       <i class="fa-solid fa-clock-rotate-left text-[9px] text-amber-300"></i>
                     </div>
@@ -1427,7 +1427,7 @@
                       <span id="form-auto-out-status" class="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
                       <input type="text" id="form-actual-out" readonly placeholder="--:-- WIB" class="bg-transparent font-extrabold text-xs sm:text-sm text-white w-full focus:outline-none cursor-default placeholder:text-white/40" value="" aria-label="--:-- WIB" />
                     </div>
-                    <div class="text-[8.5px] sm:text-[9px] text-amber-200/80 leading-tight">&ge; 17:30 (Radius 1m-50m)</div>
+                    <div class="card-subtitle text-[8.5px] sm:text-[9px] text-amber-200/80 leading-tight">&ge; 17:30 (Radius 1m-50m)</div>
                   </div>
                 </div>
 

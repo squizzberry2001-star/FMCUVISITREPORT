@@ -214,6 +214,7 @@ window.FMCUApp = {
     }
 
     // Check if there was an active store check-in session
+    this.checkAndExpireOldCheckIns();
     const activeCheckIn = window.FMCUData.getActiveCheckIn();
     this.hasActiveStoreForm = Boolean(activeCheckIn && activeCheckIn.storeCode);
 
@@ -284,7 +285,10 @@ window.FMCUApp = {
 
     // Jalankan continuous Geofence Ticker setiap 4 detik untuk memantau radius 1m-50m & timer 15m
     if (this._geofenceInterval) clearInterval(this._geofenceInterval);
-    this._geofenceInterval = setInterval(() => this.checkAutomaticGeofenceInOut(), 4000);
+    this._geofenceInterval = setInterval(() => {
+      this.checkAndExpireOldCheckIns();
+      this.checkAutomaticGeofenceInOut();
+    }, 4000);
   },
 
   // ==========================================================================
@@ -2184,11 +2188,17 @@ window.FMCUApp = {
         this.showToast('Akun Anda tidak memiliki otoritas untuk mengisi Form Visit Store.', 'warning');
         return;
       }
+      this.checkAndExpireOldCheckIns();
       if (!this.hasActiveStoreForm) {
         const activeCheckIn = window.FMCUData.getActiveCheckIn();
         if (activeCheckIn && activeCheckIn.storeCode) {
-          this.hasActiveStoreForm = true;
-          this.restoreStoreData(activeCheckIn.storeCode, activeCheckIn.scheduleId || null);
+          if (this.isSchedulePast24Hours(activeCheckIn)) {
+            this.checkAndExpireOldCheckIns();
+            viewName = this.getFirstAllowedView();
+          } else {
+            this.hasActiveStoreForm = true;
+            this.restoreStoreData(activeCheckIn.storeCode, activeCheckIn.scheduleId || null);
+          }
         } else {
           this.showToast('Pilih dan lakukan Check-In pada toko di jadwal Anda terlebih dahulu untuk membuka Form Visit.', 'warning');
           viewName = this.getFirstAllowedView();
@@ -2308,6 +2318,9 @@ window.FMCUApp = {
     } else if (viewName === 'analytics') {
       this.renderAnalyticsView();
     } else if (viewName === 'form') {
+      if (this.checkAndExpireOldCheckIns()) {
+        return;
+      }
       const isVisitor = this.isAuditorUser(this.currentUser) || !this.hasAuthority('manage_schedule');
       const activeCheckIn = window.FMCUData.getActiveCheckIn();
       const todayStr = this.getLocalDateISO();
@@ -2315,11 +2328,12 @@ window.FMCUApp = {
       if (!activeCheckIn?.isArchivedView && isVisitor && activeCheckIn && activeCheckIn.scheduleId) {
         const sch = window.FMCUData.getSchedules().find((s) => s.id === activeCheckIn.scheduleId);
         const isCompleted = sch && (sch.status === 'COMPLETED' || sch.reportId);
-        if (!isCompleted && sch && sch.scheduledDate && sch.scheduledDate !== todayStr) {
+        const isPast24h = sch ? this.isSchedulePast24Hours(sch) : this.isSchedulePast24Hours(activeCheckIn);
+        if (isPast24h || (!isCompleted && sch && sch.scheduledDate && sch.scheduledDate !== todayStr)) {
           window.FMCUData.setActiveCheckIn(null);
           this.hasActiveStoreForm = false;
           this.showToast(
-            `Jadwal visit aktif sebelumnya bukan untuk hari ini. Silakan buka jadwal visit hari ini (${window.FMCUPdf.formatIndonesianDate(todayStr, true)}).`,
+            `Jadwal visit aktif sebelumnya telah lewat 24 jam atau bukan untuk hari ini. Silakan pilih jadwal visit hari ini (${window.FMCUPdf.formatIndonesianDate(todayStr, true)}).`,
             'warning'
           );
           this.navigate('home');
@@ -3838,37 +3852,37 @@ window.FMCUApp = {
 
     if (!radarPill) return;
     if (state === 'INSIDE_WAITING_OUT') {
-      radarPill.className = 'w-full bg-emerald-500/20 border border-emerald-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center gap-2';
+      radarPill.className = 'w-full bg-emerald-500/20 border border-emerald-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center justify-between gap-2 state-inside';
       if (titleEl) titleEl.textContent = '✓ Di Titik Pinpoint Toko (Radius 1m-50m)';
       if (descEl) descEl.textContent = `Jarak: ${distance}m • In: ${auxInfo || '08:30 WIB'} • Out aktif jam ≥ 17:30`;
       if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0';
       if (outDot) outDot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
     } else if (state === 'AUTO_OUT_COMPLETED') {
-      radarPill.className = 'w-full bg-teal-500/20 border border-teal-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center gap-2';
+      radarPill.className = 'w-full bg-teal-500/20 border border-teal-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center justify-between gap-2 state-completed';
       if (titleEl) titleEl.textContent = '✓ Sesi Presensi Selesai (Actual IN & OUT Lengkap)';
       if (descEl) descEl.textContent = `Actual Out: ${auxInfo || '17:30 WIB'} • Jarak toko: ${distance}m`;
       if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-emerald-400 shrink-0';
       if (outDot) outDot.className = 'w-2 h-2 rounded-full bg-teal-400 shrink-0';
     } else if (state === 'OUTSIDE_DENIED_IN') {
-      radarPill.className = 'w-full bg-rose-500/20 border border-rose-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center gap-2';
+      radarPill.className = 'w-full bg-rose-500/20 border border-rose-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center justify-between gap-2 state-outside-in';
       if (titleEl) titleEl.textContent = '⛔ Di Luar Radius Toko (> 50m)';
       if (descEl) descEl.textContent = `Jarak: ${distance}m > 50m (Radius 1m-50m) • Mendekat ke titik toko untuk record Actual IN`;
       if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
       if (outDot) outDot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
     } else if (state === 'OUTSIDE_DENIED_OUT') {
-      radarPill.className = 'w-full bg-amber-500/20 border border-amber-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center gap-2';
+      radarPill.className = 'w-full bg-amber-500/20 border border-amber-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center justify-between gap-2 state-outside-out';
       if (titleEl) titleEl.textContent = '⛔ Di Luar Radius Toko (> 50m)';
       if (descEl) descEl.textContent = `In: ${auxInfo} • Out TIDAK direcord jika web dibuka di luar lokasi toko`;
       if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-emerald-400 shrink-0';
       if (outDot) outDot.className = 'w-2 h-2 rounded-full bg-amber-400 shrink-0';
     } else if (state === 'NO_STORE_COORDS') {
-      radarPill.className = 'w-full bg-amber-500/20 border border-amber-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center gap-2';
+      radarPill.className = 'w-full bg-amber-500/20 border border-amber-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center justify-between gap-2 state-no-coords';
       if (titleEl) titleEl.textContent = '⚠️ Koordinat Pinpoint Toko Belum Ada';
       if (descEl) descEl.textContent = 'Hubungi Admin untuk mengisi Latitude & Longitude toko di Master Toko';
       if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
       if (outDot) outDot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
     } else {
-      radarPill.className = 'w-full bg-slate-500/20 border border-slate-400/30 rounded-xl p-2 sm:p-2.5 text-xs flex items-center gap-2';
+      radarPill.className = 'w-full bg-slate-500/20 border border-slate-400/30 rounded-xl p-2 sm:p-2.5 text-xs flex items-center justify-between gap-2 state-no-gps';
       if (titleEl) titleEl.textContent = '⚠️ Sinyal GPS Tidak Terdeteksi';
       if (descEl) descEl.textContent = 'Pastikan izin GPS perangkat aktif agar kehadiran toko dapat direcord';
       if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
@@ -3876,7 +3890,102 @@ window.FMCUApp = {
     }
   },
 
+  // Helper: Mengecek apakah jadwal atau check-in telah melampaui 24 jam dari tanggal & waktu aktual
+  isSchedulePast24Hours(schedOrDate, actualIn = null, actualOut = null) {
+    if (!schedOrDate) return false;
+    let dateStr = '';
+    let timeStr = '';
+    if (typeof schedOrDate === 'object') {
+      dateStr = String(schedOrDate.scheduledDate || schedOrDate.visitDate || schedOrDate.checkInDate || '').trim();
+      timeStr = String(actualIn || schedOrDate.actualIn || schedOrDate.actualOut || '').trim();
+      if (schedOrDate.startedAt && Date.now() - schedOrDate.startedAt >= 24 * 60 * 60 * 1000) {
+        return true;
+      }
+    } else {
+      dateStr = String(schedOrDate).trim();
+      timeStr = String(actualIn || '').trim();
+    }
+    if (!dateStr) return false;
+
+    let y, m, d;
+    if (dateStr.includes('-')) {
+      const parts = dateStr.split('-');
+      if (parts[0].length === 4) {
+        [y, m, d] = parts.map(Number);
+      } else {
+        [d, m, y] = parts.map(Number);
+      }
+    } else if (dateStr.includes('/')) {
+      const parts = dateStr.split('/');
+      if (parts[0].length === 4) {
+        [y, m, d] = parts.map(Number);
+      } else {
+        [d, m, y] = parts.map(Number);
+      }
+    }
+    if (!y || !m || !d) return false;
+
+    let hh = 0, mm = 0, ss = 0;
+    const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
+    if (timeMatch) {
+      hh = Number(timeMatch[1]);
+      mm = Number(timeMatch[2]);
+    }
+
+    const actualDateTime = new Date(y, m - 1, d, hh, mm, ss);
+    const elapsedMs = Date.now() - actualDateTime.getTime();
+    return elapsedMs >= 24 * 60 * 60 * 1000;
+  },
+
+  // Auto-expire sesi check-in toko yang sudah lewat 24 jam dari tanggal aktual
+  checkAndExpireOldCheckIns() {
+    const activeCheckIn = window.FMCUData.getActiveCheckIn();
+    if (!activeCheckIn || !activeCheckIn.storeCode) return false;
+
+    const isOld = this.isSchedulePast24Hours(activeCheckIn);
+    if (!isOld) return false;
+
+    console.info('[FMCUApp] Sesi visit ' + activeCheckIn.storeCode + ' telah melampaui 24 jam dari tanggal aktual. Otomatis memindahkan ke History.');
+
+    // 1. Simpan draft terkini ke koleksi laporan jika ada perubahan
+    try {
+      const draft = window.FMCUData.getStoreDraft(activeCheckIn.storeCode, activeCheckIn.scheduleId);
+      if (draft && window.FMCUData.hasMeaningfulVisitContent(draft)) {
+        window.FMCUData.saveReport(draft, { syncCloud: false });
+      }
+    } catch (e) {}
+
+    // 2. Tandai jadwal toko terkait sebagai COMPLETED & isAutoMovedToHistory
+    try {
+      const schedules = window.FMCUData.getSchedules();
+      const sch = schedules.find((s) => (activeCheckIn.scheduleId && s.id === activeCheckIn.scheduleId) || (s.storeCode === activeCheckIn.storeCode && s.scheduledDate === (activeCheckIn.checkInDate || activeCheckIn.scheduledDate)));
+      if (sch) {
+        sch.status = 'COMPLETED';
+        sch.actualIn = sch.actualIn || activeCheckIn.actualIn || '08:30 WIB';
+        sch.actualOut = sch.actualOut || activeCheckIn.actualOut || '17:30 WIB';
+        sch.isAutoMovedToHistory = true;
+        window.FMCUData.saveSingleSchedule(sch);
+      }
+    } catch (e) {}
+
+    // 3. Clear activeCheckIn
+    window.FMCUData.setActiveCheckIn(null);
+    this.hasActiveStoreForm = false;
+    this.updateActiveCheckInUI();
+    this.updateFormGuardVisibility();
+
+    // 4. Jika sedang membuka form visit untuk toko yang expired ini, redirect ke Home History
+    if (this.currentView === 'form') {
+      this.resetVisitForm(true);
+      this.navigate('home');
+      this.switchHomeSubSection('history');
+      this.showToast('Sesi visit toko ' + (activeCheckIn.storeName || activeCheckIn.storeCode) + ' telah otomatis selesai & dipindahkan ke History (lewat 24 jam dari tanggal aktual).', 'info', 6000);
+    }
+    return true;
+  },
+
   updateActiveCheckInUI() {
+    this.checkAndExpireOldCheckIns();
     const active = window.FMCUData.getActiveCheckIn();
     const sideWidget = document.getElementById('sidebar-checkin-widget');
     const homeSummary = document.getElementById('home-checkin-summary');
@@ -4089,6 +4198,10 @@ window.FMCUApp = {
 
   restoreActiveCheckInToForm(checkInObj) {
     if (!checkInObj || !checkInObj.storeCode) return;
+    if (this.isSchedulePast24Hours(checkInObj)) {
+      this.checkAndExpireOldCheckIns();
+      return;
+    }
     this.hasActiveStoreForm = true;
     this.updateFormGuardVisibility();
     this.restoreStoreData(checkInObj.storeCode, checkInObj.scheduleId || null);
@@ -4312,19 +4425,22 @@ window.FMCUApp = {
   },
 
   updateHomeSubSectionPills() {
+    this.checkAndExpireOldCheckIns();
     const todayStr = this.getLocalDateISO();
     let schedules = window.FMCUData.getSchedules();
     let reports = window.FMCUData.getReports();
+    const isVisitor = this.currentUser && (this.isAuditorUser(this.currentUser) || !this.hasAuthority('manage_schedule'));
 
-    if (this.currentUser && (this.isAuditorUser(this.currentUser) || !this.hasAuthority('manage_schedule'))) {
+    if (isVisitor) {
       schedules = schedules.filter((s) => this.isScheduleOwnedByUser(s, this.currentUser));
-      reports = reports.filter((r) => !this.currentUser.name || r.auditorName === this.currentUser.name);
+      reports = reports.filter((r) => this.isReportOwnedByUser(r, this.currentUser));
     }
 
     const activeSchedules = schedules.filter((s) => {
+      const isPast24h = this.isSchedulePast24Hours(s);
       const isPast = s.scheduledDate < todayStr;
       const isDone = s.status === 'COMPLETED' || Boolean(s.reportId) || reports.some((r) => r.storeCode === s.storeCode && r.visitDate === s.scheduledDate);
-      return !isPast && !isDone;
+      return !isPast24h && !isPast && !isDone;
     });
 
     const schPill = document.getElementById('home-schedule-count-pill');
@@ -4332,9 +4448,18 @@ window.FMCUApp = {
       schPill.textContent = activeSchedules.length;
     }
 
+    const visitedExpiredCount = schedules.filter((s) => {
+      if (!s || !s.storeCode) return false;
+      if (s.storeType === 'NON_STORE' || s.storeCode === 'CUTI' || s.storeCode === 'OFF' || s.storeCode === 'AGENDA') return false;
+      const isVisited = Boolean(s.actualIn && s.actualIn !== '-') || s.status === 'COMPLETED' || s.status === 'IN_PROGRESS' || Boolean(s.reportId) || Boolean(s.isAutoMovedToHistory);
+      const isPast24h = this.isSchedulePast24Hours(s);
+      if (!isPast24h || !isVisited) return false;
+      return !reports.some((r) => (s.reportId && r.id === s.reportId) || (r.storeCode === s.storeCode && r.visitDate === s.scheduledDate));
+    }).length;
+
     const histPill = document.getElementById('home-history-count-pill');
     if (histPill) {
-      histPill.textContent = reports.length;
+      histPill.textContent = reports.length + visitedExpiredCount;
     }
   },
 
@@ -4453,6 +4578,7 @@ window.FMCUApp = {
   renderHomeSchedules() {
     const container = document.getElementById('home-schedule-list');
     if (!container) return;
+    this.checkAndExpireOldCheckIns();
     const scope = document.getElementById('schedule-filter-scope')?.value || 'ACTIVE';
     const todayStr = this.getLocalDateISO();
     let schedules = window.FMCUData.getSchedules();
@@ -4463,15 +4589,16 @@ window.FMCUApp = {
       schedules = schedules.filter((s) => this.isScheduleOwnedByUser(s, this.currentUser));
     }
 
-    // Helper untuk mendeteksi apakah jadwal masuk kategori ARSIP (lewat hari atau sudah pernah diisi form)
+    // Helper untuk mendeteksi apakah jadwal masuk kategori ARSIP (lewat 24 jam dari tanggal aktual, lewat hari, atau sudah selesai)
     const isScheduleArchived = (s) => {
+      const isPast24h = this.isSchedulePast24Hours(s);
       const isPast = String(s.scheduledDate || '') < todayStr;
       const isDone = s.status === 'COMPLETED' || Boolean(s.reportId) || reports.some((r) => r.storeCode === s.storeCode && r.visitDate === s.scheduledDate);
-      return isPast || isDone;
+      return isPast24h || isPast || isDone;
     };
 
     if (scope === 'ACTIVE') {
-      // Sisi user: Otomatis exclude yang sudah lewat hari atau sudah pernah diisi form
+      // Sisi user: Otomatis exclude yang sudah lewat 24 jam, lewat hari, atau sudah selesai
       schedules = schedules.filter((s) => !isScheduleArchived(s));
     } else if (scope === 'TODAY') {
       schedules = schedules.filter((s) => s.scheduledDate === todayStr && !isScheduleArchived(s));
@@ -4480,9 +4607,9 @@ window.FMCUApp = {
     } else if (scope === 'ARCHIVED') {
       schedules = schedules.filter((s) => isScheduleArchived(s));
     } else if (scope === 'PENDING') {
-      schedules = schedules.filter((s) => s.status !== 'COMPLETED' && !s.reportId);
+      schedules = schedules.filter((s) => s.status !== 'COMPLETED' && !s.reportId && !this.isSchedulePast24Hours(s));
     } else if (scope === 'COMPLETED') {
-      schedules = schedules.filter((s) => s.status === 'COMPLETED' || s.reportId);
+      schedules = schedules.filter((s) => s.status === 'COMPLETED' || s.reportId || this.isSchedulePast24Hours(s));
     }
 
     // Urutkan jadwal toko dimulai dari tanggal terdekat untuk card pertama dan seterusnya
@@ -4507,10 +4634,11 @@ window.FMCUApp = {
 
     container.innerHTML = schedules
       .map((s) => {
+        const isPast24h = this.isSchedulePast24Hours(s);
         const isPast = String(s.scheduledDate || '') < todayStr;
         const matchedRep = reports.find((r) => (s.reportId && r.id === s.reportId) || (r.storeCode === s.storeCode && r.visitDate === s.scheduledDate));
         const isDone = s.status === 'COMPLETED' || Boolean(s.reportId) || Boolean(matchedRep);
-        const isArchived = isPast || isDone;
+        const isArchived = isPast24h || isPast || isDone;
         const repId = s.reportId || matchedRep?.id || null;
         const dateFormatted = window.FMCUPdf.formatIndonesianDate(s.scheduledDate, true);
 
@@ -5737,11 +5865,55 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     const container = document.getElementById('home-history-list');
     if (!container) return;
 
+    this.checkAndExpireOldCheckIns();
+
     const isVisitor = this.isAuditorUser(this.currentUser) || !this.isPrivilegedAdmin(this.currentUser);
     let allReports = window.FMCUData.getReports().filter((r) => r && r.id && r.storeCode);
     if (isVisitor) {
       allReports = allReports.filter((r) => this.isReportOwnedByUser(r, this.currentUser));
     }
+
+    // Auto-pindahkan toko yang dikunjungi yang sudah >= 24 jam dari tanggal aktual ke history
+    const schedules = window.FMCUData.getSchedules();
+    const expiredVisitedSchedules = schedules.filter((s) => {
+      if (!s || !s.storeCode) return false;
+      if (s.storeType === 'NON_STORE' || s.storeCode === 'CUTI' || s.storeCode === 'OFF' || s.storeCode === 'AGENDA') return false;
+      if (isVisitor && !this.isScheduleOwnedByUser(s, this.currentUser)) return false;
+
+      const isVisited = Boolean(s.actualIn && s.actualIn !== '-') || s.status === 'COMPLETED' || s.status === 'IN_PROGRESS' || Boolean(s.reportId) || Boolean(s.isAutoMovedToHistory);
+      const isPast24h = this.isSchedulePast24Hours(s);
+      if (!isPast24h || !isVisited) return false;
+
+      const alreadyHasReport = allReports.some(
+        (r) => (s.reportId && r.id === s.reportId) || (r.storeCode === s.storeCode && r.visitDate === s.scheduledDate)
+      );
+      return !alreadyHasReport;
+    });
+
+    expiredVisitedSchedules.forEach((s) => {
+      const draft = window.FMCUData.getStoreDraft(s.storeCode, s.id);
+      allReports.push({
+        id: draft?.id || s.reportId || ('auto-hist-' + s.id),
+        scheduleId: s.id,
+        storeCode: s.storeCode,
+        storeName: s.storeName,
+        storeType: s.storeType || 'CVS',
+        visitDate: s.scheduledDate,
+        auditorName: s.auditorName || (this.currentUser?.name) || 'Visitor',
+        storeHead: draft?.storeHead || s.storeHead || '-',
+        actualIn: draft?.actualIn || s.actualIn || '-',
+        actualOut: draft?.actualOut || s.actualOut || '-',
+        gpsLat: draft?.gpsLat || s.actualLat || '-',
+        gpsLng: draft?.gpsLng || s.actualLng || '-',
+        observations: draft?.observations || [],
+        evidencePhotos: draft?.evidencePhotos || [],
+        isAutoMovedToHistory: true,
+        createdAt: s.scheduledDate ? (s.scheduledDate + 'T17:30:00.000Z') : new Date().toISOString()
+      });
+    });
+
+    // Urutkan riwayat dari tanggal visit terbaru
+    allReports.sort((a, b) => String(b.visitDate || b.createdAt || '').localeCompare(String(a.visitDate || a.createdAt || '')));
 
     const histPill = document.getElementById('home-history-count-pill');
     if (histPill) {
@@ -5774,13 +5946,20 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         const obsCount = (r.observations || []).length;
         const evCount = (r.evidencePhotos || []).length;
         const dateText = r.visitDayDateFormatted || window.FMCUPdf.formatIndonesianDate(r.visitDate, true);
+        const isAutoArchived = Boolean(r.isAutoMovedToHistory);
+
         return `
-          <div class="border border-slate-200 hover:border-teal-300 rounded-2xl p-4 sm:p-5 bg-white flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition shadow-sm">
+          <div class="border ${isAutoArchived ? 'border-amber-200 bg-amber-50/20' : 'border-slate-200'} hover:border-teal-300 rounded-2xl p-4 sm:p-5 bg-white flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition shadow-sm">
             <div class="space-y-1.5">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="px-2.5 py-0.5 rounded-md bg-teal-50 text-[#0099A6] font-extrabold text-xs">
                   ${r.storeCode} • ${r.storeType || 'CVS'}
                 </span>
+                ${isAutoArchived ? `
+                  <span class="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 font-extrabold text-[10px] uppercase">
+                    🗃️ Auto History (≥ 24 Jam)
+                  </span>
+                ` : ''}
                 <h4 class="font-extrabold text-base sm:text-lg text-slate-900">FamilyMart ${r.storeName}</h4>
                 <span class="text-xs text-slate-400">•</span>
                 <span class="text-xs font-semibold text-slate-600">${dateText}</span>
@@ -5800,7 +5979,6 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
                 <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-800 border border-sky-200">
                   ${evCount} Foto Bukti Evidence
                 </span>
-
               </div>
             </div>
 
@@ -5813,11 +5991,18 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
                   <i class="fa-solid fa-folder-open text-[#009944]"></i>
                   <span>Folder Toko</span>
                 </a>
-                <!-- 2. Preview PDF (langsung pdf yang tersimpan di gdrive) -->
+                <!-- 2. Preview PDF -->
+                ${r.gdrivePdfUrl ? `
                 <button type="button" onclick="FMCUApp.previewReportPdfFromGDrive('${r.id}')" class="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Preview PDF langsung yang tersimpan di Google Drive">
                   <i class="fa-solid fa-file-pdf text-rose-600"></i>
                   <span>Preview PDF</span>
                 </button>
+                ` : `
+                <button type="button" onclick="FMCUApp.openReportPreview('${r.id}')" class="px-3 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs">
+                  <i class="fa-solid fa-display"></i>
+                  <span>Preview Slide</span>
+                </button>
+                `}
                 <!-- 3. Unduh PDF -->
                 <button type="button" onclick="FMCUApp.downloadReportById('${r.id}')" class="px-3 py-2 rounded-xl fm-gradient hover:opacity-95 text-white font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Unduh file PDF laporan lengkap">
                   <i class="fa-solid fa-file-arrow-down"></i>
@@ -5827,6 +6012,16 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
                 <button type="button" onclick="FMCUApp.promptDeleteVisitReport('${r.id}')" class="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Hapus riwayat laporan visit toko ini">
                   <i class="fa-solid fa-trash-can"></i>
                   <span>Hapus</span>
+                </button>
+              `
+                  : isAutoArchived
+                  ? `
+                <button onclick="FMCUApp.openStoreVisitForm('${r.storeCode}', '${r.scheduleId || ''}')" class="px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition cursor-pointer">
+                  <i class="fa-solid fa-pen mr-1"></i>Buka Form / Draf
+                </button>
+                <button onclick="FMCUApp.openStoreVisitForm('${r.storeCode}', '${r.scheduleId || ''}')" class="px-3.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition flex items-center gap-1.5 cursor-pointer">
+                  <i class="fa-solid fa-clock-rotate-left"></i>
+                  <span>Lihat Detail</span>
                 </button>
               `
                   : `
