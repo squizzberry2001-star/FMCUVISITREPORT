@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1793830000000" as="style" />
-  <link rel="preload" href="css/styles.css?v=1793830000000" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1793840000000" as="style" />
+  <link rel="preload" href="css/styles.css?v=1793840000000" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1793830000000" />
-  <link rel="stylesheet" href="css/styles.css?v=1793830000000" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1793840000000" />
+  <link rel="stylesheet" href="css/styles.css?v=1793840000000" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -3658,27 +3658,144 @@ service cloud.firestore {
   <!-- ====================================================================
        FULLSCREEN LOADING FREEZE LAYER (SINKRONISASI GOOGLE DRIVE)
        ==================================================================== -->
-  <div id="loading-gdrive-sync" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex flex-col items-center justify-center p-4 hidden select-none">
-    <div class="bg-white/95 backdrop-blur-lg border border-slate-200/80 rounded-3xl p-6 sm:p-8 max-w-sm w-full shadow-2xl text-center space-y-4 animate-in fade-in zoom-in duration-200">
-      <div class="relative w-20 h-20 mx-auto flex items-center justify-center">
-        <div class="absolute inset-0 rounded-full border-4 border-emerald-100 border-t-[#009944] animate-spin"></div>
-        <div class="w-14 h-14 rounded-full bg-emerald-50 text-[#009944] flex items-center justify-center text-2xl shadow-inner">
-          <i class="fa-brands fa-google-drive"></i>
+  <!-- ====================================================================
+       MODAL: FULLSCREEN LOADING SINKRONISASI GOOGLE DRIVE (3 BERKAS)
+       PSIKOLOGIS ANTI-BOSAN DENGAN 3 TAHAP ANIMASI STATUS DARI SETIAP FILE
+       ==================================================================== -->
+  <div id="loading-gdrive-sync" class="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-md flex flex-col items-center justify-center p-3 sm:p-4 hidden select-none overflow-y-auto">
+    <div class="bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-3xl p-5 sm:p-6 max-w-lg w-full shadow-2xl space-y-4 animate-in fade-in zoom-in duration-200 my-auto">
+      
+      <!-- Header: Logo Drive & Persentase Keseluruhan -->
+      <div class="flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="relative w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center text-xl shadow-md shrink-0">
+            <i class="fa-brands fa-google-drive"></i>
+            <span class="absolute -top-1 -right-1 w-3 h-3 bg-amber-400 border-2 border-white rounded-full animate-ping"></span>
+            <span class="absolute -top-1 -right-1 w-3 h-3 bg-amber-400 border-2 border-white rounded-full"></span>
+          </div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <h3 class="font-black text-slate-900 text-sm sm:text-base tracking-tight truncate">
+                Menyimpan ke Google Drive
+              </h3>
+              <span id="gdrive-overall-pct" class="text-xs font-black text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 shrink-0">
+                0%
+              </span>
+            </div>
+            <p id="loading-gdrive-sync-status" class="text-[11px] text-slate-500 font-medium truncate">
+              Menyiapkan 3 berkas laporan kunjungan...
+            </p>
+          </div>
         </div>
-      </div>
-      <div class="space-y-1.5">
-        <h3 class="font-black text-slate-900 text-base sm:text-lg tracking-tight">Menyimpan ke Google Drive...</h3>
-        <p class="text-xs text-slate-500 font-medium leading-relaxed">Sedang menyinkronkan berkas PDF Laporan, Lembar QSC, & Spreadsheet CA...</p>
-      </div>
-      <div class="inline-flex items-center justify-center gap-2 text-[11px] font-bold text-emerald-700 bg-emerald-50 py-1.5 px-4 rounded-full border border-emerald-200 shadow-2xs">
-        <i class="fa-solid fa-spinner fa-spin text-xs"></i>
-        <span id="loading-gdrive-sync-status">Memproses upload berkas...</span>
-      </div>
-      <div>
-        <button type="button" onclick="FMCUApp.dismissSyncLoaderToBackground()" class="text-[11px] font-bold text-slate-500 hover:text-slate-800 underline transition cursor-pointer">
-          Jalankan di Latar Belakang (Tetap Lanjut)
+        <button type="button" onclick="FMCUApp.dismissSyncLoaderToBackground()" class="text-slate-400 hover:text-slate-700 p-1.5 rounded-xl hover:bg-slate-100 transition shrink-0 cursor-pointer" title="Jalankan di Latar Belakang">
+          <i class="fa-solid fa-xmark text-sm"></i>
         </button>
       </div>
+
+      <!-- Overall Animated Progress Bar -->
+      <div class="space-y-1">
+        <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/80">
+          <div id="gdrive-overall-bar" class="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-[#009944] rounded-full transition-all duration-500 ease-out shadow-xs relative overflow-hidden" style="width: 5%;">
+            <div class="absolute inset-0 animate-shimmer-fast"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3 FILES STATUS CARDS: DENGAN 3 TAHAP ANIMASI UNTUK MASING-MASING FILE -->
+      <div class="space-y-2.5">
+        
+        <!-- File 1: PDF Laporan Visit 16:9 -->
+        <div id="sync-card-pdf" class="p-3 rounded-2xl border border-slate-200 bg-slate-50/80 transition-all duration-300">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div id="sync-icon-box-pdf" class="w-8 h-8 rounded-xl bg-red-50 text-red-600 flex items-center justify-center text-sm shrink-0 border border-red-100">
+                <i class="fa-solid fa-file-pdf"></i>
+              </div>
+              <div class="min-w-0">
+                <div class="font-extrabold text-xs text-slate-900 truncate">1. PDF Laporan Visit (Slide 16:9 HD)</div>
+                <div id="sync-desc-pdf" class="text-[10px] text-slate-500 font-medium truncate">Menyiapkan layout slide & kompresi foto...</div>
+              </div>
+            </div>
+            <div id="sync-status-pdf" class="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 flex items-center gap-1">
+              <i class="fa-regular fa-clock"></i>
+              <span>Antre</span>
+            </div>
+          </div>
+          <!-- Micro Progress Bar -->
+          <div class="w-full h-1.5 bg-slate-200/80 rounded-full mt-2 overflow-hidden">
+            <div id="sync-prog-pdf" class="h-full bg-amber-500 rounded-full transition-all duration-300" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <!-- File 2: Kolase Lembar QSC (PDF Vertikal) -->
+        <div id="sync-card-qsc" class="p-3 rounded-2xl border border-slate-200 bg-slate-50/80 transition-all duration-300">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div id="sync-icon-box-qsc" class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-sm shrink-0 border border-blue-100">
+                <i class="fa-solid fa-images"></i>
+              </div>
+              <div class="min-w-0">
+                <div class="font-extrabold text-xs text-slate-900 truncate">2. Lembar Kolase QSC (Vertikal HD)</div>
+                <div id="sync-desc-qsc" class="text-[10px] text-slate-500 font-medium truncate">Menyatukan form evaluasi QSC...</div>
+              </div>
+            </div>
+            <div id="sync-status-qsc" class="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 flex items-center gap-1">
+              <i class="fa-regular fa-clock"></i>
+              <span>Antre</span>
+            </div>
+          </div>
+          <!-- Micro Progress Bar -->
+          <div class="w-full h-1.5 bg-slate-200/80 rounded-full mt-2 overflow-hidden">
+            <div id="sync-prog-qsc" class="h-full bg-amber-500 rounded-full transition-all duration-300" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <!-- File 3: Spreadsheet CA Toko (Tindakan Perbaikan) -->
+        <div id="sync-card-ca" class="p-3 rounded-2xl border border-slate-200 bg-slate-50/80 transition-all duration-300">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div id="sync-icon-box-ca" class="w-8 h-8 rounded-xl bg-emerald-50 text-[#009944] flex items-center justify-center text-sm shrink-0 border border-emerald-100">
+                <i class="fa-solid fa-file-excel"></i>
+              </div>
+              <div class="min-w-0">
+                <div class="font-extrabold text-xs text-slate-900 truncate">3. Spreadsheet CA Toko (Action Plan)</div>
+                <div id="sync-desc-ca" class="text-[10px] text-slate-500 font-medium truncate">Menata data temuan & PIC toko...</div>
+              </div>
+            </div>
+            <div id="sync-status-ca" class="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 flex items-center gap-1">
+              <i class="fa-regular fa-clock"></i>
+              <span>Antre</span>
+            </div>
+          </div>
+          <!-- Micro Progress Bar -->
+          <div class="w-full h-1.5 bg-slate-200/80 rounded-full mt-2 overflow-hidden">
+            <div id="sync-prog-ca" class="h-full bg-amber-500 rounded-full transition-all duration-300" style="width: 0%;"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Tips Psikologis Anti-Bosan yang Berotasi Otomatis -->
+      <div class="p-3 rounded-2xl bg-gradient-to-r from-emerald-50/90 to-teal-50/90 border border-emerald-200/80 text-emerald-950 flex items-center gap-2.5 shadow-2xs">
+        <i class="fa-solid fa-lightbulb text-amber-500 text-base shrink-0 animate-pulse"></i>
+        <div class="min-w-0 flex-1">
+          <div class="text-[10px] uppercase font-black tracking-wider text-emerald-800">FMCU Smart Cloud Sync</div>
+          <div id="sync-psychology-quote" class="text-[11px] font-semibold text-emerald-900 leading-snug transition-opacity duration-300">
+            💡 Tips: Foto otomatis dikompresi beresolusi HD tanpa kehilangan detail penting...
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Footer -->
+      <div id="sync-loader-footer" class="pt-1 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100">
+        <button type="button" id="btn-sync-dismiss-bg" onclick="FMCUApp.dismissSyncLoaderToBackground()" class="text-[11px] font-bold text-slate-500 hover:text-slate-800 underline transition cursor-pointer">
+          Jalankan di Latar Belakang (Tetap Lanjut)
+        </button>
+        <div id="sync-loader-actions" class="flex flex-wrap items-center gap-2">
+          <!-- Populated dynamically upon completion -->
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -3873,13 +3990,13 @@ service cloud.firestore {
   <script defer src="js/holding-time-standards.js"></script>
   <script defer src="js/master-stores-seed.js"></script>
   <script defer src="js/bestie-in-charge-seed.js"></script>
-  <script defer src="js/data.js?v=1793830000000"></script>
-  <script defer src="js/pdf-generator.js?v=1793830000000"></script>
-  <script defer src="js/app.js?v=1793830000000"></script>
+  <script defer src="js/data.js?v=1793840000000"></script>
+  <script defer src="js/pdf-generator.js?v=1793840000000"></script>
+  <script defer src="js/app.js?v=1793840000000"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1793830000000"></script>
+  <script async src="js/pdf-assets.js?v=1793840000000"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================

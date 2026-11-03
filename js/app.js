@@ -10487,12 +10487,212 @@ Instruksi:
   // GOOGLE DRIVE SYNC INTEGRATION (ROOT: 1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B)
   // Catatan: Sistem pengiriman email dinonaktifkan total selama masa testing.
   // ==========================================================================
-  dismissSyncLoaderToBackground() {
+  // ==========================================================================
+  // GOOGLE DRIVE SYNC: 3-BERKAS MULTI-STAGE LOADING & ROTASI TIPS PSIKOLOGIS
+  // (PDF LAPORAN 16:9, KOLASE LEMBAR QSC, & SPREADSHEET CA TOKO)
+  // ==========================================================================
+  _psychologyTipInterval: null,
+  _psychologyTips: [
+    '💡 Tips: Foto otomatis dikompresi beresolusi HD tanpa kehilangan detail penting & irit kuota (<10MB).',
+    '🚀 Berkas tersimpan permanen di Google Drive resmi FMCU sehingga aman saat Anda berganti ponsel.',
+    '📋 Kolase lembar QSC vertikal dirancang khusus agar mudah dibaca di layar HP tim operasional.',
+    '📊 Spreadsheet CA otomatis menyusun nama temuan & deadline untuk percepatan perbaikan toko.',
+    '🔒 Seluruh transmisi berkas terenkripsi aman langsung ke cloud Google Workspace FamilyMart.',
+    '✨ Hampir selesai! Mengamankan dan memvalidasi tautan cloud berkas Anda...'
+  ],
+  _currentTipIdx: 0,
+
+  startPsychologyTipsRotator() {
+    this.stopPsychologyTipsRotator();
+    this._currentTipIdx = 0;
+    const el = document.getElementById('sync-psychology-quote');
+    if (el) {
+      el.textContent = this._psychologyTips[0];
+      el.style.opacity = '1';
+    }
+    this._psychologyTipInterval = setInterval(() => {
+      const quoteEl = document.getElementById('sync-psychology-quote');
+      if (!quoteEl) return;
+      quoteEl.style.opacity = '0';
+      setTimeout(() => {
+        this._currentTipIdx = (this._currentTipIdx + 1) % this._psychologyTips.length;
+        quoteEl.textContent = this._psychologyTips[this._currentTipIdx];
+        quoteEl.style.opacity = '1';
+      }, 250);
+    }, 2400);
+  },
+
+  stopPsychologyTipsRotator() {
+    if (this._psychologyTipInterval) {
+      clearInterval(this._psychologyTipInterval);
+      this._psychologyTipInterval = null;
+    }
+  },
+
+  initGdriveSyncUI(rep) {
+    this.startPsychologyTipsRotator();
+    this.setGdriveOverallProgress(8, 'Menyiapkan proses sinkronisasi 3 berkas...');
+
+    // Inisialisasi ketiga kartu berkas ke status antre
+    ['pdf', 'qsc', 'ca'].forEach((key) => {
+      this.setFileSyncStage(key, 0, 'Menunggu antrean proses...');
+    });
+
+    const actionsContainer = document.getElementById('sync-loader-actions');
+    if (actionsContainer) {
+      actionsContainer.innerHTML = '';
+      actionsContainer.classList.add('hidden');
+    }
+    const dismissBtn = document.getElementById('btn-sync-dismiss-bg');
+    if (dismissBtn) {
+      dismissBtn.textContent = 'Jalankan di Latar Belakang (Tetap Lanjut)';
+      dismissBtn.classList.remove('hidden');
+    }
+  },
+
+  setGdriveOverallProgress(pct, statusText) {
+    const pctClamped = Math.min(100, Math.max(0, Math.round(pct)));
+    const pctEl = document.getElementById('gdrive-overall-pct');
+    if (pctEl) pctEl.textContent = pctClamped + '%';
+
+    const barEl = document.getElementById('gdrive-overall-bar');
+    if (barEl) {
+      barEl.style.width = pctClamped + '%';
+      if (pctClamped >= 100) {
+        barEl.className = 'h-full bg-emerald-500 rounded-full transition-all duration-500 ease-out shadow-xs';
+      } else {
+        barEl.className = 'h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-[#009944] rounded-full transition-all duration-500 ease-out shadow-xs relative overflow-hidden';
+      }
+    }
+
+    const statusEl = document.getElementById('loading-gdrive-sync-status');
+    if (statusEl && statusText) statusEl.textContent = statusText;
+  },
+
+  setFileSyncStage(fileKey, stage, customDesc, progPct) {
+    const cardEl = document.getElementById('sync-card-' + fileKey);
+    const statusEl = document.getElementById('sync-status-' + fileKey);
+    const progEl = document.getElementById('sync-prog-' + fileKey);
+    const descEl = document.getElementById('sync-desc-' + fileKey);
+    const iconBox = document.getElementById('sync-icon-box-' + fileKey);
+
+    if (stage === 0) {
+      // 0: Antre
+      if (cardEl) cardEl.className = 'p-3 rounded-2xl border border-slate-200 bg-slate-50/80 transition-all duration-300';
+      if (statusEl) {
+        statusEl.className = 'shrink-0 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 flex items-center gap-1';
+        statusEl.innerHTML = '<i class="fa-regular fa-clock text-slate-400"></i><span>Antre</span>';
+      }
+      if (progEl) {
+        progEl.style.width = '0%';
+        progEl.className = 'h-full bg-slate-300 rounded-full transition-all duration-300';
+      }
+      if (descEl) descEl.textContent = customDesc || 'Menunggu giliran proses...';
+      if (iconBox) iconBox.classList.remove('animate-pulse', 'animate-bounce');
+    } else if (stage === 1) {
+      // 1: Status 1 - Persiapan & Render HD / Penataan Data
+      if (cardEl) cardEl.className = 'p-3 rounded-2xl border border-amber-300 bg-amber-50/50 shadow-xs transition-all duration-300';
+      if (statusEl) {
+        statusEl.className = 'shrink-0 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200 flex items-center gap-1.5 animate-pulse';
+        statusEl.innerHTML = '<i class="fa-solid fa-gear fa-spin text-amber-600"></i><span>Tahap 1/3: Render & Optimasi HD...</span>';
+      }
+      if (progEl) {
+        progEl.style.width = (progPct || 35) + '%';
+        progEl.className = 'h-full bg-amber-500 rounded-full transition-all duration-300';
+      }
+      if (descEl) descEl.textContent = customDesc || 'Mengompresi data & menyusun resolusi HD...';
+      if (iconBox) {
+        iconBox.classList.remove('animate-bounce');
+        iconBox.classList.add('animate-pulse');
+      }
+    } else if (stage === 2) {
+      // 2: Status 2 - Mengunggah ke Google Drive (Cloud Transfer)
+      if (cardEl) cardEl.className = 'p-3 rounded-2xl border border-sky-300 bg-sky-50/50 shadow-xs transition-all duration-300';
+      if (statusEl) {
+        statusEl.className = 'shrink-0 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-900 border border-sky-200 flex items-center gap-1.5 animate-pulse';
+        statusEl.innerHTML = '<i class="fa-solid fa-cloud-arrow-up animate-bounce text-sky-600"></i><span>Tahap 2/3: Mengunggah ke Drive...</span>';
+      }
+      if (progEl) {
+        progEl.style.width = (progPct || 75) + '%';
+        progEl.className = 'h-full bg-sky-500 rounded-full transition-all duration-300';
+      }
+      if (descEl) descEl.textContent = customDesc || 'Mentransfer berkas payload ke folder cloud...';
+      if (iconBox) {
+        iconBox.classList.remove('animate-pulse');
+        iconBox.classList.add('animate-bounce');
+      }
+    } else if (stage === 3) {
+      // 3: Status 3 - Terverifikasi & Tersimpan di Cloud
+      if (cardEl) cardEl.className = 'p-3 rounded-2xl border border-emerald-300 bg-emerald-50/60 shadow-xs transition-all duration-300';
+      if (statusEl) {
+        statusEl.className = 'shrink-0 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center gap-1.5 animate-pop-check';
+        statusEl.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-600 text-xs"></i><span>Tahap 3/3: Tersimpan di Cloud ✓</span>';
+      }
+      if (progEl) {
+        progEl.style.width = '100%';
+        progEl.className = 'h-full bg-emerald-500 rounded-full transition-all duration-300';
+      }
+      if (descEl) descEl.textContent = customDesc || '100% Tersimpan permanen di Google Drive';
+      if (iconBox) {
+        iconBox.classList.remove('animate-pulse', 'animate-bounce');
+      }
+    }
+  },
+
+  finishGdriveSyncSuccess(gasJson, rep) {
+    this.stopPsychologyTipsRotator();
+    this.setGdriveOverallProgress(100, 'Semua 3 berkas berhasil tersimpan di Google Drive!');
+
+    const quoteEl = document.getElementById('sync-psychology-quote');
+    if (quoteEl) {
+      quoteEl.textContent = '🎉 3 Berkas Lengkap Berhasil Diarsipkan ke Google Drive!';
+      quoteEl.className = 'text-[11px] font-black text-emerald-800 leading-snug';
+    }
+
+    const dismissBtn = document.getElementById('btn-sync-dismiss-bg');
+    if (dismissBtn) {
+      dismissBtn.classList.add('hidden');
+    }
+
+    const actionsContainer = document.getElementById('sync-loader-actions');
+    if (actionsContainer) {
+      actionsContainer.classList.remove('hidden');
+      actionsContainer.innerHTML = `
+        ${gasJson && gasJson.caSpreadsheetUrl ? `
+          <a href="${gasJson.caSpreadsheetUrl}" target="_blank" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer">
+            <i class="fa-solid fa-table"></i><span>Buka CA Sheet</span>
+          </a>
+        ` : ''}
+        ${gasJson && gasJson.storeFolderUrl ? `
+          <a href="${gasJson.storeFolderUrl}" target="_blank" class="px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer">
+            <i class="fa-solid fa-folder-open"></i><span>Folder Toko</span>
+          </a>
+        ` : ''}
+        <button type="button" onclick="FMCUApp.closeSyncLoaderAndOpenModal('${rep.id}')" class="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white font-black text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer">
+          <span>Lihat Ringkasan</span><i class="fa-solid fa-arrow-right text-[10px]"></i>
+        </button>
+      `;
+    }
+
+    this.triggerConfetti();
+  },
+
+  closeSyncLoader() {
     const loader = document.getElementById('loading-gdrive-sync');
     if (loader) {
       loader.classList.add('hidden');
       document.body.style.overflow = '';
     }
+    this.stopPsychologyTipsRotator();
+  },
+
+  closeSyncLoaderAndOpenModal(reportId) {
+    this.closeSyncLoader();
+    this.openIntegrationSendModal(reportId, true);
+  },
+
+  dismissSyncLoaderToBackground() {
+    this.closeSyncLoader();
     this.showToast('Sinkronisasi 3 berkas tetap berjalan di latar belakang...', 'info');
   },
 
@@ -10504,9 +10704,7 @@ Instruksi:
     }
 
     const loader = document.getElementById('loading-gdrive-sync');
-    const loaderStatus = document.getElementById('loading-gdrive-sync-status');
     if (loader) {
-      if (loaderStatus) loaderStatus.textContent = 'Menyiapkan berkas laporan...';
       loader.classList.remove('hidden');
       document.body.style.overflow = 'hidden';
     }
@@ -10515,13 +10713,6 @@ Instruksi:
       await this.triggerBackgroundDriveUpload(rep);
     } catch (err) {
       console.warn('Sync error:', err);
-    } finally {
-      if (loader) {
-        loader.classList.add('hidden');
-        document.body.style.overflow = '';
-      }
-      // Tampilkan pop-up konfirmasi setelah proses upload selesai
-      this.openIntegrationSendModal(rep.id, true);
     }
   },
 
@@ -10577,13 +10768,22 @@ Instruksi:
     }
     this._isSyncingDriveReport = true;
 
+    // Tampilkan modal loader fullscreen jika belum terbuka
+    const loader = document.getElementById('loading-gdrive-sync');
+    if (loader && loader.classList.contains('hidden')) {
+      loader.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+
+    // Inisialisasi UI 3 File Multi-Stage Loading & Rotasi Tips
+    this.initGdriveSyncUI(rep);
+
     const statusBox = document.getElementById('modal-send-status');
     const statusIconEl = document.getElementById('modal-send-status-icon');
     const statusTextEl = document.getElementById('modal-send-status-text');
-    const loaderStatus = document.getElementById('loading-gdrive-sync-status');
 
     const updateSyncStatus = (text, iconClass = 'fa-solid fa-spinner fa-spin text-teal-600') => {
-      if (loaderStatus) loaderStatus.textContent = text;
+      this.setGdriveOverallProgress(null, text);
       if (statusTextEl) statusTextEl.innerHTML = '<span>' + text + '</span>';
       if (statusIconEl) statusIconEl.className = iconClass + ' text-sm mt-0.5 shrink-0';
     };
@@ -10595,6 +10795,7 @@ Instruksi:
 
     // Jika Webhook Google Apps Script belum dikonfigurasi, tampilkan form input cepat langsung di pop-up
     if (!gasUrl || !gasUrl.startsWith('http')) {
+      this.stopPsychologyTipsRotator();
       if (statusBox) {
         statusBox.className = 'p-3.5 rounded-2xl font-semibold text-xs border border-amber-300 bg-amber-50 text-amber-950 flex flex-col gap-2.5';
       }
@@ -10622,6 +10823,7 @@ Instruksi:
           </div>
         `;
       }
+      this._isSyncingDriveReport = false;
       return;
     }
 
@@ -10632,13 +10834,13 @@ Instruksi:
       statusIconEl.className = 'fa-solid fa-spinner fa-spin text-teal-600 text-sm mt-0.5 shrink-0';
     }
     if (statusTextEl) {
-      statusTextEl.innerHTML = `<span>Menyimpan otomatis 3 berkas ke Google Drive (PDF Laporan, PDF QSC, & Spreadsheet CA unik toko)...</span>`;
+      statusTextEl.innerHTML = '<span>Menyimpan otomatis 3 berkas ke Google Drive (PDF Laporan, PDF QSC, & Spreadsheet CA unik toko)...</span>';
     }
 
     try {
       const isLiveReport = !rep.id || rep.id === '__LIVE_FORM__' || (this.hasActiveStoreForm && rep.storeCode === document.getElementById('form-store-code')?.value.trim());
 
-      // Pastikan lembar QSC Section 1 disinkronkan dengan live formQscPhotos jika laporan aktif saat ini
+      // Pastikan lembar QSC disinkronkan
       if (isLiveReport && Array.isArray(this.formQscPhotos) && this.formQscPhotos.length > 0) {
         if (!rep.qscPhotos || rep.qscPhotos.length === 0) {
           rep.qscPhotos = JSON.parse(JSON.stringify(this.formQscPhotos));
@@ -10651,7 +10853,7 @@ Instruksi:
         }
       }
 
-      // Pastikan Foto Bukti Temuan (Evidence) disinkronkan dengan formEvidencePhotos live jika tersedia
+      // Pastikan Foto Bukti Temuan (Evidence) disinkronkan
       if (isLiveReport && Array.isArray(this.formEvidencePhotos) && this.formEvidencePhotos.length > 0) {
         if (!rep.evidencePhotos || rep.evidencePhotos.length === 0) {
           rep.evidencePhotos = JSON.parse(JSON.stringify(this.formEvidencePhotos));
@@ -10664,7 +10866,7 @@ Instruksi:
         }
       }
 
-      // Pastikan Foto Hasil Perbaikan (CA) disinkronkan dengan formCaPhotos live jika tersedia
+      // Pastikan Foto Hasil Perbaikan (CA) disinkronkan
       if (isLiveReport && Array.isArray(this.formCaPhotos) && this.formCaPhotos.length > 0) {
         if (!rep.caPhotos || rep.caPhotos.length === 0) {
           rep.caPhotos = JSON.parse(JSON.stringify(this.formCaPhotos));
@@ -10679,22 +10881,26 @@ Instruksi:
         }
       }
 
+      // Sinkronisasi foto bukti tersisa jika ada
       if (window.FMCUData && typeof window.FMCUData.ensureReportPhotosUploadedToGDrive === 'function') {
-        updateSyncStatus('1/3: Menyinkronkan foto temuan tersisa...');
+        this.setGdriveOverallProgress(18, 'Menyinkronkan foto bukti temuan ke cloud...');
         await window.FMCUData.ensureReportPhotosUploadedToGDrive(rep);
       }
 
+      // ======================================================================
+      // TAHAP 1 DARI 3 BERKAS: PERSIAPAN & RENDER HD / PENATAAN DATA
+      // ======================================================================
+      this.setGdriveOverallProgress(35, 'Tahap 1: Merender dokumen PDF HD & menyusun kolase QSC...');
+      this.setFileSyncStage('pdf', 1, 'Merender slide 16:9 & kompresi foto HD...', 40);
+      this.setFileSyncStage('qsc', 1, 'Menyatukan potongan lembar QSC vertikal...', 40);
+      this.setFileSyncStage('ca', 1, 'Mengompilasi daftar temuan observasi & PIC...', 35);
+
       // PARALEL RENDER PDF UNTUK KECEPATAN MAKSIMAL (~2x lebih cepat)
-      updateSyncStatus('1/3: Menyusun PDF 16:9 & Kolase QSC secara paralel...');
       const [pdfBase64, qscPdfBase64] = await Promise.all([
         window.FMCUPdf.getPdfBase64(rep),
         window.FMCUPdf.getVerticalQscPdfBase64(rep)
       ]);
 
-      // OPTIMASI EKSTREM UKURAN PAYLOAD:
-      // Hanya kirim metadata teks yang dibutuhkan Google Apps Script untuk Spreadsheet CA!
-      // Jangan kirim Base64 foto mentah yang ada di rep.evidencePhotos/caPhotos (~45MB terbuang sia-sia).
-      // Hasilnya: Payload berkurang drastis dari ~50MB menjadi ~5MB (10x lebih cepat transfer datanya)!
       const sanitizedReport = {
         id: rep.id,
         storeCode: rep.storeCode,
@@ -10726,7 +10932,14 @@ Instruksi:
         }))
       };
 
-      updateSyncStatus('2/3: Mengunggah 3 berkas & membuat Spreadsheet CA toko...');
+      // ======================================================================
+      // TAHAP 2 DARI 3 BERKAS: MENGUNGGAH KE CLOUD / GOOGLE DRIVE TRANSFER
+      // ======================================================================
+      this.setGdriveOverallProgress(68, 'Tahap 2: Mentransfer 3 berkas ke Google Drive...');
+      this.setFileSyncStage('pdf', 2, 'Mengirim payload PDF 16:9 ke folder Google Drive...', 80);
+      this.setFileSyncStage('qsc', 2, 'Mengunggah PDF QSC vertikal ke Google Apps Script...', 80);
+      this.setFileSyncStage('ca', 2, 'Mengirim data temuan untuk membuat Spreadsheet CA...', 75);
+
       const response = await fetch(gasUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -10755,6 +10968,13 @@ Instruksi:
       } catch (e) {}
 
       if (gasJson && gasJson.status === 'SUCCESS') {
+        // ====================================================================
+        // TAHAP 3 DARI 3 BERKAS: TERVERIFIKASI & TERSIMPAN DI GOOGLE DRIVE ✓
+        // ====================================================================
+        this.setFileSyncStage('pdf', 3, 'PDF Laporan 16:9 tersimpan aman di Google Drive');
+        this.setFileSyncStage('qsc', 3, 'Dokumen QSC vertikal tersimpan di Google Drive');
+        this.setFileSyncStage('ca', 3, 'Spreadsheet CA unik toko berhasil dibuat & aktif');
+
         if (gasJson.caSpreadsheetUrl) {
           rep.caSpreadsheetUrl = gasJson.caSpreadsheetUrl;
           const caBtn = document.getElementById('btn-open-ca-sheet');
@@ -10812,7 +11032,10 @@ Instruksi:
             </div>
           `;
         }
-        this.showToast('Semua berkas laporan berhasil diarsipkan ke Google Drive!', 'success');
+
+        // Tampilkan State Sukses Lengkap & Tombol Aksi Cepat
+        this.finishGdriveSyncSuccess(gasJson, rep);
+        this.showToast('Semua 3 berkas laporan berhasil diarsipkan ke Google Drive!', 'success');
         return;
       } else {
         let errMsg = (gasJson && gasJson.message) ? gasJson.message : '';
@@ -10827,9 +11050,20 @@ Instruksi:
       }
     } catch (err) {
       console.warn('Background GAS sync error:', err);
-      // Auto-retry di balik layar tanpa tombol manual
+
+      // Tandai file card dengan badge tertunda
+      ['pdf', 'qsc', 'ca'].forEach((key) => {
+        const statusEl = document.getElementById('sync-status-' + key);
+        if (statusEl) {
+          statusEl.className = 'shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200 flex items-center gap-1';
+          statusEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-amber-600"></i><span>Tertunda</span>';
+        }
+      });
+
+      // Auto-retry di balik layar
       if (retryCount < 3) {
         const nextAttempt = retryCount + 1;
+        this.setGdriveOverallProgress(40, 'Koneksi tertunda, mencoba kembali otomatis (' + nextAttempt + '/3)...');
         if (statusBox) {
           statusBox.className = 'p-3 rounded-2xl font-semibold text-xs border border-teal-200 bg-teal-50/90 text-teal-900 flex items-start gap-2.5';
         }
@@ -10845,12 +11079,15 @@ Instruksi:
           `;
         }
         setTimeout(() => {
+          this._isSyncingDriveReport = false;
           this.triggerBackgroundDriveUpload(rep, nextAttempt);
         }, 2500 * nextAttempt);
         return;
       }
 
       // Background queue state saat jaringan bermasalah
+      this.stopPsychologyTipsRotator();
+      this.setGdriveOverallProgress(100, 'Tersimpan lokal di perangkat. Akan sinkron otomatis saat online.');
       if (statusBox) {
         statusBox.className = 'p-3 rounded-2xl font-semibold text-xs border border-slate-200 bg-slate-50 text-slate-800 flex items-start gap-2.5';
       }
@@ -10867,9 +11104,10 @@ Instruksi:
           </div>
         `;
       }
+    } finally {
+      this._isSyncingDriveReport = false;
     }
   },
-
   resetToVerifiedGasUrl() {
     const verifiedUrl = 'https://script.google.com/macros/s/AKfycbxC29L4Cb3NNvUl4IRe0MGDnrluvCvv1neuTjQieA8j7C4n7zgGfQ3dMA8SLXYBG0AWtw/exec';
     const settings = window.FMCUData.getSettings();
