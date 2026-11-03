@@ -13064,8 +13064,8 @@ Instruksi:
     );
 
     this.weeklyDraftMatrix = {};
-    this.renderAllViews();
     this.switchScheduleSubSection('list');
+    this.renderAdminView();
     this.showToast(
       `🎉 Berhasil menerapkan ${newSchedules.length} Jadwal Visit 1 Week (Senin–Minggu) untuk ${involvedAuditors.size} Visitor!`,
       'success'
@@ -13929,10 +13929,10 @@ Instruksi:
 
     // Tulis dokumen TUNGGAL ke Firestore & broadcast (100% hemat kuota, sinkron instan ke user)
     window.FMCUData.saveSingleSchedule(newSch);
-    this.renderAllViews();
     const focusEl = document.getElementById('adm-sch-focus');
     if (focusEl) focusEl.value = '';
     this.switchScheduleSubSection('list');
+    this.renderAdminView();
     this.showToast(`Jadwal Visit Toko ${st.name} untuk ${au.name} berhasil ditambahkan!`, 'success');
   },
 
@@ -14103,7 +14103,7 @@ Instruksi:
     const schedules = window.FMCUData.getSchedules() || [];
     const target = schedules.find((s) => s.id === id);
     window.FMCUData.deleteSchedule(id);
-    this.renderAllViews();
+    this.renderAdminView();
     this.showToast('Jadwal visit dihapus', 'info');
     if (target) {
       this.logScheduleAction('DELETE', `Menghapus jadwal visit toko ${target.storeName} (${target.storeCode}) untuk ${target.auditorName || '-'} tanggal ${target.scheduledDate}`, 'Daftar Jadwal');
@@ -14208,7 +14208,7 @@ Instruksi:
     const count = ids.length;
     window.FMCUData.deleteBulkSchedules(ids);
     this.selectedScheduleIds.clear();
-    this.renderAllViews();
+    this.renderAdminView();
     this.showToast(`Berhasil menghapus ${count} jadwal visit toko!`, 'success');
     this.logScheduleAction(
       'DELETE',
@@ -14344,7 +14344,7 @@ Instruksi:
 
     window.FMCUData.saveSingleSchedule(sch);
     this.closeEditScheduleModal();
-    this.renderAllViews();
+    this.renderAdminView();
     this.showToast(`Jadwal visit ${sch.storeName} berhasil diperbarui!`, 'success');
     this.logScheduleAction(
       'UPDATE',

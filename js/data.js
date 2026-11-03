@@ -1786,7 +1786,7 @@ window.FMCUData = {
     if (!Array.isArray(list)) list = [];
     localStorage.setItem(STORAGE_KEYS.NEWS, JSON.stringify(list));
 
-    if (this.db) {
+    if (this.db && this.cloudStatus !== 'QUOTA_EXCEEDED') {
       try {
         const batch = this.db.batch();
         list.forEach((n) => {
@@ -1870,7 +1870,7 @@ window.FMCUData = {
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(cleanUsers));
     this.callGasDatabase('db_save_collection', { collection: 'users', data: cleanUsers });
 
-    if (this.db) {
+    if (this.db && this.cloudStatus !== 'QUOTA_EXCEEDED') {
       try {
         const batch = this.db.batch();
         const newIds = new Set(users.map((u) => String(u.id || u.username)));
@@ -2062,7 +2062,10 @@ window.FMCUData = {
     this._cachedStores = stores;
     localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(stores));
 
-    if (this.db) {
+    // Simpan ke Google Apps Script Hidden Vault
+    this.callGasDatabase('db_save_collection', { collection: 'stores', data: stores });
+
+    if (this.db && this.cloudStatus !== 'QUOTA_EXCEEDED') {
       this.saveStoresCatalogToCloud(stores, false).catch((e) => console.warn('Save stores catalog error:', e));
       if (changedStore && changedStore.code) {
         this.db
@@ -2173,26 +2176,21 @@ window.FMCUData = {
     this._cachedSchedules = schedules;
     localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
 
-    // 1. Simpan langsung ke Google Apps Script Hidden Vault (Single Schedule & Master Collection)
-    this.callGasDatabase('db_save_schedule', { schedule: enrichedSch });
+    // 1. Simpan atomic ke Google Apps Script Hidden Vault (1 single request, 0 queue delay)
     this.callGasDatabase('db_save_collection', { collection: 'schedules', data: schedules });
 
-    // 2. Backup otomatis ke Google Drive sebagai jalur relay multi-device cadangan
-    this.backupSchedulesToGDrive(schedules);
-
-    // Broadcast instan 0ms ke semua tab/window aktif
+    // 2. Broadcast instan 0ms ke semua tab/window aktif
     this.broadcastSync({ type: 'SCHEDULE_SAVED', schedule: enrichedSch });
 
-    // Tulis dokumen TUNGGAL ke Cloud Firestore (1 doc write, 0% quota waste)
-    if (this.db) {
+    // 3. Tulis ke Cloud Firestore HANYA jika kuota belum habis (mencegah thread freeze 429)
+    if (this.db && this.cloudStatus !== 'QUOTA_EXCEEDED') {
       this.db
         .collection('schedules')
         .doc(docId)
         .set(sanitizeForFirestore(enrichedSch), { merge: true })
         .catch((e) => {
-          console.warn('Save single schedule error:', e);
           if (e && (e.code === 'resource-exhausted' || e.message?.includes('429'))) {
-            this.setCloudStatus('QUOTA_EXCEEDED', 'Batas kuota harian Firestore tercapai (429). Jadwal tersimpan aman secara offline/lokal.');
+            this.setCloudStatus('QUOTA_EXCEEDED', 'Batas kuota harian Firestore tercapai (429). Jadwal tersimpan aman di Google Drive Vault.');
           }
         });
     }
@@ -2206,13 +2204,12 @@ window.FMCUData = {
     this._cachedSchedules = schedules;
     localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
 
-    // 1. Hapus dari Google Apps Script Hidden Vault
-    this.callGasDatabase('db_delete_schedule', { scheduleId: docId });
+    // 1. Simpan langsung perubahan ke Google Apps Script Hidden Vault
     this.callGasDatabase('db_save_collection', { collection: 'schedules', data: schedules });
 
     this.broadcastSync({ type: 'SCHEDULE_DELETED', scheduleId: docId });
 
-    if (this.db) {
+    if (this.db && this.cloudStatus !== 'QUOTA_EXCEEDED') {
       this.db
         .collection('schedules')
         .doc(docId)
