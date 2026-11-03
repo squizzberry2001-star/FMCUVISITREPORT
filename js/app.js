@@ -1298,6 +1298,21 @@ window.FMCUApp = {
       : this.getFirstAllowedView(user);
     const savedAdminTab = sessionStorage.getItem('fmcu_active_admin_tab');
     this.navigate(allowedView, savedAdminTab || null);
+
+    // Segera picu sinkronisasi data Google Drive Vault saat user berhasil login
+    if (window.FMCUData && typeof window.FMCUData.syncAllFromGasDatabase === 'function') {
+      window.FMCUData.syncAllFromGasDatabase().then(() => {
+        if (this.currentView === 'home') {
+          this.renderHomeSchedules();
+          this.updateHomeSubSectionPills();
+          this.updateHomeTodayVisitButtonUI();
+        } else if (this.currentView === 'admin' || this.currentView === 'schedules') {
+          this.renderAdminView();
+        } else if (this.currentView === 'live-maps') {
+          this.renderLiveLocView();
+        }
+      }).catch(() => {});
+    }
   },
 
   logout(reasonMsg = '', skipConfirm = false) {
@@ -2437,6 +2452,9 @@ window.FMCUApp = {
 
     if (viewName === 'home') {
       this.renderHomeView();
+      if (window.FMCUData && typeof window.FMCUData.syncAllFromGasDatabase === 'function') {
+        window.FMCUData.syncAllFromGasDatabase().catch(() => {});
+      }
       setTimeout(() => {
         if (this.homeMap) this.homeMap.invalidateSize();
       }, 200);
@@ -2481,6 +2499,10 @@ window.FMCUApp = {
       this.showAdminSectionPanel('schedules');
       this.switchScheduleSubSection(this.currentScheduleSubSection || 'create', false);
       this.renderAdminView();
+      // Sinkronisasi data jadwal dari Google Drive Vault secara hening
+      if (window.FMCUData && typeof window.FMCUData.syncAllFromGasDatabase === 'function') {
+        window.FMCUData.syncAllFromGasDatabase().catch(() => {});
+      }
       // Auto-update master toko kepemilikan Bestie dari Google Spreadsheet secara hening di background
       if (window.FMCUData && typeof window.FMCUData.syncBestieInChargeFromSheet === 'function') {
         window.FMCUData.syncBestieInChargeFromSheet(false).catch(() => {});
@@ -2505,6 +2527,9 @@ window.FMCUApp = {
       this.switchAdminTab(targetTab);
       this.renderAdminView();
     } else if (viewName === 'live-maps') {
+      if (window.FMCUData && typeof window.FMCUData.syncAllFromGasDatabase === 'function') {
+        window.FMCUData.syncAllFromGasDatabase().catch(() => {});
+      }
       this.renderLiveLocView();
       setTimeout(() => {
         if (this.liveLocMap) this.liveLocMap.invalidateSize();
@@ -16480,6 +16505,15 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
     if (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN_SCHEDULE') return true;
     if (this.hasAuthority('manage_schedule', user) || this.hasAuthority('manage_users', user) || this.hasAuthority('view_live_maps', user)) return true;
     return false;
+  },
+
+  async refreshLiveLocMap() {
+    this.showToast('Memperbarui data GPS Bestie dari Cloud Vault...', 'info', 2000);
+    if (window.FMCUData && typeof window.FMCUData.syncAllFromGasDatabase === 'function') {
+      await window.FMCUData.syncAllFromGasDatabase();
+    }
+    this.renderLiveLocView();
+    this.showToast('Lokasi GPS Bestie berhasil diperbarui!', 'success', 2000);
   },
 
   renderLiveLocView() {

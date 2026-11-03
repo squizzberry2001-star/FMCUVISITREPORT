@@ -1064,7 +1064,11 @@ window.FMCUData = {
 
   getGasUrl() {
     const settings = this.getSettings();
-    return (settings.gasWebhookUrl || DEFAULT_SETTINGS.gasWebhookUrl || '').trim();
+    const url = (settings.gasWebhookUrl || DEFAULT_SETTINGS.gasWebhookUrl || '').trim();
+    if (!url || url.includes('AKfycbxqumXFq') || url.includes('4lRe') || !url.startsWith('http')) {
+      return DEFAULT_SETTINGS.gasWebhookUrl;
+    }
+    return url;
   },
 
   async callGasDatabase(action, payload = {}) {
@@ -1096,36 +1100,52 @@ window.FMCUData = {
     try {
       const resp = await this.callGasDatabase('db_sync_all');
       if (resp && resp.status === 'SUCCESS') {
-        let hasChanges = false;
+        let schedulesChanged = false;
+        let usersChanged = false;
+        let storesChanged = false;
+        let locationsChanged = false;
 
         // 1. Sync Schedules
+        const localSchedules = this.getSchedules() || [];
         if (Array.isArray(resp.schedules) && resp.schedules.length > 0) {
-          const localSchedules = this.getSchedules() || [];
+          const activeCheckIn = this.getActiveCheckIn ? this.getActiveCheckIn() : null;
+          const activeSchId = activeCheckIn?.scheduleId ? String(activeCheckIn.scheduleId) : null;
+
+          // Cloud vault adalah master kebenaran jadwal lintas perangkat
           const schMap = new Map();
-          localSchedules.forEach((s) => schMap.set(String(s.id), s));
           resp.schedules.forEach((s) => {
-            const existing = schMap.get(String(s.id));
-            if (!existing) {
-              schMap.set(String(s.id), s);
-              hasChanges = true;
-            } else {
-              if (existing.status === 'PENDING' && s.status !== 'PENDING') {
-                schMap.set(String(s.id), { ...s, actualIn: existing.actualIn || s.actualIn });
-                hasChanges = true;
+            if (s && s.id) schMap.set(String(s.id), s);
+          });
+
+          // Cek jadwal lokal jika ada sesi audit aktif atau jadwal offline
+          localSchedules.forEach((local) => {
+            if (!local || !local.id) return;
+            const sId = String(local.id);
+            if (schMap.has(sId)) {
+              const cloud = schMap.get(sId);
+              // Pertahankan status check-in lokal jika Bestie di perangkat ini sedang aktif audit di toko tersebut
+              if ((activeSchId && sId === activeSchId) || local.status === 'CHECKED_IN' || local.actualIn) {
+                if (cloud.status === 'PENDING' && local.status !== 'PENDING') {
+                  schMap.set(sId, { ...cloud, status: local.status, actualIn: local.actualIn, actualOut: local.actualOut });
+                }
               }
+            } else if (local.isOfflineCreated) {
+              schMap.set(sId, local);
             }
           });
+
           const mergedSchedules = Array.from(schMap.values()).sort((a, b) =>
             String(a.scheduledDate || '').localeCompare(String(b.scheduledDate || ''))
           );
-          this._cachedSchedules = mergedSchedules;
-          localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(mergedSchedules));
-        } else {
-          // Jika cloud masih kosong, upload jadwal lokal yang ada ke cloud vault
-          const localSchedules = this.getSchedules() || [];
-          if (localSchedules.length > 0) {
-            this.callGasDatabase('db_save_collection', { collection: 'schedules', data: localSchedules });
+
+          if (JSON.stringify(localSchedules) !== JSON.stringify(mergedSchedules)) {
+            this._cachedSchedules = mergedSchedules;
+            localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(mergedSchedules));
+            schedulesChanged = true;
           }
+        } else if (localSchedules.length > 0) {
+          // Cloud vault jadwal masih kosong: upload seed/local schedules ke cloud vault sekarang!
+          this.callGasDatabase('db_save_collection', { collection: 'schedules', data: localSchedules });
         }
 
         // 2. Sync Users (Bestie & Admin)
@@ -1139,22 +1159,24 @@ window.FMCUData = {
             userMap.set(key, cur ? { ...cur, ...u } : u);
           });
           const mergedUsers = Array.from(userMap.values());
-          this._cachedUsers = mergedUsers;
-          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(mergedUsers));
-          hasChanges = true;
+          if (JSON.stringify(currentUsers) !== JSON.stringify(mergedUsers)) {
+            this._cachedUsers = mergedUsers;
+            localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(mergedUsers));
+            usersChanged = true;
+          }
         } else if (currentUsers.length > 0) {
-          // Cloud vault users masih kosong: upload seed users ke cloud vault!
           this.callGasDatabase('db_save_collection', { collection: 'users', data: currentUsers });
         }
 
         // 3. Sync Stores
         const currentStores = this.getStores() || [];
         if (Array.isArray(resp.stores) && resp.stores.length >= currentStores.length && resp.stores.length > 0) {
-          this._cachedStores = resp.stores;
-          localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(resp.stores));
-          hasChanges = true;
+          if (JSON.stringify(currentStores) !== JSON.stringify(resp.stores)) {
+            this._cachedStores = resp.stores;
+            localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(resp.stores));
+            storesChanged = true;
+          }
         } else if (currentStores.length > 0) {
-          // Cloud vault stores masih kosong: upload master stores ke cloud vault!
           this.callGasDatabase('db_save_collection', { collection: 'stores', data: currentStores });
         }
 
@@ -1163,25 +1185,40 @@ window.FMCUData = {
           const users = this.getUsers();
           let locChanged = false;
           users.forEach((u) => {
-            const key = String(u.id || u.username || u.nik);
-            if (resp.locations[key]) {
-              u.lastLocation = resp.locations[key];
-              locChanged = true;
+            const loc =
+              resp.locations[u.id] ||
+              resp.locations[u.username] ||
+              resp.locations[u.nik] ||
+              (u.id && String(u.id).startsWith('usr-') ? resp.locations[String(u.id).slice(4)] : resp.locations['usr-' + u.id]);
+            if (loc) {
+              const prev = u.lastLocation;
+              const next = loc;
+              if (!prev || prev.lat !== next.lat || prev.lng !== next.lng || prev.updatedAt !== next.updatedAt) {
+                u.lastLocation = next;
+                locChanged = true;
+              }
             }
           });
           if (locChanged) {
             this._cachedUsers = users;
             localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-            hasChanges = true;
+            locationsChanged = true;
           }
         }
 
         // Set status cloud database aktif ke Google Drive Vault
         this.setCloudStatus('ONLINE_GAS', 'Database: Google Drive Vault (Terenkripsi • Bebas Kuota)');
 
-        if (hasChanges && window.FMCUApp) {
-          if (typeof window.FMCUApp.onCloudDataUpdated === 'function') {
+        // Dispatch notifications to UI
+        if (window.FMCUApp) {
+          if (schedulesChanged && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
             window.FMCUApp.onCloudDataUpdated('schedules');
+          }
+          if ((usersChanged || locationsChanged) && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
+            window.FMCUApp.onCloudDataUpdated('users', { onlyLocationChanged: !usersChanged && locationsChanged });
+          }
+          if (storesChanged && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
+            window.FMCUApp.onCloudDataUpdated('stores');
           }
         }
       }
@@ -1196,7 +1233,7 @@ window.FMCUData = {
     // 1. Sinkronisasi pertama saat web app dimuat
     setTimeout(() => this.syncAllFromGasDatabase(), 1200);
 
-    // 2. Smart Polling berkala (setiap 35 detik):
+    // 2. Smart Polling berkala (setiap 20 detik):
     // Memperbarui Jadwal baru & Lokasi Live GPS Bestie secara otomatis tanpa limit 429
     if (this._gasPollingInterval) {
       clearInterval(this._gasPollingInterval);
@@ -1205,7 +1242,7 @@ window.FMCUData = {
       if (typeof document !== 'undefined' && !document.hidden) {
         this.syncAllFromGasDatabase(true);
       }
-    }, 35000);
+    }, 20000);
   },
 
 
@@ -1582,7 +1619,11 @@ window.FMCUData = {
               .catch(() => {});
             return;
           }
-          const cloudSettings = { ...DEFAULT_SETTINGS, ...(doc.data() || {}) };
+          const cloudData = doc.data() || {};
+          if (cloudData.gasWebhookUrl && (cloudData.gasWebhookUrl.includes('AKfycbxqumXFq') || cloudData.gasWebhookUrl.includes('4lRe') || !cloudData.gasWebhookUrl.includes('AKfycbxC29L4Cb3NNvUl4IRe0MGDnrluvCvv1neuTjQieA8j7C4n7zgGfQ3dMA8SLXYBG0AWtw'))) {
+            delete cloudData.gasWebhookUrl;
+          }
+          const cloudSettings = { ...DEFAULT_SETTINGS, ...cloudData };
           localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(cloudSettings));
           if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
             window.FMCUApp.onCloudDataUpdated('settings');
@@ -1950,20 +1991,23 @@ window.FMCUData = {
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
     } catch (e) {}
 
-    // 1. Broadcast lokasi secara instan (0ms) ke semua tab/window/device
+    // 1. Simpan ke Google Apps Script Hidden Vault (Bebas Quota 429 & sinkron multi-device)
+    const canonicalUserId = String(users[idx].id || users[idx].username);
+    this.callGasDatabase('db_update_location', { userId: canonicalUserId, location: loc });
+
+    // 2. Broadcast lokasi secara instan (0ms) ke semua tab/window/device
     this.broadcastSync({ type: 'LOCATION_UPDATED', userId, location: loc });
 
-    // 2. Tulis HANYA field lastLocation ke Cloud Firestore untuk 1 user ini (hemat quota 95%)
+    // 3. Tulis HANYA field lastLocation ke Cloud Firestore untuk 1 user ini (hemat quota 95%)
     if (this.db) {
-      const docId = String(users[idx].id || users[idx].username);
-      this.db.collection('users').doc(docId).set({ lastLocation: loc }, { merge: true }).catch(() => {});
+      this.db.collection('users').doc(canonicalUserId).set({ lastLocation: loc }, { merge: true }).catch(() => {});
     }
 
-    // 3. Segera beri notifikasi lokal agar marker Leaflet berpindah seketika
+    // 4. Segera beri notifikasi lokal agar marker Leaflet berpindah seketika
     if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
       window.FMCUApp.onCloudDataUpdated('users', {
         onlyLocationChanged: true,
-        userId: users[idx].id || users[idx].username,
+        userId: canonicalUserId,
         location: loc
       });
     }
@@ -2129,7 +2173,11 @@ window.FMCUData = {
     this._cachedSchedules = schedules;
     localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
 
-    // Backup otomatis ke Google Drive sebagai jalur relay multi-device cadangan
+    // 1. Simpan langsung ke Google Apps Script Hidden Vault (Single Schedule & Master Collection)
+    this.callGasDatabase('db_save_schedule', { schedule: enrichedSch });
+    this.callGasDatabase('db_save_collection', { collection: 'schedules', data: schedules });
+
+    // 2. Backup otomatis ke Google Drive sebagai jalur relay multi-device cadangan
     this.backupSchedulesToGDrive(schedules);
 
     // Broadcast instan 0ms ke semua tab/window aktif
@@ -2158,8 +2206,9 @@ window.FMCUData = {
     this._cachedSchedules = schedules;
     localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
 
-    // Hapus dari Google Apps Script Hidden Vault
+    // 1. Hapus dari Google Apps Script Hidden Vault
     this.callGasDatabase('db_delete_schedule', { scheduleId: docId });
+    this.callGasDatabase('db_save_collection', { collection: 'schedules', data: schedules });
 
     this.broadcastSync({ type: 'SCHEDULE_DELETED', scheduleId: docId });
 
@@ -2179,6 +2228,10 @@ window.FMCUData = {
     this._cachedSchedules = schedules;
     localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
 
+    // Simpan list terbaru ke Google Apps Script Hidden Vault
+    this.callGasDatabase('db_save_collection', { collection: 'schedules', data: schedules });
+    this.broadcastSync({ type: 'SCHEDULES_UPDATED', count: schedules.length });
+
     if (this.db) {
       ids.forEach((id) => {
         this.db
@@ -2196,11 +2249,11 @@ window.FMCUData = {
     this._cachedSchedules = schedules;
     localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
 
-    // Backup otomatis ke Google Drive sebagai jalur relay multi-device cadangan
-    this.backupSchedulesToGDrive(schedules);
-
     // Backup & simpan master schedules ke Google Apps Script Hidden Vault
     this.callGasDatabase('db_save_collection', { collection: 'schedules', data: schedules });
+
+    // Backup otomatis ke Google Drive sebagai jalur relay multi-device cadangan
+    this.backupSchedulesToGDrive(schedules);
 
     this.broadcastSync({ type: 'SCHEDULES_UPDATED', count: schedules.length });
 
@@ -3457,7 +3510,21 @@ window.FMCUData = {
   },
 
   getSettings() {
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(STORAGE_KEYS.SETTINGS) || '{}') };
+    let saved = {};
+    try {
+      saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.SETTINGS) || '{}');
+    } catch (e) {
+      saved = {};
+    }
+    const TARGET_GAS_URL = DEFAULT_SETTINGS.gasWebhookUrl;
+    // Auto-migrasi URL Google Apps Script jika masih mengarah ke deployment lama atau kosong
+    if (!saved.gasWebhookUrl || saved.gasWebhookUrl.includes('AKfycbxqumXFq') || saved.gasWebhookUrl.includes('4lRe') || !saved.gasWebhookUrl.includes('AKfycbxC29L4Cb3NNvUl4IRe0MGDnrluvCvv1neuTjQieA8j7C4n7zgGfQ3dMA8SLXYBG0AWtw')) {
+      saved.gasWebhookUrl = TARGET_GAS_URL;
+      try {
+        localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify({ ...DEFAULT_SETTINGS, ...saved }));
+      } catch (e) {}
+    }
+    return { ...DEFAULT_SETTINGS, ...saved };
   },
   saveSettings(settings) {
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
