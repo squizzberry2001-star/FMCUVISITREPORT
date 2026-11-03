@@ -3059,6 +3059,18 @@ service cloud.firestore {
                   <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Daftar Email CC Otomatis (RM, AM, FMCU)</label>
                   <input type="text" id="set-cc-emails" placeholder="Masukkan daftar email CC dipisahkan koma" class="fm-input text-xs" aria-label="Masukkan daftar email CC dipisahkan koma" />
                 </div>
+                <div class="p-4 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-teal-500/10 border border-amber-300 rounded-2xl space-y-2">
+                  <div class="flex items-center justify-between gap-2 flex-wrap">
+                    <label class="block text-xs font-extrabold text-slate-800 uppercase flex items-center gap-1.5">
+                      <i class="fa-solid fa-bolt text-amber-500"></i>
+                      <span>Cloudflare D1 Edge Worker Database URL (⚡ Latensi Ekstrem ~20ms)</span>
+                    </label>
+                    <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">5 Juta Read/Hari Gratis</span>
+                  </div>
+                  <input type="url" id="set-cloudflare-url" placeholder="https://fmcu-edge-database.your-subdomain.workers.dev" class="fm-input font-mono text-xs" />
+                  <p class="text-[11px] text-slate-600">Saat diisi, seluruh sinkronisasi jadwal, user, master toko, dan live tracker GPS akan beralih ke Cloudflare Edge Database dengan latensi instan ~20-50ms (Server Jakarta/Singapore). Jika kosong, sistem otomatis memakai Google Drive Vault sebagai cadangan.</p>
+                </div>
+
                 <div>
                   <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Google Apps Script Web App URL (Database Foto GDrive + Auto-PDF & Email) *</label>
                   <input type="url" id="set-gas-url" placeholder="https://script.google.com/macros/s/.../exec" class="fm-input font-mono text-xs" aria-label="https://script.google.com/macros/s/.../exec" />
@@ -3843,9 +3855,9 @@ service cloud.firestore {
   <script defer src="js/holding-time-standards.js"></script>
   <script defer src="js/master-stores-seed.js"></script>
   <script defer src="js/bestie-in-charge-seed.js"></script>
-  <script defer src="js/data.js?v=1793685000000"></script>
+  <script defer src="js/data.js?v=1793686000000"></script>
   <script defer src="js/pdf-generator.js?v=1793672329571"></script>
-  <script defer src="js/app.js?v=1793685000000"></script>
+  <script defer src="js/app.js?v=1793686000000"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>

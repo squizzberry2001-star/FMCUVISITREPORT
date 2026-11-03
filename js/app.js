@@ -11086,6 +11086,8 @@ Instruksi:
     document.getElementById('set-gdrive-folder').value = settings.gdriveFolderId || '';
     document.getElementById('set-cc-emails').value = settings.defaultCcEmails || '';
     document.getElementById('set-gas-url').value = settings.gasWebhookUrl || '';
+    const cfUrlEl = document.getElementById('set-cloudflare-url');
+    if (cfUrlEl) cfUrlEl.value = settings.cloudflareWorkerUrl || '';
     const setWmGps = document.getElementById('set-auto-watermark-gps');
     if (setWmGps) setWmGps.checked = settings.autoWatermarkGps !== false;
 
@@ -15702,6 +15704,7 @@ Instruksi:
       gdriveFolderId: document.getElementById('set-gdrive-folder').value.trim(),
       defaultCcEmails: document.getElementById('set-cc-emails').value.trim(),
       gasWebhookUrl: document.getElementById('set-gas-url').value.trim(),
+      cloudflareWorkerUrl: document.getElementById('set-cloudflare-url')?.value?.trim() || '',
       autoWatermarkGps: document.getElementById('set-auto-watermark-gps')?.checked ?? true
     };
     window.FMCUData.saveSettings(settings);
