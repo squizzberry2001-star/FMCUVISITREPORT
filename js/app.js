@@ -6204,7 +6204,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
                 isAdmin
                   ? `
                 <!-- 1. Folder toko -->
-                <a href="${r.storeFolderUrl || r.visitorFolderUrl || 'https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8'}" target="_blank" rel="noopener noreferrer" class="px-3.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Buka Folder Toko di Google Drive">
+                <a href="${r.storeFolderUrl || r.visitorFolderUrl || 'https://drive.google.com/drive/u/3/folders/1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B'}" target="_blank" rel="noopener noreferrer" class="px-3.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Buka Folder Toko di Google Drive">
                   <i class="fa-solid fa-folder-open text-[#009944]"></i>
                   <span>Folder Toko</span>
                 </a>
@@ -9966,7 +9966,7 @@ Instruksi:
         const obsCount = (r.observations || []).length;
         const evCount = (r.evidencePhotos || []).length;
         const dateText = r.visitDayDateFormatted || window.FMCUPdf.formatIndonesianDate(r.visitDate, true);
-        const folderUrl = r.storeFolderUrl || r.visitorFolderUrl || 'https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8';
+        const folderUrl = r.storeFolderUrl || r.visitorFolderUrl || 'https://drive.google.com/drive/u/3/folders/1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B';
         const hasDrivePdf = Boolean(r.pdfDriveUrl || r.pdfUrl || r.drivePdfUrl || r.gdrivePdfUrl);
 
         return `
@@ -10128,7 +10128,7 @@ Instruksi:
   },
 
   // ==========================================================================
-  // GOOGLE DRIVE SYNC INTEGRATION (ROOT: 15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8)
+  // GOOGLE DRIVE SYNC INTEGRATION (ROOT: 1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B)
   // Catatan: Sistem pengiriman email dinonaktifkan total selama masa testing.
   // ==========================================================================
   async handlePreviewGDriveSyncClick() {
@@ -10178,7 +10178,7 @@ Instruksi:
     // Set tautan tombol buka folder toko dan spreadsheet CA jika ada di DOM
     const folderBtn = document.getElementById('btn-open-store-folder');
     if (folderBtn) {
-      folderBtn.href = rep.storeFolderUrl || 'https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8';
+      folderBtn.href = rep.storeFolderUrl || 'https://drive.google.com/drive/u/3/folders/1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B';
     }
     const caBtn = document.getElementById('btn-open-ca-sheet');
     if (caBtn) {
@@ -10190,9 +10190,9 @@ Instruksi:
       }
     }
 
-    // Kolom masukan ID folder Google tersembunyi & auto-linked ke 15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8
+    // Kolom masukan ID folder Google tersembunyi & auto-linked ke 1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B
     const folderInput = document.getElementById('modal-send-folder');
-    if (folderInput) folderInput.value = '15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8';
+    if (folderInput) folderInput.value = '1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B';
 
     // Buka Modal Pop-up
     const modal = document.getElementById('modal-send-integration');
@@ -10213,7 +10213,7 @@ Instruksi:
     const fileName = window.FMCUPdf.getFileName(rep);
     const settings = window.FMCUData.getSettings();
     const gasUrl = (settings.gasWebhookUrl || '').trim();
-    const targetFolderId = '15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8';
+    const targetFolderId = '1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B';
 
     // Jika Webhook Google Apps Script belum dikonfigurasi, tampilkan form input cepat langsung di pop-up
     if (!gasUrl || !gasUrl.startsWith('http')) {
@@ -10230,7 +10230,7 @@ Instruksi:
               Webhook Google Apps Script Belum Terhubung
             </div>
             <p class="text-[11px] text-amber-800 leading-relaxed">
-              Untuk mengaktifkan sinkronisasi otomatis 3 berkas ke Google Drive (<code>15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8</code>) & pembuatan Spreadsheet CA unik toko, silakan tempel Web App URL Google Apps Script Anda di bawah ini:
+              Untuk mengaktifkan sinkronisasi otomatis 3 berkas ke Google Drive (<code>1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B</code>) & pembuatan Spreadsheet CA unik toko, silakan tempel Web App URL Google Apps Script Anda di bawah ini:
             </p>
             <div class="flex items-center gap-1.5 pt-0.5">
               <input type="url" id="quick-gas-url-input" placeholder="https://script.google.com/macros/s/.../exec" class="fm-input text-xs font-mono bg-white flex-1 py-1.5 px-3" />
@@ -15745,7 +15745,7 @@ Instruksi:
  * ============================================================================
  * FMCU VISIT STORE REPORT - GOOGLE APPS SCRIPT BACKEND (Code.gs)
  * Arsitektur Penyimpanan Hierarki Folder Google Drive:
- * 1. Root Folder: 15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8
+ * 1. Root Folder: 1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B
  * 2. Folder Tahun: "01. VISIT BESTIE 2026" (Auto-create tahun berjalan/berikutnya)
  * 3. Folder Visitor: Nama Regional Bestie / Visitor
  * 4. Folder Toko: Kode & Nama Toko yang divisit (contoh: "0449 - PORIS PARADISE")
@@ -15768,7 +15768,7 @@ Instruksi:
  * ============================================================================
  */
 
-var DEFAULT_ROOT_GDRIVE_ID = "15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8";
+var DEFAULT_ROOT_GDRIVE_ID = "1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B";
 
 /**
  * UJI KONEKTIVITAS & OTORISASI DRIVEAPP
@@ -15999,7 +15999,7 @@ function doPost(e) {
       ddMmYyyy = ('0' + now.getDate()).slice(-2) + '-' + ('0' + (now.getMonth() + 1)).slice(-2) + '-' + visitYear;
     }
 
-    // 1. Root Folder (Target folder: 15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8)
+    // 1. Root Folder (Target folder: 1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B)
     var rootFolderId = payload.gdriveFolderId || DEFAULT_ROOT_GDRIVE_ID;
     var rootFolder = getOrCreateTargetFolder_(rootFolderId, 'FMCU_VISIT_REPORTS');
 

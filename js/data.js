@@ -266,9 +266,9 @@ const DEFAULT_SETTINGS = {
   caLink: 'https://tinyurl.com/store-caassignment',
   cloudflareWorkerUrl: 'https://fmcuonegatesystem-edge-api.pages.dev/api',
   gasWebhookUrl: 'https://script.google.com/macros/s/AKfycbxC29L4Cb3NNvUl4IRe0MGDnrluvCvv1neuTjQieA8j7C4n7zgGfQ3dMA8SLXYBG0AWtw/exec',
-  gdriveFolderId: '15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8',
-  gdrivePhotoFolderId: '15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8',
-  gdriveFolderUrl: 'https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8',
+  gdriveFolderId: '1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B',
+  gdrivePhotoFolderId: '1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B',
+  gdriveFolderUrl: 'https://drive.google.com/drive/u/3/folders/1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B',
   defaultCcEmails: '',
   autoWatermarkPhoto: true,
   autoWatermarkGps: true,
@@ -1653,6 +1653,21 @@ window.FMCUData = {
           const cloudData = doc.data() || {};
           if (cloudData.gasWebhookUrl && (cloudData.gasWebhookUrl.includes('AKfycbxqumXFq') || cloudData.gasWebhookUrl.includes('4lRe') || !cloudData.gasWebhookUrl.includes('AKfycbxC29L4Cb3NNvUl4IRe0MGDnrluvCvv1neuTjQieA8j7C4n7zgGfQ3dMA8SLXYBG0AWtw'))) {
             delete cloudData.gasWebhookUrl;
+          }
+          // Pastikan folder Google Drive telah bermigrasi ke folder baru (1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B)
+          if (!cloudData.gdriveFolderId || cloudData.gdriveFolderId === '15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8') {
+            cloudData.gdriveFolderId = '1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B';
+            cloudData.gdrivePhotoFolderId = '1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B';
+            cloudData.gdriveFolderUrl = 'https://drive.google.com/drive/u/3/folders/1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B';
+            this.db
+              .collection('settings')
+              .doc('global_config')
+              .set({
+                gdriveFolderId: cloudData.gdriveFolderId,
+                gdrivePhotoFolderId: cloudData.gdrivePhotoFolderId,
+                gdriveFolderUrl: cloudData.gdriveFolderUrl
+              }, { merge: true })
+              .catch(() => {});
           }
           // Pastikan cloudflareWorkerUrl tidak hilang saat reload atau snapshot sync
           const currentLocal = this.getSettings();
@@ -3587,6 +3602,16 @@ window.FMCUData = {
       saved.cloudflareWorkerUrl = DEFAULT_SETTINGS.cloudflareWorkerUrl;
     } else if (saved.cloudflareWorkerUrl.includes('.pages.dev') && !saved.cloudflareWorkerUrl.includes('/api')) {
       saved.cloudflareWorkerUrl = saved.cloudflareWorkerUrl.replace(/\/+$/, '') + '/api';
+    }
+    // Auto-migrasi Folder Google Drive ke lokasi baru 1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B
+    if (!saved.gdriveFolderId || saved.gdriveFolderId === '15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8') {
+      saved.gdriveFolderId = '1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B';
+    }
+    if (!saved.gdrivePhotoFolderId || saved.gdrivePhotoFolderId === '15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8') {
+      saved.gdrivePhotoFolderId = '1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B';
+    }
+    if (!saved.gdriveFolderUrl || saved.gdriveFolderUrl.includes('15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8')) {
+      saved.gdriveFolderUrl = 'https://drive.google.com/drive/u/3/folders/1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B';
     }
     try {
       localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify({ ...DEFAULT_SETTINGS, ...saved }));

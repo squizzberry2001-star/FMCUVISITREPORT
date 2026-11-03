@@ -2,7 +2,7 @@
  * ============================================================================
  * FMCU VISIT STORE REPORT - GOOGLE APPS SCRIPT BACKEND (Code.gs)
  * Arsitektur Penyimpanan Hierarki Folder Google Drive:
- * 1. Root Folder: 15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8
+ * 1. Root Folder: 1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B
  * 2. Folder Tahun: "01. VISIT BESTIE 2026" (Auto-create tahun berjalan/berikutnya)
  * 3. Folder Visitor: Nama Regional Bestie / Visitor
  * 4. Folder Toko: Kode & Nama Toko yang divisit (contoh: "0449 - PORIS PARADISE")
@@ -25,7 +25,7 @@
  * ============================================================================
  */
 
-var DEFAULT_ROOT_GDRIVE_ID = "15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8";
+var DEFAULT_ROOT_GDRIVE_ID = "1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B";
 
 /**
  * UJI KONEKTIVITAS & OTORISASI DRIVEAPP
@@ -447,7 +447,7 @@ function doPost(e) {
       ddMmYyyy = ('0' + now.getDate()).slice(-2) + '-' + ('0' + (now.getMonth() + 1)).slice(-2) + '-' + visitYear;
     }
 
-    // 1. Root Folder (Target folder: 15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8)
+    // 1. Root Folder (Target folder: 1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B)
     var rootFolderId = payload.gdriveFolderId || DEFAULT_ROOT_GDRIVE_ID;
     var rootFolder = getOrCreateTargetFolder_(rootFolderId, 'FMCU_VISIT_REPORTS');
 
