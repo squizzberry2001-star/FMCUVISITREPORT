@@ -1066,7 +1066,11 @@ window.FMCUData = {
   getGasUrl() {
     const settings = this.getSettings();
     if (settings.cloudflareWorkerUrl && settings.cloudflareWorkerUrl.trim().startsWith('http')) {
-      return settings.cloudflareWorkerUrl.trim();
+      let d1Url = settings.cloudflareWorkerUrl.trim();
+      if (d1Url.includes('.pages.dev') && !d1Url.includes('/api')) {
+        d1Url = d1Url.replace(/\/+$/, '') + '/api';
+      }
+      return d1Url;
     }
     const url = (settings.gasWebhookUrl || DEFAULT_SETTINGS.gasWebhookUrl || '').trim();
     if (!url || url.includes('AKfycbxqumXFq') || url.includes('4lRe') || !url.startsWith('http')) {

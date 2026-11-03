@@ -15714,7 +15714,15 @@ Instruksi:
       gdriveFolderId: document.getElementById('set-gdrive-folder').value.trim(),
       defaultCcEmails: document.getElementById('set-cc-emails').value.trim(),
       gasWebhookUrl: document.getElementById('set-gas-url').value.trim(),
-      cloudflareWorkerUrl: document.getElementById('set-cloudflare-url')?.value?.trim() || '',
+      cloudflareWorkerUrl: (() => {
+        let u = document.getElementById('set-cloudflare-url')?.value?.trim() || '';
+        if (u.includes('.pages.dev') && !u.includes('/api')) {
+          u = u.replace(/\/+$/, '') + '/api';
+          const inputEl = document.getElementById('set-cloudflare-url');
+          if (inputEl) inputEl.value = u;
+        }
+        return u;
+      })(),
       autoWatermarkGps: document.getElementById('set-auto-watermark-gps')?.checked ?? true
     };
     window.FMCUData.saveSettings(settings);
