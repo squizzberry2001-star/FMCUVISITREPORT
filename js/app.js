@@ -10944,10 +10944,13 @@ Instruksi:
         }
       }
 
-      // Sinkronisasi foto bukti tersisa jika ada
+      // Sinkronisasi foto bukti individual dijalankan di LATAR BELAKANG secara asynchronous (Non-blocking),
+      // sehingga TIDAK menahan pembuatan 3 berkas utama (Memotong 15-25 detik waktu tunggu user!)
       if (window.FMCUData && typeof window.FMCUData.ensureReportPhotosUploadedToGDrive === 'function') {
-        this.setGdriveOverallProgress(18, 'Menyinkronkan foto bukti temuan ke cloud...');
-        await window.FMCUData.ensureReportPhotosUploadedToGDrive(rep);
+        window.FMCUData.cacheReportPhotosInMemory(rep);
+        window.FMCUData.ensureReportPhotosUploadedToGDrive(rep).catch((err) => {
+          console.warn('[FMCUApp] Background photo sync notice:', err);
+        });
       }
 
       // ======================================================================
@@ -11003,22 +11006,37 @@ Instruksi:
       this.setFileSyncStage('qsc', 2, 'Mengunggah PDF QSC vertikal ke Google Apps Script...', 80);
       this.setFileSyncStage('ca', 2, 'Mengirim data temuan untuk membuat Spreadsheet CA...', 75);
 
-      const response = await fetch(gasUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          action: 'sendReport',
-          report: sanitizedReport,
-          visitorName: rep.auditorName || this.currentUser?.name || 'Visitor',
-          pdfBase64,
-          qscPdfBase64,
-          fileName,
-          gdriveFolderId: targetFolderId,
-          sendEmail: false,
-          recipientEmails: '',
-          ccEmails: ''
-        })
-      });
+      // Dynamic progress ticker agar bar visual berjalan mulus (68% -> 74% -> 82% -> 92%)
+      // dan tidak terlihat berhenti/membeku saat transfer jaringan berlangsung
+      let currentDynPct = 68;
+      const syncProgressTicker = setInterval(() => {
+        if (currentDynPct < 93) {
+          currentDynPct += Math.floor(Math.random() * 4) + 2;
+          this.setGdriveOverallProgress(currentDynPct, 'Tahap 2: Mentransfer 3 berkas ke Google Drive (' + currentDynPct + '%)...');
+        }
+      }, 700);
+
+      let response;
+      try {
+        response = await fetch(gasUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'sendReport',
+            report: sanitizedReport,
+            visitorName: rep.auditorName || this.currentUser?.name || 'Visitor',
+            pdfBase64,
+            qscPdfBase64,
+            fileName,
+            gdriveFolderId: targetFolderId,
+            sendEmail: false,
+            recipientEmails: '',
+            ccEmails: ''
+          })
+        });
+      } finally {
+        clearInterval(syncProgressTicker);
+      }
 
       let responseText = '';
       try {
@@ -16610,8 +16628,7 @@ function doPost(e) {
         : (payload.gdrivePhotoFolderId || DEFAULT_PHOTO_GDRIVE_ID);
       var rootFolder = getOrCreateTargetFolder_(rootFolderId, isQsc ? 'FMCU_VISIT_REPORTS' : 'FMCU_FOTO_DATABASE');
 
-      // Sapu & bersihkan folder toko yang tercecer di root jika ada
-      cleanupSpamStoreFoldersFromRoot_(rootFolder);
+      // Catatan: Pembersihan folder root dijalankan terpisah via menu Admin / action: cleanupRootFolder
 
       var visitorName = (payload.visitorName || 'Visitor').trim();
       var visitYear = String(payload.visitYear || '2026').trim();
