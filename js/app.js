@@ -10213,7 +10213,7 @@ Instruksi:
     const fileName = window.FMCUPdf.getFileName(rep);
     const settings = window.FMCUData.getSettings();
     const gasUrl = (settings.gasWebhookUrl || '').trim();
-    const targetFolderId = '1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B';
+    const targetFolderId = '15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8';
 
     // Jika Webhook Google Apps Script belum dikonfigurasi, tampilkan form input cepat langsung di pop-up
     if (!gasUrl || !gasUrl.startsWith('http')) {
@@ -10314,6 +10314,7 @@ Instruksi:
         body: JSON.stringify({
           action: 'sendReport',
           report: rep,
+          visitorName: rep.auditorName || this.currentUser?.name || 'Visitor',
           pdfBase64,
           qscPdfBase64,
           fileName,
@@ -15768,7 +15769,8 @@ Instruksi:
  * ============================================================================
  */
 
-var DEFAULT_ROOT_GDRIVE_ID = "1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B";
+var DEFAULT_ROOT_GDRIVE_ID = "15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8"; // 05. VISIT STORE (3 Berkas Laporan: PDF 16:9, Lembar QSC, Spreadsheet CA)
+var DEFAULT_PHOTO_GDRIVE_ID = "1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B"; // Folder Baru Khusus Upload Foto Bukti & Temuan Mentah
 
 /**
  * UJI KONEKTIVITAS & OTORISASI DRIVEAPP
@@ -18981,7 +18983,7 @@ ${extractedPdfText}`;
       ctx.restore();
     });
 
-    const finalDataUrl = exportCanvas.toDataURL('image/jpeg', 0.88);
+    const finalDataUrl = exportCanvas.toDataURL('image/jpeg', 0.94);
     const onComplete = this.photoEditorState.onComplete;
     this.closePhotoEditor(true);
 

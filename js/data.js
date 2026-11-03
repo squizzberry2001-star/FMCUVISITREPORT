@@ -266,9 +266,9 @@ const DEFAULT_SETTINGS = {
   caLink: 'https://tinyurl.com/store-caassignment',
   cloudflareWorkerUrl: 'https://fmcuonegatesystem-edge-api.pages.dev/api',
   gasWebhookUrl: 'https://script.google.com/macros/s/AKfycbxC29L4Cb3NNvUl4IRe0MGDnrluvCvv1neuTjQieA8j7C4n7zgGfQ3dMA8SLXYBG0AWtw/exec',
-  gdriveFolderId: '1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B',
+  gdriveFolderId: '15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8',
   gdrivePhotoFolderId: '1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B',
-  gdriveFolderUrl: 'https://drive.google.com/drive/u/3/folders/1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B',
+  gdriveFolderUrl: 'https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8',
   defaultCcEmails: '',
   autoWatermarkPhoto: true,
   autoWatermarkGps: true,
@@ -1654,11 +1654,13 @@ window.FMCUData = {
           if (cloudData.gasWebhookUrl && (cloudData.gasWebhookUrl.includes('AKfycbxqumXFq') || cloudData.gasWebhookUrl.includes('4lRe') || !cloudData.gasWebhookUrl.includes('AKfycbxC29L4Cb3NNvUl4IRe0MGDnrluvCvv1neuTjQieA8j7C4n7zgGfQ3dMA8SLXYBG0AWtw'))) {
             delete cloudData.gasWebhookUrl;
           }
-          // Pastikan folder Google Drive telah bermigrasi ke folder baru (1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B)
-          if (!cloudData.gdriveFolderId || cloudData.gdriveFolderId === '15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8') {
-            cloudData.gdriveFolderId = '1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B';
+          // Pemisahan Folder Google Drive:
+          // 1. gdriveFolderId -> '15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8' (Folder Awal "05. VISIT STORE" khusus 3 Berkas Laporan: PDF 16:9, Lembar QSC, Spreadsheet CA)
+          // 2. gdrivePhotoFolderId -> '1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B' (Folder Baru khusus upload foto-foto mentah bukti temuan)
+          if (!cloudData.gdriveFolderId || cloudData.gdriveFolderId !== '15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8' || !cloudData.gdrivePhotoFolderId || cloudData.gdrivePhotoFolderId !== '1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B') {
+            cloudData.gdriveFolderId = '15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8';
             cloudData.gdrivePhotoFolderId = '1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B';
-            cloudData.gdriveFolderUrl = 'https://drive.google.com/drive/u/3/folders/1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B';
+            cloudData.gdriveFolderUrl = 'https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8';
             this.db
               .collection('settings')
               .doc('global_config')
@@ -3092,7 +3094,7 @@ window.FMCUData = {
           visitDate,
           visitYear,
           photoType,
-          gdrivePhotoFolderId: settings.gdrivePhotoFolderId || settings.gdriveFolderId || ''
+          gdrivePhotoFolderId: settings.gdrivePhotoFolderId || '1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B'
         })
       });
 
@@ -3603,15 +3605,13 @@ window.FMCUData = {
     } else if (saved.cloudflareWorkerUrl.includes('.pages.dev') && !saved.cloudflareWorkerUrl.includes('/api')) {
       saved.cloudflareWorkerUrl = saved.cloudflareWorkerUrl.replace(/\/+$/, '') + '/api';
     }
-    // Auto-migrasi Folder Google Drive ke lokasi baru 1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B
-    if (!saved.gdriveFolderId || saved.gdriveFolderId === '15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8') {
-      saved.gdriveFolderId = '1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B';
-    }
+    // Pemisahan Folder Google Drive:
+    // 1. Folder Laporan (PDF 16:9, Kolase Lembar QSC, Spreadsheet CA) -> Tetap di folder awal "05. VISIT STORE"
+    saved.gdriveFolderId = '15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8';
+    saved.gdriveFolderUrl = 'https://drive.google.com/drive/u/3/folders/15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8';
+    // 2. Folder Foto Mentah (Evidence & CA Photos) -> Di folder baru agar tidak mencemari root 05. VISIT STORE
     if (!saved.gdrivePhotoFolderId || saved.gdrivePhotoFolderId === '15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8') {
       saved.gdrivePhotoFolderId = '1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B';
-    }
-    if (!saved.gdriveFolderUrl || saved.gdriveFolderUrl.includes('15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8')) {
-      saved.gdriveFolderUrl = 'https://drive.google.com/drive/u/3/folders/1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B';
     }
     try {
       localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify({ ...DEFAULT_SETTINGS, ...saved }));

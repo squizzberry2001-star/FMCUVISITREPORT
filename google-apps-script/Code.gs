@@ -2,14 +2,14 @@
  * ============================================================================
  * FMCU VISIT STORE REPORT - GOOGLE APPS SCRIPT BACKEND (Code.gs)
  * Arsitektur Penyimpanan Hierarki Folder Google Drive:
- * 1. Root Folder: 1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B
- * 2. Folder Tahun: "01. VISIT BESTIE 2026" (Auto-create tahun berjalan/berikutnya)
- * 3. Folder Visitor: Nama Regional Bestie / Visitor
- * 4. Folder Toko: Kode & Nama Toko yang divisit (contoh: "0449 - PORIS PARADISE")
- * 5. Tiga Lampiran di dalam Folder Toko:
+ * 1. Root Folder Laporan (05. VISIT STORE): 15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8
+ *    Menyimpan 3 Berkas Resmi:
  *    a. PDF Laporan Visit ("Hasil Kunjungan-{Nama Store}-{DD-MM-YYYY}.pdf")
  *    b. Foto Lembar QSC ("Kolase Lembar QSC-{Nama Store}-{DD-MM-YYYY}.pdf") - Vertikal
  *    c. Spreadsheet CA Store Assignment (Auto generate link live online & lock Kolom A-D)
+ *    Struktur Folder: 05. VISIT STORE > 01. VISIT BESTIE 2026 > [Nama Visitor] > [Kode - Nama Toko]
+ * 2. Root Folder Khusus Foto Upload: 1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B
+ *    Menyimpan seluruh foto mentah temuan (evidence & CA) agar tidak mencemari 05. VISIT STORE.
  * ============================================================================
  *
  * CARA DEPLOY (1 MENIT):
@@ -25,7 +25,8 @@
  * ============================================================================
  */
 
-var DEFAULT_ROOT_GDRIVE_ID = "1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B";
+var DEFAULT_ROOT_GDRIVE_ID = "15Nb6vesuhbx5yZCqHekV8Fo5e9kyB0i8"; // Folder 05. VISIT STORE (Root Resmi untuk 3 Berkas Laporan)
+var DEFAULT_PHOTO_GDRIVE_ID = "1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B"; // Folder Baru Khusus Upload Foto Bukti & Temuan Mentah
 
 /**
  * UJI KONEKTIVITAS & OTORISASI DRIVEAPP
@@ -142,8 +143,8 @@ function doPost(e) {
       var photoFileName = payload.fileName || ('FMCU_PHOTO_' + new Date().getTime() + '.jpg');
       var photoBlob = Utilities.newBlob(decodedPhoto, 'image/jpeg', photoFileName);
 
-      var rootFolderId = payload.gdrivePhotoFolderId || payload.gdriveFolderId || DEFAULT_ROOT_GDRIVE_ID;
-      var rootFolder = getOrCreateTargetFolder_(rootFolderId, 'FMCU_VISIT_REPORTS');
+      var rootFolderId = payload.gdrivePhotoFolderId || DEFAULT_PHOTO_GDRIVE_ID;
+      var rootFolder = getOrCreateTargetFolder_(rootFolderId, 'FMCU_FOTO_DATABASE');
 
       // Sapu & bersihkan folder toko yang tercecer di root jika ada
       cleanupSpamStoreFoldersFromRoot_(rootFolder);

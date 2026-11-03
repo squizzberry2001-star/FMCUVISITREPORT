@@ -24,7 +24,7 @@ window.FMCUPdf = {
       gpsLat = null,
       gpsLng = null,
       applyWatermark = true,
-      maxDimension = 1100,
+      maxDimension = 1920,
       compact = false,
       compactWatermark = false,
       photoType = ''
@@ -80,7 +80,7 @@ window.FMCUPdf = {
             ctx.fillText(textStr, padLeft, h - Math.round(barH * 0.28));
           }
 
-          resolve(canvas.toDataURL('image/jpeg', 0.84));
+          resolve(canvas.toDataURL('image/jpeg', 0.92));
         };
         img.onerror = (err) => reject(err);
         img.src = src;
@@ -197,7 +197,7 @@ window.FMCUPdf = {
   },
 
   // Helper to draw image inside a bounding box while preserving natural aspect ratio (mencegah foto & timestamp tertarik)
-  drawImageProportional(doc, imgData, boxX, boxY, boxW, boxH, format = 'JPEG', compression = 'FAST') {
+  drawImageProportional(doc, imgData, boxX, boxY, boxW, boxH, format = 'JPEG', compression = 'MEDIUM') {
     if (!doc || !imgData) return null;
     try {
       let imgW = 0;
@@ -574,7 +574,7 @@ window.FMCUPdf = {
 
       const qscImgBase64 = this.getPhotoBase64ForPdf(photo);
       if (qscImgBase64 && qscImgBase64.startsWith('data:image')) {
-        this.drawImageProportional(doc, qscImgBase64, cardX + 3, cardY + 3, cardW - 6, cardH - 12, 'JPEG', 'FAST');
+        this.drawImageProportional(doc, qscImgBase64, cardX + 3, cardY + 3, cardW - 6, cardH - 12, 'JPEG', 'MEDIUM');
       } else {
         doc.setFillColor(248, 250, 252);
         doc.roundedRect(cardX + 3, cardY + cardH - 12, cardW - 6, cardH - 12, 2, 2, 'F');
@@ -1351,7 +1351,7 @@ window.FMCUPdf = {
       const imgBase64 = photo.resolvedBase64 || (photo.dataUrl && photo.dataUrl.startsWith('data:image') ? photo.dataUrl : '');
       if (imgBase64) {
         try {
-          this.drawImageProportional(doc, imgBase64, boxX + 3, boxY + 3, boxW - 6, boxH - 6, 'JPEG', 'FAST');
+          this.drawImageProportional(doc, imgBase64, boxX + 3, boxY + 3, boxW - 6, boxH - 6, 'JPEG', 'MEDIUM');
         } catch (e) {
           console.warn('QSC photo draw error:', e);
           doc.setTextColor(148, 163, 184);
