@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1793780000000" as="style" />
-  <link rel="preload" href="css/styles.css?v=1793780000000" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1793790000000" as="style" />
+  <link rel="preload" href="css/styles.css?v=1793790000000" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1793780000000" />
-  <link rel="stylesheet" href="css/styles.css?v=1793780000000" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1793790000000" />
+  <link rel="stylesheet" href="css/styles.css?v=1793790000000" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -3665,6 +3665,11 @@ service cloud.firestore {
         <i class="fa-solid fa-spinner fa-spin text-xs"></i>
         <span id="loading-gdrive-sync-status">Memproses upload berkas...</span>
       </div>
+      <div>
+        <button type="button" onclick="FMCUApp.dismissSyncLoaderToBackground()" class="text-[11px] font-bold text-slate-500 hover:text-slate-800 underline transition cursor-pointer">
+          Jalankan di Latar Belakang (Tetap Lanjut)
+        </button>
+      </div>
     </div>
   </div>
 
@@ -3859,9 +3864,9 @@ service cloud.firestore {
   <script defer src="js/holding-time-standards.js"></script>
   <script defer src="js/master-stores-seed.js"></script>
   <script defer src="js/bestie-in-charge-seed.js"></script>
-  <script defer src="js/data.js?v=1793780000000"></script>
-  <script defer src="js/pdf-generator.js?v=1793780000000"></script>
-  <script defer src="js/app.js?v=1793780000000"></script>
+  <script defer src="js/data.js?v=1793790000000"></script>
+  <script defer src="js/pdf-generator.js?v=1793790000000"></script>
+  <script defer src="js/app.js?v=1793790000000"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>

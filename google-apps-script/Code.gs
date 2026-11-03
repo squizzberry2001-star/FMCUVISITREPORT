@@ -584,27 +584,23 @@ function doPost(e) {
         { label: 'PIC Store', val: report.storeHead || '-' }
       ];
 
-      for (var m = 0; m < metaRows.length; m++) {
-        var rIdx = 3 + m;
-        var rLabel = sheet.getRange('A' + rIdx + ':C' + rIdx);
-        rLabel.merge();
-        rLabel.setValue(metaRows[m].label);
-        rLabel.setBackground('#46BDC6');
-        rLabel.setFontColor('#FFFFFF');
-        rLabel.setFontWeight('bold');
-        rLabel.setFontSize(10);
-        rLabel.setVerticalAlignment('middle');
-
-        var rVal = sheet.getRange('D' + rIdx + ':E' + rIdx);
-        rVal.merge();
-        rVal.setValue(metaRows[m].val);
-        rVal.setFontWeight('bold');
-        rVal.setFontSize(10);
-        rVal.setVerticalAlignment('middle');
-
-        sheet.getRange(rIdx, 1, 1, 5).setBorder(true, true, true, true, true, true, '#CBD5E1', SpreadsheetApp.BorderStyle.SOLID);
-        sheet.setRowHeight(rIdx, 24);
-      }
+      // BATCH WRITE METADATA UNTUK KECEPATAN TINGGI (~10x lebih cepat daripada loop individual)
+      sheet.getRange('A3:C7').mergeAcross();
+      sheet.getRange('D3:E7').mergeAcross();
+      var labelVals = [['Kode Toko'], ['Nama Store'], ['Nama Visitor'], ['Tanggal Visit'], ['PIC Store']];
+      var dataVals = [
+        [storeCode || '-'],
+        [storeName || '-'],
+        [visitorName || '-'],
+        [report.visitDateFormatted || ddMmYyyy || '-'],
+        [report.storeHead || '-']
+      ];
+      sheet.getRange('A3:A7').setValues(labelVals);
+      sheet.getRange('D3:D7').setValues(dataVals);
+      sheet.getRange('A3:C7').setBackground('#46BDC6').setFontColor('#FFFFFF').setFontWeight('bold').setFontSize(10).setVerticalAlignment('middle');
+      sheet.getRange('D3:E7').setFontWeight('bold').setFontSize(10).setVerticalAlignment('middle');
+      sheet.getRange('A3:E7').setBorder(true, true, true, true, true, true, '#CBD5E1', SpreadsheetApp.BorderStyle.SOLID);
+      sheet.setRowHeights(3, 5, 24);
 
       // Row 9: Header Kolom Temuan
       var r9No = sheet.getRange('A9');
@@ -689,11 +685,9 @@ function doPost(e) {
       sheet.getRange(10, 5, totalDataRows, 1).setHorizontalAlignment('center').setVerticalAlignment('middle').setFontSize(10);
       sheet.getRange(10, 6, totalDataRows, 1).setVerticalAlignment('middle');
 
-      for (var oi = 0; oi < totalDataRows; oi++) {
-        var rNum = 10 + oi;
-        sheet.getRange(rNum, 2, 1, 3).merge();
-        sheet.setRowHeight(rNum, 40);
-      }
+      // BATCH MERGE & RESIZE ROW TEMUAN (~10x lebih cepat)
+      sheet.getRange(10, 2, totalDataRows, 3).mergeAcross();
+      sheet.setRowHeights(10, totalDataRows, 40);
 
       // KUNCI / LOCK KOLOM A-D (Toko hanya bisa mengisi Kolom E & F pada data temuan)
       try {
