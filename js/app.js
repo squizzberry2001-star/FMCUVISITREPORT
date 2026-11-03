@@ -10374,7 +10374,7 @@ Instruksi:
   },
 
   resetToVerifiedGasUrl() {
-    const verifiedUrl = 'https://script.google.com/macros/s/AKfycbxqumXFq5ohGM9o-AiMOdMRad8idrUjrRl1B-yy17RliyM7ZTblheA1lCDHJbpKADgDZQ/exec';
+    const verifiedUrl = 'https://script.google.com/macros/s/AKfycbxC29L4Cb3NNvUl4IRe0MGDnrluvCvv1neuTjQieA8j7C4n7zgGfQ3dMA8SLXYBG0AWtw/exec';
     const settings = window.FMCUData.getSettings();
     settings.gasWebhookUrl = verifiedUrl;
     window.FMCUData.saveSettings(settings);
