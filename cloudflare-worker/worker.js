@@ -88,98 +88,122 @@ async function initTables(db) {
   ]);
 }
 
-export default {
-  async fetch(request, env) {
-    // 1. Handle CORS Preflight
-    if (request.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: CORS_HEADERS });
-    }
+async function handleRequest(request, env) {
+  // 1. Handle CORS Preflight
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: CORS_HEADERS });
+  }
 
-    if (!env.DB) {
+  if (!env.DB) {
+    return jsonResponse({
+      status: 'ERROR',
+      message: 'D1 Binding tidak ditemukan! Pastikan Variable Name di Cloudflare Pages/Worker diatur ke "DB".'
+    }, 500);
+  }
+
+  const url = new URL(request.url);
+  const pathname = url.pathname;
+
+  try {
+    // 2. Health Check & Root
+    if ((pathname === '/' || pathname === '/api' || pathname === '/api/') && request.method === 'GET' && !url.searchParams.get('action')) {
       return jsonResponse({
-        status: 'ERROR',
-        message: 'D1 Binding tidak ditemukan! Pastikan Variable Name di Cloudflare Worker diatur ke "DB".'
-      }, 500);
+        status: 'ONLINE',
+        engine: 'Cloudflare D1 Edge SQLite',
+        app: 'FMCU Visit Report Edge Database',
+        timestamp: new Date().toISOString()
+      });
     }
 
-    const url = new URL(request.url);
-    const pathname = url.pathname;
+    // Pastikan tabel selalu siap
+    await initTables(env.DB);
 
-    try {
-      // 2. Health Check & Root
-      if (pathname === '/' && request.method === 'GET') {
-        return jsonResponse({
-          status: 'ONLINE',
-          engine: 'Cloudflare D1 Edge SQLite',
-          app: 'FMCU Visit Report Edge Database',
-          timestamp: new Date().toISOString()
-        });
+    // Parse payload jika POST
+    let payload = {};
+    if (request.method === 'POST') {
+      try {
+        payload = await request.json();
+      } catch (e) {
+        payload = {};
       }
+    }
 
-      // Pastikan tabel selalu siap
-      await initTables(env.DB);
+    const action = payload.action || url.searchParams.get('action') || '';
 
-      // Parse payload jika POST
-      let payload = {};
-      if (request.method === 'POST') {
+    // ========================================================================
+    // 1. SYNC ALL (Mengambil Jadwal, User, Toko, dan Live GPS seketika)
+    // ========================================================================
+    if (pathname.endsWith('/sync-all') || action === 'db_sync_all') {
+      const [schRes, userRes, storeRes, locRes, repRes] = await Promise.all([
+        env.DB.prepare('SELECT rawJson FROM schedules ORDER BY scheduledDate ASC').all(),
+        env.DB.prepare('SELECT rawJson FROM users').all(),
+        env.DB.prepare('SELECT rawJson FROM stores').all(),
+        env.DB.prepare('SELECT rawJson FROM locations').all(),
+        env.DB.prepare('SELECT rawJson FROM reports ORDER BY visitDate DESC LIMIT 200').all()
+      ]);
+
+      const parseRows = (rows) => (rows?.results || []).map((r) => {
         try {
-          payload = await request.json();
+          return JSON.parse(r.rawJson);
         } catch (e) {
-          payload = {};
+          return null;
         }
+      }).filter(Boolean);
+
+      return jsonResponse({
+        status: 'SUCCESS',
+        source: 'cloudflare_d1',
+        timestamp: new Date().toISOString(),
+        schedules: parseRows(schRes),
+        users: parseRows(userRes),
+        stores: parseRows(storeRes),
+        locations: parseRows(locRes),
+        reports: parseRows(repRes)
+      });
+    }
+
+    // ========================================================================
+    // 2. GET COLLECTION
+    // ========================================================================
+    if (pathname.endsWith('/get-collection') || action === 'db_get_collection') {
+      const coll = payload.collection || url.searchParams.get('collection') || '';
+      let query = '';
+      if (coll === 'schedules') query = 'SELECT rawJson FROM schedules ORDER BY scheduledDate ASC';
+      else if (coll === 'users') query = 'SELECT rawJson FROM users';
+      else if (coll === 'stores') query = 'SELECT rawJson FROM stores';
+      else if (coll === 'locations') query = 'SELECT rawJson FROM locations';
+      else if (coll === 'reports') query = 'SELECT rawJson FROM reports ORDER BY visitDate DESC LIMIT 300';
+      else {
+        return jsonResponse({ status: 'ERROR', message: `Collection ${coll} tidak valid` }, 400);
       }
 
-      const action = payload.action || '';
-
-      // ========================================================================
-      // 1. SYNC ALL (Mengambil Jadwal, User, Toko, dan Live GPS seketika)
-      // ========================================================================
-      if (pathname === '/api/sync-all' || action === 'db_sync_all') {
-        const [schRes, userRes, storeRes, locRes, repRes] = await Promise.all([
-          env.DB.prepare('SELECT rawJson FROM schedules ORDER BY scheduledDate ASC').all(),
-          env.DB.prepare('SELECT rawJson FROM users').all(),
-          env.DB.prepare('SELECT rawJson FROM stores').all(),
-          env.DB.prepare('SELECT userId, rawJson FROM locations').all(),
-          env.DB.prepare('SELECT rawJson FROM reports ORDER BY updatedAt DESC LIMIT 100').all()
-        ]);
-
-        const schedules = (schRes.results || []).map((r) => JSON.parse(r.rawJson || '{}')).filter((s) => s && s.id);
-        const users = (userRes.results || []).map((r) => JSON.parse(r.rawJson || '{}')).filter((u) => u && (u.id || u.username));
-        const stores = (storeRes.results || []).map((r) => JSON.parse(r.rawJson || '{}')).filter((st) => st && st.code);
-        const locations = {};
-        (locRes.results || []).forEach((r) => {
-          if (r.userId && r.rawJson) {
-            try {
-              locations[r.userId] = JSON.parse(r.rawJson);
-            } catch (e) {}
-          }
-        });
-        const reports = (repRes.results || []).map((r) => JSON.parse(r.rawJson || '{}')).filter((rp) => rp && rp.id);
-
-        return jsonResponse({
-          status: 'SUCCESS',
-          source: 'cloudflare_d1',
-          schedules,
-          users,
-          stores,
-          locations,
-          reports,
-          timestamp: new Date().toISOString()
-        });
-      }
-
-      // ========================================================================
-      // 2. SAVE SINGLE SCHEDULE (Upsert Jadwal Tunggal)
-      // ========================================================================
-      if (pathname === '/api/save-schedule' || action === 'db_save_schedule') {
-        const sch = payload.schedule;
-        if (!sch || !sch.id) {
-          return jsonResponse({ status: 'ERROR', message: 'Data jadwal tidak valid' }, 400);
+      const res = await env.DB.prepare(query).all();
+      const items = (res?.results || []).map((r) => {
+        try {
+          return JSON.parse(r.rawJson);
+        } catch (e) {
+          return null;
         }
-        const sId = String(sch.id);
-        const nowIso = sch.updatedAt || new Date().toISOString();
-        const rawJson = JSON.stringify(sch);
+      }).filter(Boolean);
 
+      return jsonResponse({
+        status: 'SUCCESS',
+        collection: coll,
+        data: items
+      });
+    }
+
+    // ========================================================================
+    // 3. SAVE ITEM TUNGGAL
+    // ========================================================================
+    if (pathname.endsWith('/save-item') || action === 'db_save_item') {
+      const coll = payload.collection || '';
+      const item = payload.item || {};
+      const nowIso = new Date().toISOString();
+
+      if (coll === 'schedules') {
+        const id = String(item.id || '');
+        if (!id) return jsonResponse({ status: 'ERROR', message: 'Schedule id wajib ada' }, 400);
         await env.DB.prepare(`
           INSERT INTO schedules (id, storeCode, storeName, auditorId, auditorName, scheduledDate, status, rawJson, updatedAt)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -193,211 +217,230 @@ export default {
             rawJson = excluded.rawJson,
             updatedAt = excluded.updatedAt
         `).bind(
-          sId,
-          String(sch.storeCode || ''),
-          String(sch.storeName || ''),
-          String(sch.auditorId || ''),
-          String(sch.auditorName || ''),
-          String(sch.scheduledDate || ''),
-          String(sch.status || 'PENDING'),
-          rawJson,
+          id,
+          String(item.storeCode || ''),
+          String(item.storeName || ''),
+          String(item.auditorId || ''),
+          String(item.auditorName || ''),
+          String(item.scheduledDate || ''),
+          String(item.status || 'SCHEDULED'),
+          JSON.stringify(item),
           nowIso
         ).run();
 
-        return jsonResponse({
-          status: 'SUCCESS',
-          action: 'db_save_schedule',
-          scheduleId: sId,
-          timestamp: new Date().toISOString()
-        });
+        return jsonResponse({ status: 'SUCCESS', action: 'db_save_item', collection: coll, id });
       }
 
-      // ========================================================================
-      // 3. DELETE SCHEDULE
-      // ========================================================================
-      if (pathname === '/api/delete-schedule' || action === 'db_delete_schedule') {
-        const sId = String(payload.scheduleId || '');
-        if (!sId) {
-          return jsonResponse({ status: 'ERROR', message: 'ID Jadwal tidak valid' }, 400);
-        }
-        await env.DB.prepare('DELETE FROM schedules WHERE id = ?').bind(sId).run();
-        return jsonResponse({
-          status: 'SUCCESS',
-          action: 'db_delete_schedule',
-          deletedId: sId,
-          timestamp: new Date().toISOString()
-        });
-      }
-
-      // ========================================================================
-      // 4. SAVE COLLECTION (Schedules, Users, Stores, Locations, Reports)
-      // ========================================================================
-      if (pathname === '/api/save-collection' || action === 'db_save_collection') {
-        const coll = payload.collection || 'schedules';
-        const data = payload.data;
-
-        if (coll === 'schedules' && Array.isArray(data)) {
-          const stmts = [env.DB.prepare('DELETE FROM schedules')];
-          data.forEach((s) => {
-            if (s && s.id) {
-              stmts.push(
-                env.DB.prepare(`
-                  INSERT INTO schedules (id, storeCode, storeName, auditorId, auditorName, scheduledDate, status, rawJson, updatedAt)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `).bind(
-                  String(s.id),
-                  String(s.storeCode || ''),
-                  String(s.storeName || ''),
-                  String(s.auditorId || ''),
-                  String(s.auditorName || ''),
-                  String(s.scheduledDate || ''),
-                  String(s.status || 'PENDING'),
-                  JSON.stringify(s),
-                  s.updatedAt || new Date().toISOString()
-                )
-              );
-            }
-          });
-          // Eksekusi atomic batch
-          await env.DB.batch(stmts);
-          return jsonResponse({ status: 'SUCCESS', collection: 'schedules', count: data.length });
-        }
-
-        if (coll === 'users' && Array.isArray(data)) {
-          const stmts = [env.DB.prepare('DELETE FROM users')];
-          data.forEach((u) => {
-            const uId = String(u.id || u.username);
-            if (uId) {
-              stmts.push(
-                env.DB.prepare(`
-                  INSERT INTO users (id, username, name, nik, role, rawJson, updatedAt)
-                  VALUES (?, ?, ?, ?, ?, ?, ?)
-                `).bind(
-                  uId,
-                  String(u.username || ''),
-                  String(u.name || ''),
-                  String(u.nik || ''),
-                  String(u.role || 'AUDITOR'),
-                  JSON.stringify(u),
-                  new Date().toISOString()
-                )
-              );
-            }
-          });
-          await env.DB.batch(stmts);
-          return jsonResponse({ status: 'SUCCESS', collection: 'users', count: data.length });
-        }
-
-        if (coll === 'stores' && Array.isArray(data)) {
-          const stmts = [env.DB.prepare('DELETE FROM stores')];
-          data.forEach((st) => {
-            if (st && st.code) {
-              stmts.push(
-                env.DB.prepare(`
-                  INSERT INTO stores (code, name, type, city, rawJson, updatedAt)
-                  VALUES (?, ?, ?, ?, ?, ?)
-                `).bind(
-                  String(st.code),
-                  String(st.name || ''),
-                  String(st.type || 'CVS'),
-                  String(st.city || ''),
-                  JSON.stringify(st),
-                  new Date().toISOString()
-                )
-              );
-            }
-          });
-          await env.DB.batch(stmts);
-          return jsonResponse({ status: 'SUCCESS', collection: 'stores', count: data.length });
-        }
-
-        if (coll === 'locations') {
-          if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
-            const keys = Object.keys(data);
-            if (keys.length === 0) {
-              await env.DB.prepare('DELETE FROM locations').run();
-            } else {
-              const stmts = [];
-              keys.forEach((k) => {
-                const loc = data[k];
-                stmts.push(
-                  env.DB.prepare(`
-                    INSERT INTO locations (userId, lat, lng, status, storeVisit, rawJson, updatedAt)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(userId) DO UPDATE SET
-                      lat = excluded.lat,
-                      lng = excluded.lng,
-                      status = excluded.status,
-                      storeVisit = excluded.storeVisit,
-                      rawJson = excluded.rawJson,
-                      updatedAt = excluded.updatedAt
-                  `).bind(
-                    String(k),
-                    Number(loc.lat || 0),
-                    Number(loc.lng || 0),
-                    String(loc.status || 'LIVE_GPS'),
-                    String(loc.storeVisit || ''),
-                    JSON.stringify(loc),
-                    loc.updatedAt || new Date().toISOString()
-                  )
-                );
-              });
-              await env.DB.batch(stmts);
-            }
-            return jsonResponse({ status: 'SUCCESS', collection: 'locations', count: keys.length });
-          }
-        }
-
-        return jsonResponse({ status: 'ERROR', message: `Collection ${coll} tidak dikenali` }, 400);
-      }
-
-      // ========================================================================
-      // 5. UPDATE LIVE GPS LOCATION
-      // ========================================================================
-      if (pathname === '/api/update-location' || action === 'db_update_location') {
-        const uId = String(payload.userId || '');
-        const loc = payload.location;
-        if (!uId || !loc) {
-          return jsonResponse({ status: 'ERROR', message: 'Data lokasi tidak valid' }, 400);
-        }
-        const nowIso = new Date().toISOString();
-        const enrichedLoc = { ...loc, updatedAt: nowIso };
-
+      if (coll === 'users') {
+        const id = String(item.id || '');
+        if (!id) return jsonResponse({ status: 'ERROR', message: 'User id wajib ada' }, 400);
         await env.DB.prepare(`
-          INSERT INTO locations (userId, lat, lng, status, storeVisit, rawJson, updatedAt)
+          INSERT INTO users (id, username, name, nik, role, rawJson, updatedAt)
           VALUES (?, ?, ?, ?, ?, ?, ?)
-          ON CONFLICT(userId) DO UPDATE SET
-            lat = excluded.lat,
-            lng = excluded.lng,
-            status = excluded.status,
-            storeVisit = excluded.storeVisit,
+          ON CONFLICT(id) DO UPDATE SET
+            username = excluded.username,
+            name = excluded.name,
+            nik = excluded.nik,
+            role = excluded.role,
             rawJson = excluded.rawJson,
             updatedAt = excluded.updatedAt
         `).bind(
-          uId,
-          Number(loc.lat || 0),
-          Number(loc.lng || 0),
-          String(loc.status || 'LIVE_GPS'),
-          String(loc.storeVisit || ''),
-          JSON.stringify(enrichedLoc),
+          id,
+          String(item.username || ''),
+          String(item.name || ''),
+          String(item.nik || ''),
+          String(item.role || ''),
+          JSON.stringify(item),
           nowIso
         ).run();
 
-        return jsonResponse({
-          status: 'SUCCESS',
-          action: 'db_update_location',
-          userId: uId,
-          timestamp: nowIso
-        });
+        return jsonResponse({ status: 'SUCCESS', action: 'db_save_item', collection: coll, id });
       }
 
-      return jsonResponse({ status: 'ERROR', message: 'Endpoint atau action tidak ditemukan' }, 404);
-    } catch (err) {
-      return jsonResponse({
-        status: 'ERROR',
-        message: err.message || String(err),
-        stack: err.stack
-      }, 500);
+      if (coll === 'stores') {
+        const code = String(item.code || '');
+        if (!code) return jsonResponse({ status: 'ERROR', message: 'Store code wajib ada' }, 400);
+        await env.DB.prepare(`
+          INSERT INTO stores (code, name, type, city, rawJson, updatedAt)
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON CONFLICT(code) DO UPDATE SET
+            name = excluded.name,
+            type = excluded.type,
+            city = excluded.city,
+            rawJson = excluded.rawJson,
+            updatedAt = excluded.updatedAt
+        `).bind(
+          code,
+          String(item.name || ''),
+          String(item.type || 'CVS'),
+          String(item.city || ''),
+          JSON.stringify(item),
+          nowIso
+        ).run();
+
+        return jsonResponse({ status: 'SUCCESS', action: 'db_save_item', collection: coll, code });
+      }
+
+      if (coll === 'reports') {
+        const id = String(item.id || '');
+        if (!id) return jsonResponse({ status: 'ERROR', message: 'Report id wajib ada' }, 400);
+        await env.DB.prepare(`
+          INSERT INTO reports (id, storeCode, storeName, visitDate, rawJson, updatedAt)
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            storeCode = excluded.storeCode,
+            storeName = excluded.storeName,
+            visitDate = excluded.visitDate,
+            rawJson = excluded.rawJson,
+            updatedAt = excluded.updatedAt
+        `).bind(
+          id,
+          String(item.storeCode || ''),
+          String(item.storeName || ''),
+          String(item.visitDate || ''),
+          JSON.stringify(item),
+          nowIso
+        ).run();
+
+        return jsonResponse({ status: 'SUCCESS', action: 'db_save_item', collection: coll, id });
+      }
+
+      return jsonResponse({ status: 'ERROR', message: `Collection ${coll} tidak dikenali` }, 400);
     }
+
+    // ========================================================================
+    // 4. SAVE COLLECTION UTUH (Batch Replacement)
+    // ========================================================================
+    if (pathname.endsWith('/save-collection') || action === 'db_save_collection') {
+      const coll = payload.collection || '';
+      const items = Array.isArray(payload.data) ? payload.data : [];
+      const nowIso = new Date().toISOString();
+
+      if (coll === 'schedules') {
+        const stmts = [env.DB.prepare('DELETE FROM schedules')];
+        items.forEach((s) => {
+          if (!s || !s.id) return;
+          stmts.push(env.DB.prepare(`
+            INSERT INTO schedules (id, storeCode, storeName, auditorId, auditorName, scheduledDate, status, rawJson, updatedAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            String(s.id),
+            String(s.storeCode || ''),
+            String(s.storeName || ''),
+            String(s.auditorId || ''),
+            String(s.auditorName || ''),
+            String(s.scheduledDate || ''),
+            String(s.status || 'SCHEDULED'),
+            JSON.stringify(s),
+            nowIso
+          ));
+        });
+        await env.DB.batch(stmts);
+        return jsonResponse({ status: 'SUCCESS', action: 'db_save_collection', collection: coll, count: items.length });
+      }
+
+      if (coll === 'users') {
+        const stmts = [env.DB.prepare('DELETE FROM users')];
+        items.forEach((u) => {
+          if (!u || !u.id) return;
+          stmts.push(env.DB.prepare(`
+            INSERT INTO users (id, username, name, nik, role, rawJson, updatedAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            String(u.id),
+            String(u.username || ''),
+            String(u.name || ''),
+            String(u.nik || ''),
+            String(u.role || ''),
+            JSON.stringify(u),
+            nowIso
+          ));
+        });
+        await env.DB.batch(stmts);
+        return jsonResponse({ status: 'SUCCESS', action: 'db_save_collection', collection: coll, count: items.length });
+      }
+
+      if (coll === 'stores') {
+        const stmts = [env.DB.prepare('DELETE FROM stores')];
+        items.forEach((st) => {
+          if (!st || !st.code) return;
+          stmts.push(env.DB.prepare(`
+            INSERT INTO stores (code, name, type, city, rawJson, updatedAt)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `).bind(
+            String(st.code),
+            String(st.name || ''),
+            String(st.type || 'CVS'),
+            String(st.city || ''),
+            JSON.stringify(st),
+            nowIso
+          ));
+        });
+        await env.DB.batch(stmts);
+        return jsonResponse({ status: 'SUCCESS', action: 'db_save_collection', collection: coll, count: items.length });
+      }
+
+      return jsonResponse({ status: 'ERROR', message: `Collection ${coll} tidak dikenali` }, 400);
+    }
+
+    // ========================================================================
+    // 5. UPDATE LIVE GPS LOCATION
+    // ========================================================================
+    if (pathname.endsWith('/update-location') || action === 'db_update_location') {
+      const uId = String(payload.userId || '');
+      const loc = payload.location;
+      if (!uId || !loc) {
+        return jsonResponse({ status: 'ERROR', message: 'Data lokasi tidak valid' }, 400);
+      }
+      const nowIso = new Date().toISOString();
+      const enrichedLoc = { ...loc, updatedAt: nowIso };
+
+      await env.DB.prepare(`
+        INSERT INTO locations (userId, lat, lng, status, storeVisit, rawJson, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(userId) DO UPDATE SET
+          lat = excluded.lat,
+          lng = excluded.lng,
+          status = excluded.status,
+          storeVisit = excluded.storeVisit,
+          rawJson = excluded.rawJson,
+          updatedAt = excluded.updatedAt
+      `).bind(
+        uId,
+        Number(loc.lat || 0),
+        Number(loc.lng || 0),
+        String(loc.status || 'LIVE_GPS'),
+        String(loc.storeVisit || ''),
+        JSON.stringify(enrichedLoc),
+        nowIso
+      ).run();
+
+      return jsonResponse({
+        status: 'SUCCESS',
+        action: 'db_update_location',
+        userId: uId,
+        timestamp: nowIso
+      });
+    }
+
+    return jsonResponse({ status: 'ERROR', message: 'Endpoint atau action tidak ditemukan' }, 404);
+  } catch (err) {
+    return jsonResponse({
+      status: 'ERROR',
+      message: err.message || String(err),
+      stack: err.stack
+    }, 500);
+  }
+}
+
+// Export untuk Cloudflare Pages Functions
+export async function onRequest(context) {
+  return handleRequest(context.request, context.env);
+}
+
+// Export untuk Standalone Cloudflare Worker
+export default {
+  async fetch(request, env) {
+    return handleRequest(request, env);
   }
 };
