@@ -384,19 +384,25 @@ window.FMCUApp = {
     const admWarn = document.getElementById('admin-firestore-rules-warning');
 
     if (status === 'ONLINE_GAS') {
+      const activeUrl = (window.FMCUData && typeof window.FMCUData.getGasUrl === 'function' ? window.FMCUData.getGasUrl() : '') || '';
+      const isD1 = activeUrl.includes('pages.dev') || activeUrl.includes('workers.dev') || activeUrl.includes('cloudflare');
       if (pill) {
-        pill.className = 'hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-teal-50 border border-teal-300 text-teal-800 text-[11px] font-bold cursor-pointer hover:bg-teal-100 transition shadow-2xs';
-        pill.title = 'Database aktif di Google Drive Vault (Terenkripsi, Bebas Kuota 429). Klik untuk sinkronisasi manual.';
+        pill.className = isD1
+          ? 'hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-50 border border-amber-300 text-amber-900 text-[11px] font-bold cursor-pointer hover:bg-amber-100 transition shadow-2xs'
+          : 'hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-teal-50 border border-teal-300 text-teal-800 text-[11px] font-bold cursor-pointer hover:bg-teal-100 transition shadow-2xs';
+        pill.title = isD1
+          ? 'Database aktif di Cloudflare D1 Edge SQLite (⚡ Latensi ~20ms • 5 Juta Kuota/Hari). Klik untuk sinkronisasi manual.'
+          : 'Database aktif di Google Drive Vault (Terenkripsi, Bebas Kuota 429). Klik untuk sinkronisasi manual.';
         pill.onclick = () => {
-          this.showToast('Menyinkronkan dengan Google Drive Vault...', 'info', 2000);
+          this.showToast(isD1 ? 'Menyinkronkan dengan Cloudflare D1 Edge Database...' : 'Menyinkronkan dengan Google Drive Vault...', 'info', 2000);
           window.FMCUData.syncAllFromGasDatabase();
         };
       }
-      if (icon) icon.className = 'fa-brands fa-google-drive text-[#009944]';
-      if (text) text.textContent = 'Drive Vault: Terhubung (Aman)';
+      if (icon) icon.className = isD1 ? 'fa-solid fa-bolt text-amber-500' : 'fa-brands fa-google-drive text-[#009944]';
+      if (text) text.textContent = isD1 ? 'Cloudflare D1: Terhubung (⚡ 20ms)' : 'Drive Vault: Terhubung (Aman)';
       if (admBadge) {
         admBadge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800';
-        admBadge.textContent = 'GOOGLE DRIVE VAULT • Bebas Kuota';
+        admBadge.textContent = isD1 ? 'CLOUDFLARE D1 EDGE • ⚡ 20ms' : 'GOOGLE DRIVE VAULT • Bebas Kuota';
       }
       if (admWarn) admWarn.classList.add('hidden');
     } else if (status === 'ONLINE') {
@@ -11097,7 +11103,9 @@ Instruksi:
     document.getElementById('set-cc-emails').value = settings.defaultCcEmails || '';
     document.getElementById('set-gas-url').value = settings.gasWebhookUrl || '';
     const cfUrlEl = document.getElementById('set-cloudflare-url');
-    if (cfUrlEl) cfUrlEl.value = settings.cloudflareWorkerUrl || '';
+    if (cfUrlEl && document.activeElement !== cfUrlEl) {
+      cfUrlEl.value = settings.cloudflareWorkerUrl || 'https://fmcuonegatesystem-edge-api.pages.dev/api';
+    }
     const setWmGps = document.getElementById('set-auto-watermark-gps');
     if (setWmGps) setWmGps.checked = settings.autoWatermarkGps !== false;
 
