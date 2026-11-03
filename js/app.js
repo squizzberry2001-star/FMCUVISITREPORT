@@ -3852,39 +3852,87 @@ window.FMCUApp = {
 
     if (!radarPill) return;
     if (state === 'INSIDE_WAITING_OUT') {
-      radarPill.className = 'w-full bg-emerald-500/20 border border-emerald-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center justify-between gap-2 state-inside';
-      if (titleEl) titleEl.textContent = '✓ Di Titik Pinpoint Toko (Radius 1m-50m)';
-      if (descEl) descEl.textContent = `Jarak: ${distance}m • In: ${auxInfo || '08:30 WIB'} • Out aktif jam ≥ 17:30`;
+      radarPill.className = 'w-full rounded-xl p-2 sm:p-2.5 text-xs flex items-center justify-between gap-2 state-inside';
+      radarPill.style.background = 'rgba(6, 78, 59, 0.6)';
+      radarPill.style.borderColor = 'rgba(52, 211, 153, 0.5)';
+      if (titleEl) {
+        titleEl.textContent = '✓ Di Titik Pinpoint Toko (Radius 1m-50m)';
+        titleEl.style.color = '#a7f3d0';
+      }
+      if (descEl) {
+        descEl.textContent = `Jarak: ${distance}m • In: ${auxInfo || '08:30 WIB'} • Out aktif jam ≥ 17:30`;
+        descEl.style.color = 'rgba(110, 231, 183, 0.95)';
+      }
       if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0';
       if (outDot) outDot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
     } else if (state === 'AUTO_OUT_COMPLETED') {
-      radarPill.className = 'w-full bg-teal-500/20 border border-teal-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center justify-between gap-2 state-completed';
-      if (titleEl) titleEl.textContent = '✓ Sesi Presensi Selesai (Actual IN & OUT Lengkap)';
-      if (descEl) descEl.textContent = `Actual Out: ${auxInfo || '17:30 WIB'} • Jarak toko: ${distance}m`;
+      radarPill.className = 'w-full rounded-xl p-2 sm:p-2.5 text-xs flex items-center justify-between gap-2 state-completed';
+      radarPill.style.background = 'rgba(19, 78, 74, 0.6)';
+      radarPill.style.borderColor = 'rgba(45, 212, 191, 0.5)';
+      if (titleEl) {
+        titleEl.textContent = '✓ Sesi Presensi Selesai (Actual IN & OUT Lengkap)';
+        titleEl.style.color = '#99f6e4';
+      }
+      if (descEl) {
+        descEl.textContent = `Actual Out: ${auxInfo || '17:30 WIB'} • Jarak toko: ${distance}m`;
+        descEl.style.color = 'rgba(94, 234, 212, 0.95)';
+      }
       if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-emerald-400 shrink-0';
       if (outDot) outDot.className = 'w-2 h-2 rounded-full bg-teal-400 shrink-0';
     } else if (state === 'OUTSIDE_DENIED_IN') {
-      radarPill.className = 'w-full bg-rose-500/20 border border-rose-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center justify-between gap-2 state-outside-in';
-      if (titleEl) titleEl.textContent = '⛔ Di Luar Radius Toko (> 50m)';
-      if (descEl) descEl.textContent = `Jarak: ${distance}m > 50m (Radius 1m-50m) • Mendekat ke titik toko untuk record Actual IN`;
+      radarPill.className = 'w-full rounded-xl p-2 sm:p-2.5 text-xs flex items-center justify-between gap-2 state-outside-in';
+      radarPill.style.background = 'rgba(136, 19, 55, 0.6)';
+      radarPill.style.borderColor = 'rgba(251, 113, 133, 0.5)';
+      if (titleEl) {
+        titleEl.textContent = '⛔ Di Luar Radius Toko (> 50m)';
+        titleEl.style.color = '#fecdd3';
+      }
+      if (descEl) {
+        descEl.textContent = `Jarak: ${distance}m > 50m (Radius 1m-50m) • Mendekat ke titik toko untuk record Actual IN`;
+        descEl.style.color = 'rgba(253, 164, 175, 0.95)';
+      }
       if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
       if (outDot) outDot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
     } else if (state === 'OUTSIDE_DENIED_OUT') {
-      radarPill.className = 'w-full bg-amber-500/20 border border-amber-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center justify-between gap-2 state-outside-out';
-      if (titleEl) titleEl.textContent = '⛔ Di Luar Radius Toko (> 50m)';
-      if (descEl) descEl.textContent = `In: ${auxInfo} • Out TIDAK direcord jika web dibuka di luar lokasi toko`;
+      radarPill.className = 'w-full rounded-xl p-2 sm:p-2.5 text-xs flex items-center justify-between gap-2 state-outside-out';
+      radarPill.style.background = 'rgba(120, 53, 15, 0.65)';
+      radarPill.style.borderColor = 'rgba(251, 191, 36, 0.5)';
+      if (titleEl) {
+        titleEl.textContent = '⛔ Di Luar Radius Toko (> 50m)';
+        titleEl.style.color = '#fde68a';
+      }
+      if (descEl) {
+        descEl.textContent = `In: ${auxInfo} • Out TIDAK direcord jika web dibuka di luar lokasi toko`;
+        descEl.style.color = 'rgba(254, 240, 138, 0.95)';
+      }
       if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-emerald-400 shrink-0';
       if (outDot) outDot.className = 'w-2 h-2 rounded-full bg-amber-400 shrink-0';
     } else if (state === 'NO_STORE_COORDS') {
-      radarPill.className = 'w-full bg-amber-500/20 border border-amber-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center justify-between gap-2 state-no-coords';
-      if (titleEl) titleEl.textContent = '⚠️ Koordinat Pinpoint Toko Belum Ada';
-      if (descEl) descEl.textContent = 'Hubungi Admin untuk mengisi Latitude & Longitude toko di Master Toko';
+      radarPill.className = 'w-full rounded-xl p-2 sm:p-2.5 text-xs flex items-center justify-between gap-2 state-no-coords';
+      radarPill.style.background = 'rgba(120, 53, 15, 0.65)';
+      radarPill.style.borderColor = 'rgba(251, 191, 36, 0.5)';
+      if (titleEl) {
+        titleEl.textContent = '⚠️ Koordinat Pinpoint Toko Belum Ada';
+        titleEl.style.color = '#fde68a';
+      }
+      if (descEl) {
+        descEl.textContent = 'Hubungi Admin untuk mengisi Latitude & Longitude toko di Master Toko';
+        descEl.style.color = 'rgba(254, 240, 138, 0.95)';
+      }
       if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
       if (outDot) outDot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
     } else {
-      radarPill.className = 'w-full bg-slate-500/20 border border-slate-400/30 rounded-xl p-2 sm:p-2.5 text-xs flex items-center justify-between gap-2 state-no-gps';
-      if (titleEl) titleEl.textContent = '⚠️ Sinyal GPS Tidak Terdeteksi';
-      if (descEl) descEl.textContent = 'Pastikan izin GPS perangkat aktif agar kehadiran toko dapat direcord';
+      radarPill.className = 'w-full rounded-xl p-2 sm:p-2.5 text-xs flex items-center justify-between gap-2 state-no-gps';
+      radarPill.style.background = 'rgba(51, 65, 85, 0.65)';
+      radarPill.style.borderColor = 'rgba(148, 163, 184, 0.45)';
+      if (titleEl) {
+        titleEl.textContent = '⚠️ Sinyal GPS Tidak Terdeteksi';
+        titleEl.style.color = '#e2e8f0';
+      }
+      if (descEl) {
+        descEl.textContent = 'Pastikan izin GPS perangkat aktif agar kehadiran toko dapat direcord';
+        descEl.style.color = 'rgba(203, 213, 225, 0.9)';
+      }
       if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
       if (outDot) outDot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
     }

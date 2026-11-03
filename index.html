@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css" as="style" />
-  <link rel="preload" href="css/styles.css" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1793672329571" as="style" />
+  <link rel="preload" href="css/styles.css?v=1793672329571" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css" />
-  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1793672329571" />
+  <link rel="stylesheet" href="css/styles.css?v=1793672329571" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -1364,17 +1364,17 @@
 
         <!-- Active Store Form Wrapper -->
         <div id="form-active-store-wrapper" class="space-y-6">
-          <!-- Sticky Top Live Check-In (Actual In / Out & GPS) Bar - Hanya Tampil di Section 1 & 4 (Minimalist Mobile Typography & Side-by-Side IN/OUT) -->
-          <div id="form-top-geofence-banner" class="fm-card p-3 sm:p-5 bg-gradient-to-r from-emerald-950 via-teal-950 to-slate-900 text-white shadow-md rounded-2xl">
+          <!-- Sticky Top Live Check-In (Actual In / Out & GPS) Bar - Hanya Tampil di Section 1 & 4 (Rich Dark Gradient Emerald/Teal) -->
+          <div id="form-top-geofence-banner" style="background: linear-gradient(135deg, #022c22 0%, #042f2e 50%, #0f172a 100%) !important; color: #ffffff !important; border: 1px solid rgba(52, 211, 153, 0.3) !important; border-radius: 1rem !important; box-shadow: 0 10px 25px -5px rgba(2, 44, 34, 0.5), 0 8px 10px -6px rgba(2, 44, 34, 0.4) !important;" class="p-3 sm:p-5 text-white shadow-md rounded-2xl">
             <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
               <!-- Left: Store & GPS Info (Minimalist Typography) -->
               <div class="space-y-1 min-w-0">
                 <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                  <span class="px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1 shrink-0">
+                  <span style="background: rgba(16, 185, 129, 0.2) !important; color: #6ee7b7 !important; border: 1px solid rgba(52, 211, 153, 0.35) !important;" class="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1 shrink-0">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
                     Audit Toko
                   </span>
-                  <span id="form-banner-store-badge" class="text-[11px] font-bold text-teal-200 bg-white/10 px-2 py-0.5 rounded-md truncate">Kode Toko: -</span>
+                  <span id="form-banner-store-badge" style="background: rgba(255, 255, 255, 0.12) !important; color: #99f6e4 !important; border: 1px solid rgba(255, 255, 255, 0.18) !important;" class="text-[11px] font-bold px-2 py-0.5 rounded-md truncate">Kode Toko: -</span>
                 </div>
                 <div class="flex items-center gap-2.5">
                   <div class="relative w-10 h-10 flex items-center justify-center shrink-0">
@@ -1382,19 +1382,19 @@
                       <circle cx="20" cy="20" r="16" stroke="rgba(255,255,255,0.15)" stroke-width="3.5" fill="transparent" />
                       <circle id="form-progress-ring-circle" cx="20" cy="20" r="16" stroke="#34d399" stroke-width="3.5" fill="transparent" stroke-dasharray="100.53" stroke-dashoffset="100.53" class="progress-ring-circle" />
                     </svg>
-                    <span id="form-progress-ring-text" class="absolute text-[10px] font-extrabold text-white">0%</span>
+                    <span id="form-progress-ring-text" style="color: #ffffff !important;" class="absolute text-[10px] font-extrabold text-white">0%</span>
                   </div>
-                  <h2 id="form-banner-title" class="text-sm sm:text-base font-extrabold tracking-tight text-white truncate">
+                  <h2 id="form-banner-title" style="color: #ffffff !important;" class="text-sm sm:text-base font-extrabold tracking-tight text-white truncate">
                     FMCU Visit Store Report
                   </h2>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
-                  <div id="form-banner-gps" class="text-[10px] sm:text-xs text-slate-300 font-mono flex items-center gap-1.5 truncate">
-                    <i class="fa-solid fa-location-dot text-emerald-400 text-[10px] shrink-0"></i>
+                  <div id="form-banner-gps" style="color: #cbd5e1 !important;" class="text-[10px] sm:text-xs font-mono flex items-center gap-1.5 truncate">
+                    <i class="fa-solid fa-location-dot text-[10px] shrink-0" style="color: #34d399 !important;"></i>
                     <span class="truncate">Live GPS: Mendeteksi koordinat...</span>
                   </div>
-                  <div id="form-live-autosave-badge" class="px-2 py-0.5 rounded-full bg-white/15 border border-white/25 text-[9.5px] font-extrabold text-emerald-200 flex items-center gap-1 shrink-0 transition-all duration-300">
-                    <i class="fa-solid fa-cloud-arrow-up text-[9px] text-emerald-300"></i>
+                  <div id="form-live-autosave-badge" style="background: rgba(255, 255, 255, 0.12) !important; border: 1px solid rgba(255, 255, 255, 0.2) !important; color: #a7f3d0 !important;" class="px-2 py-0.5 rounded-full text-[9.5px] font-extrabold flex items-center gap-1 shrink-0 transition-all duration-300">
+                    <i class="fa-solid fa-cloud-arrow-up text-[9px]" style="color: #6ee7b7 !important;"></i>
                     <span id="form-live-autosave-text">Draf tersimpan otomatis</span>
                   </div>
                 </div>
@@ -1405,42 +1405,42 @@
                 <!-- Row 1: Badge IN & OUT (Berdampingan Horizontal Kiri & Kanan) -->
                 <div class="grid grid-cols-2 gap-2 w-full">
                   <!-- Actual In Card (Kiri) -->
-                  <div class="form-actual-in-card bg-white/10 backdrop-blur-sm border border-emerald-400/30 rounded-xl p-2 sm:p-2.5 flex flex-col justify-between">
-                    <div class="card-title flex items-center justify-between gap-1 text-[9px] sm:text-[10px] uppercase tracking-wider text-emerald-300 font-extrabold">
+                  <div class="form-actual-in-card rounded-xl p-2 sm:p-2.5 flex flex-col justify-between" style="background: rgba(255, 255, 255, 0.08) !important; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(52, 211, 153, 0.35) !important; border-radius: 0.75rem !important;">
+                    <div class="card-title flex items-center justify-between gap-1 text-[9px] sm:text-[10px] uppercase tracking-wider font-extrabold" style="color: #6ee7b7 !important;">
                       <span>Actual In</span>
-                      <i class="fa-solid fa-satellite-dish text-[9px] text-emerald-300 animate-pulse"></i>
+                      <i class="fa-solid fa-satellite-dish text-[9px] animate-pulse" style="color: #6ee7b7 !important;"></i>
                     </div>
                     <div class="flex items-center gap-1.5 my-0.5">
                       <span id="form-auto-in-status" class="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
-                      <input type="text" id="form-actual-in" readonly placeholder="--:-- WIB" class="bg-transparent font-extrabold text-xs sm:text-sm text-white w-full focus:outline-none cursor-default placeholder:text-white/40" value="" aria-label="--:-- WIB" />
+                      <input type="text" id="form-actual-in" readonly placeholder="--:-- WIB" style="color: #ffffff !important; font-weight: 800 !important;" class="bg-transparent font-extrabold text-xs sm:text-sm text-white w-full focus:outline-none cursor-default placeholder:text-white/40" value="" aria-label="--:-- WIB" />
                     </div>
-                    <div class="card-subtitle text-[8.5px] sm:text-[9px] text-emerald-200/80 leading-tight">&le; 08:30 (Radius 1m-50m)</div>
+                    <div class="card-subtitle text-[8.5px] sm:text-[9px] leading-tight" style="color: rgba(167, 243, 208, 0.85) !important;">&le; 08:30 (Radius 1m-50m)</div>
                   </div>
 
                   <!-- Actual Out Card (Kanan) -->
-                  <div class="form-actual-out-card bg-white/10 backdrop-blur-sm border border-amber-400/30 rounded-xl p-2 sm:p-2.5 flex flex-col justify-between">
-                    <div class="card-title flex items-center justify-between gap-1 text-[9px] sm:text-[10px] uppercase tracking-wider text-amber-300 font-extrabold">
+                  <div class="form-actual-out-card rounded-xl p-2 sm:p-2.5 flex flex-col justify-between" style="background: rgba(255, 255, 255, 0.08) !important; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(251, 191, 36, 0.35) !important; border-radius: 0.75rem !important;">
+                    <div class="card-title flex items-center justify-between gap-1 text-[9px] sm:text-[10px] uppercase tracking-wider font-extrabold" style="color: #fcd34d !important;">
                       <span>Actual Out</span>
-                      <i class="fa-solid fa-clock-rotate-left text-[9px] text-amber-300"></i>
+                      <i class="fa-solid fa-clock-rotate-left text-[9px]" style="color: #fcd34d !important;"></i>
                     </div>
                     <div class="flex items-center gap-1.5 my-0.5">
                       <span id="form-auto-out-status" class="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
-                      <input type="text" id="form-actual-out" readonly placeholder="--:-- WIB" class="bg-transparent font-extrabold text-xs sm:text-sm text-white w-full focus:outline-none cursor-default placeholder:text-white/40" value="" aria-label="--:-- WIB" />
+                      <input type="text" id="form-actual-out" readonly placeholder="--:-- WIB" style="color: #ffffff !important; font-weight: 800 !important;" class="bg-transparent font-extrabold text-xs sm:text-sm text-white w-full focus:outline-none cursor-default placeholder:text-white/40" value="" aria-label="--:-- WIB" />
                     </div>
-                    <div class="card-subtitle text-[8.5px] sm:text-[9px] text-amber-200/80 leading-tight">&ge; 17:30 (Radius 1m-50m)</div>
+                    <div class="card-subtitle text-[8.5px] sm:text-[9px] leading-tight" style="color: rgba(253, 230, 138, 0.85) !important;">&ge; 17:30 (Radius 1m-50m)</div>
                   </div>
                 </div>
 
                 <!-- Row 2: Badge Radius Geofence (Tepat di Bawah Badge IN & OUT) -->
-                <div id="form-geofence-radar-pill" class="w-full bg-emerald-500/20 border border-emerald-400/40 rounded-xl p-2 sm:p-2.5 text-xs flex items-center justify-between gap-2">
+                <div id="form-geofence-radar-pill" style="background: rgba(6, 78, 59, 0.6) !important; border: 1px solid rgba(52, 211, 153, 0.5) !important; border-radius: 0.75rem !important; display: flex !important; align-items: center !important; justify-content: space-between !important;" class="w-full p-2 sm:p-2.5 text-xs gap-2 state-inside">
                   <div class="flex items-center gap-2 min-w-0">
                     <div class="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0"></div>
                     <div class="min-w-0 flex-1">
-                      <div id="form-geofence-radar-title" class="font-extrabold text-[10px] sm:text-[11px] text-emerald-200 leading-tight truncate">Radar Geofence 1m-50m Aktif</div>
-                      <div id="form-geofence-radar-desc" class="text-[9px] sm:text-[9.5px] text-emerald-300/80 leading-tight truncate mt-0.5">Mendeteksi jarak toko...</div>
+                      <div id="form-geofence-radar-title" style="color: #a7f3d0 !important;" class="font-extrabold text-[10px] sm:text-[11px] leading-tight truncate">Radar Geofence 1m-50m Aktif</div>
+                      <div id="form-geofence-radar-desc" style="color: rgba(110, 231, 183, 0.95) !important;" class="text-[9px] sm:text-[9.5px] leading-tight truncate mt-0.5">Mendeteksi jarak toko...</div>
                     </div>
                   </div>
-                  <button type="button" onclick="FMCUApp.refreshGpsLocationWithTolerance()" class="px-2.5 py-1 rounded-lg bg-white/20 hover:bg-white/30 text-white font-extrabold text-[10px] border border-white/25 shrink-0 flex items-center gap-1 transition cursor-pointer shadow-2xs" title="Segarkan koordinat GPS & aktifkan mode toleransi mall/gedung (50m)">
+                  <button type="button" onclick="FMCUApp.refreshGpsLocationWithTolerance()" style="background: rgba(255, 255, 255, 0.18) !important; border: 1px solid rgba(255, 255, 255, 0.28) !important; color: #ffffff !important; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.25) !important;" class="px-2.5 py-1 rounded-lg hover:bg-white/30 font-extrabold text-[10px] shrink-0 flex items-center gap-1 transition cursor-pointer shadow-2xs" title="Segarkan koordinat GPS & aktifkan mode toleransi mall/gedung (50m)">
                     <i class="fa-solid fa-arrows-rotate text-[10px]" id="icon-refresh-gps"></i>
                     <span>Segarkan GPS</span>
                   </button>
@@ -3823,9 +3823,9 @@ service cloud.firestore {
   <script defer src="js/holding-time-standards.js"></script>
   <script defer src="js/master-stores-seed.js"></script>
   <script defer src="js/bestie-in-charge-seed.js"></script>
-  <script defer src="js/data.js"></script>
-  <script defer src="js/pdf-generator.js"></script>
-  <script defer src="js/app.js"></script>
+  <script defer src="js/data.js?v=1793672329571"></script>
+  <script defer src="js/pdf-generator.js?v=1793672329571"></script>
+  <script defer src="js/app.js?v=1793672329571"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
