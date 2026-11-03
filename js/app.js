@@ -430,7 +430,7 @@ window.FMCUApp = {
     }
 
     // Guard 2: Jika hanya koordinat GPS (lastLocation) user yang berubah, cukup update marker peta
-    // tanpa merender ulang seluruh halaman Home / Admin di semua perangkat!
+    // secara instan & mulus tanpa merender ulang seluruh halaman Home / Admin!
     if (collectionName === 'users' && meta.onlyLocationChanged) {
       if (this.currentView === 'home' && this.homeMap && this.homeBestieLayer && !document.getElementById('view-home')?.classList.contains('hidden')) {
         this.renderBestieMarkers(this.homeMap, this.homeBestieLayer);
@@ -439,7 +439,7 @@ window.FMCUApp = {
         this.renderBestieMarkers(this.modalMap, this.modalBestieLayer, true);
       }
       if (this.currentView === 'live-maps') {
-        this.renderLiveLocView();
+        this.updateLiveLocBestieMarker(meta.userId, meta.location);
       }
       return;
     }
@@ -472,6 +472,18 @@ window.FMCUApp = {
     }
     if (collectionName === 'schedules') {
       this.checkAndDispatchUserVisitNotifications();
+      // Segera re-render Home Schedules & Admin Schedule List secara instan tanpa menunggu debounce
+      if (this.currentView === 'home') {
+        this.renderHomeSchedules();
+        this.updateHomeSubSectionPills();
+        this.updateHomeTodayVisitButtonUI();
+      } else if (this.currentView === 'admin' || this.currentView === 'schedules') {
+        this.renderAdminView();
+      }
+      if (meta && meta.schedule && this.isScheduleOwnedByUser(meta.schedule, this.currentUser)) {
+        this.showToast(`📅 Jadwal Visit Baru Diterima: ${meta.schedule.storeName || 'Toko'} (${meta.schedule.scheduledDate})`, 'success', 6000);
+        this.triggerHaptic('success');
+      }
     }
     if (!document.getElementById('view-admin')?.classList.contains('hidden')) {
       this.updateAdminFirestoreSummary();
@@ -693,13 +705,39 @@ window.FMCUApp = {
       return;
     }
 
-    // 2. Registrasi Service Worker sw.js untuk notifikasi mobile & desktop
+    // 2. Registrasi Service Worker sw.js untuk notifikasi mobile & desktop + Auto PWA Updates
     if ('serviceWorker' in navigator) {
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshing) return;
+        refreshing = true;
+        // Auto reload ke aset PWA terbaru jika tidak sedang mengisi form
+        if (this.currentView !== 'form') {
+          window.location.reload();
+        }
+      });
+
       navigator.serviceWorker
         .register('sw.js')
         .then((reg) => {
           this.swRegistration = reg;
           this.syncNotificationStateToServiceWorker();
+
+          // Segera aktivasi Service Worker baru jika tersedia
+          if (reg.waiting) {
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
+          reg.addEventListener('updatefound', () => {
+            const newWorker = reg.installing;
+            if (newWorker) {
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  newWorker.postMessage({ type: 'SKIP_WAITING' });
+                }
+              });
+            }
+          });
+
           if ('periodicSync' in reg) {
             reg.periodicSync.register('fmcu-visit-reminder', { minInterval: 15 * 60 * 1000 }).catch(() => {});
           }
@@ -2674,7 +2712,7 @@ window.FMCUApp = {
         const activeCheckIn = window.FMCUData.getActiveCheckIn();
         const storeName = activeCheckIn?.storeName ? `FamilyMart ${activeCheckIn.storeName}` : null;
         const nowMs = Date.now();
-        if (!this._lastLocationSyncedAt || nowMs - this._lastLocationSyncedAt > 45000) {
+        if (!this._lastLocationSyncedAt || nowMs - this._lastLocationSyncedAt > 15000) {
           this._lastLocationSyncedAt = nowMs;
           window.FMCUData.updateUserLocation(
             this.currentUser.id || this.currentUser.username,
@@ -4096,12 +4134,25 @@ window.FMCUApp = {
 
   isScheduleOwnedByUser(schedule, user = this.currentUser) {
     if (!schedule || !user) return false;
-    if (schedule.auditorId && user.id && String(schedule.auditorId) === String(user.id)) return true;
-    if (schedule.auditorUsername && user.username && String(schedule.auditorUsername).toLowerCase() === String(user.username).toLowerCase()) return true;
-    if (schedule.auditorNik && user.nik && String(schedule.auditorNik) === String(user.nik)) return true;
-    const sName = String(schedule.auditorName || '').trim().toLowerCase();
-    const uName = String(user.name || '').trim().toLowerCase();
-    return Boolean(sName && uName && sName === uName);
+    const sId = String(schedule.auditorId || '').trim();
+    const uId = String(user.id || '').trim();
+    if (sId && uId && (sId === uId || sId === `usr-${uId}` || `usr-${sId}` === uId)) return true;
+
+    const sUsername = String(schedule.auditorUsername || '').trim().toLowerCase();
+    const uUsername = String(user.username || '').trim().toLowerCase();
+    if (sUsername && uUsername && sUsername === uUsername) return true;
+
+    const sNik = String(schedule.auditorNik || '').trim().toLowerCase();
+    const uNik = String(user.nik || '').trim().toLowerCase();
+    if (sNik && uNik && sNik === uNik) return true;
+
+    // Pencocokan Nama yang Fleksibel & Tangguh (abaikan spasi ganda, tanda baca & gelar)
+    const normalize = (str) => String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const sNorm = normalize(schedule.auditorName);
+    const uNorm = normalize(user.name);
+    if (sNorm && uNorm && (sNorm === uNorm || sNorm.includes(uNorm) || uNorm.includes(sNorm))) return true;
+
+    return false;
   },
 
   getLocalDateISO(dt = new Date()) {
@@ -12797,6 +12848,8 @@ Instruksi:
               storeType: 'NON_STORE',
               auditorId: au.id,
               auditorName: au.name,
+              auditorUsername: au.username || '',
+              auditorNik: au.nik || au.username || '',
               scheduledDate: dayObj.dateStr,
               shiftWindow: '-',
               priority: 'NORMAL',
@@ -12819,6 +12872,8 @@ Instruksi:
               storeType: 'NON_STORE',
               auditorId: au.id,
               auditorName: au.name,
+              auditorUsername: au.username || '',
+              auditorNik: au.nik || au.username || '',
               scheduledDate: dayObj.dateStr,
               shiftWindow: item.shiftWindow || '09:00 - 12:00 WIB',
               priority: 'NORMAL',
@@ -12846,6 +12901,8 @@ Instruksi:
             storeType: st.type || 'CVS',
             auditorId: au.id,
             auditorName: au.name,
+            auditorUsername: au.username || '',
+            auditorNik: au.nik || au.username || '',
             scheduledDate: dayObj.dateStr,
             shiftWindow: windowStr || '08:30 - 17:30',
             priority: item.priority || 'NORMAL',
@@ -12886,7 +12943,7 @@ Instruksi:
     }
 
     const updatedSchedules = [...newSchedules, ...schedules];
-    window.FMCUData.saveSchedules(updatedSchedules);
+    window.FMCUData.saveSchedules(updatedSchedules, newSchedules);
 
     this.logScheduleAction(
       'BATCH_APPLY',
@@ -13714,12 +13771,15 @@ Instruksi:
     const stores = window.FMCUData.getStores();
     const users = window.FMCUData.getUsers();
     const st = stores.find((s) => s.code === storeCode);
-    const au = users.find((u) => u.id === auditorId);
+    const au = users.find((u) => u.id === auditorId || u.username === auditorId || u.nik === auditorId);
     if (!st) {
       this.showToast('Silakan tambahkan Master Toko terlebih dahulu di Tab 2 (Master Toko).', 'warning');
       return;
     }
-    if (!au) return;
+    if (!au) {
+      this.showToast('Silakan pilih Visitor / Regional Bestie yang valid.', 'warning');
+      return;
+    }
 
     const schedules = window.FMCUData.getSchedules() || [];
     // Validasi toko sudah dipilih di hari yang sama
@@ -13734,13 +13794,16 @@ Instruksi:
       );
       return;
     }
-    schedules.unshift({
+
+    const newSch = {
       id: 'sch-' + Date.now(),
       storeCode: st.code,
       storeName: st.name,
-      storeType: st.type,
+      storeType: st.type || 'CVS',
       auditorId: au.id,
       auditorName: au.name,
+      auditorUsername: au.username || '',
+      auditorNik: au.nik || au.username || '',
       scheduledDate: dateStr,
       shiftWindow: windowStr || '08:30 - 17:30',
       priority,
@@ -13750,8 +13813,10 @@ Instruksi:
       actualOut: null,
       reportId: null,
       assignedBy: this.currentUser?.name || 'Admin FMCU'
-    });
-    window.FMCUData.saveSchedules(schedules);
+    };
+
+    // Tulis dokumen TUNGGAL ke Firestore & broadcast (100% hemat kuota, sinkron instan ke user)
+    window.FMCUData.saveSingleSchedule(newSch);
     this.renderAllViews();
     const focusEl = document.getElementById('adm-sch-focus');
     if (focusEl) focusEl.value = '';
@@ -13990,7 +14055,8 @@ Instruksi:
     if (au) {
       sch.auditorId = au.id;
       sch.auditorName = au.name;
-      sch.auditorNik = au.nik || au.username;
+      sch.auditorUsername = au.username || '';
+      sch.auditorNik = au.nik || au.username || '';
     }
     sch.scheduledDate = scheduledDate;
     sch.shiftWindow = shiftWindow;
@@ -14001,7 +14067,7 @@ Instruksi:
     sch.focus = auditFocus;
     sch.updatedAt = new Date().toISOString();
 
-    window.FMCUData.saveSchedules(schedules);
+    window.FMCUData.saveSingleSchedule(sch);
     this.closeEditScheduleModal();
     this.renderAllViews();
     this.showToast(`Jadwal visit ${sch.storeName} berhasil diperbarui!`, 'success');
@@ -16261,13 +16327,15 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
     syncLayer(this.liveLocRouteLayer, 'routes');
     syncLayer(this.liveLocBestieLayer, 'besties');
 
-    this.liveLocStoreLayer.clearLayers();
-    this.liveLocGeofenceLayer.clearLayers();
+    if (!this._liveLocStoresRendered) {
+      this._liveLocStoresRendered = true;
+      this.liveLocStoreLayer.clearLayers();
+      this.liveLocGeofenceLayer.clearLayers();
+      this._liveLocStoreMarkerMap = new Map();
+    }
     this.liveLocRouteLayer.clearLayers();
     this.liveLocBestieLayer.clearLayers();
-
     this._liveLocBestieMarkerMap = new Map();
-    this._liveLocStoreMarkerMap = new Map();
 
     const stores = window.FMCUData.getStores();
     const schedules = window.FMCUData.getSchedules();

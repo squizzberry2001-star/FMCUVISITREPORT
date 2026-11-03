@@ -563,11 +563,99 @@ window.FMCUData = {
   _photoStorageReady: false,
   _photoStorageInitPromise: null,
   _deletedReportIds: new Set(),
+  _deletedScheduleIds: new Set(),
+  _syncChannel: null,
   _cachedUsers: null,
   _cachedStores: null,
   _cachedSchedules: null,
   _cachedReports: null,
   _cachedBestieInCharge: null,
+
+  
+  // ==========================================================================
+  // REAL-TIME MULTI-TAB & CROSS-CLIENT BROADCAST CHANNEL & STORAGE SYNC
+  // Sinkronisasi instan 0ms antar-jendela/tab dan fallback event storage
+  // ==========================================================================
+  initSyncChannel() {
+    if (typeof BroadcastChannel !== 'undefined' && !this._syncChannel) {
+      try {
+        this._syncChannel = new BroadcastChannel('fmcu_realtime_sync');
+        this._syncChannel.onmessage = (event) => {
+          if (!event || !event.data) return;
+          this.handleSyncMessage(event.data);
+        };
+      } catch (e) {
+        console.warn('BroadcastChannel init error:', e);
+      }
+    }
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      window.addEventListener('storage', (e) => {
+        if (e.key === STORAGE_KEYS.SCHEDULES && e.newValue) {
+          try {
+            this._cachedSchedules = JSON.parse(e.newValue);
+            if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
+              window.FMCUApp.onCloudDataUpdated('schedules');
+            }
+          } catch (err) {}
+        } else if (e.key === STORAGE_KEYS.USERS && e.newValue) {
+          try {
+            this._cachedUsers = JSON.parse(e.newValue);
+            if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
+              window.FMCUApp.onCloudDataUpdated('users', { onlyLocationChanged: true });
+            }
+          } catch (err) {}
+        }
+      });
+    }
+  },
+
+  broadcastSync(payload) {
+    if (!payload) return;
+    if (this._syncChannel) {
+      try {
+        this._syncChannel.postMessage(payload);
+      } catch (e) {}
+    }
+  },
+
+  handleSyncMessage(msg) {
+    if (!msg || !msg.type) return;
+    if (msg.type === 'SCHEDULE_SAVED' || msg.type === 'SCHEDULES_UPDATED') {
+      this.clearCache('schedules');
+      if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
+        window.FMCUApp.onCloudDataUpdated('schedules', { schedule: msg.schedule });
+      }
+    } else if (msg.type === 'SCHEDULE_DELETED') {
+      if (msg.scheduleId) {
+        this._deletedScheduleIds.add(String(msg.scheduleId));
+      }
+      this.clearCache('schedules');
+      if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
+        window.FMCUApp.onCloudDataUpdated('schedules');
+      }
+    } else if (msg.type === 'LOCATION_UPDATED') {
+      if (msg.userId && msg.location) {
+        const users = this.getUsers();
+        const idx = users.findIndex(
+          (u) =>
+            String(u.id) === String(msg.userId) ||
+            String(u.username).toLowerCase() === String(msg.userId).toLowerCase() ||
+            String(u.nik) === String(msg.userId)
+        );
+        if (idx !== -1) {
+          users[idx].lastLocation = msg.location;
+          this._cachedUsers = users;
+        }
+      }
+      if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
+        window.FMCUApp.onCloudDataUpdated('users', {
+          onlyLocationChanged: true,
+          userId: msg.userId,
+          location: msg.location
+        });
+      }
+    }
+  },
 
   clearCache(key = null) {
     if (!key) {
@@ -590,6 +678,7 @@ window.FMCUData = {
   },
 
   init() {
+    this.initSyncChannel();
     // Hapus seluruh cache data dummy versi lama (v1) dan hapus sesi persisten lama di localStorage
     [
       'fmcu_users_v1',
@@ -1209,13 +1298,32 @@ window.FMCUData = {
     const unsubSchedules = this.db.collection('schedules').onSnapshot(
       (snapshot) => {
         this.setCloudStatus('ONLINE');
+        const localSchedules = this.getSchedules() || [];
         const cloudSchedules = [];
+        const seenIds = new Set();
+
         snapshot.forEach((doc) => {
-          const data = doc.data();
-          if (data && data.id) {
-            cloudSchedules.push(data);
+          const d = doc.data();
+          if (d && d.id && !this._deletedScheduleIds.has(String(d.id))) {
+            const sid = String(d.id);
+            seenIds.add(sid);
+            cloudSchedules.push(d);
           }
         });
+
+        // Pertahankan jadwal lokal yang baru dibuat Admin/User yang belum sempat ter-broadcast atau saat quota limit
+        localSchedules.forEach((locSch) => {
+          if (!locSch || !locSch.id) return;
+          const sid = String(locSch.id);
+          if (!seenIds.has(sid) && !this._deletedScheduleIds.has(sid)) {
+            seenIds.add(sid);
+            cloudSchedules.push(locSch);
+            if (this.db) {
+              this.db.collection('schedules').doc(sid).set(sanitizeForFirestore({ ...locSch, updatedAt: new Date().toISOString() }), { merge: true }).catch(() => {});
+            }
+          }
+        });
+
         cloudSchedules.sort((a, b) => String(a.scheduledDate || '').localeCompare(String(b.scheduledDate || '')));
         this._cachedSchedules = cloudSchedules;
         localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(cloudSchedules));
@@ -1627,19 +1735,19 @@ window.FMCUData = {
     const nLng = Number(Number(lng).toFixed(5));
     const curLoc = users[idx].lastLocation;
 
-    // Guard: Jika posisi bergeser < ~22 meter (0.00020 derajat) & status sama dalam < 45 detik, abaikan untuk mencegah badai broadcast Firestore lintas device
+    // Guard: Jika posisi bergeser < ~15 meter (0.00015 derajat) & status sama dalam < 15 detik, abaikan untuk efisiensi baterai & kuota
     const prevTimeMs = curLoc && curLoc.updatedAt ? new Date(curLoc.updatedAt).getTime() : 0;
     const isMinorDrift =
       curLoc &&
-      Math.abs((curLoc.lat || 0) - nLat) < 0.0002 &&
-      Math.abs((curLoc.lng || 0) - nLng) < 0.0002;
+      Math.abs((curLoc.lat || 0) - nLat) < 0.00015 &&
+      Math.abs((curLoc.lng || 0) - nLng) < 0.00015;
     if (
       curLoc &&
       isMinorDrift &&
       curLoc.status === status &&
       curLoc.storeVisit === storeVisit &&
       !curLoc.isExited &&
-      Date.now() - prevTimeMs < 45000
+      Date.now() - prevTimeMs < 15000
     ) {
       return;
     }
@@ -1660,14 +1768,22 @@ window.FMCUData = {
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
     } catch (e) {}
 
+    // 1. Broadcast lokasi secara instan (0ms) ke semua tab/window/device
+    this.broadcastSync({ type: 'LOCATION_UPDATED', userId, location: loc });
+
+    // 2. Tulis HANYA field lastLocation ke Cloud Firestore untuk 1 user ini (hemat quota 95%)
     if (this.db) {
       const docId = String(users[idx].id || users[idx].username);
       this.db.collection('users').doc(docId).set({ lastLocation: loc }, { merge: true }).catch(() => {});
     }
 
-    // Segera beri notifikasi khusus perubahan lokasi agar hanya marker peta yang diupdate tanpa re-render seluruh view
+    // 3. Segera beri notifikasi lokal agar marker Leaflet berpindah seketika
     if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
-      window.FMCUApp.onCloudDataUpdated('users', { onlyLocationChanged: true });
+      window.FMCUApp.onCloudDataUpdated('users', {
+        onlyLocationChanged: true,
+        userId: users[idx].id || users[idx].username,
+        location: loc
+      });
     }
   },
 
@@ -1774,30 +1890,43 @@ window.FMCUData = {
     const docId = String(sch.id);
     const schedules = this.getSchedules() || [];
     const idx = schedules.findIndex((s) => String(s.id) === docId);
+    const enrichedSch = { ...sch, updatedAt: new Date().toISOString() };
     if (idx !== -1) {
-      schedules[idx] = { ...schedules[idx], ...sch, updatedAt: new Date().toISOString() };
+      schedules[idx] = { ...schedules[idx], ...enrichedSch };
     } else {
-      schedules.push({ ...sch, updatedAt: new Date().toISOString() });
+      schedules.unshift(enrichedSch);
     }
     schedules.sort((a, b) => String(a.scheduledDate || '').localeCompare(String(b.scheduledDate || '')));
     this._cachedSchedules = schedules;
     localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
 
+    // Broadcast instan 0ms ke semua tab/window aktif
+    this.broadcastSync({ type: 'SCHEDULE_SAVED', schedule: enrichedSch });
+
+    // Tulis dokumen TUNGGAL ke Cloud Firestore (1 doc write, 0% quota waste)
     if (this.db) {
       this.db
         .collection('schedules')
         .doc(docId)
-        .set(sanitizeForFirestore({ ...sch, updatedAt: new Date().toISOString() }), { merge: true })
-        .catch((e) => console.warn('Save single schedule error:', e));
+        .set(sanitizeForFirestore(enrichedSch), { merge: true })
+        .catch((e) => {
+          console.warn('Save single schedule error:', e);
+          if (e && (e.code === 'resource-exhausted' || e.message?.includes('429'))) {
+            this.setCloudStatus('OFFLINE', 'Batas kuota harian Firestore tercapai (429). Jadwal tersimpan aman secara offline/lokal.');
+          }
+        });
     }
   },
 
   deleteSchedule(scheduleId) {
     if (!scheduleId) return;
     const docId = String(scheduleId);
+    this._deletedScheduleIds.add(docId);
     const schedules = (this.getSchedules() || []).filter((s) => String(s.id) !== docId);
     this._cachedSchedules = schedules;
     localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
+
+    this.broadcastSync({ type: 'SCHEDULE_DELETED', scheduleId: docId });
 
     if (this.db) {
       this.db
@@ -1826,25 +1955,28 @@ window.FMCUData = {
     }
   },
 
-  saveSchedules(schedules) {
+  saveSchedules(schedules, changedOnly = null) {
     if (!Array.isArray(schedules)) return;
     schedules.sort((a, b) => String(a.scheduledDate || '').localeCompare(String(b.scheduledDate || '')));
     this._cachedSchedules = schedules;
     localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
 
-    // Arsitektur Multi-User Firestore:
-    // HANYA simpan dokumen yang ada pada daftar schedules ke Firestore.
-    // JANGAN PERNAH menghapus jadwal user lain dari Firestore hanya karena belum ada di memori lokal user ini!
+    this.broadcastSync({ type: 'SCHEDULES_UPDATED', count: schedules.length });
+
     if (this.db) {
-      schedules.forEach((sch) => {
-        if (!sch.id) return;
-        const docId = String(sch.id);
-        this.db
-          .collection('schedules')
-          .doc(docId)
-          .set(sanitizeForFirestore({ ...sch, updatedAt: new Date().toISOString() }), { merge: true })
-          .catch((e) => console.warn('Save schedule error:', e));
-      });
+      // HANYA tulis jadwal yang baru atau diubah (maksimal 30 doc via single batch) untuk mencegah kuota Firestore bocor
+      const itemsToSync = Array.isArray(changedOnly) && changedOnly.length > 0 ? changedOnly : schedules.slice(0, 30);
+      try {
+        const batch = this.db.batch();
+        itemsToSync.forEach((sch) => {
+          if (!sch.id) return;
+          const ref = this.db.collection('schedules').doc(String(sch.id));
+          batch.set(ref, sanitizeForFirestore({ ...sch, updatedAt: new Date().toISOString() }), { merge: true });
+        });
+        batch.commit().catch((e) => console.warn('Batch commit schedules error:', e));
+      } catch (err) {
+        console.warn('Batch schedules write error:', err);
+      }
     }
   },
 
