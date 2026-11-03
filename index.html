@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1793850000000" as="style" />
-  <link rel="preload" href="css/styles.css?v=1793850000000" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1793860000000" as="style" />
+  <link rel="preload" href="css/styles.css?v=1793860000000" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1793850000000" />
-  <link rel="stylesheet" href="css/styles.css?v=1793850000000" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1793860000000" />
+  <link rel="stylesheet" href="css/styles.css?v=1793860000000" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -3662,8 +3662,8 @@ service cloud.firestore {
        MODAL: FULLSCREEN LOADING SINKRONISASI GOOGLE DRIVE (3 BERKAS)
        PSIKOLOGIS ANTI-BOSAN DENGAN 3 TAHAP ANIMASI STATUS DARI SETIAP FILE
        ==================================================================== -->
-  <div id="loading-gdrive-sync" class="fixed inset-0 z-[99999] bg-slate-900/80 backdrop-blur-md flex flex-col items-center justify-center p-3 sm:p-4 hidden overflow-y-auto pointer-events-auto">
-    <div class="relative z-[100000] bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-3xl p-5 sm:p-6 max-w-lg w-full shadow-2xl space-y-4 my-auto pointer-events-auto animate-in fade-in zoom-in duration-200">
+  <div id="loading-gdrive-sync" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex flex-col items-center justify-center p-3 sm:p-4 hidden overflow-y-auto pointer-events-auto" style="z-index: 9999999 !important;">
+    <div class="relative bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-3xl p-5 sm:p-6 max-w-lg w-full shadow-2xl space-y-4 my-auto pointer-events-auto animate-in fade-in zoom-in duration-200" style="position: relative !important; z-index: 10000000 !important;">
       
       <!-- Header: Logo Drive & Persentase Keseluruhan -->
       <div class="flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
@@ -3776,7 +3776,7 @@ service cloud.firestore {
       </div>
 
       <!-- CELEBRATION BOX & QUICK ACCESS BUTTONS (DITAMPILKAN SECARA BERSIH SAAT 100% SELESAI, BEBAS TUMPANG TINDIH) -->
-      <div id="sync-celebration-box" class="hidden p-4 rounded-2xl bg-gradient-to-br from-emerald-50 via-teal-50 to-emerald-100/70 border-2 border-emerald-400 shadow-md space-y-3 relative z-[100001] pointer-events-auto">
+      <div id="sync-celebration-box" class="hidden p-4 rounded-2xl bg-gradient-to-br from-emerald-50 via-teal-50 to-emerald-100/70 border-2 border-emerald-400 shadow-md space-y-3 relative pointer-events-auto" style="position: relative !important; z-index: 10000001 !important;">
         <div class="flex items-start gap-3">
           <div class="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-lg shrink-0 shadow-md">
             <i class="fa-solid fa-circle-check"></i>
@@ -3792,24 +3792,24 @@ service cloud.firestore {
         </div>
 
         <!-- QUICK ACCESS BUTTONS GRID: 3 TOMBOL BESAR RESPONSIF (TIDAK TUMPANG TINDIH) -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 w-full">
-          <a id="btn-quick-ca" href="#" target="_blank" rel="noopener noreferrer" class="w-full py-2.5 px-3 rounded-xl bg-[#009944] hover:bg-emerald-600 active:scale-98 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer relative z-[100002] pointer-events-auto">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 w-full" style="position: relative !important; z-index: 10000002 !important;">
+          <a id="btn-quick-ca" href="#" target="_blank" rel="noopener noreferrer" class="w-full py-2.5 px-3 rounded-xl bg-[#009944] hover:bg-emerald-600 active:scale-98 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer relative pointer-events-auto" style="position: relative !important; z-index: 10000002 !important; cursor: pointer !important; pointer-events: auto !important;">
             <i class="fa-solid fa-table"></i>
             <span class="truncate">Buka CA Sheet</span>
           </a>
-          <a id="btn-quick-folder" href="#" target="_blank" rel="noopener noreferrer" class="w-full py-2.5 px-3 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-98 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer relative z-[100002] pointer-events-auto">
+          <a id="btn-quick-folder" href="#" target="_blank" rel="noopener noreferrer" class="w-full py-2.5 px-3 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-98 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer relative pointer-events-auto" style="position: relative !important; z-index: 10000002 !important; cursor: pointer !important; pointer-events: auto !important;">
             <i class="fa-solid fa-folder-open"></i>
             <span class="truncate">Folder Toko</span>
           </a>
-          <button type="button" onclick="FMCUApp.closeSyncLoader()" class="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-black active:scale-98 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer relative z-[100002] pointer-events-auto">
+          <button type="button" id="btn-quick-close" onclick="FMCUApp.closeSyncLoader(event)" class="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-black active:scale-98 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer relative pointer-events-auto" style="position: relative !important; z-index: 10000002 !important; cursor: pointer !important; pointer-events: auto !important;">
             <i class="fa-solid fa-check"></i>
             <span class="truncate">Selesai & Tutup</span>
           </button>
         </div>
 
         <!-- Opsi Buka Rincian Modal Lengkap -->
-        <div class="text-center pt-1 border-t border-emerald-200/80">
-          <button type="button" id="btn-quick-details" class="text-[11px] font-bold text-emerald-800 hover:text-emerald-950 underline transition cursor-pointer relative z-[100002] pointer-events-auto">
+        <div class="text-center pt-1 border-t border-emerald-200/80" style="position: relative !important; z-index: 10000002 !important;">
+          <button type="button" id="btn-quick-details" class="text-[11px] font-bold text-emerald-800 hover:text-emerald-950 underline transition cursor-pointer relative pointer-events-auto" style="position: relative !important; z-index: 10000002 !important; cursor: pointer !important; pointer-events: auto !important;">
             Buka Dialog Rincian & Folder Eksternal &rarr;
           </button>
         </div>
@@ -4027,13 +4027,13 @@ service cloud.firestore {
   <script defer src="js/holding-time-standards.js"></script>
   <script defer src="js/master-stores-seed.js"></script>
   <script defer src="js/bestie-in-charge-seed.js"></script>
-  <script defer src="js/data.js?v=1793850000000"></script>
-  <script defer src="js/pdf-generator.js?v=1793850000000"></script>
-  <script defer src="js/app.js?v=1793850000000"></script>
+  <script defer src="js/data.js?v=1793860000000"></script>
+  <script defer src="js/pdf-generator.js?v=1793860000000"></script>
+  <script defer src="js/app.js?v=1793860000000"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1793850000000"></script>
+  <script async src="js/pdf-assets.js?v=1793860000000"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================

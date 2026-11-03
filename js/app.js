@@ -10656,44 +10656,96 @@ Instruksi:
 
     // Tampilkan Celebration Box dengan Tombol Akses Cepat Terstruktur (Bebas Tumpang Tindih)
     const celebrationBox = document.getElementById('sync-celebration-box');
-    if (celebrationBox) celebrationBox.classList.remove('hidden');
+    if (celebrationBox) {
+      celebrationBox.classList.remove('hidden');
+      try {
+        celebrationBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } catch (_) {}
+    }
 
     const folderMeta = document.getElementById('sync-celebration-folder-info');
     if (folderMeta && rep) {
       folderMeta.textContent = `Folder: 01. VISIT BESTIE 2026 / ${rep.auditorName || 'Visitor'} / ${rep.storeCode || ''} - ${rep.storeName || 'STORE'}`;
     }
 
+    const settings = (window.FMCUData && typeof window.FMCUData.getSettings === 'function') ? window.FMCUData.getSettings() : {};
+    const caUrl = (gasJson && gasJson.caSpreadsheetUrl) || (rep && (rep.caSpreadsheetUrl || rep.caLink)) || settings.caLink || 'https://tinyurl.com/store-caassignment';
+    const folderUrl = (gasJson && (gasJson.storeFolderUrl || gasJson.visitorFolderUrl || gasJson.parentFolderUrl)) || (rep && (rep.storeFolderUrl || rep.driveFolderUrl)) || 'https://drive.google.com/drive/u/3/folders/1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B';
+
+    // 1. Tombol Buka CA Sheet
     const caBtn = document.getElementById('btn-quick-ca');
     if (caBtn) {
-      if (gasJson && gasJson.caSpreadsheetUrl) {
-        caBtn.href = gasJson.caSpreadsheetUrl;
-        caBtn.classList.remove('hidden');
-      } else {
-        caBtn.classList.add('hidden');
-      }
+      caBtn.href = caUrl;
+      caBtn.setAttribute('data-target-url', caUrl);
+      caBtn.classList.remove('hidden');
+      caBtn.onclick = (e) => {
+        const urlToOpen = caBtn.getAttribute('data-target-url') || caBtn.href;
+        if (urlToOpen && urlToOpen !== '#' && !urlToOpen.startsWith('javascript:')) {
+          window.open(urlToOpen, '_blank', 'noopener,noreferrer');
+        }
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      };
     }
 
+    // 2. Tombol Buka Folder Toko
     const folderBtn = document.getElementById('btn-quick-folder');
     if (folderBtn) {
-      folderBtn.href = (gasJson && gasJson.storeFolderUrl) || rep.storeFolderUrl || 'https://drive.google.com/drive/u/3/folders/1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B';
+      folderBtn.href = folderUrl;
+      folderBtn.setAttribute('data-target-url', folderUrl);
+      folderBtn.classList.remove('hidden');
+      folderBtn.onclick = (e) => {
+        const urlToOpen = folderBtn.getAttribute('data-target-url') || folderBtn.href;
+        if (urlToOpen && urlToOpen !== '#' && !urlToOpen.startsWith('javascript:')) {
+          window.open(urlToOpen, '_blank', 'noopener,noreferrer');
+        }
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      };
     }
 
+    // 3. Tombol Selesai & Tutup
+    const closeBtn = document.getElementById('btn-quick-close');
+    if (closeBtn) {
+      closeBtn.onclick = (e) => {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        this.closeSyncLoader(e);
+      };
+    }
+
+    // Opsi Buka Dialog Rincian
     const detailsBtn = document.getElementById('btn-quick-details');
     if (detailsBtn) {
-      detailsBtn.onclick = () => {
-        this.closeSyncLoaderAndOpenModal(rep.id);
+      detailsBtn.onclick = (e) => {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        this.closeSyncLoaderAndOpenModal(rep ? rep.id : null);
       };
     }
 
     this.triggerConfetti();
   },
 
-  closeSyncLoader() {
+  closeSyncLoader(e) {
+    if (e && typeof e.stopPropagation === 'function') {
+      e.stopPropagation();
+    }
     const loader = document.getElementById('loading-gdrive-sync');
     if (loader) {
       loader.classList.add('hidden');
       document.body.style.overflow = '';
     }
+    const confetti = document.getElementById('fm-confetti-canvas');
+    if (confetti) confetti.remove();
     this.stopPsychologyTipsRotator();
   },
 
@@ -18373,7 +18425,7 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
     canvas.style.left = '0';
     canvas.style.width = '100vw';
     canvas.style.height = '100vh';
-    canvas.style.zIndex = '99980'; // Safely behind modal card (z-[100000]) so buttons are never blocked
+    canvas.style.zIndex = '9999998'; // Safely behind modal dialog (9999999) so buttons are never blocked
     canvas.style.pointerEvents = 'none';
     canvas.style.touchAction = 'none';
     canvas.setAttribute('aria-hidden', 'true');
@@ -18399,6 +18451,10 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
       });
     }
 
+    const safetyCleanup = setTimeout(() => {
+      if (canvas && canvas.parentNode) canvas.remove();
+    }, 3500);
+
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       let alive = false;
@@ -18421,6 +18477,7 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
       if (alive) {
         requestAnimationFrame(animate);
       } else {
+        clearTimeout(safetyCleanup);
         canvas.remove();
       }
     };
