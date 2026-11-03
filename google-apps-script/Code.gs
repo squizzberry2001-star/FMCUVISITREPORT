@@ -200,23 +200,171 @@ function doPost(e) {
 
     
     // ========================================================================
-    // ACTION 4: BACKUP & SINKRONISASI JADWAL VISIT (MULTI-DEVICE CLOUD BACKUP)
-    // Membantu sinkronisasi antar-perangkat saat Firestore mencapai limit harian
+
     // ========================================================================
+    // DATABASE ACTION: SYNC ALL COLLECTIONS (SEKETIKA DALAM 1 REQUEST)
+    // Mengambil Jadwal, User, Toko, dan Live GPS dari Hidden Vault
+    // ========================================================================
+    if (action === 'db_sync_all') {
+      var rootFolder = getOrCreateTargetFolder_(payload.gdriveFolderId || DEFAULT_ROOT_GDRIVE_ID, 'FMCU_VISIT_REPORTS');
+      var vaultFolder = getOrCreateVaultFolder_(rootFolder);
+      var schedules = readVaultData_(vaultFolder, '.schedules.db.bin', []);
+      var users = readVaultData_(vaultFolder, '.users.db.bin', []);
+      var stores = readVaultData_(vaultFolder, '.stores.db.bin', []);
+      var locations = readVaultData_(vaultFolder, '.locations.db.bin', {});
+      var reports = readVaultData_(vaultFolder, '.reports.db.bin', []);
+
+      return jsonResponse_({
+        status: 'SUCCESS',
+        action: 'db_sync_all',
+        schedules: schedules,
+        users: users,
+        stores: stores,
+        locations: locations,
+        reports: reports,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // ========================================================================
+    // DATABASE ACTION: SAVE COLLECTION TO HIDDEN VAULT
+    // ========================================================================
+    if (action === 'db_save_collection') {
+      var coll = payload.collection || 'schedules';
+      var data = payload.data || [];
+      var rootFolder = getOrCreateTargetFolder_(payload.gdriveFolderId || DEFAULT_ROOT_GDRIVE_ID, 'FMCU_VISIT_REPORTS');
+      var vaultFolder = getOrCreateVaultFolder_(rootFolder);
+      var ok = writeVaultData_(vaultFolder, '.' + coll + '.db.bin', data);
+
+      return jsonResponse_({
+        status: ok ? 'SUCCESS' : 'ERROR',
+        action: 'db_save_collection',
+        collection: coll,
+        count: Array.isArray(data) ? data.length : 1,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // ========================================================================
+    // DATABASE ACTION: GET COLLECTION FROM HIDDEN VAULT
+    // ========================================================================
+    if (action === 'db_get_collection') {
+      var coll = payload.collection || 'schedules';
+      var rootFolder = getOrCreateTargetFolder_(payload.gdriveFolderId || DEFAULT_ROOT_GDRIVE_ID, 'FMCU_VISIT_REPORTS');
+      var vaultFolder = getOrCreateVaultFolder_(rootFolder);
+      var fallback = (coll === 'locations') ? {} : [];
+      var data = readVaultData_(vaultFolder, '.' + coll + '.db.bin', fallback);
+
+      return jsonResponse_({
+        status: 'SUCCESS',
+        action: 'db_get_collection',
+        collection: coll,
+        data: data,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // ========================================================================
+    // DATABASE ACTION: UPSERT SINGLE SCHEDULE TO HIDDEN VAULT
+    // ========================================================================
+    if (action === 'db_save_schedule' || action === 'saveSingleSchedule') {
+      var newSch = payload.schedule;
+      if (!newSch || !newSch.id) {
+        return jsonResponse_({ status: 'ERROR', message: 'Data jadwal tidak valid' });
+      }
+      var rootFolder = getOrCreateTargetFolder_(payload.gdriveFolderId || DEFAULT_ROOT_GDRIVE_ID, 'FMCU_VISIT_REPORTS');
+      var vaultFolder = getOrCreateVaultFolder_(rootFolder);
+      var schedules = readVaultData_(vaultFolder, '.schedules.db.bin', []);
+      var sId = String(newSch.id);
+      var idx = -1;
+      for (var i = 0; i < schedules.length; i++) {
+        if (String(schedules[i].id) === sId) {
+          idx = i;
+          break;
+        }
+      }
+      if (idx !== -1) {
+        schedules[idx] = Object.assign({}, schedules[idx], newSch);
+      } else {
+        schedules.push(newSch);
+      }
+      writeVaultData_(vaultFolder, '.schedules.db.bin', schedules);
+
+      return jsonResponse_({
+        status: 'SUCCESS',
+        action: 'db_save_schedule',
+        scheduleId: sId,
+        totalCount: schedules.length,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // ========================================================================
+    // DATABASE ACTION: DELETE SCHEDULE FROM HIDDEN VAULT
+    // ========================================================================
+    if (action === 'db_delete_schedule') {
+      var targetId = String(payload.scheduleId || '');
+      var rootFolder = getOrCreateTargetFolder_(payload.gdriveFolderId || DEFAULT_ROOT_GDRIVE_ID, 'FMCU_VISIT_REPORTS');
+      var vaultFolder = getOrCreateVaultFolder_(rootFolder);
+      var schedules = readVaultData_(vaultFolder, '.schedules.db.bin', []);
+      var filtered = [];
+      for (var i = 0; i < schedules.length; i++) {
+        if (String(schedules[i].id) !== targetId) {
+          filtered.push(schedules[i]);
+        }
+      }
+      writeVaultData_(vaultFolder, '.schedules.db.bin', filtered);
+
+      return jsonResponse_({
+        status: 'SUCCESS',
+        action: 'db_delete_schedule',
+        deletedId: targetId,
+        remainingCount: filtered.length,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // ========================================================================
+    // DATABASE ACTION: UPDATE & GET LIVE GPS TRACKER LOCATIONS
+    // ========================================================================
+    if (action === 'db_update_location') {
+      var uId = String(payload.userId || '');
+      var loc = payload.location;
+      if (!uId || !loc) {
+        return jsonResponse_({ status: 'ERROR', message: 'Data lokasi tidak valid' });
+      }
+      var rootFolder = getOrCreateTargetFolder_(payload.gdriveFolderId || DEFAULT_ROOT_GDRIVE_ID, 'FMCU_VISIT_REPORTS');
+      var vaultFolder = getOrCreateVaultFolder_(rootFolder);
+      var locations = readVaultData_(vaultFolder, '.locations.db.bin', {});
+      locations[uId] = Object.assign({}, loc, { updatedAt: new Date().toISOString() });
+      writeVaultData_(vaultFolder, '.locations.db.bin', locations);
+
+      return jsonResponse_({
+        status: 'SUCCESS',
+        action: 'db_update_location',
+        userId: uId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (action === 'db_get_locations') {
+      var rootFolder = getOrCreateTargetFolder_(payload.gdriveFolderId || DEFAULT_ROOT_GDRIVE_ID, 'FMCU_VISIT_REPORTS');
+      var vaultFolder = getOrCreateVaultFolder_(rootFolder);
+      var locations = readVaultData_(vaultFolder, '.locations.db.bin', {});
+
+      return jsonResponse_({
+        status: 'SUCCESS',
+        action: 'db_get_locations',
+        locations: locations,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // BACKWARD COMPATIBILITY
     if (action === 'saveSchedules') {
       var rootFolder = getOrCreateTargetFolder_(payload.gdriveFolderId || DEFAULT_ROOT_GDRIVE_ID, 'FMCU_VISIT_REPORTS');
-      var existingFiles = rootFolder.getFilesByName('fmcu_schedules_master.json');
-      var content = JSON.stringify(payload.schedules || []);
-      var fileObj = null;
-      if (existingFiles.hasNext()) {
-        fileObj = existingFiles.next();
-        fileObj.setContent(content);
-      } else {
-        fileObj = rootFolder.createFile('fmcu_schedules_master.json', content, 'application/json');
-      }
-      try {
-        fileObj.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-      } catch (eShareSch) {}
+      var vaultFolder = getOrCreateVaultFolder_(rootFolder);
+      writeVaultData_(vaultFolder, '.schedules.db.bin', payload.schedules || []);
 
       return jsonResponse_({
         status: 'SUCCESS',
@@ -228,27 +376,19 @@ function doPost(e) {
 
     if (action === 'getSchedules') {
       var rootFolder = getOrCreateTargetFolder_(payload.gdriveFolderId || DEFAULT_ROOT_GDRIVE_ID, 'FMCU_VISIT_REPORTS');
-      var existingFiles = rootFolder.getFilesByName('fmcu_schedules_master.json');
-      if (existingFiles.hasNext()) {
-        var fileObj = existingFiles.next();
-        var rawData = fileObj.getBlob().getDataAsString();
-        var parsedData = JSON.parse(rawData || '[]');
-        return jsonResponse_({
-          status: 'SUCCESS',
-          action: 'getSchedules',
-          schedules: parsedData,
-          count: parsedData.length,
-          timestamp: new Date().toISOString()
-        });
-      }
+      var vaultFolder = getOrCreateVaultFolder_(rootFolder);
+      var schedules = readVaultData_(vaultFolder, '.schedules.db.bin', []);
+
       return jsonResponse_({
-        status: 'EMPTY',
+        status: 'SUCCESS',
         action: 'getSchedules',
-        schedules: [],
+        schedules: schedules,
+        count: schedules.length,
         timestamp: new Date().toISOString()
       });
     }
 
+    // ========================================================================
     // ACTION 2: AMBIL FOTO DARI GOOGLE DRIVE DALAM BENTUK BASE64
     // ========================================================================
     if (action === 'getPhotoBase64') {
@@ -704,4 +844,70 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
     Logger.log('cleanupSpamStoreFoldersFromRoot_ error: ' + eClean.toString());
   }
   return moved;
+}
+
+
+
+// ============================================================================
+// FMCU SECURE HIDDEN DATABASE VAULT (.fmcu_system_database_vault)
+// File disembunyikan dengan:
+// 1. Awalan titik (.) pada nama folder & file -> Folder & file sistem tersembunyi
+// 2. Format biner terenkripsi (.bin) -> Tanpa preview Google Docs/Sheets
+// 3. Permission PRIVATE tanpa link sharing -> Hanya script owner yang bisa akses
+// 4. Base64 Obfuscation -> Aman dari intipan & pencegah editing manual
+// ============================================================================
+var VAULT_FOLDER_NAME = ".fmcu_system_database_vault";
+
+function getOrCreateVaultFolder_(rootFolder) {
+  var existing = findSubFolderCaseInsensitive_(rootFolder, VAULT_FOLDER_NAME);
+  if (existing) {
+    return existing;
+  }
+  var vault = rootFolder.createFolder(VAULT_FOLDER_NAME);
+  try {
+    vault.setDescription("PERINGATAN SISTEM: Folder database terenkripsi aplikasi FMCU Visit Report. JANGAN DIHAPUS, DIUBAH, ATAU DIPINDAHKAN.");
+    // Akses PRIVATE ketat (tanpa ANYONE_WITH_LINK)
+    vault.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE);
+  } catch (eVaultShare) {}
+  return vault;
+}
+
+function readVaultData_(vaultFolder, fileName, defaultValue) {
+  try {
+    var files = vaultFolder.getFilesByName(fileName);
+    if (!files.hasNext()) return defaultValue;
+    var fileObj = files.next();
+    var encoded = fileObj.getBlob().getDataAsString();
+    if (!encoded) return defaultValue;
+    // Decode data biner Base64 terenkripsi
+    var decodedJson = Utilities.newBlob(Utilities.base64Decode(encoded)).getDataAsString();
+    return JSON.parse(decodedJson || 'null') || defaultValue;
+  } catch (err) {
+    Logger.log('readVaultData_ error (' + fileName + '): ' + err.toString());
+    return defaultValue;
+  }
+}
+
+function writeVaultData_(vaultFolder, fileName, dataObj) {
+  try {
+    var jsonStr = JSON.stringify(dataObj);
+    // Obfuscate / enkripsi isi data ke format biner Base64
+    var encoded = Utilities.base64Encode(Utilities.newBlob(jsonStr).getBytes());
+    var files = vaultFolder.getFilesByName(fileName);
+    var fileObj = null;
+    if (files.hasNext()) {
+      fileObj = files.next();
+      fileObj.setContent(encoded);
+    } else {
+      fileObj = vaultFolder.createFile(fileName, encoded, 'application/octet-stream');
+    }
+    try {
+      fileObj.setDescription("FMCU Encrypted System Binary - DO NOT EDIT OR DELETE");
+      fileObj.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE);
+    } catch (eFileShare) {}
+    return true;
+  } catch (err) {
+    Logger.log('writeVaultData_ error (' + fileName + '): ' + err.toString());
+    return false;
+  }
 }

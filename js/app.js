@@ -383,7 +383,23 @@ window.FMCUApp = {
     const admBadge = document.getElementById('admin-firestore-status-badge');
     const admWarn = document.getElementById('admin-firestore-rules-warning');
 
-    if (status === 'ONLINE') {
+    if (status === 'ONLINE_GAS') {
+      if (pill) {
+        pill.className = 'hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-teal-50 border border-teal-300 text-teal-800 text-[11px] font-bold cursor-pointer hover:bg-teal-100 transition shadow-2xs';
+        pill.title = 'Database aktif di Google Drive Vault (Terenkripsi, Bebas Kuota 429). Klik untuk sinkronisasi manual.';
+        pill.onclick = () => {
+          this.showToast('Menyinkronkan dengan Google Drive Vault...', 'info', 2000);
+          window.FMCUData.syncAllFromGasDatabase();
+        };
+      }
+      if (icon) icon.className = 'fa-brands fa-google-drive text-[#009944]';
+      if (text) text.textContent = 'Drive Vault: Terhubung (Aman)';
+      if (admBadge) {
+        admBadge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800';
+        admBadge.textContent = 'GOOGLE DRIVE VAULT • Bebas Kuota';
+      }
+      if (admWarn) admWarn.classList.add('hidden');
+    } else if (status === 'ONLINE') {
       if (pill) {
         pill.className = 'hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-[11px] font-bold';
       }

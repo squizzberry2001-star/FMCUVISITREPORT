@@ -790,6 +790,7 @@ window.FMCUData = {
     // Inisialisasi Penyimpanan Foto Lokal IndexedDB & Cloud Firestore Real-time Sync
     this.initPhotoStorage();
     this.initFirestore();
+    this.initGasDatabaseSync();
   },
 
   // ==========================================================================
@@ -1672,6 +1673,7 @@ window.FMCUData = {
     this._cachedUsers = cleanUsers;
     const prevUsers = this.getUsers();
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(cleanUsers));
+    this.callGasDatabase('db_save_collection', { collection: 'users', data: cleanUsers });
 
     if (this.db) {
       try {
@@ -1821,6 +1823,7 @@ window.FMCUData = {
     if (!Array.isArray(stores) || stores.length === 0) {
       stores = Array.isArray(window.FMCU_INITIAL_STORES) ? [...window.FMCU_INITIAL_STORES] : [];
       localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(stores));
+    this.callGasDatabase('db_save_collection', { collection: 'stores', data: stores });
       this._cachedStores = stores;
       return stores;
     }
@@ -2001,6 +2004,9 @@ window.FMCUData = {
     this._cachedSchedules = schedules;
     localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
 
+    // Hapus dari Google Apps Script Hidden Vault
+    this.callGasDatabase('db_delete_schedule', { scheduleId: docId });
+
     this.broadcastSync({ type: 'SCHEDULE_DELETED', scheduleId: docId });
 
     if (this.db) {
@@ -2038,6 +2044,9 @@ window.FMCUData = {
 
     // Backup otomatis ke Google Drive sebagai jalur relay multi-device cadangan
     this.backupSchedulesToGDrive(schedules);
+
+    // Backup & simpan master schedules ke Google Apps Script Hidden Vault
+    this.callGasDatabase('db_save_collection', { collection: 'schedules', data: schedules });
 
     this.broadcastSync({ type: 'SCHEDULES_UPDATED', count: schedules.length });
 
