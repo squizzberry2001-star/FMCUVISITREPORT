@@ -24,7 +24,7 @@ window.FMCUPdf = {
       gpsLat = null,
       gpsLng = null,
       applyWatermark = true,
-      maxDimension = 1920,
+      maxDimension = 1600, // HD Tajam & Efisien (< 25 MB PDF Budget)
       compact = false,
       compactWatermark = false,
       photoType = ''
@@ -80,7 +80,7 @@ window.FMCUPdf = {
             ctx.fillText(textStr, padLeft, h - Math.round(barH * 0.28));
           }
 
-          resolve(canvas.toDataURL('image/jpeg', 0.94));
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
         };
         img.onerror = (err) => reject(err);
         img.src = src;
@@ -150,7 +150,7 @@ window.FMCUPdf = {
     // 1. Gambar latar belakang divider asli (seperti PDF awal)
     if (bgImage) {
       try {
-        doc.addImage(bgImage, 'JPEG', 0, 0, 320, 180, undefined, 'NONE');
+        doc.addImage(bgImage, 'JPEG', 0, 0, 320, 180, undefined, 'MEDIUM');
       } catch (e) {
         console.warn('Divider background image error:', e);
       }
@@ -177,7 +177,7 @@ window.FMCUPdf = {
         cTop.height = halfH + overlap;
         const ctxTop = cTop.getContext('2d');
         ctxTop.drawImage(img, 0, 0, w, halfH + overlap, 0, 0, w, halfH + overlap);
-        const topDataUrl = cTop.toDataURL('image/jpeg', 0.90);
+        const topDataUrl = cTop.toDataURL('image/jpeg', 0.85);
 
         // 2. Canvas Bagian Bawah
         const srcY = Math.max(0, halfH - overlap);
@@ -187,7 +187,7 @@ window.FMCUPdf = {
         cBottom.height = srcH;
         const ctxBottom = cBottom.getContext('2d');
         ctxBottom.drawImage(img, 0, srcY, w, srcH, 0, 0, w, srcH);
-        const bottomDataUrl = cBottom.toDataURL('image/jpeg', 0.90);
+        const bottomDataUrl = cBottom.toDataURL('image/jpeg', 0.85);
 
         resolve({ topDataUrl, bottomDataUrl });
       };
@@ -197,7 +197,7 @@ window.FMCUPdf = {
   },
 
   // Helper to draw image inside a bounding box while preserving natural aspect ratio (mencegah foto & timestamp tertarik)
-  drawImageProportional(doc, imgData, boxX, boxY, boxW, boxH, format = 'JPEG', compression = 'NONE') {
+  drawImageProportional(doc, imgData, boxX, boxY, boxW, boxH, format = 'JPEG', compression = 'MEDIUM') {
     if (!doc || !imgData) return null;
     try {
       let imgW = 0;
@@ -262,9 +262,50 @@ window.FMCUPdf = {
     return photo.dataUrl || '';
   },
 
+  // Helper optimalisasi foto untuk dokumen PDF (Tetap tajam HD namun ukuran file selalu di bawah budget 25 MB)
+  async optimizePhotoForPdf(dataUrl, maxDim = 1200, quality = 0.84) {
+    if (!dataUrl || !dataUrl.startsWith('data:image')) return dataUrl;
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width;
+        let h = img.height;
+        // Jika dimensi sudah di bawah maxDim dan sudah berformat JPEG dengan ukuran hemat (< 320KB), tidak perlu re-compress
+        if (w <= maxDim && h <= maxDim && dataUrl.startsWith('data:image/jpeg') && dataUrl.length < 350000) {
+          resolve(dataUrl);
+          return;
+        }
+
+        if (w > maxDim || h > maxDim) {
+          if (w > h) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          } else {
+            w = Math.round((w * maxDim) / h);
+            h = maxDim;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  },
+
   // Ambil sumber Base64 gambar khusus untuk cetak PDF (jsPDF)
   getPhotoBase64ForPdf(photo) {
     if (!photo) return '';
+    if (photo._pdfOptimizedDataUrl && photo._pdfOptimizedDataUrl.startsWith('data:image')) {
+      return photo._pdfOptimizedDataUrl;
+    }
     if (photo.dataUrl && photo.dataUrl.startsWith('data:image')) {
       return photo.dataUrl;
     }
@@ -306,7 +347,7 @@ window.FMCUPdf = {
           canvas.height = img.naturalHeight || img.height;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0);
-          resolve(canvas.toDataURL('image/jpeg', 0.94));
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
         } catch (e) {
           resolve('');
         }
@@ -410,6 +451,32 @@ window.FMCUPdf = {
       }
     }
 
+    // 4. OPTIMALISASI HD BERKAS UNTUK CETAK PDF (Target Max File Size: < 25 MB)
+    // - Lembar QSC (Section 1): max 1500px, quality 0.85 (~350KB/foto)
+    // - Foto Bukti Temuan & CA (Section 3 & 4): max 1080px, quality 0.82 (~180KB - 250KB/foto)
+    // Hasil: Kualitas foto tetap HD tajam di layar/cetak, namun total ukuran file PDF selalu < 20 MB (Jauh di bawah limit 25 MB)
+    if (Array.isArray(report.qscPhotos)) {
+      for (const p of report.qscPhotos) {
+        if (!p) continue;
+        const b64 = p.dataUrl || this.getPhotoBase64ForPdf(p);
+        if (b64 && b64.startsWith('data:image')) {
+          p._pdfOptimizedDataUrl = await this.optimizePhotoForPdf(b64, 1500, 0.85);
+        }
+      }
+    }
+
+    const findingPhotos = [
+      ...(report.evidencePhotos || []),
+      ...(report.caPhotos || report.correctiveActionPhotos || [])
+    ];
+    for (const p of findingPhotos) {
+      if (!p) continue;
+      const b64 = p.dataUrl || this.getPhotoBase64ForPdf(p);
+      if (b64 && b64.startsWith('data:image')) {
+        p._pdfOptimizedDataUrl = await this.optimizePhotoForPdf(b64, 1080, 0.82);
+      }
+    }
+
     return report;
   },
 
@@ -458,7 +525,7 @@ window.FMCUPdf = {
       try {
         // COVER1.jpg has dimensions 7244x2368 (aspect ratio 3.059:1)
         // 320mm / 104.6mm = 3.059:1 exact natural aspect ratio
-        doc.addImage(coverBanner, 'JPEG', 0, 0, 320, 105);
+        doc.addImage(coverBanner, 'JPEG', 0, 0, 320, 105, undefined, 'MEDIUM');
       } catch (e) {
         console.warn('Cover image error:', e);
       }
@@ -998,7 +1065,7 @@ window.FMCUPdf = {
           const evImgBase64 = this.getPhotoBase64ForPdf(ev);
           if (evImgBase64) {
             try {
-              doc.addImage(evImgBase64, 'JPEG', imgX, imgY, imgW, imgH);
+              doc.addImage(evImgBase64, 'JPEG', imgX, imgY, imgW, imgH, undefined, 'MEDIUM');
             } catch (e) {
               console.warn('Photo draw error:', e);
             }
@@ -1266,7 +1333,8 @@ window.FMCUPdf = {
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
-      format: 'a4'
+      format: 'a4',
+      compress: true
     });
 
     const pageWidth = 210;
@@ -1386,7 +1454,17 @@ window.FMCUPdf = {
     await this.hydrateReportPhotosFromGDrive(report);
     const doc = this.generateVerticalQscCollagePdf(report);
     if (!doc) return;
-    doc.save(this.getVerticalQscFileName(report));
+    const fileName = this.getVerticalQscFileName(report);
+    let sizeNotice = '';
+    try {
+      const buffer = doc.output('arraybuffer');
+      const sizeMb = (buffer.byteLength / (1024 * 1024)).toFixed(1);
+      sizeNotice = ` (${sizeMb} MB • Max 25 MB)`;
+    } catch (eSize) {}
+    doc.save(fileName);
+    if (window.FMCUApp && typeof window.FMCUApp.showToast === 'function') {
+      window.FMCUApp.showToast(`PDF Kolase QSC berhasil diunduh${sizeNotice}!`, 'success');
+    }
   },
 
   async getVerticalQscPdfBase64(report) {
@@ -1514,7 +1592,17 @@ window.FMCUPdf = {
   async downloadReportPdf(report) {
     await this.hydrateReportPhotosFromGDrive(report);
     const doc = this.generatePdfDoc(report);
-    doc.save(this.getFileName(report));
+    const fileName = this.getFileName(report);
+    let sizeNotice = '';
+    try {
+      const buffer = doc.output('arraybuffer');
+      const sizeMb = (buffer.byteLength / (1024 * 1024)).toFixed(1);
+      sizeNotice = ` (${sizeMb} MB • Max 25 MB)`;
+    } catch (eSize) {}
+    doc.save(fileName);
+    if (window.FMCUApp && typeof window.FMCUApp.showToast === 'function') {
+      window.FMCUApp.showToast(`PDF ${fileName} berhasil diunduh${sizeNotice}!`, 'success');
+    }
   },
 
   // Get Base64 String of PDF (for Google Apps Script GDrive Upload & Email Attachment)
