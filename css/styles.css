@@ -1194,3 +1194,9 @@ div#form-top-geofence-banner,
 .animate-pulse-subtle {
   animation: pulseSubtle 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+#fm-confetti-canvas {
+  pointer-events: none !important;
+  touch-action: none !important;
+  user-select: none !important;
+}

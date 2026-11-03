@@ -10530,24 +10530,28 @@ Instruksi:
   },
 
   initGdriveSyncUI(rep) {
+    // Pastikan modal rincian tertutup agar tidak tumpang tindih
+    const sendModal = document.getElementById('modal-send-integration');
+    if (sendModal) sendModal.classList.add('hidden');
+
     this.startPsychologyTipsRotator();
     this.setGdriveOverallProgress(8, 'Menyiapkan proses sinkronisasi 3 berkas...');
+
+    // Tampilkan kembali tips rotasi & tombol dismiss latar belakang
+    const tipsWrapper = document.getElementById('sync-tips-wrapper');
+    if (tipsWrapper) tipsWrapper.classList.remove('hidden');
+
+    const dismissBtn = document.getElementById('btn-sync-dismiss-bg');
+    if (dismissBtn) dismissBtn.classList.remove('hidden');
+
+    // Sembunyikan celebration box saat proses masih berjalan
+    const celebrationBox = document.getElementById('sync-celebration-box');
+    if (celebrationBox) celebrationBox.classList.add('hidden');
 
     // Inisialisasi ketiga kartu berkas ke status antre
     ['pdf', 'qsc', 'ca'].forEach((key) => {
       this.setFileSyncStage(key, 0, 'Menunggu antrean proses...');
     });
-
-    const actionsContainer = document.getElementById('sync-loader-actions');
-    if (actionsContainer) {
-      actionsContainer.innerHTML = '';
-      actionsContainer.classList.add('hidden');
-    }
-    const dismissBtn = document.getElementById('btn-sync-dismiss-bg');
-    if (dismissBtn) {
-      dismissBtn.textContent = 'Jalankan di Latar Belakang (Tetap Lanjut)';
-      dismissBtn.classList.remove('hidden');
-    }
   },
 
   setGdriveOverallProgress(pct, statusText) {
@@ -10643,35 +10647,42 @@ Instruksi:
     this.stopPsychologyTipsRotator();
     this.setGdriveOverallProgress(100, 'Semua 3 berkas berhasil tersimpan di Google Drive!');
 
-    const quoteEl = document.getElementById('sync-psychology-quote');
-    if (quoteEl) {
-      quoteEl.textContent = '🎉 3 Berkas Lengkap Berhasil Diarsipkan ke Google Drive!';
-      quoteEl.className = 'text-[11px] font-black text-emerald-800 leading-snug';
-    }
+    // Sembunyikan tips rotasi dan tombol dismiss latar belakang
+    const tipsWrapper = document.getElementById('sync-tips-wrapper');
+    if (tipsWrapper) tipsWrapper.classList.add('hidden');
 
     const dismissBtn = document.getElementById('btn-sync-dismiss-bg');
-    if (dismissBtn) {
-      dismissBtn.classList.add('hidden');
+    if (dismissBtn) dismissBtn.classList.add('hidden');
+
+    // Tampilkan Celebration Box dengan Tombol Akses Cepat Terstruktur (Bebas Tumpang Tindih)
+    const celebrationBox = document.getElementById('sync-celebration-box');
+    if (celebrationBox) celebrationBox.classList.remove('hidden');
+
+    const folderMeta = document.getElementById('sync-celebration-folder-info');
+    if (folderMeta && rep) {
+      folderMeta.textContent = `Folder: 01. VISIT BESTIE 2026 / ${rep.auditorName || 'Visitor'} / ${rep.storeCode || ''} - ${rep.storeName || 'STORE'}`;
     }
 
-    const actionsContainer = document.getElementById('sync-loader-actions');
-    if (actionsContainer) {
-      actionsContainer.classList.remove('hidden');
-      actionsContainer.innerHTML = `
-        ${gasJson && gasJson.caSpreadsheetUrl ? `
-          <a href="${gasJson.caSpreadsheetUrl}" target="_blank" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer">
-            <i class="fa-solid fa-table"></i><span>Buka CA Sheet</span>
-          </a>
-        ` : ''}
-        ${gasJson && gasJson.storeFolderUrl ? `
-          <a href="${gasJson.storeFolderUrl}" target="_blank" class="px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer">
-            <i class="fa-solid fa-folder-open"></i><span>Folder Toko</span>
-          </a>
-        ` : ''}
-        <button type="button" onclick="FMCUApp.closeSyncLoaderAndOpenModal('${rep.id}')" class="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white font-black text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer">
-          <span>Lihat Ringkasan</span><i class="fa-solid fa-arrow-right text-[10px]"></i>
-        </button>
-      `;
+    const caBtn = document.getElementById('btn-quick-ca');
+    if (caBtn) {
+      if (gasJson && gasJson.caSpreadsheetUrl) {
+        caBtn.href = gasJson.caSpreadsheetUrl;
+        caBtn.classList.remove('hidden');
+      } else {
+        caBtn.classList.add('hidden');
+      }
+    }
+
+    const folderBtn = document.getElementById('btn-quick-folder');
+    if (folderBtn) {
+      folderBtn.href = (gasJson && gasJson.storeFolderUrl) || rep.storeFolderUrl || 'https://drive.google.com/drive/u/3/folders/1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B';
+    }
+
+    const detailsBtn = document.getElementById('btn-quick-details');
+    if (detailsBtn) {
+      detailsBtn.onclick = () => {
+        this.closeSyncLoaderAndOpenModal(rep.id);
+      };
     }
 
     this.triggerConfetti();
@@ -10686,9 +10697,9 @@ Instruksi:
     this.stopPsychologyTipsRotator();
   },
 
-  closeSyncLoaderAndOpenModal(reportId) {
+  closeSyncLoaderAndOpenModal(reportId = null) {
     this.closeSyncLoader();
-    this.openIntegrationSendModal(reportId, true);
+    this.openIntegrationSendModal(reportId || this.activePreviewReportId, true);
   },
 
   dismissSyncLoaderToBackground() {
@@ -10703,6 +10714,7 @@ Instruksi:
       return;
     }
 
+    // Buka fullscreen loader 3 file
     const loader = document.getElementById('loading-gdrive-sync');
     if (loader) {
       loader.classList.remove('hidden');
@@ -10749,16 +10761,15 @@ Instruksi:
     const folderInput = document.getElementById('modal-send-folder');
     if (folderInput) folderInput.value = '1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B';
 
-    // Buka Modal Pop-up
-    const modal = document.getElementById('modal-send-integration');
-    if (modal) modal.classList.remove('hidden');
-
-    // Secara otomatis dibalik layar simpan seluruh berkas ke Google Drive jika belum dipicu
-    if (!skipBackgroundTrigger) {
+    // Buka Modal Pop-up HANYA jika skipBackgroundTrigger (user ingin melihat rincian dialog)
+    if (skipBackgroundTrigger) {
+      const modal = document.getElementById('modal-send-integration');
+      if (modal) modal.classList.remove('hidden');
+    } else {
+      // Jika upload belum selesai / baru dipicu, buka fullscreen loading 3 file
       this.triggerBackgroundDriveUpload(rep);
     }
   },
-
   _isSyncingDriveReport: false,
   async triggerBackgroundDriveUpload(rep, retryCount = 0) {
     if (!rep) return;
@@ -18352,6 +18363,9 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
   // Point 6: Celebration Confetti Particle Burst
   triggerConfetti() {
     this.triggerHaptic('success');
+    const existing = document.getElementById('fm-confetti-canvas');
+    if (existing) existing.remove();
+
     const canvas = document.createElement('canvas');
     canvas.id = 'fm-confetti-canvas';
     canvas.style.position = 'fixed';
@@ -18359,8 +18373,10 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
     canvas.style.left = '0';
     canvas.style.width = '100vw';
     canvas.style.height = '100vh';
-    canvas.style.zIndex = '9999';
+    canvas.style.zIndex = '99980'; // Safely behind modal card (z-[100000]) so buttons are never blocked
     canvas.style.pointerEvents = 'none';
+    canvas.style.touchAction = 'none';
+    canvas.setAttribute('aria-hidden', 'true');
     document.body.appendChild(canvas);
 
     canvas.width = window.innerWidth;
