@@ -198,6 +198,57 @@ function doPost(e) {
       });
     }
 
+    
+    // ========================================================================
+    // ACTION 4: BACKUP & SINKRONISASI JADWAL VISIT (MULTI-DEVICE CLOUD BACKUP)
+    // Membantu sinkronisasi antar-perangkat saat Firestore mencapai limit harian
+    // ========================================================================
+    if (action === 'saveSchedules') {
+      var rootFolder = getOrCreateTargetFolder_(payload.gdriveFolderId || DEFAULT_ROOT_GDRIVE_ID, 'FMCU_VISIT_REPORTS');
+      var existingFiles = rootFolder.getFilesByName('fmcu_schedules_master.json');
+      var content = JSON.stringify(payload.schedules || []);
+      var fileObj = null;
+      if (existingFiles.hasNext()) {
+        fileObj = existingFiles.next();
+        fileObj.setContent(content);
+      } else {
+        fileObj = rootFolder.createFile('fmcu_schedules_master.json', content, 'application/json');
+      }
+      try {
+        fileObj.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      } catch (eShareSch) {}
+
+      return jsonResponse_({
+        status: 'SUCCESS',
+        action: 'saveSchedules',
+        count: (payload.schedules || []).length,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (action === 'getSchedules') {
+      var rootFolder = getOrCreateTargetFolder_(payload.gdriveFolderId || DEFAULT_ROOT_GDRIVE_ID, 'FMCU_VISIT_REPORTS');
+      var existingFiles = rootFolder.getFilesByName('fmcu_schedules_master.json');
+      if (existingFiles.hasNext()) {
+        var fileObj = existingFiles.next();
+        var rawData = fileObj.getBlob().getDataAsString();
+        var parsedData = JSON.parse(rawData || '[]');
+        return jsonResponse_({
+          status: 'SUCCESS',
+          action: 'getSchedules',
+          schedules: parsedData,
+          count: parsedData.length,
+          timestamp: new Date().toISOString()
+        });
+      }
+      return jsonResponse_({
+        status: 'EMPTY',
+        action: 'getSchedules',
+        schedules: [],
+        timestamp: new Date().toISOString()
+      });
+    }
+
     // ACTION 2: AMBIL FOTO DARI GOOGLE DRIVE DALAM BENTUK BASE64
     // ========================================================================
     if (action === 'getPhotoBase64') {

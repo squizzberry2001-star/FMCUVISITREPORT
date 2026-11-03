@@ -1,5 +1,5 @@
 // FMCU Visit Store Report - Service Worker for Mobile & Desktop Background Push Notifications
-const SW_VERSION = 'fmcu-sw-v3-1793674611481';
+const SW_VERSION = 'fmcu-sw-v4-1793677415037';
 const CACHE_STATE_KEY = 'fmcu-notif-state-v1';
 const STATE_URL = '/__fmcu_notif_state__.json';
 

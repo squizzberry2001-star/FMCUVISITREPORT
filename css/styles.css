@@ -980,8 +980,11 @@ input[type="date"]::-webkit-date-and-time-value {
    Form Top Geofence Live Check-In Banner (Actual In / Out & GPS)
    Restoring rich dark-green emerald/teal gradient and high-contrast badges
    ========================================================================== */
-#form-top-geofence-banner {
+#form-top-geofence-banner,
+div#form-top-geofence-banner,
+.form-top-geofence-banner {
   background: linear-gradient(135deg, #022c22 0%, #042f2e 50%, #0f172a 100%) !important;
+  background-color: #022c22 !important;
   color: #ffffff !important;
   border: 1px solid rgba(52, 211, 153, 0.3) !important;
   border-radius: 1rem !important;

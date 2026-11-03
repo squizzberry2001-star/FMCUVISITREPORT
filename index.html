@@ -78,7 +78,7 @@
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
   <link rel="preload" href="css/tailwind.min.css?v=1793674659604" as="style" />
-  <link rel="preload" href="css/styles.css?v=1793674659604" as="style" />
+  <link rel="preload" href="css/styles.css?v=1793677415037" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
@@ -86,7 +86,7 @@
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
   <link rel="stylesheet" href="css/tailwind.min.css?v=1793674659604" />
-  <link rel="stylesheet" href="css/styles.css?v=1793674659604" />
+  <link rel="stylesheet" href="css/styles.css?v=1793677415037" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -1040,6 +1040,14 @@
                 
               </div>
               <div class="flex flex-wrap items-center gap-2">
+                                <button type="button" onclick="FMCUApp.exportSchedulesFile()" class="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Bagikan jadwal visit dalam format file .json atau salin ke WhatsApp">
+                  <i class="fa-solid fa-share-nodes text-teal-600"></i>
+                  <span class="hidden sm:inline">Bagikan</span>
+                </button>
+                <button type="button" onclick="FMCUApp.openImportSchedulesModal()" class="px-2.5 py-1.5 rounded-xl border border-teal-200 bg-teal-50 hover:bg-teal-100 text-[#0099A6] text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Impor jadwal visit dari perangkat admin / file .json">
+                  <i class="fa-solid fa-file-import"></i>
+                  <span>Impor Jadwal</span>
+                </button>
                 <select id="schedule-filter-scope" onchange="FMCUApp.renderHomeSchedules()" class="text-xs font-semibold border border-slate-200 rounded-xl px-3 py-2 bg-slate-50" aria-label="Schedule Filter Scope">
                   <option value="ACTIVE" selected>Jadwal Aktif (Hari Ini & Mendatang)</option>
                   <option value="TODAY">Jadwal Hari Ini</option>
@@ -2042,6 +2050,14 @@ service cloud.firestore {
                 <button type="button" onclick="FMCUApp.navigate('live-maps')" class="flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer text-[#0099A6] hover:bg-white whitespace-nowrap">
                   <i class="fa-solid fa-map-location-dot text-xs"></i>
                   <span>Live Maps</span>
+                </button>
+                <button type="button" onclick="FMCUApp.exportSchedulesFile()" class="flex-1 sm:flex-initial px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 shadow-2xs whitespace-nowrap" title="Bagikan jadwal visit (file .json atau WhatsApp)">
+                  <i class="fa-solid fa-share-nodes text-teal-600"></i>
+                  <span class="hidden md:inline">Bagikan</span>
+                </button>
+                <button type="button" onclick="FMCUApp.openImportSchedulesModal()" class="flex-1 sm:flex-initial px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer bg-teal-50 border border-teal-200 text-[#0099A6] hover:bg-teal-100 shadow-2xs whitespace-nowrap" title="Impor jadwal visit dari perangkat lain / file .json">
+                  <i class="fa-solid fa-file-import"></i>
+                  <span class="hidden md:inline">Impor</span>
                 </button>
               </div>
             </div>
@@ -3823,9 +3839,9 @@ service cloud.firestore {
   <script defer src="js/holding-time-standards.js"></script>
   <script defer src="js/master-stores-seed.js"></script>
   <script defer src="js/bestie-in-charge-seed.js"></script>
-  <script defer src="js/data.js?v=1793674659604"></script>
+  <script defer src="js/data.js?v=1793677415037"></script>
   <script defer src="js/pdf-generator.js?v=1793672329571"></script>
-  <script defer src="js/app.js?v=1793674659604"></script>
+  <script defer src="js/app.js?v=1793677415037"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -4810,5 +4826,158 @@ service cloud.firestore {
       </div>
     </div>
 
+
+    <!-- Hidden File Input for Schedule Import -->
+    <input type="file" id="import-schedules-file-input" accept=".json" class="hidden" onchange="FMCUApp.handleImportSchedulesFile(this)" />
+
+    <!-- Interactive PWA Update Bar -->
+    <div id="pwa-update-bar" class="hidden fixed bottom-4 right-4 z-[9999] bg-slate-900/95 backdrop-blur-md text-white px-4 py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-3 animate-bounce">
+      <div class="flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+        <span class="text-xs font-bold">Pembaruan Tersedia</span>
+      </div>
+      <button type="button" onclick="window.location.reload(true)" class="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold text-xs rounded-xl transition cursor-pointer">
+        Muat Ulang
+      </button>
+    </div>
+
+    <!-- =====================================================================
+         MODAL: IMPOR & SINKRONISASI JADWAL VISIT (MULTI-DEVICE TRANSFER)
+         ===================================================================== -->
+    <div id="modal-import-schedules" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+      <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
+        <div class="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-xl bg-teal-50 text-[#0099A6] flex items-center justify-center text-base shrink-0">
+              <i class="fa-solid fa-file-import"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-sm sm:text-base text-slate-900">Impor Jadwal Visit</h3>
+              <p class="text-[11px] text-slate-500">Sinkronkan jadwal visit dari perangkat lain secara instan</p>
+            </div>
+          </div>
+          <button type="button" onclick="FMCUApp.closeImportSchedulesModal()" class="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center transition cursor-pointer" aria-label="Tutup Modal">
+            <i class="fa-solid fa-xmark text-sm"></i>
+          </button>
+        </div>
+
+        <div class="p-4 sm:p-5 space-y-4 text-xs">
+          <!-- Opsi 1: Upload File JSON -->
+          <div class="p-4 rounded-xl border-2 border-dashed border-teal-200 bg-teal-50/40 text-center space-y-2 hover:border-[#0099A6] transition">
+            <i class="fa-solid fa-file-circle-check text-2xl text-[#0099A6]"></i>
+            <div class="font-bold text-slate-800">Unggah File Jadwal (.json)</div>
+            <p class="text-[11px] text-slate-500">Pilih file <code>jadwal_visit_fmcu_*.json</code> yang dibagikan oleh Admin</p>
+            <button type="button" onclick="FMCUApp.triggerScheduleFileInput()" class="px-3.5 py-1.5 rounded-xl fm-gradient hover:opacity-95 text-white font-bold text-xs shadow-xs transition cursor-pointer inline-flex items-center gap-1.5 mt-1">
+              <i class="fa-solid fa-folder-open"></i>
+              <span>Pilih File Dari Perangkat</span>
+            </button>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <div class="flex-1 h-px bg-slate-200"></div>
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Atau Tempel Teks JSON</span>
+            <div class="flex-1 h-px bg-slate-200"></div>
+          </div>
+
+          <!-- Opsi 2: Tempel Teks JSON -->
+          <div class="space-y-1.5">
+            <label for="import-schedules-textarea" class="font-bold text-slate-700">Teks Data Jadwal (Salinan WhatsApp):</label>
+            <textarea id="import-schedules-textarea" rows="4" placeholder="Tempel teks jadwal di sini (Ctrl+V)..." class="fm-input text-xs font-mono p-2.5 w-full"></textarea>
+          </div>
+
+          <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+            <button type="button" onclick="FMCUApp.syncSchedulesFromDriveNow()" class="px-3 py-1.5 rounded-xl border border-teal-200 bg-white hover:bg-teal-50 text-[#0099A6] font-bold text-xs transition cursor-pointer flex items-center gap-1.5" title="Tarik jadwal master otomatis dari Google Drive">
+              <i class="fa-brands fa-google-drive"></i>
+              <span>Tarik dari Google Drive</span>
+            </button>
+            <button type="button" onclick="FMCUApp.handleImportSchedulesFromText()" class="px-4 py-1.5 rounded-xl fm-gradient text-white font-bold text-xs shadow-xs transition cursor-pointer flex items-center gap-1.5">
+              <i class="fa-solid fa-check"></i>
+              <span>Terapkan Jadwal</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =====================================================================
+         MODAL: PANDUAN KUOTA CLOUD FIRESTORE 429 & SOLUSI INSTAN
+         ===================================================================== -->
+    <div id="modal-cloud-quota-info" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+      <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
+        <div class="p-4 sm:p-5 border-b border-slate-100 bg-amber-50/70 flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-base shrink-0">
+              <i class="fa-solid fa-triangle-exclamation text-amber-700"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-sm sm:text-base text-amber-950">Batas Kuota Cloud Firestore (Error 429)</h3>
+              <p class="text-[11px] text-amber-800">Panduan solusi sinkronisasi jadwal & lokasi antar perangkat</p>
+            </div>
+          </div>
+          <button type="button" onclick="FMCUApp.closeCloudQuotaModal()" class="w-8 h-8 rounded-lg hover:bg-amber-100 text-slate-400 hover:text-slate-600 flex items-center justify-center transition cursor-pointer" aria-label="Tutup Modal">
+            <i class="fa-solid fa-xmark text-sm"></i>
+          </button>
+        </div>
+
+        <div class="p-4 sm:p-5 space-y-4 text-xs">
+          <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+            <div class="font-extrabold text-slate-900 flex items-center gap-1.5">
+              <i class="fa-solid fa-circle-info text-teal-600"></i>
+              <span>Mengapa Jadwal di Perangkat Lain Tidak Update?</span>
+            </div>
+            <p class="text-slate-600 leading-relaxed text-[11.5px]">
+              Firebase Spark (Paket Gratis) memiliki batas maksimal harian <strong>50.000 baca & 20.000 tulis per hari</strong>. Saat kuota habis, Firestore menolak request dengan status <code>429 RESOURCE_EXHAUSTED</code> hingga kuota direset oleh Google pada pukul <strong>15:00 WIB</strong> setiap hari.
+            </p>
+          </div>
+
+          <div class="space-y-3">
+            <div class="font-extrabold text-slate-900 uppercase text-[10.5px] tracking-wider text-teal-700">
+              Pilihan Solusi yang Tersedia:
+            </div>
+
+            <!-- Solusi 1 -->
+            <div class="p-3 rounded-xl border border-emerald-200 bg-emerald-50/50 space-y-1.5">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-emerald-950 flex items-center gap-1.5">
+                  <span class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">1</span>
+                  Solusi Permanen (1 Menit): Upgrade ke Blaze di Firebase
+                </span>
+                <span class="px-2 py-0.2 rounded-full bg-emerald-200 text-emerald-900 font-extrabold text-[9.5px]">Direkomendasikan</span>
+              </div>
+              <p class="text-[11px] text-emerald-900 leading-relaxed">
+                Buka <strong>Firebase Console &rarr; Project fmcu-visit-database &rarr; Upgrade Plan ke Blaze (Pay as you go)</strong>. 
+                <br/><strong>Catatan:</strong> Kuota gratis 50.000 baca/hari tetap berlaku Rp 0, namun blokir 429 langsung hilang seketika dalam 1 menit!
+              </p>
+            </div>
+
+            <!-- Solusi 2 -->
+            <div class="p-3 rounded-xl border border-teal-200 bg-teal-50/40 space-y-1.5">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-teal-950 flex items-center gap-1.5">
+                  <span class="w-5 h-5 rounded-full bg-[#0099A6] text-white flex items-center justify-center text-[10px]">2</span>
+                  Solusi Instan: Bagikan File Jadwal (.json / WhatsApp)
+                </span>
+                <span class="px-2 py-0.2 rounded-full bg-teal-200 text-teal-900 font-extrabold text-[9.5px]">Langsung Jalan</span>
+              </div>
+              <p class="text-[11px] text-teal-900 leading-relaxed">
+                Admin cukup klik tombol <strong>"Bagikan Jadwal"</strong> untuk mengunduh file atau menyalin ke WA. User di perangkat lain cukup klik <strong>"Impor Jadwal"</strong> dan jadwal langsung aktif tanpa perlu kuota Firestore!
+              </p>
+              <div class="pt-1 flex items-center gap-2">
+                <button type="button" onclick="FMCUApp.closeCloudQuotaModal(); FMCUApp.exportSchedulesFile();" class="px-3 py-1 bg-[#0099A6] hover:bg-teal-700 text-white rounded-lg font-bold text-xs transition cursor-pointer flex items-center gap-1">
+                  <i class="fa-solid fa-share-nodes text-[10px]"></i>
+                  <span>Bagikan Jadwal Sekarang</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex justify-end pt-2 border-t border-slate-100">
+            <button type="button" onclick="FMCUApp.closeCloudQuotaModal()" class="px-4 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer">
+              Mengerti & Tutup
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </body>
 </html>

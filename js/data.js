@@ -1108,7 +1108,19 @@ window.FMCUData = {
         return;
       }
       console.warn(`Firestore [${collectionName}] error:`, err);
-      if (err && err.code === 'permission-denied') {
+      const isQuota =
+        err &&
+        (err.code === 'resource-exhausted' ||
+          String(err.message || '').includes('429') ||
+          String(err.message || '').includes('Quota') ||
+          String(err.message || '').includes('quota'));
+
+      if (isQuota) {
+        this.setCloudStatus(
+          'QUOTA_EXCEEDED',
+          'Batas kuota harian Cloud Firestore (50.000 baca / 20.000 tulis) telah tercapai (Error 429). Upgrade ke Blaze di Firebase Console agar sinkronisasi aktif kembali seketika.'
+        );
+      } else if (err && err.code === 'permission-denied') {
         this.setCloudStatus(
           'PERMISSION_DENIED',
           'Database Firestore masih terkunci oleh Security Rules. Buka Firebase Console -> Firestore Database -> Rules dan izinkan read/write.'
@@ -1331,7 +1343,21 @@ window.FMCUData = {
           window.FMCUApp.onCloudDataUpdated('schedules');
         }
       },
-      (err) => handleSnapshotError('schedules', err)
+      (err) => {
+        handleSnapshotError('schedules', err);
+        const local = this.getSchedules() || [];
+        if (local.length === 0) {
+          this.fetchSchedulesFromGDrive().then((gdriveSchedules) => {
+            if (Array.isArray(gdriveSchedules) && gdriveSchedules.length > 0) {
+              this._cachedSchedules = gdriveSchedules;
+              localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(gdriveSchedules));
+              if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
+                window.FMCUApp.onCloudDataUpdated('schedules');
+              }
+            }
+          });
+        }
+      }
     );
     this.unsubscribers.push(unsubSchedules);
 
@@ -1885,6 +1911,52 @@ window.FMCUData = {
     this._cachedSchedules = sorted;
     return sorted;
   },
+  
+  // ==========================================================================
+  // GOOGLE DRIVE BACKUP SYNC UNTUK JADWAL VISIT (MULTI-DEVICE RELAY)
+  // Menjaga sinkronisasi antar-perangkat tetap berjalan saat Firestore mencapai limit
+  // ==========================================================================
+  async backupSchedulesToGDrive(schedules) {
+    if (!Array.isArray(schedules) || schedules.length === 0) return;
+    const settings = this.getSettings();
+    const gasUrl = (settings.gasWebhookUrl || '').trim();
+    if (!gasUrl || !gasUrl.startsWith('http')) return;
+
+    try {
+      fetch(gasUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'saveSchedules',
+          schedules: schedules
+        })
+      }).catch(() => {});
+    } catch (e) {}
+  },
+
+  async fetchSchedulesFromGDrive() {
+    const settings = this.getSettings();
+    const gasUrl = (settings.gasWebhookUrl || '').trim();
+    if (!gasUrl || !gasUrl.startsWith('http')) return null;
+
+    try {
+      const res = await fetch(gasUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'getSchedules'
+        })
+      });
+      const json = await res.json();
+      if (json && json.status === 'SUCCESS' && Array.isArray(json.schedules) && json.schedules.length > 0) {
+        return json.schedules;
+      }
+    } catch (e) {
+      console.warn('Fetch schedules from GDrive failed:', e);
+    }
+    return null;
+  },
+
   saveSingleSchedule(sch) {
     if (!sch || !sch.id) return;
     const docId = String(sch.id);
@@ -1900,6 +1972,9 @@ window.FMCUData = {
     this._cachedSchedules = schedules;
     localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
 
+    // Backup otomatis ke Google Drive sebagai jalur relay multi-device cadangan
+    this.backupSchedulesToGDrive(schedules);
+
     // Broadcast instan 0ms ke semua tab/window aktif
     this.broadcastSync({ type: 'SCHEDULE_SAVED', schedule: enrichedSch });
 
@@ -1912,7 +1987,7 @@ window.FMCUData = {
         .catch((e) => {
           console.warn('Save single schedule error:', e);
           if (e && (e.code === 'resource-exhausted' || e.message?.includes('429'))) {
-            this.setCloudStatus('OFFLINE', 'Batas kuota harian Firestore tercapai (429). Jadwal tersimpan aman secara offline/lokal.');
+            this.setCloudStatus('QUOTA_EXCEEDED', 'Batas kuota harian Firestore tercapai (429). Jadwal tersimpan aman secara offline/lokal.');
           }
         });
     }
@@ -1960,6 +2035,9 @@ window.FMCUData = {
     schedules.sort((a, b) => String(a.scheduledDate || '').localeCompare(String(b.scheduledDate || '')));
     this._cachedSchedules = schedules;
     localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
+
+    // Backup otomatis ke Google Drive sebagai jalur relay multi-device cadangan
+    this.backupSchedulesToGDrive(schedules);
 
     this.broadcastSync({ type: 'SCHEDULES_UPDATED', count: schedules.length });
 

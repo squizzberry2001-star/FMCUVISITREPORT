@@ -394,6 +394,38 @@ window.FMCUApp = {
         admBadge.textContent = 'ONLINE • Real-Time Sync Aktif';
       }
       if (admWarn) admWarn.classList.add('hidden');
+    } else if (status === 'QUOTA_EXCEEDED') {
+      if (pill) {
+        pill.className = 'hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-100 border border-amber-400 text-amber-900 text-[11px] font-bold cursor-pointer hover:bg-amber-200 transition shadow-2xs';
+        pill.title = 'Batas kuota harian Firestore gratis telah tercapai (Error 429). Klik untuk solusi instan.';
+        pill.onclick = () => this.showCloudQuotaModal();
+      }
+      if (icon) icon.className = 'fa-solid fa-triangle-exclamation text-amber-700 animate-pulse';
+      if (text) text.textContent = 'Firestore: Kuota Habis (429)';
+      if (admBadge) {
+        admBadge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 cursor-pointer shadow-2xs';
+        admBadge.textContent = 'KUOTA HABIS (429) • Klik untuk Solusi';
+        admBadge.onclick = () => this.showCloudQuotaModal();
+      }
+      if (admWarn) {
+        admWarn.classList.remove('hidden');
+        admWarn.innerHTML = `
+          <div class="flex items-start gap-2.5">
+            <i class="fa-solid fa-triangle-exclamation text-amber-700 mt-0.5 text-sm shrink-0"></i>
+            <div class="space-y-1">
+              <strong class="text-amber-900">Batas Kuota Cloud Firestore Tercapai (Error 429 Resource Exhausted)</strong>
+              <p class="text-[11px] text-amber-800 leading-relaxed">
+                Jadwal yang dibuat tidak dapat diteruskan ke perangkat lain via Firestore saat ini karena limit gratis harian Spark (50.000 baca / 20.000 tulis) telah habis. 
+                <br/><strong>Solusi Cepat:</strong> Gunakan tombol <strong>"Bagikan Jadwal"</strong> untuk kirim file JSON / WA ke user, atau upgrade project Firebase ke <strong>Blaze (Pay as you go)</strong> di Firebase Console (bebas limit 429 seketika, tetap gratis untuk 50k read/hari).
+              </p>
+              <div class="flex items-center gap-2 pt-1">
+                <button type="button" onclick="FMCUApp.showCloudQuotaModal()" class="text-xs font-bold text-amber-950 underline cursor-pointer">Panduan Buka Kunci 429</button>
+                <button type="button" onclick="FMCUApp.exportSchedulesFile()" class="text-xs font-bold bg-amber-900 text-white px-2.5 py-1 rounded-md cursor-pointer hover:bg-amber-950"><i class="fa-solid fa-share-nodes mr-1"></i>Bagikan Jadwal Sekarang</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
     } else if (status === 'PERMISSION_DENIED') {
       if (pill) {
         pill.className = 'hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-50 border border-amber-300 text-amber-800 text-[11px] font-bold';
@@ -13823,6 +13855,169 @@ Instruksi:
     this.switchScheduleSubSection('list');
     this.showToast(`Jadwal Visit Toko ${st.name} untuk ${au.name} berhasil ditambahkan!`, 'success');
   },
+
+  // ==========================================================================
+  // MULTI-DEVICE SCHEDULE EXPORT & IMPORT (EMERGENCY OFFLINE / QUOTA RELAY)
+  // Membantu transfer jadwal visit antar perangkat secara instan tanpa limit Firestore
+  // ==========================================================================
+  exportSchedulesFile() {
+    const schedules = window.FMCUData.getSchedules() || [];
+    if (!schedules || schedules.length === 0) {
+      this.showToast('Belum ada jadwal visit untuk dibagikan.', 'warning');
+      return;
+    }
+
+    const payload = {
+      app: 'FMCU_VISIT_REPORT',
+      version: '2.0',
+      exportedAt: new Date().toISOString(),
+      count: schedules.length,
+      schedules: schedules
+    };
+
+    const jsonStr = JSON.stringify(payload, null, 2);
+    const compactJson = JSON.stringify(payload);
+
+    // 1. Download file .json
+    try {
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const today = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `jadwal_visit_fmcu_${today}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.warn('Download JSON failed:', e);
+    }
+
+    // 2. Salin teks JSON ke clipboard untuk kemudahan transfer via WhatsApp
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(compactJson).then(() => {
+        this.showToast('Jadwal visit berhasil diunduh (.json) dan disalin ke clipboard! Kirim ke tim via WA.', 'success', 5000);
+      }).catch(() => {
+        this.showToast('File jadwal visit (.json) berhasil diunduh!', 'success');
+      });
+    } else {
+      this.showToast('File jadwal visit (.json) berhasil diunduh!', 'success');
+    }
+  },
+
+  openImportSchedulesModal() {
+    const modal = document.getElementById('modal-import-schedules');
+    if (modal) {
+      modal.classList.remove('hidden');
+      const ta = document.getElementById('import-schedules-textarea');
+      if (ta) ta.value = '';
+    }
+  },
+
+  closeImportSchedulesModal() {
+    const modal = document.getElementById('modal-import-schedules');
+    if (modal) modal.classList.add('hidden');
+  },
+
+  triggerScheduleFileInput() {
+    const fileInput = document.getElementById('import-schedules-file-input');
+    if (fileInput) fileInput.click();
+  },
+
+  handleImportSchedulesFile(input) {
+    if (!input || !input.files || !input.files[0]) return;
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target.result;
+        const data = JSON.parse(text);
+        const list = Array.isArray(data) ? data : (data.schedules || []);
+        this.processImportedSchedules(list);
+      } catch (err) {
+        this.showToast('Gagal membaca file JSON: Format tidak valid.', 'error');
+      }
+      input.value = '';
+    };
+    reader.readAsText(file);
+  },
+
+  handleImportSchedulesFromText() {
+    const ta = document.getElementById('import-schedules-textarea');
+    if (!ta || !ta.value.trim()) {
+      this.showToast('Silakan tempel teks jadwal JSON terlebih dahulu.', 'warning');
+      return;
+    }
+    try {
+      const data = JSON.parse(ta.value.trim());
+      const list = Array.isArray(data) ? data : (data.schedules || []);
+      this.processImportedSchedules(list);
+    } catch (err) {
+      this.showToast('Format JSON tidak valid. Pastikan menyalin data yang benar.', 'error');
+    }
+  },
+
+  processImportedSchedules(newItems) {
+    if (!Array.isArray(newItems) || newItems.length === 0) {
+      this.showToast('Tidak ada data jadwal valid di dalam file/teks.', 'warning');
+      return;
+    }
+
+    const currentSchedules = window.FMCUData.getSchedules() || [];
+    const scheduleMap = new Map();
+
+    currentSchedules.forEach((s) => {
+      if (s && s.id) scheduleMap.set(String(s.id), s);
+    });
+
+    let importedCount = 0;
+    newItems.forEach((item) => {
+      if (item && item.id && item.storeCode) {
+        const existing = scheduleMap.get(String(item.id));
+        if (!existing) {
+          scheduleMap.set(String(item.id), item);
+          importedCount++;
+        } else {
+          scheduleMap.set(String(item.id), {
+            ...item,
+            actualIn: existing.actualIn || item.actualIn || null,
+            actualOut: existing.actualOut || item.actualOut || null,
+            status: existing.status !== 'PENDING' ? existing.status : item.status
+          });
+          importedCount++;
+        }
+      }
+    });
+
+    const merged = Array.from(scheduleMap.values());
+    window.FMCUData.saveSchedules(merged);
+    this.renderAllViews();
+    this.closeImportSchedulesModal();
+    this.showToast(`Berhasil mengimpor & memperbarui ${importedCount} jadwal visit!`, 'success');
+  },
+
+  async syncSchedulesFromDriveNow() {
+    this.showToast('Menghubungi Cloud Google Drive...', 'info', 2000);
+    const driveSchedules = await window.FMCUData.fetchSchedulesFromGDrive();
+    if (Array.isArray(driveSchedules) && driveSchedules.length > 0) {
+      this.processImportedSchedules(driveSchedules);
+      this.showToast(`Sinkronisasi sukses! ${driveSchedules.length} jadwal ditarik dari Cloud Drive.`, 'success', 4000);
+    } else {
+      this.showToast('Belum ada backup jadwal di Google Drive atau Webhook GAS belum diset.', 'warning', 4000);
+    }
+  },
+
+  showCloudQuotaModal() {
+    const modal = document.getElementById('modal-cloud-quota-info');
+    if (modal) modal.classList.remove('hidden');
+  },
+
+  closeCloudQuotaModal() {
+    const modal = document.getElementById('modal-cloud-quota-info');
+    if (modal) modal.classList.add('hidden');
+  },
+
 
   deleteSchedule(id) {
     const schedules = window.FMCUData.getSchedules() || [];
