@@ -7387,11 +7387,22 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
             </p>
           </div>
         </div>
-        <label class="fm-gradient hover:opacity-95 text-white font-extrabold text-xs sm:text-sm px-5 py-2.5 rounded-xl cursor-pointer shadow-md transition flex items-center gap-2 shrink-0 self-stretch sm:self-auto justify-center">
-          <i class="fa-solid fa-camera text-base"></i>
-          <span>${hasAnyPhoto ? 'Ambil Ulang 1x Foto Form QSC' : 'Ambil 1x Foto Form QSC'}</span>
-          <input type="file" accept="image/*" onchange="FMCUApp.handleQscSingleFullUpload(event)" class="hidden" />
-        </label>
+        <div class="flex items-center gap-2 self-stretch sm:self-auto shrink-0">
+          <label class="fm-gradient hover:opacity-95 text-white font-extrabold text-xs sm:text-sm px-5 py-2.5 rounded-xl cursor-pointer shadow-md transition flex items-center gap-2 justify-center flex-1 sm:flex-initial">
+            <i class="fa-solid fa-camera text-base"></i>
+            <span>${hasAnyPhoto ? 'Ambil Ulang 1x Foto Form QSC' : 'Ambil 1x Foto Form QSC'}</span>
+            <input type="file" accept="image/*" onchange="FMCUApp.handleQscSingleFullUpload(event)" class="hidden" />
+          </label>
+          ${
+            hasAnyPhoto
+              ? `
+            <button type="button" onclick="FMCUApp.clearBothQscPhotos()" class="w-10 h-10 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 flex items-center justify-center cursor-pointer shadow-2xs transition shrink-0" title="Hapus foto lembar QSC (Keduanya)">
+              <i class="fa-solid fa-trash-can text-sm"></i>
+            </button>
+          `
+              : ''
+          }
+        </div>
       </div>
     `;
 
@@ -7430,6 +7441,9 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
                 <button type="button" onclick="FMCUApp.editQscPhoto(${idx})" class="h-8 px-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1 cursor-pointer shadow-2xs transition" title="Sunting & Crop Potongan Ini">
                   <i class="fa-solid fa-pen text-[10px]"></i>
                   <span>Sunting</span>
+                </button>
+                <button type="button" onclick="FMCUApp.clearBothQscPhotos()" class="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 flex items-center justify-center cursor-pointer shadow-2xs transition" title="Hapus foto lembar QSC (Keduanya)">
+                  <i class="fa-solid fa-trash-can text-xs"></i>
                 </button>
               `
                   : ''
@@ -7470,32 +7484,66 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     grid.innerHTML = headerBannerHtml + slotsHtml;
   },
 
-  removeQscPhoto(idx) {
-    if (!this.formQscPhotos || !this.formQscPhotos[idx]) return;
-    const oldPhoto = this.formQscPhotos[idx];
-    if (oldPhoto.id && window.FMCUData) {
-      delete window.FMCUData.photoMemoryCache[oldPhoto.id];
-      if (typeof window.FMCUData.deletePhotoFromDb === 'function') {
-        window.FMCUData.deletePhotoFromDb(oldPhoto.id);
+  // Hapus kedua potongan foto lembar QSC sekaligus dalam 1x klik
+  clearBothQscPhotos() {
+    this.triggerHaptic('light');
+    if (!this.formQscPhotos || this.formQscPhotos.length === 0) return;
+
+    // Bersihkan cache RAM & IndexedDB lokal untuk slot atas, slot bawah, dan foto full un-split jika ada
+    (this.formQscPhotos || []).forEach((photo) => {
+      if (!photo) return;
+      if (photo.id && window.FMCUData) {
+        delete window.FMCUData.photoMemoryCache[photo.id];
+        if (typeof window.FMCUData.deletePhotoFromDb === 'function') {
+          window.FMCUData.deletePhotoFromDb(photo.id);
+        }
       }
-    }
-    if (oldPhoto.driveFileId && window.FMCUData) {
-      delete window.FMCUData.photoMemoryCache[oldPhoto.driveFileId];
-      if (typeof window.FMCUData.deletePhotoFromDb === 'function') {
-        window.FMCUData.deletePhotoFromDb(oldPhoto.driveFileId);
+      if (photo.fullPhotoId && window.FMCUData) {
+        delete window.FMCUData.photoMemoryCache[photo.fullPhotoId];
+        if (typeof window.FMCUData.deletePhotoFromDb === 'function') {
+          window.FMCUData.deletePhotoFromDb(photo.fullPhotoId);
+        }
       }
-    }
-    this.formQscPhotos[idx] = {
-      id: `qsc-${Date.now()}-${idx + 1}`,
-      caption: idx === 0 ? 'Lembar Form QSC / FamiTrack #1 (Bagian Atas)' : 'Lembar Form QSC / FamiTrack #2 (Bagian Bawah)',
-      dataUrl: '',
-      driveFileId: '',
-      driveUrl: '',
-      _uploading: false
-    };
+      if (photo.driveFileId && window.FMCUData) {
+        delete window.FMCUData.photoMemoryCache[photo.driveFileId];
+        if (typeof window.FMCUData.deletePhotoFromDb === 'function') {
+          window.FMCUData.deletePhotoFromDb(photo.driveFileId);
+        }
+      }
+    });
+
+    const qscTs = Date.now();
+    this.formQscPhotos = [
+      {
+        id: `qsc-${qscTs}-1`,
+        caption: 'Lembar Form QSC / FamiTrack #1 (Bagian Atas)',
+        dataUrl: '',
+        driveFileId: '',
+        driveUrl: '',
+        fullPhotoId: '',
+        fullPhotoDataUrl: '',
+        _uploading: false
+      },
+      {
+        id: `qsc-${qscTs}-2`,
+        caption: 'Lembar Form QSC / FamiTrack #2 (Bagian Bawah)',
+        dataUrl: '',
+        driveFileId: '',
+        driveUrl: '',
+        fullPhotoId: '',
+        fullPhotoDataUrl: '',
+        _uploading: false
+      }
+    ];
+
     this.renderQscPhotosGrid();
     this.saveCurrentFormDraft();
-    this.showToast(`Foto lembar QSC #${idx + 1} berhasil dikosongkan.`, 'info');
+    this.updateFormProgress();
+    this.showToast('Foto lembar QSC (kedua potongan) berhasil dihapus.', 'info');
+  },
+
+  removeQscPhoto(idx) {
+    this.clearBothQscPhotos();
   },
 
   editQscPhoto(idx = 0) {
