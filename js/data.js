@@ -2566,48 +2566,58 @@ window.FMCUData = {
   mergePhotoArrays(primaryArr, secondaryArr, isQsc = false) {
     const a = Array.isArray(primaryArr) ? primaryArr : [];
     const b = Array.isArray(secondaryArr) ? secondaryArr : [];
-    const hasPhotoContent = (p) =>
-      Boolean(
-        p &&
-          p.id !== 'qsc-1' &&
-          p.id !== 'qsc-2' &&
-          ((p.dataUrl && (p.dataUrl.startsWith('data:image') || /^https?:\/\//i.test(p.dataUrl))) ||
-            p.driveFileId ||
-            p.driveUrl ||
-            (p.description && String(p.description).trim()) ||
-            this.getPhotoFromMemory(p.id, p.driveFileId))
-      );
 
-    const aHasAny = a.some(hasPhotoContent);
-    const bHasAny = b.some(hasPhotoContent);
-    if (!aHasAny && bHasAny) return b.map((p) => ({ ...p }));
-    if (aHasAny && !bHasAny) return a.map((p) => ({ ...p }));
+    // Jika primaryArr bukan array (undefined/null), gunakan secondaryArr
+    if (!Array.isArray(primaryArr)) return b.map((p) => ({ ...p }));
 
-    const baseList = a.length >= b.length ? a : b;
-    const otherList = a.length >= b.length ? b : a;
+    // Untuk foto non-QSC (evidence & CA):
+    // primaryArr adalah master daftar foto yang eksis saat ini!
+    // Jika user menghapus foto sehingga primaryArr kosong atau berkurang,
+    // foto yang dihapus TIDAK BOLEH dipulihkan kembali dari secondaryArr!
+    if (!isQsc) {
+      return a.map((item) => {
+        if (!item) return item;
+        const match = b.find(
+          (o) => o && ((item.id && o.id === item.id) || (item.driveFileId && o.driveFileId === item.driveFileId))
+        );
+        if (!match) return { ...item };
 
+        const itemB64 = item.dataUrl && item.dataUrl.startsWith('data:image') ? item.dataUrl : '';
+        const matchB64 = match.dataUrl && match.dataUrl.startsWith('data:image') ? match.dataUrl : '';
+        const memB64 = this.getPhotoFromMemory(item.id || match.id, item.driveFileId || match.driveFileId);
+        const bestDataUrl = itemB64 || matchB64 || memB64 || item.dataUrl || match.dataUrl || '';
+
+        return {
+          ...match,
+          ...item,
+          id: item.id || match.id,
+          caption: item.caption || match.caption || '',
+          description: item.description !== undefined ? item.description : match.description || '',
+          fullPhotoId: item.fullPhotoId || match.fullPhotoId || '',
+          driveFileId: item.driveFileId || match.driveFileId || '',
+          driveUrl: item.driveUrl || match.driveUrl || '',
+          driveViewUrl: item.driveViewUrl || match.driveViewUrl || '',
+          dataUrl: bestDataUrl
+        };
+      });
+    }
+
+    // Untuk QSC (2 slot lembar form QSC #1 & #2):
+    const baseList = a.length >= 2 ? a : b.length >= 2 ? b : a;
+    const otherList = baseList === a ? b : a;
     return baseList.map((item, idx) => {
-      if (!item) return otherList[idx] || item;
-      const match =
-        otherList.find((o) => o && ((item.id && o.id === item.id) || (!isQsc && item.driveFileId && o.driveFileId === item.driveFileId))) ||
-        (isQsc ? otherList[idx] : null);
+      const match = otherList[idx] || null;
+      if (!item) return match || item;
       if (!match) return { ...item };
-
       const itemB64 = item.dataUrl && item.dataUrl.startsWith('data:image') ? item.dataUrl : '';
       const matchB64 = match.dataUrl && match.dataUrl.startsWith('data:image') ? match.dataUrl : '';
-      const memB64 = this.getPhotoFromMemory(item.id || match.id, isQsc ? null : item.driveFileId || match.driveFileId);
+      const memB64 = this.getPhotoFromMemory(item.id || match.id, null);
       const bestDataUrl = itemB64 || matchB64 || memB64 || item.dataUrl || match.dataUrl || '';
-
       return {
         ...match,
         ...item,
         id: item.id || match.id,
         caption: item.caption || match.caption || '',
-        description: item.description && String(item.description).trim() ? item.description : match.description || '',
-        fullPhotoId: item.fullPhotoId || match.fullPhotoId || '',
-        driveFileId: item.driveFileId || match.driveFileId || '',
-        driveUrl: item.driveUrl || match.driveUrl || '',
-        driveViewUrl: item.driveViewUrl || match.driveViewUrl || '',
         dataUrl: bestDataUrl
       };
     });
@@ -2621,49 +2631,35 @@ window.FMCUData = {
     this.cacheReportPhotosInMemory(docA, persistToDb);
     this.cacheReportPhotosInMemory(docB, persistToDb);
 
-    const scoreA = this.getReportCompletenessScore(docA);
-    const scoreB = this.getReportCompletenessScore(docB);
     const tsA = Date.parse(docA.updatedAt || docA.createdAt || '') || 0;
     const tsB = Date.parse(docB.updatedAt || docB.createdAt || '') || 0;
 
-    // Utamakan dokumen yang memiliki isi apabila salah satu kosong (misal akibat form reset)
-    let primary = docA;
-    let secondary = docB;
-    if (scoreB > 0 && scoreA === 0) {
+    // Utamakan dokumen yang lebih baru berdasarkan timestamp
+    let primary = tsB > tsA ? docB : docA;
+    let secondary = tsB > tsA ? docA : docB;
+
+    // Jika salah satu dokumen kosong (belum pernah diedit sama sekali) dan yang lain memiliki isi,
+    // utamakan yang memiliki isi
+    const hasMeaningfulA = this.hasMeaningfulVisitContent(docA);
+    const hasMeaningfulB = this.hasMeaningfulVisitContent(docB);
+    if (!hasMeaningfulA && hasMeaningfulB && !docA.updatedAt) {
       primary = docB;
       secondary = docA;
-    } else if (scoreA > 0 && scoreB === 0) {
+    } else if (!hasMeaningfulB && hasMeaningfulA && !docB.updatedAt) {
       primary = docA;
       secondary = docB;
-    } else if (tsB > tsA && scoreB >= scoreA * 0.5) {
-      primary = docB;
-      secondary = docA;
-    } else if (scoreB > scoreA && tsB >= tsA) {
-      primary = docB;
-      secondary = docA;
     }
 
-    const pickObsList = (arr1, arr2) => {
-      const hasText = (arr) =>
-        Array.isArray(arr) &&
-        arr.some((o) => o && (o.temuan || o.dampak || o.kondisiIdeal || o.tindakanPerbaikan || o.penyebab || o.hasil));
-      if (hasText(arr1)) return arr1;
-      if (hasText(arr2)) return arr2;
-      return Array.isArray(arr1) && arr1.length > 0 ? arr1 : Array.isArray(arr2) ? arr2 : [];
+    const pickField = (k, defaultVal = '') => {
+      if (primary[k] !== undefined && primary[k] !== null) return primary[k];
+      if (secondary[k] !== undefined && secondary[k] !== null) return secondary[k];
+      return defaultVal;
     };
 
-    const pickCrewList = (c1, c2) => {
-      const countFilled = (arr) =>
-        Array.isArray(arr)
-          ? arr.reduce((acc, c) => acc + (c && c.name && c.name.trim() ? 1 : 0) + (c && c.jobLevel && c.jobLevel.trim() ? 1 : 0), 0)
-          : 0;
-      return countFilled(c1) >= countFilled(c2) ? c1 || [] : c2 || [];
-    };
-
-    const pickText = (v1, v2) => {
-      if (v1 !== undefined && v1 !== null && String(v1).trim() !== '' && v1 !== '-') return v1;
-      if (v2 !== undefined && v2 !== null && String(v2).trim() !== '' && v2 !== '-') return v2;
-      return v1 || v2 || '';
+    const pickList = (k) => {
+      if (Array.isArray(primary[k])) return primary[k].map((item) => ({ ...item }));
+      if (Array.isArray(secondary[k])) return secondary[k].map((item) => ({ ...item }));
+      return [];
     };
 
     const mergedCa = this.mergePhotoArrays(
@@ -2677,35 +2673,35 @@ window.FMCUData = {
       ...primary,
       id: (docA.id && !String(docA.id).startsWith('draft-') ? docA.id : docB.id) || primary.id || secondary.id,
       scheduleId: primary.scheduleId || secondary.scheduleId || null,
-      storeCode: pickText(primary.storeCode, secondary.storeCode) || '-',
-      storeName: pickText(primary.storeName, secondary.storeName) || '-',
-      storeType: pickText(primary.storeType, secondary.storeType) || 'CVS',
-      auditorId: pickText(primary.auditorId, secondary.auditorId),
-      auditorName: pickText(primary.auditorName, secondary.auditorName) || '-',
-      visitDate: pickText(primary.visitDate, secondary.visitDate),
-      storeHead: pickText(primary.storeHead, secondary.storeHead) || '-',
-      areaManager: pickText(primary.areaManager, secondary.areaManager) || '-',
-      regionalManager: pickText(primary.regionalManager, secondary.regionalManager) || '-',
-      storeEmail: pickText(primary.storeEmail, secondary.storeEmail),
-      caLink: pickText(primary.caLink || primary.caSpreadsheetUrl, secondary.caLink || secondary.caSpreadsheetUrl),
-      caSpreadsheetUrl: pickText(primary.caSpreadsheetUrl || primary.caLink, secondary.caSpreadsheetUrl || secondary.caLink),
-      actualIn: pickText(primary.actualIn, secondary.actualIn) || '-',
-      actualOut: pickText(primary.actualOut, secondary.actualOut) || '-',
+      storeCode: pickField('storeCode', '-'),
+      storeName: pickField('storeName', '-'),
+      storeType: pickField('storeType', 'CVS'),
+      auditorId: pickField('auditorId', ''),
+      auditorName: pickField('auditorName', '-'),
+      visitDate: pickField('visitDate', ''),
+      storeHead: pickField('storeHead', ''),
+      areaManager: pickField('areaManager', ''),
+      regionalManager: pickField('regionalManager', ''),
+      storeEmail: pickField('storeEmail', ''),
+      caLink: pickField('caLink', '') || pickField('caSpreadsheetUrl', ''),
+      caSpreadsheetUrl: pickField('caSpreadsheetUrl', '') || pickField('caLink', ''),
+      actualIn: pickField('actualIn', ''),
+      actualOut: pickField('actualOut', ''),
       qscScore: Number(primary.qscScore) > 0 ? Number(primary.qscScore) : Number(secondary.qscScore || 0),
-      crewList: pickCrewList(primary.crewList, secondary.crewList),
-      observations: pickObsList(primary.observations, secondary.observations),
-      opiObservations: pickObsList(primary.opiObservations, secondary.opiObservations),
+      crewList: pickList('crewList'),
+      observations: pickList('observations'),
+      opiObservations: pickList('opiObservations'),
       qscPhotos: this.mergePhotoArrays(primary.qscPhotos, secondary.qscPhotos, true),
       evidencePhotos: this.mergePhotoArrays(primary.evidencePhotos, secondary.evidencePhotos, false),
       caPhotos: mergedCa,
       correctiveActionPhotos: mergedCa,
-      pdfUrl: pickText(primary.pdfUrl, secondary.pdfUrl),
-      qscPdfUrl: pickText(primary.qscPdfUrl, secondary.qscPdfUrl),
-      driveFolderUrl: pickText(primary.driveFolderUrl, secondary.driveFolderUrl),
-      storeFolderUrl: pickText(primary.storeFolderUrl, secondary.storeFolderUrl),
-      visitorFolderUrl: pickText(primary.visitorFolderUrl, secondary.visitorFolderUrl),
+      pdfUrl: pickField('pdfUrl', ''),
+      qscPdfUrl: pickField('qscPdfUrl', ''),
+      driveFolderUrl: pickField('driveFolderUrl', ''),
+      storeFolderUrl: pickField('storeFolderUrl', ''),
+      visitorFolderUrl: pickField('visitorFolderUrl', ''),
       createdAt: secondary.createdAt || primary.createdAt || new Date().toISOString(),
-      updatedAt: tsA >= tsB ? docA.updatedAt || docB.updatedAt : docB.updatedAt || docA.updatedAt
+      updatedAt: tsB >= tsA ? (docB.updatedAt || docA.updatedAt) : (docA.updatedAt || docB.updatedAt)
     };
 
     return this.hydrateReportPhotos(merged);
@@ -2796,7 +2792,13 @@ window.FMCUData = {
                     if (idbDraft && key) {
                       this.cacheReportPhotosInMemory(idbDraft, false);
                       const existing = this.draftMemoryCache[key];
-                      this.draftMemoryCache[key] = existing ? this.mergeReportAndDraft(idbDraft, existing, false) : this.hydrateReportPhotos(idbDraft);
+                      if (existing) {
+                        const tsIdb = Date.parse(idbDraft.updatedAt || idbDraft.createdAt || '') || 0;
+                        const tsLoc = Date.parse(existing.updatedAt || existing.createdAt || '') || 0;
+                        this.draftMemoryCache[key] = tsIdb >= tsLoc ? this.hydrateReportPhotos(idbDraft) : existing;
+                      } else {
+                        this.draftMemoryCache[key] = this.hydrateReportPhotos(idbDraft);
+                      }
                     }
                     cursor.continue();
                   } else {
@@ -2860,17 +2862,24 @@ window.FMCUData = {
           idbReports.forEach((idbRep) => {
             const rid = String(idbRep.id);
             if (mergedMap.has(rid)) {
-              mergedMap.set(rid, this.mergeReportAndDraft(idbRep, mergedMap.get(rid), false));
+              const cur = mergedMap.get(rid);
+              const tsIdb = Date.parse(idbRep.updatedAt || idbRep.createdAt || '') || 0;
+              const tsCur = Date.parse(cur.updatedAt || cur.createdAt || '') || 0;
+              mergedMap.set(rid, tsIdb >= tsCur ? this.hydrateReportPhotos(idbRep) : cur);
             } else {
               mergedMap.set(rid, this.hydrateReportPhotos(idbRep));
             }
           });
 
-          // Juga sinkronkan jika ada draft toko yang lebih lengkap untuk laporan yang sudah ada di History Store
+          // Juga sinkronkan jika ada draft toko yang lebih baru untuk laporan yang sudah ada di History Store
           Array.from(mergedMap.values()).forEach((rep) => {
             const draft = this.getStoreDraft(rep.storeCode, rep.scheduleId);
             if (draft && (!draft.visitDate || !rep.visitDate || draft.visitDate === rep.visitDate)) {
-              mergedMap.set(String(rep.id), this.mergeReportAndDraft(rep, draft, false));
+              const tsDraft = Date.parse(draft.updatedAt || '') || 0;
+              const tsRep = Date.parse(rep.updatedAt || rep.createdAt || '') || 0;
+              if (tsDraft >= tsRep) {
+                mergedMap.set(String(rep.id), this.hydrateReportPhotos(draft));
+              }
             }
           });
 
@@ -3179,7 +3188,11 @@ window.FMCUData = {
           if (!this.draftMemoryCache[k]) {
             this.draftMemoryCache[k] = v;
           } else {
-            this.draftMemoryCache[k] = this.mergeReportAndDraft(this.draftMemoryCache[k], v, false);
+            const tsMem = Date.parse(this.draftMemoryCache[k].updatedAt || '') || 0;
+            const tsLoc = Date.parse(v?.updatedAt || '') || 0;
+            if (tsLoc >= tsMem) {
+              this.draftMemoryCache[k] = v;
+            }
           }
         });
       }
@@ -3188,7 +3201,9 @@ window.FMCUData = {
       const draftByStore = this.draftMemoryCache[String(storeCode)] || null;
       let draft = null;
       if (draftBySch && draftByStore) {
-        draft = this.mergeReportAndDraft(draftBySch, draftByStore, false);
+        const tsSch = Date.parse(draftBySch.updatedAt || draftBySch.createdAt || '') || 0;
+        const tsStore = Date.parse(draftByStore.updatedAt || draftByStore.createdAt || '') || 0;
+        draft = tsSch >= tsStore ? draftBySch : draftByStore;
       } else {
         draft = draftBySch || draftByStore || null;
       }
@@ -3208,16 +3223,10 @@ window.FMCUData = {
     const schKey = schId ? `${storeCode}_${schId}` : null;
     const nowIso = new Date().toISOString();
 
-    // Gabungkan dengan draft yang sudah ada apabila field tertentu di draft baru kosong
-    const existingDraft = (schKey && this.draftMemoryCache[schKey]) || this.draftMemoryCache[String(storeCode)] || null;
     const fullDraft = {
       ...draftData,
       updatedAt: nowIso
     };
-    if (existingDraft && !this.hasMeaningfulVisitContent(fullDraft) && this.hasMeaningfulVisitContent(existingDraft)) {
-      // Cegah form kosong (misal saat inisialisasi awal) menimpa draft yang sudah berisi foto/teks
-      return false;
-    }
 
     // 1. Simpan seluruh binary foto ke IndexedDB & RAM Memory Cache
     this.cacheReportPhotosInMemory(fullDraft, true);
@@ -3248,7 +3257,6 @@ window.FMCUData = {
 
     return true;
   },
-
   deleteStoreDraft(storeCode, scheduleId = null) {
     if (!storeCode) return false;
     const schKey = scheduleId ? `${storeCode}_${scheduleId}` : null;
@@ -3283,10 +3291,6 @@ window.FMCUData = {
     const idx = reports.findIndex((r) => String(r.id) === String(incoming.id));
     let merged = this.hydrateReportPhotos(incoming);
     if (idx !== -1) {
-      // Jika laporan lama memiliki isi dan incoming kosong (misal terpanggil saat reset), lindungi data lama
-      if (!this.hasMeaningfulVisitContent(incoming) && this.hasMeaningfulVisitContent(reports[idx])) {
-        return false;
-      }
       const wasAlreadyFinalized = reports[idx]._isLocalDraftOnly === false;
       merged = this.hydrateReportPhotos({
         ...reports[idx],

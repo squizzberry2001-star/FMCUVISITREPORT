@@ -6529,20 +6529,37 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
 
     const hasDraftContent = draft && window.FMCUData.hasMeaningfulVisitContent(draft);
 
-    // 2. Jika KEDUANYA ada (baik di Drafts maupun di Reports), gabungkan versi terlengkap & terbaru!
+    // 2. Jika KEDUANYA ada (baik di Drafts maupun di Reports):
+    // Prioritaskan draft jika timestamp draft >= existingRep (user sedang aktif mengedit/menghapus temuan atau teks)
     if (draft && existingRep) {
-      const merged = window.FMCUData.mergeReportAndDraft(existingRep, draft);
-      merged.id = existingRep.id;
-      if (scheduleId) merged.scheduleId = scheduleId;
-      this.loadReportObjectToForm(merged);
-      this.hasActiveStoreForm = true;
-      this.activePreviewReportId = merged.id;
-      this.updateFormGuardVisibility();
-      return true;
+      const tsDraft = Date.parse(draft.updatedAt || '') || 0;
+      const tsRep = Date.parse(existingRep.updatedAt || existingRep.createdAt || '') || 0;
+      if (tsDraft >= tsRep) {
+        draft.pdfUrl = draft.pdfUrl || existingRep.pdfUrl || '';
+        draft.qscPdfUrl = draft.qscPdfUrl || existingRep.qscPdfUrl || '';
+        draft.driveFolderUrl = draft.driveFolderUrl || existingRep.driveFolderUrl || '';
+        draft.caSpreadsheetUrl = draft.caSpreadsheetUrl || existingRep.caSpreadsheetUrl || '';
+        draft.id = existingRep.id || draft.id;
+        if (scheduleId) draft.scheduleId = scheduleId;
+        this.loadReportObjectToForm(draft);
+        this.hasActiveStoreForm = true;
+        this.activePreviewReportId = draft.id;
+        this.updateFormGuardVisibility();
+        return true;
+      } else {
+        const merged = window.FMCUData.mergeReportAndDraft(existingRep, draft);
+        merged.id = existingRep.id;
+        if (scheduleId) merged.scheduleId = scheduleId;
+        this.loadReportObjectToForm(merged);
+        this.hasActiveStoreForm = true;
+        this.activePreviewReportId = merged.id;
+        this.updateFormGuardVisibility();
+        return true;
+      }
     }
 
-    // 3. Jika ada draft yang memiliki isi foto/temuan/teks
-    if (draft && hasDraftContent) {
+    // 3. Jika ada draft
+    if (draft) {
       if (scheduleId && draft.scheduleId && draft.scheduleId !== scheduleId) {
         draft.id = 'rep-' + Date.now();
         draft.scheduleId = scheduleId;
@@ -8166,6 +8183,7 @@ Instruksi:
 
   removeOpiObservationCard(idx) {
     if (!this.formOpiObservations) return;
+    this.syncAllFormInputsToMemory();
     this.formOpiObservations.splice(idx, 1);
     this.renderOpiObservationsList();
     this.updateFormProgress();
@@ -8335,6 +8353,7 @@ Instruksi:
 
   removeObservationCard(idx) {
     if (!this.formObservations) return;
+    this.syncAllFormInputsToMemory();
     this.formObservations.splice(idx, 1);
     this.renderObservationsList();
     this.updateFormProgress();
@@ -8473,6 +8492,8 @@ Instruksi:
   },
 
   removeEvidencePhotoCard(idx) {
+    if (!this.formEvidencePhotos) return;
+    this.syncAllFormInputsToMemory();
     this.formEvidencePhotos.splice(idx, 1);
     this.renderEvidenceGrid();
     this.saveCurrentFormDraft();
@@ -8676,6 +8697,7 @@ Instruksi:
 
   removeCaPhotoCard(idx) {
     if (!this.formCaPhotos) return;
+    this.syncAllFormInputsToMemory();
     this.formCaPhotos.splice(idx, 1);
     this.renderCaPhotosGrid();
     this.saveCurrentFormDraft();
@@ -8793,12 +8815,12 @@ Instruksi:
       storeCode: document.getElementById('form-store-code')?.value.trim() || '-',
       storeName: (document.getElementById('form-store-name')?.value.trim() || '-').toUpperCase(),
       storeType: document.getElementById('form-store-type')?.value || 'CVS',
-      storeHead: document.getElementById('form-store-head')?.value.trim() || '-',
-      areaManager: document.getElementById('form-area-manager')?.value.trim() || '-',
-      regionalManager: document.getElementById('form-regional-manager')?.value.trim() || '-',
+      storeHead: document.getElementById('form-store-head')?.value.trim() || '',
+      areaManager: document.getElementById('form-area-manager')?.value.trim() || '',
+      regionalManager: document.getElementById('form-regional-manager')?.value.trim() || '',
       storeEmail: document.getElementById('form-store-email')?.value.trim() || '',
-      actualIn: document.getElementById('form-actual-in')?.value.trim() || '-',
-      actualOut: document.getElementById('form-actual-out')?.value.trim() || '-',
+      actualIn: document.getElementById('form-actual-in')?.value.trim() || '',
+      actualOut: document.getElementById('form-actual-out')?.value.trim() || '',
       durationMinutes: 0,
       gpsLat: this.liveGps.lat,
       gpsLng: this.liveGps.lng,
@@ -10058,11 +10080,22 @@ Instruksi:
     let rep = reports.find((r) => String(r.id) === String(reportId));
     if (!rep) return;
 
-    // Gabungkan dengan draft toko (Memory / IndexedDB / LocalStorage) apabila ada perubahan sebelum app di-close
+    // Gunakan draft toko jika ada dan lebih baru dari laporan arsip
     const draft = window.FMCUData.getStoreDraft(rep.storeCode, rep.scheduleId);
     if (draft) {
-      rep = window.FMCUData.mergeReportAndDraft(rep, draft);
-      rep.id = reportId;
+      const tsDraft = Date.parse(draft.updatedAt || '') || 0;
+      const tsRep = Date.parse(rep.updatedAt || rep.createdAt || '') || 0;
+      if (tsDraft >= tsRep) {
+        draft.pdfUrl = draft.pdfUrl || rep.pdfUrl || '';
+        draft.qscPdfUrl = draft.qscPdfUrl || rep.qscPdfUrl || '';
+        draft.driveFolderUrl = draft.driveFolderUrl || rep.driveFolderUrl || '';
+        draft.caSpreadsheetUrl = draft.caSpreadsheetUrl || rep.caSpreadsheetUrl || '';
+        draft.id = reportId;
+        rep = draft;
+      } else {
+        rep = window.FMCUData.mergeReportAndDraft(rep, draft);
+        rep.id = reportId;
+      }
     }
 
     this.loadReportObjectToForm(rep);
@@ -10086,29 +10119,6 @@ Instruksi:
     this.activePreviewReportId = rep.id;
     this.navigate('form');
     this.showToast(`Membuka form toko ${rep.storeName}`, 'info');
-
-    // Pastikan jika ada data lebih lengkap di IndexedDB (reports/drafts), dipulihkan secara asinkron
-    if (window.FMCUData && typeof window.FMCUData.getReportFromDb === 'function') {
-      Promise.all([
-        window.FMCUData.getReportFromDb(reportId),
-        window.FMCUData.getDraftFromDb(rep.storeCode),
-        rep.scheduleId ? window.FMCUData.getDraftFromDb(`${rep.storeCode}_${rep.scheduleId}`) : Promise.resolve(null)
-      ])
-        .then(([idbRep, idbDraftStore, idbDraftSch]) => {
-          let richest = rep;
-          if (idbRep) richest = window.FMCUData.mergeReportAndDraft(richest, idbRep);
-          if (idbDraftStore) richest = window.FMCUData.mergeReportAndDraft(richest, idbDraftStore);
-          if (idbDraftSch) richest = window.FMCUData.mergeReportAndDraft(richest, idbDraftSch);
-          richest.id = reportId;
-          if (
-            window.FMCUData.getReportCompletenessScore(richest) > window.FMCUData.getReportCompletenessScore(rep) &&
-            !this._formDirty
-          ) {
-            this.loadReportObjectToForm(richest);
-          }
-        })
-        .catch(() => {});
-    }
   },
 
   // ==========================================================================
