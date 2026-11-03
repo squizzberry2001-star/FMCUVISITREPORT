@@ -143,8 +143,11 @@ function doPost(e) {
       var photoFileName = payload.fileName || ('FMCU_PHOTO_' + new Date().getTime() + '.jpg');
       var photoBlob = Utilities.newBlob(decodedPhoto, 'image/jpeg', photoFileName);
 
-      var rootFolderId = payload.gdrivePhotoFolderId || DEFAULT_PHOTO_GDRIVE_ID;
-      var rootFolder = getOrCreateTargetFolder_(rootFolderId, 'FMCU_FOTO_DATABASE');
+      var isQsc = (payload.photoType === 'QSC');
+      var rootFolderId = isQsc
+        ? (payload.gdriveFolderId || DEFAULT_ROOT_GDRIVE_ID)
+        : (payload.gdrivePhotoFolderId || DEFAULT_PHOTO_GDRIVE_ID);
+      var rootFolder = getOrCreateTargetFolder_(rootFolderId, isQsc ? 'FMCU_VISIT_REPORTS' : 'FMCU_FOTO_DATABASE');
 
       // Sapu & bersihkan folder toko yang tercecer di root jika ada
       cleanupSpamStoreFoldersFromRoot_(rootFolder);

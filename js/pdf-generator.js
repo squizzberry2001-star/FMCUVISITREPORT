@@ -80,7 +80,7 @@ window.FMCUPdf = {
             ctx.fillText(textStr, padLeft, h - Math.round(barH * 0.28));
           }
 
-          resolve(canvas.toDataURL('image/jpeg', 0.92));
+          resolve(canvas.toDataURL('image/jpeg', 0.94));
         };
         img.onerror = (err) => reject(err);
         img.src = src;
@@ -129,7 +129,7 @@ window.FMCUPdf = {
           doc.setGState(new doc.GState({ opacity: 0.60 }));
         }
 
-        doc.addImage(watermarkSrc, 'PNG', wtrX, wtrY, wtrW, wtrH, undefined, 'FAST');
+        doc.addImage(watermarkSrc, 'PNG', wtrX, wtrY, wtrW, wtrH, undefined, 'NONE');
 
         if (hasGState) {
           doc.restoreGraphicsState();
@@ -150,7 +150,7 @@ window.FMCUPdf = {
     // 1. Gambar latar belakang divider asli (seperti PDF awal)
     if (bgImage) {
       try {
-        doc.addImage(bgImage, 'JPEG', 0, 0, 320, 180, undefined, 'FAST');
+        doc.addImage(bgImage, 'JPEG', 0, 0, 320, 180, undefined, 'NONE');
       } catch (e) {
         console.warn('Divider background image error:', e);
       }
@@ -197,7 +197,7 @@ window.FMCUPdf = {
   },
 
   // Helper to draw image inside a bounding box while preserving natural aspect ratio (mencegah foto & timestamp tertarik)
-  drawImageProportional(doc, imgData, boxX, boxY, boxW, boxH, format = 'JPEG', compression = 'MEDIUM') {
+  drawImageProportional(doc, imgData, boxX, boxY, boxW, boxH, format = 'JPEG', compression = 'NONE') {
     if (!doc || !imgData) return null;
     try {
       let imgW = 0;
@@ -306,7 +306,7 @@ window.FMCUPdf = {
           canvas.height = img.naturalHeight || img.height;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0);
-          resolve(canvas.toDataURL('image/jpeg', 0.84));
+          resolve(canvas.toDataURL('image/jpeg', 0.94));
         } catch (e) {
           resolve('');
         }

@@ -110,6 +110,9 @@ window.FMCUApp = {
     window.FMCUData.init();
 
     // Listener otomatis saat tab dibuka kembali / kembali dari background
+    window.addEventListener('online', () => {
+      this.syncPendingFormPhotosToDrive();
+    });
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) {
         this.checkAndDispatchScheduledHourReminders();
@@ -7136,7 +7139,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         this.formCaPhotos.push(caObj);
         this.renderCaPhotosGrid();
         this.saveCurrentFormDraft();
-        this.showToast('Foto perbaikan (CA) tersimpan lokal di perangkat!', 'success');
+        this.uploadSectionPhotoLive(caObj, 'CORRECTIVE_ACTION');
       } else {
         if (!this.formEvidencePhotos) this.formEvidencePhotos = [];
         const evObj = {
@@ -7151,7 +7154,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         this.formEvidencePhotos.push(evObj);
         this.renderEvidenceGrid();
         this.saveCurrentFormDraft();
-        this.showToast('Foto bukti temuan tersimpan lokal di perangkat!', 'success');
+        this.uploadSectionPhotoLive(evObj, 'EVIDENCE');
       }
       this.updateFormProgress();
     });
@@ -7215,7 +7218,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       await processFile(f);
     }
     this.saveCurrentFormDraft();
-    this.showToast(`${files.length} foto berhasil diproses & tersimpan lokal!`, 'success');
+    this.syncPendingFormPhotosToDrive();
   },
 
   // --- Section 1B: Crew Table ---
@@ -8414,11 +8417,11 @@ Instruksi:
       .map((ev, idx) => {
         const displaySrc = window.FMCUPdf.getPhotoDisplaySrc(ev);
         const driveBadge = ev._uploading
-          ? `<div class="mt-1 text-[10px] font-bold text-amber-700 flex items-center gap-1"><i class="fa-solid fa-spinner fa-spin"></i><span>Mengunggah ke Google Drive...</span></div>`
+          ? `<div class="mt-1 text-[10px] font-bold text-teal-700 flex items-center gap-1.5 bg-teal-50 px-2 py-1 rounded-lg border border-teal-200 animate-pulse"><i class="fa-solid fa-cloud-arrow-up fa-fade text-teal-600"></i><span>Mengunggah ke Google Drive...</span></div>`
           : ev.driveFileId
-          ? `<a href="${ev.driveViewUrl || ev.driveUrl || '#'}" target="_blank" class="mt-1 text-[10px] font-bold text-emerald-700 hover:underline inline-flex items-center gap-1"><i class="fa-brands fa-google-drive"></i><span>Tersimpan di Google Drive</span></a>`
+          ? `<a href="${ev.driveViewUrl || ev.driveUrl || '#'}" target="_blank" class="mt-1 text-[10px] font-bold text-emerald-700 hover:text-emerald-800 hover:underline inline-flex items-center gap-1.5 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200"><i class="fa-brands fa-google-drive text-emerald-600"></i><span>Tersimpan di Google Drive</span></a>`
           : displaySrc
-          ? `<div class="mt-1 text-[10px] font-bold text-emerald-700 flex items-center gap-1"><i class="fa-solid fa-hard-drive"></i><span>Tersimpan Lokal di Perangkat</span></div>`
+          ? `<button type="button" onclick="FMCUApp.retryUploadEvidencePhoto(${idx})" class="mt-1 text-[10px] font-bold text-amber-700 hover:bg-amber-100 flex items-center gap-1.5 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 cursor-pointer text-left transition" title="Penyimpanan lokal darurat • Klik untuk unggah ke Google Drive sekarang"><i class="fa-solid fa-triangle-exclamation text-amber-500"></i><span>Tersimpan Lokal (Darurat Offline) • Klik Unggah</span></button>`
           : '';
 
         return `
@@ -8527,7 +8530,7 @@ Instruksi:
       window.FMCUData.cachePhotoInMemory(evObj.id, null, dataUrl, true);
       this.renderEvidenceGrid();
       this.saveCurrentFormDraft();
-      this.showToast(`Foto bukti #${idx + 1} berhasil diproses & tersimpan lokal!`, 'success');
+      this.uploadSectionPhotoLive(evObj, 'EVIDENCE');
     });
   },
 
@@ -8555,7 +8558,7 @@ Instruksi:
       window.FMCUData.cachePhotoInMemory(evObj.id, null, dataUrl, true);
       this.renderEvidenceGrid();
       this.saveCurrentFormDraft();
-      this.showToast(`Foto bukti #${idx + 1} berhasil diperbarui & tersimpan lokal!`, 'success');
+      this.uploadSectionPhotoLive(evObj, 'EVIDENCE');
     });
   },
 
@@ -8585,7 +8588,7 @@ Instruksi:
     }
     this.renderEvidenceGrid();
     this.saveCurrentFormDraft();
-    this.showToast(`${files.length} foto bukti berhasil diunggah & tersimpan lokal!`, 'success');
+    this.syncPendingFormPhotosToDrive();
   },
 
   // --- Section 3: Corrective Action Evidence & Result Photos ---
@@ -8617,11 +8620,11 @@ Instruksi:
       .map((ca, idx) => {
         const displaySrc = window.FMCUPdf.getPhotoDisplaySrc(ca);
         const driveBadge = ca._uploading
-          ? `<div class="mt-1 text-[10px] font-bold text-amber-700 flex items-center gap-1"><i class="fa-solid fa-spinner fa-spin"></i><span>Mengunggah ke Google Drive...</span></div>`
+          ? `<div class="mt-1 text-[10px] font-bold text-purple-700 flex items-center gap-1.5 bg-purple-50 px-2 py-1 rounded-lg border border-purple-200 animate-pulse"><i class="fa-solid fa-cloud-arrow-up fa-fade text-purple-600"></i><span>Mengunggah ke Google Drive...</span></div>`
           : ca.driveFileId
-          ? `<a href="${ca.driveViewUrl || ca.driveUrl || '#'}" target="_blank" class="mt-1 text-[10px] font-bold text-emerald-700 hover:underline inline-flex items-center gap-1"><i class="fa-brands fa-google-drive"></i><span>Tersimpan di Google Drive</span></a>`
+          ? `<a href="${ca.driveViewUrl || ca.driveUrl || '#'}" target="_blank" class="mt-1 text-[10px] font-bold text-emerald-700 hover:text-emerald-800 hover:underline inline-flex items-center gap-1.5 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200"><i class="fa-brands fa-google-drive text-emerald-600"></i><span>Tersimpan di Google Drive</span></a>`
           : displaySrc
-          ? `<div class="mt-1 text-[10px] font-bold text-emerald-700 flex items-center gap-1"><i class="fa-solid fa-hard-drive"></i><span>Tersimpan Lokal di Perangkat</span></div>`
+          ? `<button type="button" onclick="FMCUApp.retryUploadCaPhoto(${idx})" class="mt-1 text-[10px] font-bold text-amber-700 hover:bg-amber-100 flex items-center gap-1.5 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 cursor-pointer text-left transition" title="Penyimpanan lokal darurat • Klik untuk unggah ke Google Drive sekarang"><i class="fa-solid fa-triangle-exclamation text-amber-500"></i><span>Tersimpan Lokal (Darurat Offline) • Klik Unggah</span></button>`
           : '';
 
         return `
@@ -8733,7 +8736,7 @@ Instruksi:
       window.FMCUData.cachePhotoInMemory(caObj.id, null, dataUrl, true);
       this.renderCaPhotosGrid();
       this.saveCurrentFormDraft();
-      this.showToast(`Foto perbaikan #${idx + 1} berhasil diproses & tersimpan lokal!`, 'success');
+      this.uploadSectionPhotoLive(caObj, 'CORRECTIVE_ACTION');
     });
   },
 
@@ -8761,7 +8764,7 @@ Instruksi:
       window.FMCUData.cachePhotoInMemory(caObj.id, null, dataUrl, true);
       this.renderCaPhotosGrid();
       this.saveCurrentFormDraft();
-      this.showToast(`Foto perbaikan #${idx + 1} berhasil diperbarui & tersimpan lokal!`, 'success');
+      this.uploadSectionPhotoLive(caObj, 'CORRECTIVE_ACTION');
     });
   },
 
@@ -8792,10 +8795,102 @@ Instruksi:
     }
     this.renderCaPhotosGrid();
     this.saveCurrentFormDraft();
-    this.showToast(`${files.length} foto perbaikan berhasil diunggah & tersimpan lokal!`, 'success');
+    this.syncPendingFormPhotosToDrive();
   },
 
-    buildCurrentFormReportObject() {
+  async uploadSectionPhotoLive(photoObj, photoType = 'EVIDENCE') {
+    if (!photoObj) return photoObj;
+    const rawData = photoObj.dataUrl || window.FMCUData.getPhotoFromMemory(photoObj.id, photoObj.driveFileId);
+    if (!rawData) return photoObj;
+
+    // 1. Simpan di memori & IndexedDB lokal sebagai proteksi offline darurat
+    window.FMCUData.cachePhotoInMemory(photoObj.id, photoObj.driveFileId, rawData, true);
+
+    const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+    const settings = window.FMCUData.getSettings();
+    const gasUrl = (settings.gasWebhookUrl || '').trim();
+
+    // 2. Jika offline / belum konfigurasi webhook: mode darurat lokal aktif
+    if (!isOnline || !gasUrl || !gasUrl.startsWith('http')) {
+      photoObj._uploading = false;
+      photoObj.storageProvider = 'LOCAL_OFFLINE';
+      if (photoType === 'EVIDENCE') this.renderEvidenceGrid();
+      else if (photoType === 'CORRECTIVE_ACTION') this.renderCaPhotosGrid();
+      this.showToast('Foto disimpan di memori lokal (Darurat Offline). Otomatis terunggah ke Google Drive saat online.', 'info');
+      return photoObj;
+    }
+
+    // 3. Jika online: Wajib langsung unggah ke Google Drive!
+    photoObj._uploading = true;
+    if (photoType === 'EVIDENCE') this.renderEvidenceGrid();
+    else if (photoType === 'CORRECTIVE_ACTION') this.renderCaPhotosGrid();
+
+    const storeCode = document.getElementById('form-store-code')?.value.trim() || 'STORE';
+    const storeName = document.getElementById('form-store-name')?.value.trim() || 'VISIT';
+    const visitorName = document.getElementById('form-auditor-name')?.value.trim() || this.currentUser?.name || 'Visitor';
+    const visitDate = document.getElementById('form-visit-date')?.value.trim() || new Date().toISOString().slice(0, 10);
+    const visitYear = String(visitDate).slice(0, 4) || '2026';
+
+    try {
+      await window.FMCUData.uploadPhotoToGDrive(photoObj, {
+        storeCode,
+        storeName,
+        visitorName,
+        visitDate,
+        visitYear,
+        photoType
+      });
+      if (photoObj.driveFileId) {
+        this.showToast('Foto ' + (photoType === 'EVIDENCE' ? 'bukti' : 'perbaikan') + ' berhasil terunggah ke Google Drive!', 'success');
+      } else {
+        this.showToast('Foto tersimpan aman di lokal (menunggu sinkronisasi Drive).', 'warning');
+      }
+    } catch (err) {
+      console.warn('Gagal upload langsung foto ke Google Drive:', err);
+      this.showToast('Gagal terhubung ke Google Drive, foto tetap aman di lokal.', 'warning');
+    } finally {
+      photoObj._uploading = false;
+      this.saveCurrentFormDraft();
+      if (photoType === 'EVIDENCE') this.renderEvidenceGrid();
+      else if (photoType === 'CORRECTIVE_ACTION') this.renderCaPhotosGrid();
+    }
+    return photoObj;
+  },
+
+  async retryUploadEvidencePhoto(idx) {
+    if (!this.formEvidencePhotos || !this.formEvidencePhotos[idx]) return;
+    this.showToast('Mencoba mengunggah foto bukti ke Google Drive...', 'info');
+    await this.uploadSectionPhotoLive(this.formEvidencePhotos[idx], 'EVIDENCE');
+  },
+
+  async retryUploadCaPhoto(idx) {
+    if (!this.formCaPhotos || !this.formCaPhotos[idx]) return;
+    this.showToast('Mencoba mengunggah foto perbaikan ke Google Drive...', 'info');
+    await this.uploadSectionPhotoLive(this.formCaPhotos[idx], 'CORRECTIVE_ACTION');
+  },
+
+  async syncPendingFormPhotosToDrive() {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+    const settings = window.FMCUData.getSettings();
+    const gasUrl = (settings.gasWebhookUrl || '').trim();
+    if (!gasUrl || !gasUrl.startsWith('http')) return;
+
+    const pendingEv = (this.formEvidencePhotos || []).filter(p => p && !p.driveFileId && p.dataUrl && !p._uploading);
+    const pendingCa = (this.formCaPhotos || []).filter(p => p && !p.driveFileId && p.dataUrl && !p._uploading);
+
+    if (pendingEv.length === 0 && pendingCa.length === 0) return;
+
+    this.showToast('Mengunggah ' + (pendingEv.length + pendingCa.length) + ' foto ke Google Drive...', 'info');
+
+    for (const p of pendingEv) {
+      await this.uploadSectionPhotoLive(p, 'EVIDENCE');
+    }
+    for (const p of pendingCa) {
+      await this.uploadSectionPhotoLive(p, 'CORRECTIVE_ACTION');
+    }
+  },
+
+  buildCurrentFormReportObject() {
     const existingId = document.getElementById('form-report-id')?.value || '';
     const scheduleId = document.getElementById('form-schedule-id')?.value || '';
     const visitDate = document.getElementById('form-visit-date')?.value || new Date().toISOString().slice(0, 10);
@@ -9411,11 +9506,11 @@ Instruksi:
 
         // 6. ADAPTIVE MEMORY-SAFE DPI SCALING:
         // Hitung target scale berdasarkan lebar viewport & DPR layar untuk mencegah GPU memory exhaustion di mobile
-        const containerWidth = Math.min(allPagesEl.clientWidth || window.innerWidth || 900, 1200);
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const containerWidth = Math.min(allPagesEl.clientWidth || window.innerWidth || 900, 1400);
+        const dpr = window.devicePixelRatio || 1;
         const baseWidth = 907.08; // 320mm / 25.4 * 72 pt base width
         const fitScale = (containerWidth - 32) / baseWidth;
-        const targetScale = Math.max(1.1, Math.min(2.0, fitScale * dpr));
+        const targetScale = Math.max(2.4, Math.min(3.2, fitScale * Math.max(dpr, 2.0)));
 
         // 7. Render halaman secara berurutan dan progresif
         for (const { pageNum, canvas, skeleton } of pageElements) {
@@ -9486,7 +9581,7 @@ Instruksi:
 
     try {
       const page = await this.pdfJsDoc.getPage(this.pdfCurrentPage);
-      const viewport = page.getViewport({ scale: 2.0 }); // High-DPI for crisp text on mobile Retina displays
+      const viewport = page.getViewport({ scale: 2.75 }); // Ultra High-DPI for razor-sharp Retina HD output
       const ctx = canvas.getContext('2d');
 
       canvas.width = viewport.width;
@@ -9805,11 +9900,11 @@ Instruksi:
         if (loadingEl) loadingEl.classList.add('hidden');
 
         // Adaptive DPR & Mobile scale
-        const containerWidth = Math.min(pagesContainer.clientWidth || window.innerWidth || 800, 1100);
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const containerWidth = Math.min(pagesContainer.clientWidth || window.innerWidth || 800, 1400);
+        const dpr = window.devicePixelRatio || 1;
         const baseWidth = 907.08;
         const fitScale = (containerWidth - 32) / baseWidth;
-        const targetScale = Math.max(1.1, Math.min(2.0, fitScale * dpr));
+        const targetScale = Math.max(2.4, Math.min(3.2, fitScale * Math.max(dpr, 2.0)));
 
         for (const { pageNum, canvas, skeleton } of pageElements) {
           if (this._modalPdfRenderGen !== currentGen) return;
@@ -15887,8 +15982,11 @@ function doPost(e) {
       var photoFileName = payload.fileName || ('FMCU_PHOTO_' + new Date().getTime() + '.jpg');
       var photoBlob = Utilities.newBlob(decodedPhoto, 'image/jpeg', photoFileName);
 
-      var rootFolderId = payload.gdrivePhotoFolderId || payload.gdriveFolderId || DEFAULT_ROOT_GDRIVE_ID;
-      var rootFolder = getOrCreateTargetFolder_(rootFolderId, 'FMCU_VISIT_REPORTS');
+      var isQsc = (payload.photoType === 'QSC');
+      var rootFolderId = isQsc
+        ? (payload.gdriveFolderId || DEFAULT_ROOT_GDRIVE_ID)
+        : (payload.gdrivePhotoFolderId || DEFAULT_PHOTO_GDRIVE_ID);
+      var rootFolder = getOrCreateTargetFolder_(rootFolderId, isQsc ? 'FMCU_VISIT_REPORTS' : 'FMCU_FOTO_DATABASE');
 
       // Sapu & bersihkan folder toko yang tercecer di root jika ada
       cleanupSpamStoreFoldersFromRoot_(rootFolder);
