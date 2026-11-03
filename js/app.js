@@ -543,8 +543,9 @@ window.FMCUApp = {
 
     // Debounce rendering agar jika Firestore mengirim multi-snapshot sekaligus saat startup/login,
     // browser tidak melakukan render berkali-kali berturut-turut.
-    // Guard: Jika user sedang aktif mengisi Form Visit, jangan render ulang background views agar mengetik/foto 100% mulus!
-    if (this.currentView === 'form') {
+    // Guard: Jika user sedang aktif mengisi Form Visit atau sedang membuka halaman Preview PDF,
+    // jangan render ulang background views agar mengetik/foto & review dokumen PDF 100% mulus tanpa glitch/looping terus-menerus!
+    if (this.currentView === 'form' || this.currentView === 'preview') {
       return;
     }
     if (this._cloudDebounceTimer) {
@@ -7536,6 +7537,28 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       }
     ];
 
+    // Bersihkan juga dari existing report di koleksi reports jika ada agar reload tidak mengambil foto lama dari report
+    const curStoreCode = document.getElementById('form-store-code')?.value.trim();
+    const curScheduleId = document.getElementById('form-schedule-id')?.value.trim();
+    if (window.FMCUData && (curStoreCode || curScheduleId)) {
+      const reports = window.FMCUData.getReports() || [];
+      let updatedRep = false;
+      reports.forEach((rep) => {
+        if (!rep) return;
+        const matchSch = curScheduleId && rep.scheduleId === curScheduleId;
+        const matchStore = curStoreCode && rep.storeCode === curStoreCode;
+        if (matchSch || matchStore) {
+          rep.qscPhotos = JSON.parse(JSON.stringify(this.formQscPhotos));
+          rep.qscPdfUrl = '';
+          rep.updatedAt = new Date().toISOString();
+          updatedRep = true;
+        }
+      });
+      if (updatedRep) {
+        window.FMCUData.saveReportsLocalOnly(reports);
+      }
+    }
+
     this.renderQscPhotosGrid();
     this.saveCurrentFormDraft();
     this.updateFormProgress();
@@ -9513,7 +9536,8 @@ Instruksi:
     this.cancelRunningPdfRender();
     this.activePreviewReportId = reportId;
     this.currentSlideIndex = 0;
-    this.renderPreviewView();
+    this._renderedReportKey = null;
+    this.renderPreviewView(true);
   },
 
   setPreviewMode(mode) {
@@ -9572,6 +9596,8 @@ Instruksi:
 
   _activePdfRenderTasks: [],
   _pdfRenderGeneration: 0,
+  _renderedReportKey: null,
+  _isRenderingPdf: false,
 
   cancelRunningPdfRender() {
     this._pdfRenderGeneration++;
@@ -9585,21 +9611,44 @@ Instruksi:
       });
       this._activePdfRenderTasks = [];
     }
+    this._isRenderingPdf = false;
   },
 
-  async renderActualPdfViewer() {
-    // 1. Batalkan proses render sebelumnya agar tidak terjadi race condition / rendering glitch
-    this.cancelRunningPdfRender();
-    const currentGen = this._pdfRenderGeneration;
+  refreshPreviewPdf() {
+    this.triggerHaptic('light');
+    this.showToast('Memuat ulang dokumen PDF...', 'info');
+    this._renderedReportKey = null;
+    this.renderActualPdfViewer(true);
+  },
 
+  async renderActualPdfViewer(force = false) {
     const report = this.getActivePreviewReport();
     if (!report) return;
 
-    const loadingEl = document.getElementById('preview-pdf-loading');
     const allPagesEl = document.getElementById('preview-actual-pdf-all-pages');
+    const loadingEl = document.getElementById('preview-pdf-loading');
     const frameContainer = document.getElementById('preview-actual-pdf-frame-container');
     const iframe = document.getElementById('preview-actual-pdf-iframe');
     const pagesBadge = document.getElementById('preview-pdf-total-pages-badge');
+
+    // Buat fingerprint unik dari konten laporan saat ini
+    const qscFingerprint = (report.qscPhotos || []).map((p) => `${p.id || ''}:${p.dataUrl ? p.dataUrl.length : 0}:${p.driveFileId || ''}`).join('|');
+    const evidenceCount = (report.evidencePhotos || []).length;
+    const caCount = (report.caPhotos || report.correctiveActionPhotos || []).length;
+    const obsCount = (report.observations || []).length + (report.opiObservations || []).length;
+    const reportKey = `${report.id || '__LIVE__' }_${report.updatedAt || report.createdAt || ''}_${qscFingerprint}_${evidenceCount}_${caCount}_${obsCount}`;
+
+    // GUARD 1: Jika laporan yang sama sudah dirender dan elemen canvas masih lengkap, JANGAN render ulang!
+    // Ini menghentikan glitch re-render terus-menerus dan menjaga performa web tetap ringan & cepat!
+    if (!force && this._renderedReportKey === reportKey && allPagesEl && allPagesEl.children.length > 0 && !this._isRenderingPdf) {
+      if (loadingEl) loadingEl.classList.add('hidden');
+      return;
+    }
+
+    // 1. Batalkan proses render sebelumnya agar tidak terjadi race condition / rendering glitch
+    this.cancelRunningPdfRender();
+    const currentGen = this._pdfRenderGeneration;
+    this._isRenderingPdf = true;
 
     if (loadingEl) {
       loadingEl.classList.remove('hidden');
@@ -9710,12 +9759,12 @@ Instruksi:
         if (loadingEl) loadingEl.classList.add('hidden');
 
         // 6. ADAPTIVE MEMORY-SAFE DPI SCALING:
-        // Hitung target scale berdasarkan lebar viewport & DPR layar untuk mencegah GPU memory exhaustion di mobile
-        const containerWidth = Math.min(allPagesEl.clientWidth || window.innerWidth || 900, 1400);
-        const dpr = window.devicePixelRatio || 1;
+        // Hitung target scale yang tajam namun hemat RAM & ringan (Anti Overheating & Memory Leak)
+        const containerWidth = Math.min(allPagesEl.clientWidth || window.innerWidth || 900, 1200);
+        const dpr = Math.min(window.devicePixelRatio || 1, 2.0);
         const baseWidth = 907.08; // 320mm / 25.4 * 72 pt base width
-        const fitScale = (containerWidth - 32) / baseWidth;
-        const targetScale = Math.max(2.4, Math.min(3.2, fitScale * Math.max(dpr, 2.0)));
+        const fitScale = (containerWidth - 24) / baseWidth;
+        const targetScale = Math.max(1.3, Math.min(2.0, fitScale * Math.max(dpr, 1.5)));
 
         // 7. Render halaman secara berurutan dan progresif
         for (const { pageNum, canvas, skeleton } of pageElements) {
@@ -9749,6 +9798,11 @@ Instruksi:
             }
           }
         }
+
+        // Tandai bahwa laporan ini telah sukses dirender
+        if (this._pdfRenderGeneration === currentGen) {
+          this._renderedReportKey = reportKey;
+        }
       } else {
         // Fallback Native PDF Viewer jika PDF.js tidak ada
         if (iframe) {
@@ -9757,6 +9811,7 @@ Instruksi:
         if (frameContainer) frameContainer.classList.remove('hidden');
         if (allPagesEl) allPagesEl.classList.add('hidden');
         if (loadingEl) loadingEl.classList.add('hidden');
+        this._renderedReportKey = reportKey;
       }
     } catch (e) {
       if (this._pdfRenderGeneration !== currentGen) return;
@@ -9767,8 +9822,9 @@ Instruksi:
         if (allPagesEl) allPagesEl.classList.add('hidden');
       }
     } finally {
-      if (this._pdfRenderGeneration === currentGen && loadingEl) {
-        loadingEl.classList.add('hidden');
+      if (this._pdfRenderGeneration === currentGen) {
+        this._isRenderingPdf = false;
+        if (loadingEl) loadingEl.classList.add('hidden');
       }
     }
   },
@@ -9858,7 +9914,7 @@ Instruksi:
     this.showToast('PDF Kolase QSC berhasil diunduh!', 'success');
   },
 
-  renderPreviewView() {
+  renderPreviewView(force = false) {
     const previewEl = document.getElementById('view-preview');
     if (previewEl && previewEl.classList.contains('hidden')) return;
 
@@ -9866,7 +9922,7 @@ Instruksi:
     const report = this.getActivePreviewReport();
     if (!report) return;
 
-    this.renderActualPdfViewer();
+    this.renderActualPdfViewer(force);
   },
 
   renderActiveSlide() {
@@ -10104,12 +10160,12 @@ Instruksi:
         if (frameContainer) frameContainer.classList.add('hidden');
         if (loadingEl) loadingEl.classList.add('hidden');
 
-        // Adaptive DPR & Mobile scale
-        const containerWidth = Math.min(pagesContainer.clientWidth || window.innerWidth || 800, 1400);
-        const dpr = window.devicePixelRatio || 1;
+        // Adaptive DPR & Mobile scale (Memory-Safe & High Speed)
+        const containerWidth = Math.min(pagesContainer.clientWidth || window.innerWidth || 800, 1200);
+        const dpr = Math.min(window.devicePixelRatio || 1, 2.0);
         const baseWidth = 907.08;
         const fitScale = (containerWidth - 32) / baseWidth;
-        const targetScale = Math.max(2.4, Math.min(3.2, fitScale * Math.max(dpr, 2.0)));
+        const targetScale = Math.max(1.3, Math.min(2.0, fitScale * Math.max(dpr, 1.5)));
 
         for (const { pageNum, canvas, skeleton } of pageElements) {
           if (this._modalPdfRenderGen !== currentGen) return;

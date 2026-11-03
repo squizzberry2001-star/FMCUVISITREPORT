@@ -2668,6 +2668,43 @@ window.FMCUData = {
     }
 
     // Untuk QSC (2 slot lembar form QSC #1 & #2):
+    // Jika primaryArr (misal draft aktif) ada:
+    // Jika user menghapus foto QSC di primaryArr (dataUrl dan driveFileId kosong),
+    // foto TIDAK BOLEH dibangkitkan kembali dari secondaryArr (arsip/report lama)!
+    if (Array.isArray(primaryArr) && primaryArr.length >= 2) {
+      return primaryArr.map((item, idx) => {
+        if (!item) return item;
+        const match = Array.isArray(secondaryArr) ? secondaryArr[idx] : null;
+        const hasPrimaryPhoto = Boolean((item.dataUrl && item.dataUrl.startsWith('data:image')) || item.driveFileId);
+        if (!hasPrimaryPhoto) {
+          // Sengaja dihapus atau kosong: pertahankan tetap kosong!
+          return {
+            id: item.id || `qsc-${Date.now()}-${idx + 1}`,
+            caption: item.caption || (idx === 0 ? 'Lembar Form QSC / FamiTrack #1 (Bagian Atas)' : 'Lembar Form QSC / FamiTrack #2 (Bagian Bawah)'),
+            dataUrl: '',
+            driveFileId: '',
+            driveUrl: '',
+            fullPhotoId: '',
+            fullPhotoDataUrl: '',
+            _uploading: false
+          };
+        }
+        const itemB64 = item.dataUrl && item.dataUrl.startsWith('data:image') ? item.dataUrl : '';
+        const matchB64 = match && match.dataUrl && match.dataUrl.startsWith('data:image') ? match.dataUrl : '';
+        const memB64 = this.getPhotoFromMemory(item.id || match?.id, item.driveFileId || match?.driveFileId);
+        const bestDataUrl = itemB64 || memB64 || matchB64 || item.dataUrl || '';
+        return {
+          ...(match || {}),
+          ...item,
+          id: item.id || match?.id,
+          caption: item.caption || match?.caption || '',
+          dataUrl: bestDataUrl,
+          driveFileId: item.driveFileId || match?.driveFileId || '',
+          driveUrl: item.driveUrl || match?.driveUrl || ''
+        };
+      });
+    }
+
     const baseList = a.length >= 2 ? a : b.length >= 2 ? b : a;
     const otherList = baseList === a ? b : a;
     return baseList.map((item, idx) => {
