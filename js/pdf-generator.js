@@ -688,10 +688,223 @@ window.FMCUPdf = {
 
     this.drawPageFooter(doc, footerText);
 
-    // Helper: Draw observation findings pages (2 findings per page - Corporate Minimalist Layout)
+    // Helper: Draw observation findings pages (Adaptive Layout, Dynamic Row Heights, Zero Truncation)
     const drawObservationPages = (obsList, sectionTitle) => {
       const totalObs = obsList.length;
-      for (let i = 0; i < totalObs; i += 2) {
+      if (totalObs === 0) return;
+
+      const cardX = 10;
+      const cardW = 300;
+      const leftColX = cardX + 3; // 13
+      const rightColX = cardX + 151; // 161
+      const boxW = 146;
+      const contentW = boxW - 6; // 140
+
+      // Helper function to measure and format box text without truncation
+      const measureBox = (text, isBold = false) => {
+        const str = String(text || '-').trim() || '-';
+        let fontSize = isBold ? 8.0 : 7.6;
+        doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+        doc.setFontSize(fontSize);
+        let lines = doc.splitTextToSize(str, contentW);
+
+        // If text is long, adaptively scale font down slightly to preserve elegance & breathing room
+        if (lines.length > 4) {
+          fontSize = isBold ? 7.2 : 6.8;
+          doc.setFontSize(fontSize);
+          lines = doc.splitTextToSize(str, contentW);
+        }
+        if (lines.length > 7) {
+          fontSize = isBold ? 6.6 : 6.1;
+          doc.setFontSize(fontSize);
+          lines = doc.splitTextToSize(str, contentW);
+        }
+
+        const lineH = fontSize * 0.42; // line height in mm
+        const titleH = 4.0; // title label height
+        const topGap = 4.2; // title to text baseline gap
+        const bottomPad = 2.4;
+        const neededH = titleH + (lines.length * lineH) + bottomPad;
+
+        return {
+          fontSize,
+          lineH,
+          lines,
+          neededH
+        };
+      };
+
+      // Measure a full observation card
+      const measureCard = (obs) => {
+        const fTemuan = measureBox(obs.temuan, true);
+        const fDampak = measureBox(obs.dampak, false);
+        const row1H = Math.max(18, Math.max(fTemuan.neededH, fDampak.neededH));
+
+        const fIdeal = measureBox(obs.kondisiIdeal, false);
+        const fTindakan = measureBox(obs.tindakanPerbaikan, true);
+        const row2H = Math.max(15, Math.max(fIdeal.neededH, fTindakan.neededH));
+
+        const fPenyebab = measureBox(obs.penyebab, false);
+        const fHasil = measureBox(obs.hasil, false);
+        const row3H = Math.max(15, Math.max(fPenyebab.neededH, fHasil.neededH));
+
+        const headerH = 8.5;
+        const cardH = headerH + 2 + row1H + 2 + row2H + 2 + row3H + 2;
+
+        return {
+          cardH,
+          row1H,
+          row2H,
+          row3H,
+          fTemuan,
+          fDampak,
+          fIdeal,
+          fTindakan,
+          fPenyebab,
+          fHasil
+        };
+      };
+
+      // Draw a measured card
+      const renderCard = (obs, obsIndex, cardY, cardData) => {
+        const { cardH, row1H, row2H, row3H, fTemuan, fDampak, fIdeal, fTindakan, fPenyebab, fHasil } = cardData;
+
+        // Outer Card with Subtle Hairline Border
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(226, 232, 240); // Slate-200
+        doc.setLineWidth(0.25);
+        doc.roundedRect(cardX, cardY, cardW, cardH, 3, 3, 'FD');
+
+        // Card Header Strip
+        doc.setFillColor(248, 250, 252); // Slate-50
+        doc.roundedRect(cardX, cardY, cardW, 8.5, 3, 3, 'F');
+        doc.rect(cardX, cardY + 4, cardW, 4.5, 'F');
+
+        // Finding Pill Badge
+        doc.setFillColor(0, 153, 166);
+        doc.roundedRect(cardX + 3, cardY + 1.5, 30, 5.5, 1.5, 1.5, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(255, 255, 255);
+        doc.text(`Temuan ${obsIndex + 1}/${totalObs}`, cardX + 18, cardY + 5.2, { align: 'center' });
+
+        // Deadline Pill Badge on Right
+        const dlText = obs.deadlineFormatted || this.formatIndonesianDate(obs.deadline, false);
+        doc.setFillColor(254, 242, 242); // Red-50
+        doc.setDrawColor(254, 202, 202); // Red-200
+        doc.setLineWidth(0.2);
+        doc.roundedRect(cardX + cardW - 65, cardY + 1.4, 62, 5.8, 2.9, 2.9, 'FD');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.2);
+        doc.setTextColor(185, 28, 28); // Red-700
+        doc.text(`Deadline: ${dlText}`, cardX + cardW - 34, cardY + 5.3, { align: 'center' });
+
+        let curRowY = cardY + 10.5;
+
+        // --- Left Row 1: Temuan (Soft Amber Highlight Box) ---
+        doc.setFillColor(254, 243, 199); // Amber-100
+        doc.setDrawColor(253, 230, 138); // Amber-200
+        doc.setLineWidth(0.2);
+        doc.roundedRect(leftColX, curRowY, boxW, row1H, 1.5, 1.5, 'FD');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        doc.setTextColor(146, 64, 14); // Amber-800
+        doc.text('TEMUAN AUDIT', leftColX + 3, curRowY + 4.2);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(fTemuan.fontSize);
+        doc.setTextColor(15, 23, 42); // Slate-900
+        fTemuan.lines.forEach((l, lIdx) => {
+          doc.text(l, leftColX + 3, curRowY + 8.2 + (lIdx * fTemuan.lineH));
+        });
+
+        // --- Right Row 1: Dampak ---
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.2);
+        doc.roundedRect(rightColX, curRowY, boxW, row1H, 1.5, 1.5, 'FD');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        doc.setTextColor(0, 153, 166);
+        doc.text('DAMPAK OPERASIONAL', rightColX + 3, curRowY + 4.2);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(fDampak.fontSize);
+        doc.setTextColor(51, 65, 85);
+        fDampak.lines.forEach((l, lIdx) => {
+          doc.text(l, rightColX + 3, curRowY + 8.2 + (lIdx * fDampak.lineH));
+        });
+
+        curRowY += row1H + 2;
+
+        // --- Left Row 2: Kondisi Ideal ---
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.2);
+        doc.roundedRect(leftColX, curRowY, boxW, row2H, 1.5, 1.5, 'FD');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        doc.setTextColor(0, 153, 166);
+        doc.text('KONDISI IDEAL / STANDAR', leftColX + 3, curRowY + 4.2);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(fIdeal.fontSize);
+        doc.setTextColor(51, 65, 85);
+        fIdeal.lines.forEach((l, lIdx) => {
+          doc.text(l, leftColX + 3, curRowY + 8.2 + (lIdx * fIdeal.lineH));
+        });
+
+        // --- Right Row 2: Tindakan Perbaikan (Soft Emerald Box) ---
+        doc.setFillColor(236, 253, 245); // Emerald-50
+        doc.setDrawColor(167, 243, 208); // Emerald-200
+        doc.setLineWidth(0.2);
+        doc.roundedRect(rightColX, curRowY, boxW, row2H, 1.5, 1.5, 'FD');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        doc.setTextColor(4, 120, 87); // Emerald-700
+        doc.text('TINDAKAN PERBAIKAN (ACTION PLAN)', rightColX + 3, curRowY + 4.2);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(fTindakan.fontSize);
+        doc.setTextColor(6, 78, 59); // Emerald-900
+        fTindakan.lines.forEach((l, lIdx) => {
+          doc.text(l, rightColX + 3, curRowY + 8.2 + (lIdx * fTindakan.lineH));
+        });
+
+        curRowY += row2H + 2;
+
+        // --- Left Row 3: Penyebab ---
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.2);
+        doc.roundedRect(leftColX, curRowY, boxW, row3H, 1.5, 1.5, 'FD');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        doc.setTextColor(0, 153, 166);
+        doc.text('PENYEBAB (ROOT CAUSE)', leftColX + 3, curRowY + 4.2);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(fPenyebab.fontSize);
+        doc.setTextColor(51, 65, 85);
+        fPenyebab.lines.forEach((l, lIdx) => {
+          doc.text(l, leftColX + 3, curRowY + 8.2 + (lIdx * fPenyebab.lineH));
+        });
+
+        // --- Right Row 3: Hasil (HASIL YANG DIHARAPKAN - Full Rendering, No Truncation) ---
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.2);
+        doc.roundedRect(rightColX, curRowY, boxW, row3H, 1.5, 1.5, 'FD');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        doc.setTextColor(0, 153, 166);
+        doc.text('HASIL YANG DIHARAPKAN', rightColX + 3, curRowY + 4.2);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(fHasil.fontSize);
+        doc.setTextColor(51, 65, 85);
+        fHasil.lines.forEach((l, lIdx) => {
+          doc.text(l, rightColX + 3, curRowY + 8.2 + (lIdx * fHasil.lineH));
+        });
+      };
+
+      // Page loop with intelligent 1 or 2 card layout
+      let i = 0;
+      while (i < totalObs) {
         doc.addPage([320, 180], 'landscape');
         doc.setFillColor(255, 255, 255);
         doc.rect(0, 0, 320, 180, 'F');
@@ -710,138 +923,31 @@ window.FMCUPdf = {
         doc.setTextColor(100, 116, 139); // Slate-500
         doc.text('Ringkasan observasi dan rencana tindak lanjut perbaikan toko', 12, 21.5);
 
-        const pair = obsList.slice(i, i + 2);
-        pair.forEach((obs, idx) => {
-          const cardY = idx === 0 ? 25 : 99;
-          const cardH = 70;
-          const cardX = 10;
-          const cardW = 300;
+        const card1 = measureCard(obsList[i]);
+        const hasNext = (i + 1) < totalObs;
+        let card2 = null;
+        let putTwoOnPage = false;
 
-          // Outer Card with Subtle Hairline Border
-          doc.setFillColor(255, 255, 255);
-          doc.setDrawColor(226, 232, 240); // Slate-200
-          doc.setLineWidth(0.25);
-          doc.roundedRect(cardX, cardY, cardW, cardH, 3, 3, 'FD');
+        if (hasNext) {
+          card2 = measureCard(obsList[i + 1]);
+          // Check if both cards can fit on the page (max usable height = 144mm from y=25 to 169)
+          if ((card1.cardH + 4 + card2.cardH) <= 144) {
+            putTwoOnPage = true;
+          }
+        }
 
-          // Card Header Strip
-          doc.setFillColor(248, 250, 252); // Slate-50
-          doc.roundedRect(cardX, cardY, cardW, 8.5, 3, 3, 'F');
-          doc.rect(cardX, cardY + 4, cardW, 4.5, 'F');
-
-          // Finding Pill Badge
-          doc.setFillColor(0, 153, 166);
-          doc.roundedRect(cardX + 3, cardY + 1.5, 30, 5.5, 1.5, 1.5, 'F');
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7.5);
-          doc.setTextColor(255, 255, 255);
-          doc.text(`Temuan ${i + idx + 1}/${totalObs}`, cardX + 18, cardY + 5.2, { align: 'center' });
-
-          // Deadline Pill Badge on Right
-          const dlText = obs.deadlineFormatted || this.formatIndonesianDate(obs.deadline, false);
-          doc.setFillColor(254, 242, 242); // Red-50
-          doc.setDrawColor(254, 202, 202); // Red-200
-          doc.setLineWidth(0.2);
-          doc.roundedRect(cardX + cardW - 65, cardY + 1.4, 62, 5.8, 2.9, 2.9, 'FD');
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7.2);
-          doc.setTextColor(185, 28, 28); // Red-700
-          doc.text(`Deadline: ${dlText}`, cardX + cardW - 34, cardY + 5.3, { align: 'center' });
-
-          // 2x3 Grid of Sub-boxes inside Card
-          const leftColX = cardX + 3;
-          const rightColX = cardX + 151;
-          const boxW = 146;
-
-          const row1Y = cardY + 10.5;
-          const row1H = 20.5;
-          const row2Y = cardY + 32.5;
-          const row2H = 17;
-          const row3Y = cardY + 51;
-          const row3H = 16;
-
-          // Left Row 1: Temuan (Soft Amber Highlight Box)
-          doc.setFillColor(254, 243, 199); // Amber-100
-          doc.setDrawColor(253, 230, 138); // Amber-200
-          doc.setLineWidth(0.2);
-          doc.roundedRect(leftColX, row1Y, boxW, row1H, 1.5, 1.5, 'FD');
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7);
-          doc.setTextColor(146, 64, 14); // Amber-800
-          doc.text('TEMUAN AUDIT', leftColX + 3, row1Y + 4.2);
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(8.2);
-          doc.setTextColor(15, 23, 42); // Slate-900
-          const temuanLines = doc.splitTextToSize(String(obs.temuan || '-'), boxW - 6);
-          doc.text(temuanLines.slice(0, 3), leftColX + 3, row1Y + 8.8);
-
-          // Right Row 1: Dampak
-          doc.setFillColor(248, 250, 252);
-          doc.setDrawColor(226, 232, 240);
-          doc.roundedRect(rightColX, row1Y, boxW, row1H, 1.5, 1.5, 'FD');
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7);
-          doc.setTextColor(0, 153, 166);
-          doc.text('DAMPAK OPERASIONAL', rightColX + 3, row1Y + 4.2);
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(7.8);
-          doc.setTextColor(51, 65, 85);
-          const dampakLines = doc.splitTextToSize(String(obs.dampak || '-'), boxW - 6);
-          doc.text(dampakLines.slice(0, 4), rightColX + 3, row1Y + 8.5);
-
-          // Left Row 2: Kondisi Ideal
-          doc.setFillColor(248, 250, 252);
-          doc.roundedRect(leftColX, row2Y, boxW, row2H, 1.5, 1.5, 'FD');
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7);
-          doc.setTextColor(0, 153, 166);
-          doc.text('KONDISI IDEAL / STANDAR', leftColX + 3, row2Y + 4.2);
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(7.8);
-          doc.setTextColor(51, 65, 85);
-          const idealLines = doc.splitTextToSize(String(obs.kondisiIdeal || '-'), boxW - 6);
-          doc.text(idealLines.slice(0, 3), leftColX + 3, row2Y + 8.5);
-
-          // Right Row 2: Tindakan Perbaikan (Soft Emerald Box)
-          doc.setFillColor(236, 253, 245); // Emerald-50
-          doc.setDrawColor(167, 243, 208); // Emerald-200
-          doc.roundedRect(rightColX, row2Y, boxW, row2H, 1.5, 1.5, 'FD');
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7);
-          doc.setTextColor(4, 120, 87); // Emerald-700
-          doc.text('TINDAKAN PERBAIKAN (ACTION PLAN)', rightColX + 3, row2Y + 4.2);
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7.8);
-          doc.setTextColor(6, 78, 59); // Emerald-900
-          const tindakanLines = doc.splitTextToSize(String(obs.tindakanPerbaikan || '-'), boxW - 6);
-          doc.text(tindakanLines.slice(0, 3), rightColX + 3, row2Y + 8.5);
-
-          // Left Row 3: Penyebab
-          doc.setFillColor(248, 250, 252);
-          doc.setDrawColor(226, 232, 240);
-          doc.roundedRect(leftColX, row3Y, boxW, row3H, 1.5, 1.5, 'FD');
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7);
-          doc.setTextColor(0, 153, 166);
-          doc.text('PENYEBAB (ROOT CAUSE)', leftColX + 3, row3Y + 4.2);
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(7.8);
-          doc.setTextColor(51, 65, 85);
-          const penyebabLines = doc.splitTextToSize(String(obs.penyebab || '-'), boxW - 6);
-          doc.text(penyebabLines.slice(0, 3), leftColX + 3, row3Y + 8.5);
-
-          // Right Row 3: Hasil
-          doc.setFillColor(248, 250, 252);
-          doc.roundedRect(rightColX, row3Y, boxW, row3H, 1.5, 1.5, 'FD');
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7);
-          doc.setTextColor(0, 153, 166);
-          doc.text('HASIL YANG DIHARAPKAN', rightColX + 3, row3Y + 4.2);
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(7.8);
-          doc.setTextColor(51, 65, 85);
-          const hasilLines = doc.splitTextToSize(String(obs.hasil || '-'), boxW - 6);
-          doc.text(hasilLines.slice(0, 3), rightColX + 3, row3Y + 8.5);
-        });
+        if (putTwoOnPage && card2) {
+          // Render both cards
+          const startY = 25;
+          renderCard(obsList[i], i, startY, card1);
+          renderCard(obsList[i + 1], i + 1, startY + card1.cardH + 4, card2);
+          i += 2;
+        } else {
+          // Render single card with full vertical freedom
+          const startY = 25;
+          renderCard(obsList[i], i, startY, card1);
+          i += 1;
+        }
 
         this.drawPageFooter(doc, footerText);
       }
