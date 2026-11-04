@@ -2528,6 +2528,28 @@ window.FMCUApp = {
       sessionStorage.setItem('fmcu_active_sch_subtab', mode);
     } catch (e) {}
 
+    const headerTitle = document.getElementById('admin-schedule-header-title');
+    const headerDesc = document.getElementById('admin-schedule-header-desc');
+    const headerIcon = document.getElementById('admin-schedule-header-icon');
+
+    if (mode === 'create') {
+      if (headerTitle) headerTitle.textContent = 'Setting Jadwal Visit (Planner 1 Week)';
+      if (headerDesc) headerDesc.textContent = 'Susun penugasan toko 1 Minggu (Senin s/d Minggu) untuk Regional Bestie / Visitor';
+      if (headerIcon) headerIcon.className = 'fa-solid fa-calendar-plus text-[#009944]';
+    } else if (mode === 'calendar') {
+      if (headerTitle) headerTitle.textContent = 'Kalender Jadwal Visit';
+      if (headerDesc) headerDesc.textContent = 'Tinjau visualisasi kalender jadwal kunjungan bulanan seluruh tim';
+      if (headerIcon) headerIcon.className = 'fa-solid fa-calendar-days text-amber-600';
+    } else if (mode === 'list') {
+      if (headerTitle) headerTitle.textContent = 'Daftar Jadwal Visit';
+      if (headerDesc) headerDesc.textContent = 'Kelola, cari, filter, dan monitoring status jadwal kunjungan toko';
+      if (headerIcon) headerIcon.className = 'fa-solid fa-list-check text-[#0099A6]';
+    } else if (mode === 'history') {
+      if (headerTitle) headerTitle.textContent = 'History Laporan Visit';
+      if (headerDesc) headerDesc.textContent = 'Daftar arsip laporan visit toko yang telah selesai dilaksanakan (diurutkan berdasarkan tanggal terbaru)';
+      if (headerIcon) headerIcon.className = 'fa-solid fa-clock-rotate-left text-[#0099A6]';
+    }
+
     const createSec = document.getElementById('schedule-section-create');
     const calendarSec = document.getElementById('schedule-section-calendar');
     const listSec = document.getElementById('schedule-section-list');
@@ -10614,8 +10636,17 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       return;
     }
 
-    // Urutkan laporan dari tanggal visit terbaru
-    filtered.sort((a, b) => String(b.createdAt || b.visitDate || '').localeCompare(String(a.createdAt || a.visitDate || '')));
+    // Urutkan laporan strictly berdasarkan tanggal visit terbaru (Request 5)
+    filtered.sort((a, b) => {
+      const dateA = String(a.visitDate || a.scheduledDate || a.createdAt || '').slice(0, 10);
+      const dateB = String(b.visitDate || b.scheduledDate || b.createdAt || '').slice(0, 10);
+      if (dateA !== dateB) {
+        return dateB.localeCompare(dateA); // Tanggal visit terbaru di atas
+      }
+      const timeA = String(a.actualIn || a.createdAt || '');
+      const timeB = String(b.actualIn || b.createdAt || '');
+      return timeB.localeCompare(timeA);
+    });
 
     container.innerHTML = filtered
       .map((r) => {
@@ -12211,6 +12242,12 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     return result;
   },
 
+    weeklyVisitorFilter: 'ALL',
+
+  onWeeklyVisitorFilterChange(val) {
+    this.weeklyVisitorFilter = val || 'ALL';
+    this.renderWeeklySchedulePlanner();
+  },
   ensureWeeklyPlannerInitialized() {
     if (!this.weeklyMondayDate) {
       this.weeklyMondayDate = this.getMondayOfWeek();
@@ -12219,12 +12256,9 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     const auditors = this.getSchedulableAuditors();
     const validIds = new Set(auditors.map((u) => u.id));
 
-    // Default uncheck pada checklist nama user
-    if (!Array.isArray(this.weeklySelectedAuditors)) {
-      this.weeklySelectedAuditors = [];
-    } else {
-      this.weeklySelectedAuditors = this.weeklySelectedAuditors.filter((id) => validIds.has(id));
-    }
+    // Secara default, seluruh akun Visitor / Regional Bestie langsung aktif di planner
+    const allIds = auditors.map((u) => u.id);
+    this.weeklySelectedAuditors = allIds;
 
     if (!this.weeklyActiveSlot.auditorId || !this.weeklySelectedAuditors.includes(this.weeklyActiveSlot.auditorId)) {
       this.weeklyActiveSlot = {
@@ -13518,67 +13552,13 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       nearestInfoEl.innerHTML = `<i class="fa-regular fa-calendar-check mr-1"></i>Aktual Hari Ini: <strong>${todayActualStr}</strong> &rarr; Senin Terdekat: <strong>${mondayTargetStr}</strong>`;
     }
 
-    // 2. Render Step 2 Visitor Multi-Select Cards (Khusus Visitor / Regional Bestie)
-    const audGrid = document.getElementById('weekly-auditor-selector-grid');
-    if (audGrid) {
-      if (users.length === 0) {
-        audGrid.innerHTML = `<div class="col-span-full text-xs text-slate-400 py-3">Belum ada akun dengan role Visitor / Regional Bestie.</div>`;
-      } else {
-        const weekDatesSet = new Set(fiveDays.map((d) => d.dateStr));
-        audGrid.innerHTML = users
-          .map((u) => {
-          const isSelected = this.weeklySelectedAuditors.includes(u.id);
-          let draftCount = 0;
-          for (let d = 0; d < 7; d++) {
-            draftCount += this.getWeeklySlotItems(u.id, d).length;
-          }
-          const savedThisWeek = schedules.filter((s) => s.auditorId === u.id && weekDatesSet.has(s.scheduledDate)).length;
-          const initials = u.name
-            .split(' ')
-            .map((n) => n[0])
-            .join('')
-            .slice(0, 2)
-            .toUpperCase();
-
-          return `
-            <div
-              onclick="FMCUApp.toggleWeeklyAuditor('${u.id}')"
-              class="p-2.5 rounded-xl border transition cursor-pointer flex items-center justify-between gap-2 ${
-                isSelected
-                  ? 'bg-emerald-50/90 border-[#009944] ring-1 ring-[#009944]/40 shadow-xs'
-                  : 'bg-white border-slate-200 hover:border-slate-300 opacity-75'
-              }"
-            >
-              <div class="flex items-center gap-2.5 min-w-0">
-                <div class="w-8 h-8 rounded-lg text-white font-extrabold text-xs flex items-center justify-center shrink-0" style="background:${u.avatarColor || '#0099A6'}">
-                  ${initials}
-                </div>
-                <div class="min-w-0">
-                  <div class="font-extrabold text-xs text-slate-900 truncate flex items-center gap-1.5">
-                    <span>${u.name}</span>
-                    ${(window.FMCUData && window.FMCUData.getStoreCodesOwnedByBestie(u.name).size > 0)
-                      ? `<span class="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-amber-100 text-amber-800" title="${window.FMCUData.getStoreCodesOwnedByBestie(u.name).size} Toko Kepemilikan Bestie In Charge"><i class="fa-solid fa-star text-amber-500 mr-0.5"></i>${window.FMCUData.getStoreCodesOwnedByBestie(u.name).size}</span>`
-                      : `<span class="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-slate-100 text-slate-500" title="Bebas Master Toko">Bebas</span>`
-                    }
-                  </div>
-                  <div class="text-[10px] text-slate-500 truncate">${u.roleBadge || u.role} ${u.region ? '• ' + u.region : ''}</div>
-                </div>
-              </div>
-              <div class="flex flex-col items-end shrink-0 gap-1">
-                <span class="w-5 h-5 rounded-md flex items-center justify-center text-[11px] ${
-                  isSelected ? 'bg-[#009944] text-white' : 'bg-slate-100 text-slate-400 border border-slate-200'
-                }">
-                  <i class="fa-solid fa-check"></i>
-                </span>
-                <span class="text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-white border border-slate-200 text-slate-700">
-                  Draft: ${draftCount}${savedThisWeek > 0 ? ` • Aktif: ${savedThisWeek}` : ''}
-                </span>
-              </div>
-            </div>
-          `;
-        })
-        .join('');
-      }
+    // 2. Populate Dropdown Pemilih Visitor Cepat (Tanpa Checklist Manual)
+    const visFilter = document.getElementById('weekly-visitor-quick-filter');
+    if (visFilter) {
+      const curVal = this.weeklyVisitorFilter || 'ALL';
+      visFilter.innerHTML =
+        `<option value="ALL">Semua Visitor (${users.length} Orang)</option>` +
+        users.map((u) => `<option value="${u.id}" ${u.id === curVal ? 'selected' : ''}>${u.name}</option>`).join('');
     }
 
     // 3. Update Active Slot Indicator & Quick Store Results
@@ -13598,18 +13578,21 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     const boardEl = document.getElementById('weekly-planner-board');
     if (!boardEl) return;
 
-    if (this.weeklySelectedAuditors.length === 0) {
+    const filteredAuditors = (this.weeklyVisitorFilter && this.weeklyVisitorFilter !== 'ALL')
+      ? users.filter((u) => u.id === this.weeklyVisitorFilter)
+      : users;
+
+    if (filteredAuditors.length === 0) {
       boardEl.innerHTML = `
         <div class="fm-card p-8 text-center space-y-2 border border-dashed border-slate-300">
           <div class="text-2xl text-slate-400"><i class="fa-solid fa-user-check"></i></div>
-          <div class="font-extrabold text-sm text-slate-700">Belum Ada Regional Bestie / Visitor yang Dipilih</div>
-          <p class="text-xs text-slate-500">Klik tombol <strong>"Pilih Semua Visitor"</strong> atau pilih nama Visitor pada Langkah 2 di atas untuk menampilkan papan jadwal 1 week (Senin s/d Minggu).</p>
+          <div class="font-extrabold text-sm text-slate-700">Belum Ada Akun Regional Bestie / Visitor</div>
+          <p class="text-xs text-slate-500">Pastikan akun user memiliki role Visitor atau Regional Bestie pada menu Master User.</p>
         </div>
       `;
     } else {
-      boardEl.innerHTML = this.weeklySelectedAuditors
-        .map((audId) => {
-          const u = users.find((x) => x.id === audId);
+      boardEl.innerHTML = filteredAuditors
+        .map((u) => {
           if (!u) return '';
           let audDraftTotal = 0;
           for (let d = 0; d < 7; d++) {
@@ -13911,32 +13894,16 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                     type="button"
                     onclick="FMCUApp.autoFillFiveDaysForAuditor('${u.id}')"
                     class="px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#009944] border border-emerald-200 font-extrabold text-[11px] transition flex items-center gap-1 cursor-pointer"
+                    title="Otomatis isi jadwal Senin s/d Minggu untuk ${u.name}"
                   >
                     <i class="fa-solid fa-wand-magic-sparkles"></i>
                     <span>Isi Otomatis Sen–Min</span>
                   </button>
                   <button
                     type="button"
-                    onclick="FMCUApp.copyAuditorWeekToOthers('${u.id}')"
-                    class="px-2.5 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-[11px] transition flex items-center gap-1 cursor-pointer"
-                    title="Salin susunan toko 1 minggu visitor ini ke visitor terpilih lainnya"
-                  >
-                    <i class="fa-regular fa-copy"></i>
-                    <span>Salin ke Visitor Lain</span>
-                  </button>
-                  <button
-                    type="button"
-                    onclick="FMCUApp.exportUserScheduleToTemplateExcel('${u.name}')"
-                    class="px-2.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 font-extrabold text-[11px] transition flex items-center gap-1 cursor-pointer"
-                    title="Export format Excel Templete Jadwal khusus untuk ${u.name}"
-                  >
-                    <i class="fa-solid fa-file-excel text-purple-600"></i>
-                    <span>Export Excel</span>
-                  </button>
-                  <button
-                    type="button"
                     onclick="FMCUApp.clearAuditorWeeklyDraft('${u.id}')"
                     class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 font-bold text-[11px] transition cursor-pointer"
+                    title="Kosongkan draft jadwal visitor ini"
                   >
                     <i class="fa-solid fa-trash-can"></i>
                   </button>
@@ -15824,7 +15791,11 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
   // 4. Widget Temuan Kritis & Food Safety Alert
   renderAdminCriticalFindingsWidget() {
     const container = document.getElementById('admin-critical-findings-widget');
-    if (!container) return;
+    if (container) {
+      container.innerHTML = '';
+      container.classList.add('hidden');
+    }
+    return;
 
     const reports = window.FMCUData.getReports() || [];
     const criticalItems = [];

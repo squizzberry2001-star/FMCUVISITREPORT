@@ -1233,7 +1233,7 @@ window.FMCUData = {
 
         // 1. Sync Schedules
         const localSchedules = this.getSchedules() || [];
-        if (Array.isArray(resp.schedules) && resp.schedules.length > 0) {
+        if (Array.isArray(resp.schedules)) {
           const activeCheckIn = this.getActiveCheckIn ? this.getActiveCheckIn() : null;
           const activeSchId = activeCheckIn?.scheduleId ? String(activeCheckIn.scheduleId) : null;
 
@@ -1279,9 +1279,6 @@ window.FMCUData = {
             localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(mergedSchedules));
             schedulesChanged = true;
           }
-        } else if (localSchedules.length > 0) {
-          // Cloud vault jadwal masih kosong: upload seed/local schedules ke cloud vault sekarang!
-          this.callGasDatabase('db_save_collection', { collection: 'schedules', data: localSchedules });
         }
 
         // 1B. Sync Reports (History Laporan Lintas Perangkat)
@@ -1728,18 +1725,7 @@ window.FMCUData = {
       },
       (err) => {
         handleSnapshotError('schedules', err);
-        const local = this.getSchedules() || [];
-        if (local.length === 0) {
-          this.fetchSchedulesFromGDrive().then((gdriveSchedules) => {
-            if (Array.isArray(gdriveSchedules) && gdriveSchedules.length > 0) {
-              this._cachedSchedules = gdriveSchedules;
-              localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(gdriveSchedules));
-              if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
-                window.FMCUApp.onCloudDataUpdated('schedules');
-              }
-            }
-          });
-        }
+// Local schedule integrity maintained, no unprompted gdrive overwrite
       }
     );
     this.unsubscribers.push(unsubSchedules);
@@ -1958,6 +1944,17 @@ window.FMCUData = {
   clearAllData() {
     const prevSchedules = this.getSchedules();
     const prevReports = this.getReports();
+
+    prevSchedules.forEach((s) => {
+      if (s && s.id) this._deletedScheduleIds.add(String(s.id));
+    });
+    try {
+      const schIds = prevSchedules.map((s) => String(s.id)).filter(Boolean);
+      localStorage.setItem('fmcu_deleted_sch_ids_v1', JSON.stringify(schIds.slice(-1000)));
+    } catch (e) {}
+    this._cachedSchedules = [];
+    this.callGasDatabase('db_save_collection', { collection: 'schedules', data: [] });
+    this.backupSchedulesToGDrive([]);
 
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(INITIAL_USERS));
     localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(window.FMCU_INITIAL_STORES || []));
@@ -2486,8 +2483,14 @@ window.FMCUData = {
 
   deleteBulkSchedules(ids = []) {
     if (!ids || ids.length === 0) return;
+    this._ensureDeletedIdsLoaded();
     const idSet = new Set(ids.map(String));
-    ids.forEach((id) => this.markScheduleDeleted(id));
+    ids.forEach((id) => this._deletedScheduleIds.add(String(id)));
+    try {
+      const persisted = JSON.parse(localStorage.getItem('fmcu_deleted_sch_ids_v1') || '[]');
+      const combined = Array.from(new Set([...persisted, ...ids.map(String)]));
+      localStorage.setItem('fmcu_deleted_sch_ids_v1', JSON.stringify(combined.slice(-1000)));
+    } catch (e) {}
 
     const schedules = (this.getSchedules() || []).filter((s) => !idSet.has(String(s.id)));
     this._cachedSchedules = schedules;
