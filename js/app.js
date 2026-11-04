@@ -756,8 +756,39 @@ window.FMCUApp = {
     );
   },
 
+  // Helper: GPS hanya bekerja jika user di agendakan VISIT atau NSO hari ini (Admin Jadwal, Super Admin, dan user lain dimatikan)
+  isUserScheduledForVisitOrNsoToday(user = this.currentUser) {
+    if (!user) return false;
+    const role = String(user.role || '').toUpperCase();
+    if (role === 'ADMIN_SCHEDULE' || role === 'SUPER_ADMIN' || role === 'ADMIN' || user.username === 'admin') {
+      return false;
+    }
+    const todayStr = this.getLocalDateISO();
+    const schedules = window.FMCUData ? window.FMCUData.getSchedules() : [];
+    const myToday = schedules.filter(
+      (s) =>
+        (s.auditorId === user.id || s.auditorName === user.name) &&
+        s.scheduledDate === todayStr
+    );
+    if (myToday.length === 0) return false;
+
+    return myToday.some((s) => {
+      const code = String(s.storeCode || '').toUpperCase();
+      const cat = String(s.agendaCategory || '').toUpperCase();
+      const isNonVisit = s.isAgenda || s.isCuti || s.isOff || code === 'CUTI' || code === 'OFF' || code === 'AGENDA';
+      if (cat.includes('NSO') || code.includes('NSO') || s.isNso) return true;
+      if (cat.includes('VISIT') || (!isNonVisit && code && code !== '-')) return true;
+      return false;
+    });
+  },
+
   // POINT BATTERY-SAVER: GPS High-Accuracy HANYA aktif saat dibutuhkan (Live Maps / Check-In)
   startContinuousGpsWatch() {
+    // Matikan GPS jika user bukan karyawan yang terjadwal Visit / NSO hari ini
+    if (!this.isUserScheduledForVisitOrNsoToday(this.currentUser)) {
+      this.stopContinuousGpsWatch();
+      return;
+    }
     // Hanya aktif saat user membuka halaman Live Maps untuk menghemat baterai
     if (this.currentView !== 'live-maps') return;
     if (this.gpsWatchId !== null || !('geolocation' in navigator)) return;
@@ -766,7 +797,7 @@ window.FMCUApp = {
         this.unlockWebWithGps(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
       },
       (err) => {
-        if (err.code === 1 && this.currentUser) {
+        if (err.code === 1 && this.currentUser && this.isUserScheduledForVisitOrNsoToday(this.currentUser)) {
           this.lockWebForGps('Izin lokasi GPS dinonaktifkan. Izinkan kembali akses lokasi untuk melanjutkan.');
         }
       },
@@ -820,9 +851,9 @@ window.FMCUApp = {
   },
 
   lockWebForGps(reasonText) {
-    // ATURAN MUTLAK: JANGAN PERNAH GEMBOK LAYAR JIKA USER BELUM LOGIN ATAU SEDANG LOGIN!
-    if (!this.currentUser) {
-      console.warn('GPS lock bypassed on login screen:', reasonText);
+    // ATURAN MUTLAK: JANGAN PERNAH GEMBOK LAYAR JIKA USER BELUM LOGIN ATAU TIDAK ADA JADWAL VISIT/NSO HARI INI!
+    if (!this.currentUser || !this.isUserScheduledForVisitOrNsoToday(this.currentUser)) {
+      console.warn('GPS lock bypassed (User tidak terjadwal Visit/NSO hari ini):', reasonText);
       const gate = document.getElementById('gps-gate-screen');
       if (gate) gate.classList.add('hidden');
       return;
@@ -988,7 +1019,7 @@ window.FMCUApp = {
   setLoggedInUser(user) {
     this.currentUser = user;
     window.FMCUData.setSession(user);
-    if (this.liveGps && this.liveGps.lat !== null && this.liveGps.lng !== null && this.isAuditorUser(user)) {
+    if (this.liveGps && this.liveGps.lat !== null && this.liveGps.lng !== null && this.isUserScheduledForVisitOrNsoToday(user)) {
       window.FMCUData.updateUserLocation(
         user.id || user.username,
         this.liveGps.lat,
@@ -2754,7 +2785,7 @@ window.FMCUApp = {
     }
 
     if (this.currentUser) {
-      if (this.isAuditorUser(this.currentUser)) {
+      if (this.isUserScheduledForVisitOrNsoToday(this.currentUser)) {
         const activeCheckIn = window.FMCUData.getActiveCheckIn();
         const storeName = activeCheckIn?.storeName ? `FamilyMart ${activeCheckIn.storeName}` : null;
         const nowMs = Date.now();
@@ -13130,6 +13161,26 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     }
   },
 
+  agendaModalState: {
+    auditorId: null,
+    dayIndex: 0,
+    selectedCategories: ['VISIT_STORE'],
+    selectedStores: []
+  },
+
+  agendaCategoryDefinitions: [
+    { id: 'VISIT_STORE', label: 'Visit Store', icon: 'fa-solid fa-store', isVisit: true },
+    { id: 'NSO', label: 'NSO', icon: 'fa-solid fa-sparkles', isVisit: true },
+    { id: 'OFFICE_DUTY', label: 'Office Duty', icon: 'fa-solid fa-building', isVisit: false },
+    { id: 'MEETING', label: 'Meeting', icon: 'fa-solid fa-users', isVisit: false },
+    { id: 'TRAINING', label: 'Training', icon: 'fa-solid fa-chalkboard-user', isVisit: false },
+    { id: 'BRIEFING', label: 'Briefing', icon: 'fa-solid fa-bullhorn', isVisit: false },
+    { id: 'EVENT', label: 'Event', icon: 'fa-solid fa-calendar-check', isVisit: false },
+    { id: 'CUTI', label: 'Cuti', icon: 'fa-solid fa-umbrella-beach', isVisit: false },
+    { id: 'OFF', label: 'Off / Libur', icon: 'fa-solid fa-bed', isVisit: false },
+    { id: 'LAINNYA', label: 'Lainnya', icon: 'fa-solid fa-ellipsis', isVisit: false }
+  ],
+
   openManualAgendaModal(auditorId, dayIndex) {
     this.ensureWeeklyPlannerInitialized();
     const modal = document.getElementById('modal-manual-agenda');
@@ -13139,30 +13190,44 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     const dayObj = fiveDays[dayIndex] || { dayName: `Hari ${dayIndex + 1}`, dateStr: '' };
     const u = this.getSchedulableAuditors().find((x) => x.id === auditorId);
 
+    this.agendaModalState = {
+      auditorId,
+      dayIndex: Number(dayIndex),
+      selectedCategories: ['VISIT_STORE'],
+      selectedStores: []
+    };
+
     const targetAudIdEl = document.getElementById('agenda-target-auditor-id');
     const targetDayIdxEl = document.getElementById('agenda-target-day-index');
     const targetAudNameEl = document.getElementById('agenda-target-auditor-name');
     const targetDayLabelEl = document.getElementById('agenda-target-day-label');
     const titleInput = document.getElementById('agenda-title-input');
-    const timeInput = document.getElementById('agenda-time-input');
-    const locInput = document.getElementById('agenda-location-input');
+    const timeInInput = document.getElementById('agenda-time-in');
+    const timeOutInput = document.getElementById('agenda-time-out');
     const notesInput = document.getElementById('agenda-notes-input');
 
     if (targetAudIdEl) targetAudIdEl.value = auditorId;
     if (targetDayIdxEl) targetDayIdxEl.value = dayIndex;
-    if (targetAudNameEl) targetAudNameEl.textContent = u ? u.name : 'Visitor';
+    if (targetAudNameEl) targetAudNameEl.textContent = u ? u.name : 'Karyawan';
     if (targetDayLabelEl) targetDayLabelEl.textContent = `${dayObj.dayName}, ${dayObj.dateStr || ''}`;
 
-    if (titleInput) titleInput.value = '';
-    if (timeInput) timeInput.value = '09:00 - 12:00 WIB';
-    if (locInput) locInput.value = 'Head Office / Online';
+    if (timeInInput) timeInInput.value = '08:30';
+    if (timeOutInput) timeOutInput.value = '17:30';
+    if (titleInput) {
+      titleInput.value = '';
+      titleInput.dataset.autoGenerated = 'true';
+    }
     if (notesInput) notesInput.value = '';
 
-    const firstRadio = document.querySelector('input[name="agenda-cat"][value="MEETING"]');
-    if (firstRadio) firstRadio.checked = true;
+    // Isi dropdown lokasi kegiatan
+    this.populateAgendaLocationSelect();
+
+    // Render chips kategori & update visibility sections
+    this.renderAgendaCategoryChips();
+    this.populateAgendaStoreDropdown();
+    this.renderAgendaSelectedStoresPills();
 
     modal.classList.remove('hidden');
-    setTimeout(() => titleInput?.focus(), 150);
   },
 
   closeManualAgendaModal() {
@@ -13170,44 +13235,500 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     if (modal) modal.classList.add('hidden');
   },
 
-  submitManualAgendaForm() {
-    const auditorId = document.getElementById('agenda-target-auditor-id')?.value;
-    const dayIndex = Number(document.getElementById('agenda-target-day-index')?.value || 0);
-    const title = (document.getElementById('agenda-title-input')?.value || '').trim();
-    const time = (document.getElementById('agenda-time-input')?.value || '09:00 - 12:00 WIB').trim();
-    const loc = (document.getElementById('agenda-location-input')?.value || '').trim();
-    const notes = (document.getElementById('agenda-notes-input')?.value || '').trim();
-    const catRadio = document.querySelector('input[name="agenda-cat"]:checked');
-    const category = catRadio ? catRadio.value : 'MEETING';
+  renderAgendaCategoryChips() {
+    const container = document.getElementById('agenda-category-chips');
+    const badge = document.getElementById('agenda-category-selected-badge');
+    if (!container) return;
 
-    if (!title) {
-      this.showToast('Judul / nama agenda wajib diisi.', 'warning');
+    const selected = this.agendaModalState.selectedCategories || ['VISIT_STORE'];
+    if (badge) {
+      badge.textContent = `${selected.length} Terpilih`;
+    }
+
+    container.innerHTML = this.agendaCategoryDefinitions
+      .map((cat) => {
+        const isChecked = selected.includes(cat.id);
+        return `
+        <button
+          type="button"
+          onclick="FMCUApp.toggleAgendaCategory('${cat.id}')"
+          class="px-2.5 py-1.5 rounded-xl border text-xs font-bold transition flex items-center justify-between gap-1.5 cursor-pointer active:scale-95 ${
+            isChecked
+              ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs ring-2 ring-emerald-400/40'
+              : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+          }"
+        >
+          <div class="flex items-center gap-1.5 truncate">
+            <i class="${cat.icon} text-[11px] ${isChecked ? 'text-white' : 'text-slate-500'}"></i>
+            <span class="truncate">${cat.label}</span>
+          </div>
+          ${isChecked ? '<i class="fa-solid fa-check text-[10px] shrink-0"></i>' : ''}
+        </button>
+      `;
+      })
+      .join('');
+
+    // Toggle container toko dan container lokasi sesuai kategori aktif
+    const hasVisit = selected.includes('VISIT_STORE') || selected.includes('NSO');
+    const hasNonVisit = selected.some((c) => !['VISIT_STORE', 'NSO'].includes(c));
+
+    const storeContainer = document.getElementById('agenda-store-picker-container');
+    const locContainer = document.getElementById('agenda-location-container');
+
+    if (storeContainer) {
+      if (hasVisit) {
+        storeContainer.classList.remove('hidden');
+      } else {
+        storeContainer.classList.add('hidden');
+      }
+    }
+
+    if (locContainer) {
+      if (hasNonVisit || !hasVisit) {
+        locContainer.classList.remove('hidden');
+      } else {
+        locContainer.classList.add('hidden');
+      }
+    }
+
+    const titleInput = document.getElementById('agenda-title-input');
+    if (titleInput && (!titleInput.value || titleInput.dataset.autoGenerated === 'true')) {
+      const catLabels = selected
+        .map((id) => this.agendaCategoryDefinitions.find((x) => x.id === id)?.label || id)
+        .join(', ');
+      titleInput.placeholder = catLabels || 'Agenda Kegiatan';
+      titleInput.dataset.autoGenerated = 'true';
+    }
+  },
+
+  toggleAgendaCategory(catId) {
+    let selected = [...(this.agendaModalState.selectedCategories || [])];
+    if (selected.includes(catId)) {
+      if (selected.length > 1) {
+        selected = selected.filter((c) => c !== catId);
+      } else {
+        this.showToast('Minimal satu kategori harus dipilih.', 'warning');
+        return;
+      }
+    } else {
+      selected.push(catId);
+    }
+    this.agendaModalState.selectedCategories = selected;
+    this.renderAgendaCategoryChips();
+  },
+
+  populateAgendaLocationSelect() {
+    const select = document.getElementById('agenda-location-select');
+    if (!select) return;
+
+    const defaultLocations = [
+      'FMCU Lapangan Roos',
+      'FMCU Tanjung Duren',
+      'FMCU Sultan Iskandar Muda',
+      'FMCU Jatimulya',
+      'FMCU Cihampelas'
+    ];
+
+    let customLocations = [];
+    try {
+      customLocations = JSON.parse(localStorage.getItem('fmcu_custom_agenda_locations') || '[]');
+    } catch (e) {
+      customLocations = [];
+    }
+
+    const allLocations = [...new Set([...defaultLocations, ...customLocations])];
+    const prevVal = select.value || allLocations[0];
+
+    select.innerHTML = allLocations
+      .map((loc) => `<option value="${loc}" ${loc === prevVal ? 'selected' : ''}>${loc}</option>`)
+      .join('');
+  },
+
+  promptAddCustomAgendaLocation() {
+    const newLoc = prompt('Masukkan nama lokasi kegiatan baru:');
+    if (!newLoc || !newLoc.trim()) return;
+
+    const trimmed = this.sanitizeMojibake(newLoc.trim());
+    try {
+      let customLocations = JSON.parse(localStorage.getItem('fmcu_custom_agenda_locations') || '[]');
+      if (!customLocations.includes(trimmed)) {
+        customLocations.push(trimmed);
+        localStorage.setItem('fmcu_custom_agenda_locations', JSON.stringify(customLocations));
+      }
+    } catch (e) {}
+
+    this.populateAgendaLocationSelect();
+    const select = document.getElementById('agenda-location-select');
+    if (select) select.value = trimmed;
+    this.showToast(`Lokasi "${trimmed}" berhasil ditambahkan!`, 'success');
+  },
+
+  populateAgendaStoreDropdown(query = '') {
+    const select = document.getElementById('agenda-store-select');
+    if (!select) return;
+
+    const stores = window.FMCUData ? window.FMCUData.getStores() : [];
+    const q = (query || '').toLowerCase().trim();
+
+    const filtered = stores.filter((st) => {
+      if (!q) return true;
+      return (
+        String(st.code).toLowerCase().includes(q) ||
+        String(st.name).toLowerCase().includes(q) ||
+        String(st.city || '').toLowerCase().includes(q)
+      );
+    });
+
+    if (filtered.length === 0) {
+      select.innerHTML = '<option value="">-- Toko Tidak Ditemukan --</option>';
       return;
     }
 
-    const cleanTitle = this.sanitizeMojibake(title);
-    const cleanCategory = this.sanitizeMojibake(category);
-    const cleanLoc = this.sanitizeMojibake(loc);
-    const cleanNotes = this.sanitizeMojibake(notes);
+    select.innerHTML =
+      '<option value="">-- Pilih Toko FamilyMart --</option>' +
+      filtered
+        .slice(0, 150)
+        .map(
+          (st) =>
+            `<option value="${st.code}">[${st.code}] ${this.sanitizeMojibake(st.name)} - ${st.city || 'CVS'}</option>`
+        )
+        .join('');
+  },
+
+  filterAgendaStoreDropdown(query) {
+    this.populateAgendaStoreDropdown(query);
+  },
+
+  addSelectedStoreToAgenda() {
+    const select = document.getElementById('agenda-store-select');
+    if (!select || !select.value) {
+      this.showToast('Pilih toko terlebih dahulu dari dropdown.', 'warning');
+      return;
+    }
+    const code = select.value;
+    const stores = window.FMCUData ? window.FMCUData.getStores() : [];
+    const st = stores.find((x) => String(x.code) === String(code));
+    if (!st) return;
+
+    if (this.agendaModalState.selectedStores.some((x) => String(x.code) === String(code))) {
+      this.showToast(`Toko [${code}] sudah ada di daftar terpilih.`, 'info');
+      return;
+    }
+
+    this.agendaModalState.selectedStores.push({
+      code: st.code,
+      name: st.name,
+      city: st.city,
+      type: st.type
+    });
+
+    this.renderAgendaSelectedStoresPills();
+    this.showToast(`Toko [${code}] ${st.name} ditambahkan.`, 'success');
+  },
+
+  removeSelectedStoreFromAgenda(code) {
+    this.agendaModalState.selectedStores = this.agendaModalState.selectedStores.filter(
+      (x) => String(x.code) !== String(code)
+    );
+    this.renderAgendaSelectedStoresPills();
+  },
+
+  renderAgendaSelectedStoresPills() {
+    const container = document.getElementById('agenda-selected-stores-pills');
+    const badge = document.getElementById('agenda-store-count-badge');
+    const stores = this.agendaModalState.selectedStores || [];
+
+    if (badge) {
+      badge.textContent = `${stores.length} Toko Terpilih`;
+    }
+
+    if (!container) return;
+
+    if (stores.length === 0) {
+      container.innerHTML =
+        '<span class="text-[11px] text-slate-400 font-medium italic">Belum ada toko yang dipilih. Silakan cari dan pilih toko di atas.</span>';
+      return;
+    }
+
+    container.innerHTML = stores
+      .map(
+        (st) => `
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-100/90 text-emerald-900 border border-emerald-300 text-xs font-bold shadow-2xs">
+          <i class="fa-solid fa-store text-emerald-700 text-[10px]"></i>
+          <span>[${st.code}] ${this.sanitizeMojibake(st.name)}</span>
+          <button
+            type="button"
+            onclick="FMCUApp.removeSelectedStoreFromAgenda('${st.code}')"
+            class="text-emerald-700 hover:text-rose-600 ml-0.5 cursor-pointer"
+            title="Hapus toko ini"
+          >
+            <i class="fa-solid fa-xmark text-xs"></i>
+          </button>
+        </span>
+      `
+      )
+      .join('');
+  },
+
+  submitManualAgendaForm() {
+    const auditorId = document.getElementById('agenda-target-auditor-id')?.value;
+    const dayIndex = Number(document.getElementById('agenda-target-day-index')?.value || 0);
+    const inTime = (document.getElementById('agenda-time-in')?.value || '08:30').trim();
+    const outTime = (document.getElementById('agenda-time-out')?.value || '17:30').trim();
+    const windowTime = `${inTime} - ${outTime} WIB`;
+
+    const loc = (document.getElementById('agenda-location-select')?.value || 'FMCU Lapangan Roos').trim();
+    const notes = (document.getElementById('agenda-notes-input')?.value || '').trim();
+    const rawTitle = (document.getElementById('agenda-title-input')?.value || '').trim();
+
+    const selectedCategories = this.agendaModalState.selectedCategories || ['VISIT_STORE'];
+    const hasVisit = selectedCategories.includes('VISIT_STORE') || selectedCategories.includes('NSO');
+    const selectedStores = this.agendaModalState.selectedStores || [];
+
+    if (hasVisit && selectedStores.length === 0) {
+      this.showToast('Pilih minimal 1 Toko dari Master Toko untuk kategori Visit / NSO.', 'warning');
+      return;
+    }
 
     const slotKey = this.getWeeklySlotKey(auditorId, dayIndex);
-    this.weeklyDraftMatrix[slotKey] = [
-      {
-        storeCode: 'AGENDA',
-        storeName: cleanTitle,
-        agendaCategory: cleanCategory,
-        shiftWindow: time,
-        agendaLocation: cleanLoc,
-        notes: cleanNotes,
+    const newItems = [];
+
+    // Tambahkan toko-toko terpilih
+    if (hasVisit && selectedStores.length > 0) {
+      selectedStores.forEach((st) => {
+        newItems.push({
+          storeCode: st.code,
+          storeName: st.name,
+          shiftWindow: windowTime,
+          priority: 'NORMAL',
+          agendaCategory: selectedCategories.includes('NSO') ? 'NSO' : 'VISIT STORE',
+          notes: notes,
+          isNso: selectedCategories.includes('NSO'),
+          agendaLocation: st.name
+        });
+      });
+    }
+
+    // Tambahkan agenda non-visit jika dipilih
+    const nonVisitCats = selectedCategories.filter((c) => !['VISIT_STORE', 'NSO'].includes(c));
+    if (nonVisitCats.length > 0 || !hasVisit) {
+      const isCuti = nonVisitCats.includes('CUTI');
+      const isOff = nonVisitCats.includes('OFF');
+      const catNames = nonVisitCats.join(', ') || 'AGENDA';
+      const defaultTitle = isCuti ? 'Cuti Tahunan' : isOff ? 'Hari OFF' : catNames;
+      const title = rawTitle || defaultTitle;
+
+      newItems.push({
+        storeCode: isCuti ? 'CUTI' : isOff ? 'OFF' : 'AGENDA',
+        storeName: this.sanitizeMojibake(title),
+        agendaCategory: isCuti ? 'CUTI' : isOff ? 'OFF' : catNames,
+        shiftWindow: windowTime,
+        agendaLocation: loc,
+        notes: notes,
+        isCuti: isCuti,
+        isOff: isOff,
         isAgenda: true,
-        isStatusBadge: true,
+        isStatusBadge: isCuti || isOff,
         priority: 'NORMAL'
-      }
-    ];
+      });
+    }
+
+    // Set draft items ke slot
+    this.weeklyDraftMatrix[slotKey] = newItems;
 
     this.closeManualAgendaModal();
     this.renderWeeklySchedulePlanner();
-    this.showToast(`Agenda "${cleanTitle}" berhasil ditambahkan ke jadwal!`, 'success');
+    this.showToast(`Jadwal & agenda berhasil disimpan (${newItems.length} agenda)!`, 'success');
+  },
+
+  exportWeeklyScheduleWithActualsExcel() {
+    if (typeof XLSX === 'undefined') {
+      this.showToast('Library XLSX belum dimuat.', 'error');
+      return;
+    }
+
+    this.ensureWeeklyPlannerInitialized();
+    const fiveDays = this.getFiveWorkDays(this.weeklyMondayDate);
+    const mondayStr = fiveDays[0]?.dateStr || this.getLocalDateISO();
+    const sundayStr = fiveDays[6]?.dateStr || mondayStr;
+
+    const users = this.getSchedulableAuditors();
+    const schedules = window.FMCUData ? window.FMCUData.getSchedules() : [];
+    const reports = window.FMCUData ? window.FMCUData.getReports() : [];
+    const stores = window.FMCUData ? window.FMCUData.getStores() : [];
+    const storeMap = new Map(stores.map((s) => [String(s.code), s]));
+
+    const visitorIds = new Set(users.map((u) => u.id));
+    const visitorNames = new Set(users.map((u) => u.name));
+
+    // 1. DETAIL JADWAL & RECORD ACTUAL IN / OUT (KHUSUS VISITOR)
+    const weekSchedules = schedules.filter((s) => {
+      const isVis = visitorIds.has(s.auditorId) || visitorNames.has(s.auditorName);
+      if (!isVis) return false;
+      return s.scheduledDate >= mondayStr && s.scheduledDate <= sundayStr;
+    });
+
+    const detailRows = weekSchedules.map((s, idx) => {
+      const u = users.find((x) => x.id === s.auditorId || x.name === s.auditorName) || {};
+      const st = storeMap.get(String(s.storeCode)) || {};
+
+      const linkedReport = reports.find(
+        (r) =>
+          (r.scheduleId && r.scheduleId === s.id) ||
+          (String(r.storeCode) === String(s.storeCode) &&
+            (r.visitDate === s.scheduledDate || r.date === s.scheduledDate) &&
+            (r.auditorId === s.auditorId || r.auditorName === s.auditorName))
+      );
+
+      const actualIn = s.actualIn || linkedReport?.actualIn || linkedReport?.checkInTime || '-';
+      const actualOut = s.actualOut || linkedReport?.actualOut || linkedReport?.checkOutTime || '-';
+
+      let durationStr = '-';
+      if (actualIn !== '-' && actualOut !== '-') {
+        try {
+          const parseTime = (tStr) => {
+            const m = String(tStr).match(/(\d{1,2}):(\d{2})/);
+            if (!m) return null;
+            return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+          };
+          const mIn = parseTime(actualIn);
+          const mOut = parseTime(actualOut);
+          if (mIn !== null && mOut !== null && mOut >= mIn) {
+            const diff = mOut - mIn;
+            const hours = Math.floor(diff / 60);
+            const mins = diff % 60;
+            durationStr = hours > 0 ? `${hours} jam ${mins} mnt` : `${mins} menit`;
+          }
+        } catch (e) {}
+      }
+
+      const isCuti = s.isCuti || s.storeCode === 'CUTI';
+      const isOff = s.isOff || s.storeCode === 'OFF';
+      const isAgenda = s.isAgenda || s.storeCode === 'AGENDA';
+      const tipeAktivitas = isCuti
+        ? 'CUTI'
+        : isOff
+        ? 'OFF'
+        : isAgenda
+        ? 'AGENDA NON-VISIT'
+        : s.isNso || String(s.agendaCategory).includes('NSO')
+        ? 'NSO'
+        : 'VISIT TOKO';
+
+      return {
+        No: idx + 1,
+        'Tanggal Target': s.scheduledDate || '-',
+        Hari: window.FMCUPdf.formatIndonesianDate(s.scheduledDate, true).split(',')[0] || '-',
+        'Nama Visitor / Bestie': this.sanitizeMojibake(s.auditorName || u.name || '-'),
+        Wilayah: u.region || '-',
+        'Tipe Aktivitas': tipeAktivitas,
+        'Kode Toko / Status': s.storeCode || '-',
+        'Nama Aktivitas / Toko': this.sanitizeMojibake(s.storeName || st.name || '-'),
+        'Lokasi Kegiatan': this.sanitizeMojibake(s.agendaLocation || st.city || st.address || '-'),
+        'Target Jam Kerja (Window)': s.shiftWindow || '08:30 - 17:30 WIB',
+        'Record Actual IN': actualIn,
+        'Record Actual OUT': actualOut,
+        'Durasi Visit / Kerja': durationStr,
+        'Status Jadwal':
+          s.status === 'COMPLETED'
+            ? 'SELESAI (SUDAH VISIT)'
+            : s.status === 'IN_PROGRESS'
+            ? 'SEDANG VISIT'
+            : 'BELUM VISIT / TERJADWAL',
+        'Skor QSC (%)': linkedReport?.qscScore ? Number(linkedReport.qscScore) : '-',
+        'GPS Lat, Lng':
+          s.actualLat && s.actualLng
+            ? `${s.actualLat}, ${s.actualLng}`
+            : linkedReport?.gpsLat
+            ? `${linkedReport.gpsLat}, ${linkedReport.gpsLng}`
+            : '-',
+        'Link PDF Laporan': linkedReport?.driveViewUrl || linkedReport?.pdfUrl || '-',
+        'Catatan / Fokus': this.sanitizeMojibake(s.notes || s.auditFocus || '-')
+      };
+    });
+
+    // 2. MATRIKS MINGGUAN PER VISITOR
+    const matrixRows = users.map((u, idx) => {
+      const row = {
+        No: idx + 1,
+        'Nama Visitor / Bestie': u.name,
+        Wilayah: u.region || '-'
+      };
+      let visitCount = 0;
+      let nonVisitCount = 0;
+
+      fiveDays.forEach((d) => {
+        const daySchedules = weekSchedules.filter(
+          (s) => (s.auditorId === u.id || s.auditorName === u.name) && s.scheduledDate === d.dateStr
+        );
+        if (daySchedules.length === 0) {
+          row[`${d.dayName} (${d.dateStr})`] = 'Libur / Belum ada jadwal';
+        } else {
+          row[`${d.dayName} (${d.dateStr})`] = daySchedules
+            .map((s) => {
+              const inOut = s.actualIn ? ` [IN:${s.actualIn} OUT:${s.actualOut || '-'}]` : '';
+              if (s.storeCode === 'CUTI' || s.storeCode === 'OFF' || s.isAgenda) {
+                nonVisitCount++;
+                return `${s.storeName}${inOut}`;
+              }
+              visitCount++;
+              return `[${s.storeCode}] ${s.storeName} (${s.status})${inOut}`;
+            })
+            .join(' | ');
+        }
+      });
+
+      row['Total Jadwal Visit'] = visitCount;
+      row['Total Agenda Non-Visit'] = nonVisitCount;
+      return row;
+    });
+
+    const wb = XLSX.utils.book_new();
+
+    const ws1 = XLSX.utils.json_to_sheet(
+      detailRows.length > 0 ? detailRows : [{ Info: 'Tidak ada data jadwal untuk minggu ini.' }]
+    );
+    ws1['!cols'] = [
+      { wch: 5 },
+      { wch: 14 },
+      { wch: 10 },
+      { wch: 24 },
+      { wch: 14 },
+      { wch: 18 },
+      { wch: 14 },
+      { wch: 26 },
+      { wch: 24 },
+      { wch: 20 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 24 },
+      { wch: 12 },
+      { wch: 22 },
+      { wch: 30 },
+      { wch: 26 }
+    ];
+    XLSX.utils.book_append_sheet(wb, ws1, 'Jadwal & Actual Kehadiran');
+
+    const ws2 = XLSX.utils.json_to_sheet(matrixRows);
+    ws2['!cols'] = [
+      { wch: 5 },
+      { wch: 24 },
+      { wch: 14 },
+      { wch: 26 },
+      { wch: 26 },
+      { wch: 26 },
+      { wch: 26 },
+      { wch: 26 },
+      { wch: 26 },
+      { wch: 26 },
+      { wch: 18 },
+      { wch: 20 }
+    ];
+    XLSX.utils.book_append_sheet(wb, ws2, 'Matriks Mingguan');
+
+    XLSX.writeFile(wb, `Rekap_Jadwal_dan_Kehadiran_Visitor_${mondayStr}.xlsx`);
+    this.showToast('Jadwal & Record Actual IN/OUT berhasil di-export ke Excel!', 'success');
   },
 
   toggleWeeklyStorePriority(auditorId, dayIndex, storeCode) {
@@ -13795,12 +14316,12 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       nearestInfoEl.innerHTML = `<i class="fa-regular fa-calendar-check mr-1"></i>Aktual Hari Ini: <strong>${todayActualStr}</strong> &rarr; Senin Terdekat: <strong>${mondayTargetStr}</strong>`;
     }
 
-    // 2. Populate Dropdown Pemilih Visitor Cepat (Tanpa Checklist Manual)
+    // 2. Populate Dropdown Pemilih Karyawan Cepat (Tanpa Checklist Manual)
     const visFilter = document.getElementById('weekly-visitor-quick-filter');
     if (visFilter) {
       const curVal = this.weeklyVisitorFilter || 'ALL';
       visFilter.innerHTML =
-        `<option value="ALL">Semua Visitor (${users.length} Orang)</option>` +
+        `<option value="ALL">Semua Karyawan (${users.length} Orang)</option>` +
         users.map((u) => `<option value="${u.id}" ${u.id === curVal ? 'selected' : ''}>${u.name}</option>`).join('');
     }
 
@@ -13908,57 +14429,17 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                     <div class="space-y-1.5 min-h-[50px]">
                       ${
                         draftItems.length === 0
-                          ? `<div class="rounded-xl border border-dashed border-slate-200 p-2 text-center space-y-1.5 bg-white/70">
+                          ? `<div class="rounded-xl border border-dashed border-slate-200 p-2.5 text-center space-y-2 bg-white/70">
                               <span class="text-[10px] text-slate-400 font-semibold block leading-tight">Belum ada agenda</span>
-                              <div class="grid grid-cols-2 gap-1 pt-0.5">
-                                <button
-                                  type="button"
-                                  onclick="event.stopPropagation(); FMCUApp.openWeeklyStorePickerModal('${u.id}', ${dayObj.dayIndex})"
-                                  class="py-1 px-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-extrabold text-[10px] transition flex items-center justify-center gap-1 shadow-2xs cursor-pointer active:scale-95"
-                                  title="Pilih toko FamilyMart untuk ${dayObj.dayName}"
-                                >
-                                  <i class="fa-solid fa-store text-emerald-600 text-[10px]"></i>
-                                  <span>+ Toko</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onclick="event.stopPropagation(); FMCUApp.assignQuickPresetToWeeklySlot('${u.id}', ${dayObj.dayIndex}, 'OFFICE_DUTY')"
-                                  class="py-1 px-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-300 font-extrabold text-[10px] transition flex items-center justify-center gap-1 shadow-2xs cursor-pointer active:scale-95"
-                                  title="1-Klik: Setel hari ini ke Office Duty"
-                                >
-                                  <i class="fa-solid fa-building text-purple-600 text-[10px]"></i>
-                                  <span>+ Kantor</span>
-                                </button>
-                              </div>
-                              <div class="grid grid-cols-3 gap-1 pt-0.5">
-                                <button
-                                  type="button"
-                                  onclick="event.stopPropagation(); FMCUApp.openManualAgendaModal('${u.id}', ${dayObj.dayIndex})"
-                                  class="py-1 px-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-[9px] transition flex items-center justify-center gap-0.5 cursor-pointer active:scale-95"
-                                  title="Buat agenda meeting, briefing, atau event internal"
-                                >
-                                  <i class="fa-solid fa-calendar-plus text-purple-600 text-[9px]"></i>
-                                  <span>Agenda</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onclick="event.stopPropagation(); FMCUApp.setWeeklySlotStatus('${u.id}', ${dayObj.dayIndex}, 'CUTI')"
-                                  class="py-1 px-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 font-bold text-[9px] transition flex items-center justify-center gap-0.5 cursor-pointer active:scale-95"
-                                  title="Tandai Cuti Resmi"
-                                >
-                                  <i class="fa-solid fa-umbrella-beach text-amber-600 text-[9px]"></i>
-                                  <span>Cuti</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onclick="event.stopPropagation(); FMCUApp.setWeeklySlotStatus('${u.id}', ${dayObj.dayIndex}, 'OFF')"
-                                  class="py-1 px-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-300 font-bold text-[9px] transition flex items-center justify-center gap-0.5 cursor-pointer active:scale-95"
-                                  title="Tandai Hari OFF / Libur"
-                                >
-                                  <i class="fa-solid fa-bed text-indigo-600 text-[9px]"></i>
-                                  <span>Off</span>
-                                </button>
-                              </div>
+                              <button
+                                type="button"
+                                onclick="event.stopPropagation(); FMCUApp.openManualAgendaModal('${u.id}', ${dayObj.dayIndex})"
+                                class="w-full py-2 px-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-extrabold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                                title="Atur agenda untuk ${dayObj.dayName}"
+                              >
+                                <i class="fa-solid fa-calendar-plus text-xs"></i>
+                                <span>+ Agenda</span>
+                              </button>
                             </div>`
                           : `
                             <div class="space-y-1.5">
@@ -14108,40 +14589,16 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                                 })
                                 .join('')}
                               
-                              <!-- Compact Add Bar for Populated Day -->
-                              <div onclick="event.stopPropagation()" class="flex items-center gap-1 pt-1 border-t border-slate-200/60">
-                                <button
-                                  type="button"
-                                  onclick="FMCUApp.openWeeklyStorePickerModal('${u.id}', ${dayObj.dayIndex})"
-                                  class="flex-1 py-1 px-1.5 rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[10px] font-extrabold flex items-center justify-center gap-1 transition cursor-pointer"
-                                  title="Tambah toko visit lagi"
-                                >
-                                  <i class="fa-solid fa-plus text-[9px]"></i>
-                                  <span>Toko</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onclick="FMCUApp.assignQuickPresetToWeeklySlot('${u.id}', ${dayObj.dayIndex}, 'OFFICE_DUTY')"
-                                  class="py-1 px-2 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-800 text-[10px] font-bold transition cursor-pointer"
-                                  title="Setel Office Duty"
-                                >
-                                  <i class="fa-solid fa-building text-[9px]"></i>
-                                </button>
+                              <!-- Single Clean Add Button for Populated Day -->
+                              <div onclick="event.stopPropagation()" class="pt-1 border-t border-slate-200/60">
                                 <button
                                   type="button"
                                   onclick="FMCUApp.openManualAgendaModal('${u.id}', ${dayObj.dayIndex})"
-                                  class="py-1 px-2 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-800 text-[10px] font-bold transition cursor-pointer"
-                                  title="Tambah agenda kegiatan"
+                                  class="w-full py-1.5 px-2 rounded-xl border border-dashed border-emerald-300 bg-emerald-50/70 hover:bg-emerald-100 text-emerald-800 text-[10px] font-extrabold flex items-center justify-center gap-1 transition cursor-pointer active:scale-95"
+                                  title="Tambah agenda / toko lagi untuk hari ini"
                                 >
-                                  <i class="fa-solid fa-calendar-plus text-[9px]"></i>
-                                </button>
-                                <button
-                                  type="button"
-                                  onclick="FMCUApp.setWeeklySlotStatus('${u.id}', ${dayObj.dayIndex}, 'OFF')"
-                                  class="py-1 px-2 rounded-lg border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-[10px] font-bold transition cursor-pointer"
-                                  title="Ubah status hari jadi OFF"
-                                >
-                                  <i class="fa-solid fa-bed text-[9px]"></i>
+                                  <i class="fa-solid fa-plus text-[9px]"></i>
+                                  <span>Agenda</span>
                                 </button>
                               </div>
                             </div>
