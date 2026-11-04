@@ -287,6 +287,11 @@ window.FMCUApp = {
     this.initMandatoryNotificationSystem();
     this.initPwaInstallPrompt();
 
+    window.addEventListener('resize', () => {
+      this.updateMobileNavLiquidPill();
+    });
+    setTimeout(() => this.updateMobileNavLiquidPill(), 250);
+
     // Listener visibility tab (anti-spam: tidak memicu notifikasi berulang saat kembali ke tab)
 
     // Jalankan continuous Geofence Ticker setiap 4 detik untuk memantau radius 1m-50m & timer 15m
@@ -2286,6 +2291,55 @@ window.FMCUApp = {
   // ==========================================================================
   // NAVIGATION & VIEW ROUTER (HOME, ANALYTICS, FORM, PREVIEW, SCHEDULES, STORES, ADMIN)
   // ==========================================================================
+  // POINT 16: Liquid Glass Morphing Indicator (Framer Motion spring physics: stiffness 400, damping 30)
+  updateMobileNavLiquidPill() {
+    try {
+      const isForm = this.currentView === 'form' && this.hasActiveStoreForm;
+      const container = document.getElementById(isForm ? 'mobile-form-nav' : 'mobile-main-nav');
+      const pill = document.getElementById(isForm ? 'mobile-form-pill' : 'mobile-main-pill');
+      if (!container || !pill) return;
+
+      requestAnimationFrame(() => {
+        const activeItem = container.querySelector('.mobile-nav-item.active:not(.hidden)');
+        if (!activeItem) {
+          pill.style.opacity = '0';
+          return;
+        }
+
+        const containerRect = container.getBoundingClientRect();
+        const itemRect = activeItem.getBoundingClientRect();
+        if (containerRect.width === 0 || itemRect.width === 0) return;
+
+        const left = itemRect.left - containerRect.left;
+        const width = itemRect.width;
+
+        const prevLeft = parseFloat(pill.dataset.prevLeft || left);
+        const deltaX = left - prevLeft;
+        pill.dataset.prevLeft = left;
+
+        // Mercury droplet morphing: meregangkan bubble sesuai arah pergeseran
+        const stretch = Math.min(1.22, 1 + Math.abs(deltaX) / 280);
+
+        pill.style.opacity = '1';
+        pill.style.width = `${Math.round(width)}px`;
+
+        if (Math.abs(deltaX) > 6) {
+          pill.style.transition = 'transform 0.16s cubic-bezier(0.32, 0.72, 0, 1), width 0.16s ease';
+          pill.style.transform = `translate3d(${Math.round(left)}px, 0, 0) scaleX(${stretch})`;
+          setTimeout(() => {
+            pill.style.transition = 'transform 0.32s cubic-bezier(0.175, 0.885, 0.32, 1.275), width 0.32s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+            pill.style.transform = `translate3d(${Math.round(left)}px, 0, 0) scaleX(1)`;
+          }, 90);
+        } else {
+          pill.style.transition = 'transform 0.32s cubic-bezier(0.175, 0.885, 0.32, 1.275), width 0.32s ease';
+          pill.style.transform = `translate3d(${Math.round(left)}px, 0, 0) scaleX(1)`;
+        }
+      });
+    } catch (e) {
+      console.warn('updateMobileNavLiquidPill error:', e);
+    }
+  },
+
   navigate(viewName, subTab = null) {
     this.updateSidebarAuthoritiesUI();
 
@@ -8070,16 +8124,10 @@ Tugas Anda menganalisa temuan observasi toko berikut:
 Kategori: ${category || 'Umum / QSC'}
 Temuan: "${findingText}"
 
-METODOLOGI ANALISIS S.M.A.R.T (WAJIB DITERAPKAN DI SELURUH ASPEK JAWABAN):
-1. Specific (Spesifik): Uraikan produk, area, atau peralatan secara detail dan presisi, jangan menggunakan kalimat multitafsir atau mengambang.
-2. Measurable (Terukur): Cantumkan indikator standar kuantitatif terukur (contoh: suhu chiller 2°C-8°C, freezer -18°C s/d -20°C, holding time hot snack 4-6 jam, holding topping 14 hari container bulat / 1 bulan box 2,4L, kuantitas atau durasi).
-3. Achievable (Dapat Dicapai): Tindakan perbaikan realistis dan dapat langsung dikerjakan oleh kru toko / Shift Leader / Store Leader.
-4. Relevant (Relevan): Berorientasi pada kepatuhan Food Safety, Standar Holding Time R23 resmi, SOP FamilyMart Indonesia, QSC, OPI, dan Clean As You Go.
-5. Time-bound (Batas Waktu Jelas): Tindakan perbaikan WAJIB mencantumkan tenggat waktu tegas (contoh: "Tarik/musnahkan dalam 15 menit", "Selesaikan sebelum pergantian shift hari ini", "Maksimal 1x24 jam", "Kontrol rutin setiap 2 jam").
-
 Instruksi Khusus & Terminologi FamilyMart:
-- Gunakan terminologi operasional resmi: Shift Leader, Store Leader, Area Manager, Clean As You Go, Tabel Standar Holding Time, Waste jika relevan.
-- Jika jawaban dalam bentuk poin-poin (misal 1., 2., 3.), WAJIB pisahkan setiap poin dengan karakter baris baru (\n) sehingga otomatis turun ke bawah per-point.
+- Gunakan terminologi operasional resmi FamilyMart Indonesia: Shift Leader, Store Leader, Area Manager, Clean As You Go, Tabel Holding Time, Tabel Standar Holding Time, Waste jika relevan.
+- Berikan analisis operasional yang tajam, profesional, dan to the point sesuai standar retail convenience store (SOP & Food Safety FamilyMart Indonesia).
+- Jika jawaban dalam bentuk poin-poin (misal 1., 2., 3. atau bullet - ), WAJIB pisahkan setiap poin dengan karakter baris baru (\n) sehingga otomatis turun ke bawah per-point dan tidak bersambung.
 - Balas HANYA dalam format JSON valid persis tanpa tanda kutip markdown backticks, dengan 5 field berikut:
 {
   "kondisiIdeal": "Standar kondisi ideal yang seharusnya berlaku di toko...",
@@ -8292,18 +8340,11 @@ Tugas Anda: Kompilasi dan ringkas kumpulan deskripsi foto visit menjadi daftar t
 - Lingkungan Store (Kebersihan area toko: sales floor, langit-langit, kaca, tempat sampah, penerangan)
 - Grooming (Standar kerapian kru: seragam lengkap, apron, topi/hairnet, nametag, kebersihan personal)
 
-METODOLOGI S.M.A.R.T (WAJIB DITERAPKAN DI SETIAP TEMUAN & TINDAKAN PERBAIKAN):
-- Specific (Spesifik): Objek produk, alat, atau area toko jelas dan tidak mengambang.
-- Measurable (Terukur): Cantumkan parameter ukuran terukur (suhu standar, batas waktu holding time, jumlah/persentase).
-- Achievable (Dapat Dicapai): Solusi realistis dapat dikerjakan kru/Shift Leader toko saat ini juga.
-- Relevant (Relevan): Mematuhi standar QSC, OPI, SOP, dan Food Safety FamilyMart Indonesia.
-- Time-bound (Batas Waktu Jelas): Tindakan perbaikan WAJIB berbatas waktu tegas (misal: "Segera dalam 15-30 menit", "Sebelum pergantian shift", "Maksimal 1x24 jam").
-
-ATURAN PERINGKASAN TEMUAN:
+ATURAN PERINGKASAN TEMUAN (SANGAT PENTING):
 1. JANGAN menyalin persis deskripsi foto yang panjang!
-2. OLAH KEMBALI dan RINGKAS temuan menjadi kalimat profesional, lugas, padat, dan memenuhi kaidah S.M.A.R.T.
+2. OLAH KEMBALI dan RINGKAS temuan menjadi kalimat profesional, lugas, dan padat (maksimal 1-2 kalimat to the point).
 3. Gabungkan foto-foto yang membahas masalah serupa menjadi satu temuan kompilasi solid.
-4. Gunakan kata kunci operasional resmi: Shift Leader, Store Leader, Area Manager, Clean As You Go, Tabel Standar Holding Time, Waste jika relevan.
+4. Gunakan kata kunci operasional resmi FamilyMart: Shift Leader, Store Leader, Area Manager, Clean As You Go, Tabel Standar Holding Time, Waste jika relevan.
 5. Jika tindakan perbaikan berupa poin-poin, pisahkan baris baru (\n) per poin.
 
 DAFTAR DESKRIPSI FOTO VISIT:
