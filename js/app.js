@@ -1031,7 +1031,82 @@ window.FMCUApp = {
   syncNotificationStateToServiceWorker() {},
   checkAndDispatchScheduledHourReminders() {},
   dispatchPushNotification() {},
-  checkAndDispatchUserVisitNotifications() {},
+
+  // ==========================================================================
+  // NOTIFIKASI JADWAL BARU UNTUK KARYAWAN / VISITOR (MAX 3 SECARA BERGANTIAN)
+  // ==========================================================================
+  checkAndDispatchUserVisitNotifications(isInit = false) {
+    if (!this.currentUser) return;
+    const user = this.currentUser;
+    const schedules = window.FMCUData ? window.FMCUData.getSchedules() : [];
+    if (!Array.isArray(schedules) || schedules.length === 0) return;
+
+    // Filter jadwal khusus milik user yang sedang aktif
+    const mySchedules = schedules.filter((s) => s && this.isScheduleOwnedByUser(s, user));
+    if (mySchedules.length === 0) return;
+
+    const storageKey = `fmcu_seen_schedule_ids_${user.id || user.username}`;
+    let seenIds = [];
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) seenIds = JSON.parse(raw);
+    } catch (e) {}
+
+    // Sesi awal login di perangkat ini: simpan seluruh ID jadwal saat ini sebagai baseline
+    if (!Array.isArray(seenIds) || seenIds.length === 0) {
+      const allCurrentIds = mySchedules.map((s) => String(s.id || s.storeCode));
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(allCurrentIds));
+      } catch (e) {}
+      return;
+    }
+
+    const seenSet = new Set(seenIds.map(String));
+    const newSchedules = mySchedules.filter((s) => {
+      const sid = String(s.id || s.storeCode);
+      return !seenSet.has(sid);
+    });
+
+    if (newSchedules.length > 0) {
+      // Simpan segera ID baru agar tidak berulang
+      const updatedSeen = Array.from(new Set([...seenIds, ...newSchedules.map((s) => String(s.id || s.storeCode))]));
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(updatedSeen));
+      } catch (e) {}
+
+      // Tampilkan toast notifikasi jadwal baru (maksimal 3 secara bergantian)
+      if (newSchedules.length === 1) {
+        const s = newSchedules[0];
+        const storeLabel = s.storeName ? `${s.storeName} (${s.storeCode})` : (s.storeCode || 'Toko');
+        const dateLabel = window.FMCUPdf ? window.FMCUPdf.formatIndonesianDate(s.scheduledDate, true) : s.scheduledDate;
+        this.showToast(`📅 Jadwal Baru Masuk: ${storeLabel} — ${dateLabel}`, 'success', 6000);
+      } else {
+        this.showToast(`📅 Ada ${newSchedules.length} Jadwal Baru Masuk untuk Anda!`, 'success', 5000);
+        newSchedules.slice(0, 2).forEach((s, idx) => {
+          setTimeout(() => {
+            const storeLabel = s.storeName ? `${s.storeName} (${s.storeCode})` : (s.storeCode || 'Toko');
+            this.showToast(`📌 ${storeLabel} (${s.scheduledDate})`, 'info', 4000);
+          }, (idx + 1) * 350);
+        });
+      }
+
+      this.triggerHaptic('success');
+
+      // Native Web Notification jika diizinkan
+      try {
+        if ('Notification' in window && Notification.permission === 'granted') {
+          const first = newSchedules[0];
+          new Notification('📅 FMCU Visit Report - Jadwal Baru', {
+            body: newSchedules.length === 1
+              ? `Jadwal baru masuk: ${first.storeName || first.storeCode} (${first.scheduledDate})`
+              : `Ada ${newSchedules.length} jadwal visit baru yang ditugaskan kepada Anda.`,
+            icon: 'FMCUICON.png',
+            badge: 'FMCUICON.png'
+          });
+        }
+      } catch (e) {}
+    }
+  },
 
   // ==========================================================================
   // TOAST NOTIFICATION HELPER (iOS 27 Dynamic Island & Liquid Glass Style)
@@ -1039,6 +1114,23 @@ window.FMCUApp = {
   showToast(message, type = 'success', duration = 3200) {
     const container = document.getElementById('toast-container');
     if (!container) return;
+
+    // Batasi total notifikasi aktif di layar maksimal 3 secara bergantian agar tidak menutupi halaman
+    const activeToasts = Array.from(container.querySelectorAll('.ios27-toast:not(.toast-dismissing)'));
+    if (activeToasts.length >= 3) {
+      const excess = (activeToasts.length - 3) + 1;
+      for (let i = 0; i < excess; i++) {
+        const oldEl = activeToasts[i];
+        if (oldEl) {
+          oldEl.classList.add('toast-dismissing');
+          oldEl.style.transition = 'all 0.22s cubic-bezier(0.4, 0, 0.2, 1)';
+          oldEl.style.transform = 'translateY(-14px) scale(0.92)';
+          oldEl.style.opacity = '0';
+          setTimeout(() => oldEl.remove(), 240);
+        }
+      }
+    }
+
     const iconConfig = {
       success: { icon: 'fa-circle-check', color: 'text-emerald-400', glow: 'rgba(52, 211, 153, 0.7)' },
       info: { icon: 'fa-circle-info', color: 'text-cyan-400', glow: 'rgba(34, 211, 238, 0.7)' },
@@ -1064,9 +1156,12 @@ window.FMCUApp = {
 
     const ttl = typeof duration === 'number' && duration > 0 ? duration : 3200;
     setTimeout(() => {
-      el.style.transform = 'translateY(-14px) scale(0.92)';
-      el.style.opacity = '0';
-      setTimeout(() => el.remove(), 280);
+      if (!el.classList.contains('toast-dismissing')) {
+        el.classList.add('toast-dismissing');
+        el.style.transform = 'translateY(-14px) scale(0.92)';
+        el.style.opacity = '0';
+        setTimeout(() => el.remove(), 280);
+      }
     }, ttl);
   },
 

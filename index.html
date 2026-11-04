@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1800230000000" as="style" />
-  <link rel="preload" href="css/styles.css?v=1800230000000" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1800240000000" as="style" />
+  <link rel="preload" href="css/styles.css?v=1800240000000" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1800230000000" />
-  <link rel="stylesheet" href="css/styles.css?v=1800230000000" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1800240000000" />
+  <link rel="stylesheet" href="css/styles.css?v=1800240000000" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -791,7 +791,7 @@
             <!-- Sub-tab 2: Jadwal Visit -->
             <button type="button" id="home-subtab-btn-schedule" onclick="FMCUApp.switchHomeSubSection('schedule')" class="shrink-0 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer text-slate-600 hover:text-slate-900 hover:bg-slate-100 whitespace-nowrap">
               <i class="fa-solid fa-calendar-days text-[#009944]"></i>
-              <span>Jadwal Visit</span>
+              <span>JADWAL</span>
               <span id="home-schedule-count-pill" class="hidden">0</span>
             </button>
             <!-- Sub-tab 3: History & Arsip Visit -->
@@ -863,7 +863,7 @@
                   <!-- Text Slide Content Area (Swipeable) -->
                   <div id="home-news-track" class="min-h-[48px] sm:min-h-[42px] flex items-center">
                     <p id="home-news-text" class="text-xs sm:text-[13px] text-slate-700 leading-relaxed font-medium transition-all duration-300">
-                      Silakan pilih toko pada sub section <strong>Jadwal Visit</strong> atau tekan tombol <strong>Visit Toko Jadwal Hari Ini</strong> di bawah ini untuk melakukan <em>Check-In (Actual In)</em> dan membuka Form Visit toko tersebut.
+                      Silakan pilih toko pada sub section <strong>JADWAL</strong> atau tekan tombol <strong>Visit Toko Jadwal Hari Ini</strong> di bawah ini untuk melakukan <em>Check-In (Actual In)</em> dan membuka Form Visit toko tersebut.
                     </p>
                   </div>
 
@@ -881,7 +881,7 @@
                   </button>
                   <button type="button" onclick="FMCUApp.switchHomeSubSection('schedule')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-extrabold p-2.5 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm shadow-xs transition flex items-center justify-center text-center gap-1.5 sm:gap-2 cursor-pointer">
                     <i class="fa-solid fa-calendar-days text-[#009944] text-xs sm:text-sm shrink-0"></i>
-                    <span class="leading-tight">Lihat Jadwal Visit Toko</span>
+                    <span class="leading-tight">Lihat JADWAL</span>
                   </button>
                 </div>
               </div>
@@ -952,7 +952,7 @@
                 </div>
                 <div>
                   <div class="font-extrabold text-sm text-slate-900 flex items-center gap-2">
-                    <span>Sub Section: Jadwal Visit Toko</span>
+                    <span>Sub Section: JADWAL</span>
                     <span class="text-[10px] px-2 py-0.2 rounded-full bg-emerald-100 text-emerald-800 font-bold">Buka</span>
                   </div>
                   <div class="text-xs text-slate-500 mt-0.5">Daftar toko yang diminta visit, tanggal jadwal terdekat & tombol Check-In</div>
@@ -994,7 +994,7 @@
               <div>
                 <div class="flex items-center gap-2">
                   <span class="w-2 h-5 rounded-full bg-[#009944]"></span>
-                  <h3 class="text-base sm:text-lg font-extrabold text-slate-900">Jadwal Toko yang Diminta Visit</h3>
+                  <h3 class="text-base sm:text-lg font-extrabold text-slate-900">JADWAL</h3>
                 </div>
                 
               </div>
@@ -3896,16 +3896,16 @@ service cloud.firestore {
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js" crossorigin="anonymous"></script>
 
   <!-- Core Application Scripts (Fast Startup & Auth Priority) -->
-  <script defer src="js/holding-time-standards.js?v=1800230000000"></script>
-  <script defer src="js/master-stores-seed.js?v=1800230000000"></script>
-  <script defer src="js/bestie-in-charge-seed.js?v=1800230000000"></script>
-  <script defer src="js/data.js?v=1800230000000"></script>
-  <script defer src="js/pdf-generator.js?v=1800230000000"></script>
-  <script defer src="js/app.js?v=1800230000000"></script>
+  <script defer src="js/holding-time-standards.js?v=1800240000000"></script>
+  <script defer src="js/master-stores-seed.js?v=1800240000000"></script>
+  <script defer src="js/bestie-in-charge-seed.js?v=1800240000000"></script>
+  <script defer src="js/data.js?v=1800240000000"></script>
+  <script defer src="js/pdf-generator.js?v=1800240000000"></script>
+  <script defer src="js/app.js?v=1800240000000"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1800230000000"></script>
+  <script async src="js/pdf-assets.js?v=1800240000000"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================
