@@ -277,7 +277,7 @@ const DEFAULT_SETTINGS = {
 
 // Data Karyawan hasil ekstraksi "Data_Karyawan_NIK.xlsx" & "Templete Jadwal.xlsx" (Total 35 Karyawan: 18 Regional Bestie + 17 Karyawan/Trainer FMCU)
 const EMPLOYEE_NIK_SEED_ROWS = [
-  { name: 'Aan Bagus Permana', nik: '210822947', jabatan: 'Regional Bestie' },
+  { name: 'Aan Bagus Permana', nik: '210822947', jabatan: 'Web Application Developer & System Architect', role: 'SUPER_ADMIN' },
   { name: 'Al Azis Rachman Rizal', nik: 'TR-alazisrach', jabatan: 'Trainer FMCU / Regional Bestie' },
   { name: 'Anggi Novita', nik: '230723742', jabatan: 'Regional Bestie' },
   { name: 'Aulia Puspita Dewi', nik: 'TR-auliapuspi', jabatan: 'Trainer FMCU / Regional Bestie' },
@@ -333,24 +333,36 @@ function mapEmployeeRowToUserObject(row, index = 0, options = {}) {
       : rawNik || '123');
 
   const jabLower = rawJabatan.toLowerCase();
+  const nameLower = rawName.toLowerCase();
   let role = 'AUDITOR';
   let roleBadge = 'Visitor / Regional Bestie';
   let authorities = ['view_home', 'view_analytics', 'create_visit', 'export_pdf'];
 
-  if (jabLower.includes('super admin')) {
+  if (
+    row.role === 'SUPER_ADMIN' ||
+    jabLower.includes('super admin') ||
+    jabLower.includes('developer') ||
+    jabLower.includes('system architect') ||
+    nameLower.includes('aan bagus')
+  ) {
     role = 'SUPER_ADMIN';
-    roleBadge = 'Super Admin FMCU';
+    roleBadge = nameLower.includes('aan bagus')
+      ? 'Web Application Developer & System Architect'
+      : 'Super Admin FMCU';
     authorities = [
       'view_home',
       'view_analytics',
       'create_visit',
       'export_pdf',
+      'live_checkin',
       'manage_schedule',
       'manage_stores',
       'manage_users',
-      'manage_integrations'
+      'manage_integrations',
+      'view_live_maps'
     ];
   } else if (
+    row.role === 'ADMIN_SCHEDULE' ||
     jabLower.includes('admin jadwal') ||
     jabLower.includes('regional manager') ||
     jabLower.includes('area manager') ||
@@ -359,7 +371,15 @@ function mapEmployeeRowToUserObject(row, index = 0, options = {}) {
   ) {
     role = 'ADMIN_SCHEDULE';
     roleBadge = rawJabatan ? `Admin Jadwal (${rawJabatan})` : 'Admin Jadwal';
-    authorities = ['view_home', 'view_analytics', 'create_visit', 'export_pdf', 'manage_schedule'];
+    authorities = [
+      'view_home',
+      'view_analytics',
+      'create_visit',
+      'export_pdf',
+      'manage_schedule',
+      'manage_stores',
+      'view_live_maps'
+    ];
   } else {
     role = 'AUDITOR';
     if (jabLower.includes('visitor')) {
@@ -1326,7 +1346,27 @@ window.FMCUData = {
           resp.users.forEach((u) => {
             const key = String(u.id || u.username);
             const cur = userMap.get(key);
-            userMap.set(key, cur ? { ...cur, ...u } : u);
+            if (!cur) {
+              userMap.set(key, u);
+            } else {
+              const curNorm = String(cur.name || '').toLowerCase();
+              const isSuper = cur.role === 'SUPER_ADMIN' || cur.username === 'admin' || curNorm.includes('aan bagus') || curNorm.includes('admin fmcu');
+              const isScheduleAdmin = !isSuper && (cur.role === 'ADMIN_SCHEDULE' || (cur.jabatan && /admin jadwal|regional manager|area manager/i.test(cur.jabatan)));
+              const mergedAuths = Array.from(new Set([
+                ...(cur.authorities || []),
+                ...(u.authorities || [])
+              ]));
+              userMap.set(key, {
+                ...cur,
+                ...u,
+                role: isSuper ? 'SUPER_ADMIN' : (isScheduleAdmin ? 'ADMIN_SCHEDULE' : (cur.role || u.role)),
+                roleBadge: isSuper && curNorm.includes('aan bagus')
+                  ? 'Web Application Developer & System Architect'
+                  : (cur.roleBadge || u.roleBadge),
+                authorities: mergedAuths,
+                _v2AuthSchema: true
+              });
+            }
           });
           const mergedUsers = Array.from(userMap.values());
           if (JSON.stringify(currentUsers) !== JSON.stringify(mergedUsers)) {
@@ -2066,11 +2106,41 @@ window.FMCUData = {
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(deduped));
     }
 
-    const result = deduped.map((u) => ({
-      ...u,
-      name: u.name === 'Auditor FMCU' ? 'Visitor FMCU' : u.name,
-      roleBadge: String(u.roleBadge || '').replace(/Auditor/gi, 'Visitor')
-    }));
+    const result = deduped.map((u) => {
+      const normName = String(u.name || '').toLowerCase();
+      const isSuper = u.role === 'SUPER_ADMIN' || u.username === 'admin' || normName.includes('aan bagus') || normName.includes('admin fmcu');
+      const isScheduleAdmin = !isSuper && (u.role === 'ADMIN_SCHEDULE' || (u.jabatan && /admin jadwal|regional manager|area manager/i.test(u.jabatan)));
+
+      let finalAuths = Array.isArray(u.authorities) ? [...u.authorities] : [];
+      if (isSuper) {
+        finalAuths = [
+          'view_home', 'view_analytics', 'create_visit', 'export_pdf',
+          'live_checkin', 'manage_schedule', 'manage_stores', 'manage_users', 'manage_integrations', 'view_live_maps'
+        ];
+      } else if (isScheduleAdmin) {
+        finalAuths = Array.from(new Set([
+          ...finalAuths,
+          'view_home', 'view_analytics', 'create_visit', 'export_pdf',
+          'manage_schedule', 'manage_stores', 'view_live_maps'
+        ]));
+      } else {
+        finalAuths = Array.from(new Set([
+          ...finalAuths,
+          'view_home', 'view_analytics', 'create_visit', 'export_pdf'
+        ]));
+      }
+
+      return {
+        ...u,
+        role: isSuper ? 'SUPER_ADMIN' : (isScheduleAdmin ? 'ADMIN_SCHEDULE' : (u.role || 'AUDITOR')),
+        roleBadge: isSuper && normName.includes('aan bagus')
+          ? 'Web Application Developer & System Architect'
+          : String(u.roleBadge || '').replace(/Auditor/gi, 'Visitor'),
+        authorities: finalAuths,
+        _v2AuthSchema: true,
+        name: u.name === 'Auditor FMCU' ? 'Visitor FMCU' : u.name
+      };
+    });
     this._cachedUsers = result;
     return result;
   },
