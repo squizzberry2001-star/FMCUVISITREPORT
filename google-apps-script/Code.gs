@@ -304,10 +304,75 @@ function doPost(e) {
     }
 
     // ========================================================================
+    // DATABASE ACTION: DELETE ITEM (TUNGGAL / BATCH) DARI HIDDEN VAULT
+    // ========================================================================
+    if (action === 'db_delete_item') {
+      var coll = payload.collection || 'schedules';
+      var targetId = String(payload.id || '');
+      var rootFolder = getOrCreateTargetFolder_(payload.gdriveFolderId || DEFAULT_ROOT_GDRIVE_ID, 'FMCU_VISIT_REPORTS');
+      var vaultFolder = getOrCreateVaultFolder_(rootFolder);
+      var binFileName = '.' + coll + '.db.bin';
+      var items = readVaultData_(vaultFolder, binFileName, []);
+      var filtered = [];
+      if (Array.isArray(items)) {
+        for (var i = 0; i < items.length; i++) {
+          var it = items[i];
+          if (!it) continue;
+          var itId = String(it.id || it.code || '');
+          if (itId !== targetId) {
+            filtered.push(it);
+          }
+        }
+        writeVaultData_(vaultFolder, binFileName, filtered);
+      }
+      return jsonResponse_({
+        status: 'SUCCESS',
+        action: 'db_delete_item',
+        collection: coll,
+        deletedId: targetId,
+        remainingCount: filtered.length,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (action === 'db_delete_items') {
+      var coll = payload.collection || 'schedules';
+      var idList = Array.isArray(payload.ids) ? payload.ids.map(String) : [];
+      var idSet = {};
+      for (var k = 0; k < idList.length; k++) {
+        idSet[idList[k]] = true;
+      }
+      var rootFolder = getOrCreateTargetFolder_(payload.gdriveFolderId || DEFAULT_ROOT_GDRIVE_ID, 'FMCU_VISIT_REPORTS');
+      var vaultFolder = getOrCreateVaultFolder_(rootFolder);
+      var binFileName = '.' + coll + '.db.bin';
+      var items = readVaultData_(vaultFolder, binFileName, []);
+      var filtered = [];
+      if (Array.isArray(items)) {
+        for (var i = 0; i < items.length; i++) {
+          var it = items[i];
+          if (!it) continue;
+          var itId = String(it.id || it.code || '');
+          if (!idSet[itId]) {
+            filtered.push(it);
+          }
+        }
+        writeVaultData_(vaultFolder, binFileName, filtered);
+      }
+      return jsonResponse_({
+        status: 'SUCCESS',
+        action: 'db_delete_items',
+        collection: coll,
+        deletedCount: idList.length,
+        remainingCount: filtered.length,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // ========================================================================
     // DATABASE ACTION: DELETE SCHEDULE FROM HIDDEN VAULT
     // ========================================================================
     if (action === 'db_delete_schedule') {
-      var targetId = String(payload.scheduleId || '');
+      var targetId = String(payload.scheduleId || payload.id || '');
       var rootFolder = getOrCreateTargetFolder_(payload.gdriveFolderId || DEFAULT_ROOT_GDRIVE_ID, 'FMCU_VISIT_REPORTS');
       var vaultFolder = getOrCreateVaultFolder_(rootFolder);
       var schedules = readVaultData_(vaultFolder, '.schedules.db.bin', []);
@@ -322,6 +387,31 @@ function doPost(e) {
       return jsonResponse_({
         status: 'SUCCESS',
         action: 'db_delete_schedule',
+        deletedId: targetId,
+        remainingCount: filtered.length,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // ========================================================================
+    // DATABASE ACTION: DELETE REPORT FROM HIDDEN VAULT
+    // ========================================================================
+    if (action === 'db_delete_report') {
+      var targetId = String(payload.reportId || payload.id || '');
+      var rootFolder = getOrCreateTargetFolder_(payload.gdriveFolderId || DEFAULT_ROOT_GDRIVE_ID, 'FMCU_VISIT_REPORTS');
+      var vaultFolder = getOrCreateVaultFolder_(rootFolder);
+      var reports = readVaultData_(vaultFolder, '.reports.db.bin', []);
+      var filtered = [];
+      for (var i = 0; i < reports.length; i++) {
+        if (String(reports[i].id) !== targetId) {
+          filtered.push(reports[i]);
+        }
+      }
+      writeVaultData_(vaultFolder, '.reports.db.bin', filtered);
+
+      return jsonResponse_({
+        status: 'SUCCESS',
+        action: 'db_delete_report',
         deletedId: targetId,
         remainingCount: filtered.length,
         timestamp: new Date().toISOString()

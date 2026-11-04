@@ -347,7 +347,28 @@ async function handleRequest(request, env) {
         await env.DB.batch(stmts);
         return jsonResponse({ status: 'SUCCESS', action: 'db_delete_items', collection: coll, count: ids.length });
       }
+      if (coll === 'reports') {
+        const stmts = ids.map((id) => env.DB.prepare('DELETE FROM reports WHERE id = ?').bind(id));
+        await env.DB.batch(stmts);
+        return jsonResponse({ status: 'SUCCESS', action: 'db_delete_items', collection: coll, count: ids.length });
+      }
       return jsonResponse({ status: 'ERROR', message: `Collection ${coll} tidak dikenali` }, 400);
+    }
+
+    if (action === 'db_delete_schedule') {
+      const sId = String(payload.scheduleId || payload.id || '');
+      if (sId) {
+        await env.DB.prepare('DELETE FROM schedules WHERE id = ?').bind(sId).run();
+      }
+      return jsonResponse({ status: 'SUCCESS', action: 'db_delete_schedule', id: sId });
+    }
+
+    if (action === 'db_delete_report') {
+      const rId = String(payload.reportId || payload.id || '');
+      if (rId) {
+        await env.DB.prepare('DELETE FROM reports WHERE id = ?').bind(rId).run();
+      }
+      return jsonResponse({ status: 'SUCCESS', action: 'db_delete_report', id: rId });
     }
 
     // ========================================================================

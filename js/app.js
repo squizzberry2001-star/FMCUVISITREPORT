@@ -539,10 +539,23 @@ window.FMCUApp = {
         this.updateHomeTodayVisitButtonUI();
       } else if (this.currentView === 'admin' || this.currentView === 'schedules') {
         this.renderAdminView();
+        if (this.currentScheduleSubSection === 'calendar') {
+          this.renderAdminCalendarView();
+        } else if (this.currentScheduleSubSection === 'history') {
+          this.renderAdminScheduleHistory();
+        }
       }
       if (meta && meta.schedule && this.isScheduleOwnedByUser(meta.schedule, this.currentUser)) {
-        this.showToast(`ðŸ“… Jadwal Visit Baru Diterima: ${meta.schedule.storeName || 'Toko'} (${meta.schedule.scheduledDate})`, 'success', 6000);
+        this.showToast(`📅 Jadwal Visit Baru Diterima: ${meta.schedule.storeName || 'Toko'} (${meta.schedule.scheduledDate})`, 'success', 6000);
         this.triggerHaptic('success');
+      }
+    }
+    if (collectionName === 'reports') {
+      if (this.currentView === 'home') {
+        this.renderHomeHistory();
+        this.updateHomeSubSectionPills();
+      } else if (this.currentView === 'admin' || this.currentView === 'schedules') {
+        this.renderAdminScheduleHistory();
       }
     }
     if (!document.getElementById('view-admin')?.classList.contains('hidden')) {
@@ -1259,12 +1272,29 @@ window.FMCUApp = {
       return;
     }
     const reports = window.FMCUData.getReports();
-    const rep = reports.find((r) => String(r.id) === String(reportId));
+    let rep = reports.find((r) => String(r.id) === String(reportId));
+    if (!rep) {
+      // Periksa apakah item riwayat berasal dari jadwal visit yang sudah kadaluarsa (auto-hist)
+      const schedules = window.FMCUData.getSchedules();
+      const rawSchId = String(reportId).startsWith('auto-hist-') ? String(reportId).replace('auto-hist-', '') : reportId;
+      const matchedSch = schedules.find((s) => String(s.id) === String(rawSchId) || String(s.reportId) === String(reportId));
+      if (matchedSch) {
+        rep = {
+          id: reportId,
+          scheduleId: matchedSch.id,
+          storeName: matchedSch.storeName || 'FamilyMart',
+          storeCode: matchedSch.storeCode || '-',
+          visitDate: matchedSch.scheduledDate,
+          auditorName: matchedSch.auditorName || '-'
+        };
+      }
+    }
     if (!rep) return;
 
     this._deleteAuthTarget = {
       type: 'report',
       id: rep.id,
+      scheduleId: rep.scheduleId || null,
       storeName: rep.storeName || 'FamilyMart',
       storeCode: rep.storeCode || '-',
       date: rep.visitDayDateFormatted || rep.visitDateFormatted || rep.visitDate || '-',
@@ -1403,35 +1433,79 @@ window.FMCUApp = {
 
     const target = this._deleteAuthTarget;
     if (target.type === 'report') {
+      const schId = target.scheduleId || (String(target.id).startsWith('auto-hist-') ? String(target.id).replace('auto-hist-', '') : null);
+
+      // 1. Bersihkan referensi jadwal terkait
       const schedules = window.FMCUData.getSchedules();
       let schUpdated = false;
-      schedules.forEach((s) => {
-        if (s.reportId === target.id || (s.storeCode === target.storeCode && s.status === 'COMPLETED')) {
+      const remainingSchedules = schedules.filter((s) => {
+        if (!s) return false;
+        if (schId && String(s.id) === String(schId)) {
+          // Hapus jadwal terkait jika ini adalah auto-hist visit
+          schUpdated = true;
+          return false;
+        }
+        if (s.reportId === target.id) {
           s.reportId = null;
           s.status = 'PENDING';
+          s.actualIn = null;
           s.actualOut = null;
+          s.isAutoMovedToHistory = false;
           schUpdated = true;
         }
+        return true;
       });
-      if (schUpdated) {
-        window.FMCUData.saveSchedules(schedules);
+
+      if (schId) {
+        window.FMCUData.deleteSchedule(schId);
+      } else if (schUpdated) {
+        window.FMCUData.saveSchedules(remainingSchedules);
       }
 
+      // 2. Hapus permanen laporan dari semua layer data
       window.FMCUData.deleteReport(target.id);
+
+      // 3. Hapus draf toko terkait
+      window.FMCUData.deleteStoreDraft(target.storeCode, target.scheduleId);
       window.FMCUData.deleteStoreDraft(target.storeCode);
 
       if (this.activePreviewReportId === target.id) {
         this.activePreviewReportId = null;
       }
       this.closeDeleteAuthorityModal();
-      this.renderAllViews();
+      this.renderAdminScheduleHistory();
+      this.renderHomeHistory();
+      this.renderAdminView();
+      this.renderHomeView();
       this.showToast(`Laporan visit Toko ${target.storeName} (${target.storeCode}) berhasil dihapus permanen!`, 'success');
     } else if (target.type === 'schedule') {
       this.deleteSchedule(target.id);
       this.closeDeleteAuthorityModal();
+      this.renderAdminView();
+      this.renderHomeSchedules();
+      if (this.currentScheduleSubSection === 'calendar') {
+        this.renderAdminCalendarView();
+      }
+      if (this.currentScheduleSubSection === 'create') {
+        this.renderWeeklySchedulePlanner();
+      }
+      if (this.currentScheduleSubSection === 'history') {
+        this.renderAdminScheduleHistory();
+      }
     } else if (target.type === 'bulk_schedule') {
       this.deleteBulkSchedules(target.ids);
       this.closeDeleteAuthorityModal();
+      this.renderAdminView();
+      this.renderHomeSchedules();
+      if (this.currentScheduleSubSection === 'calendar') {
+        this.renderAdminCalendarView();
+      }
+      if (this.currentScheduleSubSection === 'create') {
+        this.renderWeeklySchedulePlanner();
+      }
+      if (this.currentScheduleSubSection === 'history') {
+        this.renderAdminScheduleHistory();
+      }
     }
   },
 
@@ -10406,7 +10480,47 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     const badgeEl = document.getElementById('admin-sch-history-count-badge');
     const pillEl = document.getElementById('admin-schedule-history-count-pill');
 
-    const allReports = (window.FMCUData.getReports() || []).filter((r) => r && r.id && r.storeCode);
+    let allReports = (window.FMCUData.getReports() || []).filter((r) => r && r.id && r.storeCode);
+
+    // Sertakan juga kunjungan toko yang sudah selesai / kadaluarsa dari jadwal
+    const schedules = window.FMCUData.getSchedules() || [];
+    const expiredVisitedSchedules = schedules.filter((s) => {
+      if (!s || !s.storeCode) return false;
+      if (s.storeType === 'NON_STORE' || s.storeCode === 'CUTI' || s.storeCode === 'OFF' || s.storeCode === 'AGENDA') return false;
+
+      const isVisited = Boolean(s.actualIn && s.actualIn !== '-') || s.status === 'COMPLETED' || s.status === 'IN_PROGRESS' || Boolean(s.reportId) || Boolean(s.isAutoMovedToHistory);
+      const isPast24h = this.isSchedulePast24Hours(s);
+      if (!isPast24h || !isVisited) return false;
+
+      const alreadyHasReport = allReports.some(
+        (r) => (s.reportId && String(r.id) === String(s.reportId)) || (r.storeCode === s.storeCode && r.visitDate === s.scheduledDate)
+      );
+      return !alreadyHasReport;
+    });
+
+    expiredVisitedSchedules.forEach((s) => {
+      const draft = window.FMCUData.getStoreDraft(s.storeCode, s.id);
+      allReports.push({
+        id: draft?.id || s.reportId || ('auto-hist-' + s.id),
+        scheduleId: s.id,
+        storeCode: s.storeCode,
+        storeName: s.storeName,
+        storeType: s.storeType || 'CVS',
+        visitDate: s.scheduledDate,
+        auditorName: s.auditorName || 'Visitor',
+        auditorId: s.auditorId || '',
+        storeHead: draft?.storeHead || s.storeHead || '-',
+        actualIn: draft?.actualIn || s.actualIn || '-',
+        actualOut: draft?.actualOut || s.actualOut || '-',
+        gpsLat: draft?.gpsLat || s.actualLat || '-',
+        gpsLng: draft?.gpsLng || s.actualLng || '-',
+        observations: draft?.observations || [],
+        evidencePhotos: draft?.evidencePhotos || [],
+        isAutoMovedToHistory: true,
+        createdAt: s.scheduledDate ? (s.scheduledDate + 'T17:30:00.000Z') : new Date().toISOString()
+      });
+    });
+
     if (pillEl) {
       pillEl.textContent = String(allReports.length);
     }
@@ -15008,10 +15122,26 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
 
   deleteSchedule(id) {
     const schedules = window.FMCUData.getSchedules() || [];
-    const target = schedules.find((s) => s.id === id);
+    const target = schedules.find((s) => String(s.id) === String(id));
     window.FMCUData.deleteSchedule(id);
+    if (target && target.reportId) {
+      window.FMCUData.deleteReport(target.reportId);
+    }
+    if (target && target.storeCode) {
+      window.FMCUData.deleteStoreDraft(target.storeCode, target.id);
+    }
     this.renderAdminView();
-    this.showToast('Jadwal visit dihapus', 'info');
+    this.renderHomeSchedules();
+    if (this.currentScheduleSubSection === 'calendar') {
+      this.renderAdminCalendarView();
+    }
+    if (this.currentScheduleSubSection === 'create') {
+      this.renderWeeklySchedulePlanner();
+    }
+    if (this.currentScheduleSubSection === 'history') {
+      this.renderAdminScheduleHistory();
+    }
+    this.showToast('Jadwal visit berhasil dihapus permanen', 'info');
     if (target) {
       this.logScheduleAction('DELETE', `Menghapus jadwal visit toko ${target.storeName} (${target.storeCode}) untuk ${target.auditorName || '-'} tanggal ${target.scheduledDate}`, 'Daftar Jadwal');
     }
@@ -15116,6 +15246,16 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     window.FMCUData.deleteBulkSchedules(ids);
     this.selectedScheduleIds.clear();
     this.renderAdminView();
+    this.renderHomeSchedules();
+    if (this.currentScheduleSubSection === 'calendar') {
+      this.renderAdminCalendarView();
+    }
+    if (this.currentScheduleSubSection === 'create') {
+      this.renderWeeklySchedulePlanner();
+    }
+    if (this.currentScheduleSubSection === 'history') {
+      this.renderAdminScheduleHistory();
+    }
     this.showToast(`Berhasil menghapus ${count} jadwal visit toko!`, 'success');
     this.logScheduleAction(
       'DELETE',

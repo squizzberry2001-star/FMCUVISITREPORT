@@ -565,6 +565,7 @@ window.FMCUData = {
   _photoStorageInitPromise: null,
   _deletedReportIds: new Set(),
   _deletedScheduleIds: new Set(),
+  _deletedIdsLoaded: false,
   _syncChannel: null,
   _cachedUsers: null,
   _cachedStores: null,
@@ -572,12 +573,85 @@ window.FMCUData = {
   _cachedReports: null,
   _cachedBestieInCharge: null,
 
-  
+  _ensureDeletedIdsLoaded() {
+    if (this._deletedIdsLoaded) return;
+    this._deletedIdsLoaded = true;
+    try {
+      const persistedSch = JSON.parse(localStorage.getItem('fmcu_deleted_sch_ids_v1') || '[]');
+      if (Array.isArray(persistedSch)) {
+        persistedSch.forEach((id) => {
+          if (id) this._deletedScheduleIds.add(String(id));
+        });
+      }
+    } catch (e) {}
+    try {
+      const persistedRep = JSON.parse(localStorage.getItem('fmcu_deleted_report_ids_v1') || '[]');
+      if (Array.isArray(persistedRep)) {
+        persistedRep.forEach((id) => {
+          if (id) this._deletedReportIds.add(String(id));
+        });
+      }
+    } catch (e) {}
+  },
+
+  markScheduleDeleted(scheduleId) {
+    if (!scheduleId) return;
+    this._ensureDeletedIdsLoaded();
+    const docId = String(scheduleId);
+    this._deletedScheduleIds.add(docId);
+    try {
+      const persisted = JSON.parse(localStorage.getItem('fmcu_deleted_sch_ids_v1') || '[]');
+      if (!persisted.includes(docId)) {
+        persisted.push(docId);
+        localStorage.setItem('fmcu_deleted_sch_ids_v1', JSON.stringify(persisted.slice(-500)));
+      }
+    } catch (e) {}
+  },
+
+  unmarkScheduleDeleted(scheduleId) {
+    if (!scheduleId) return;
+    this._ensureDeletedIdsLoaded();
+    const docId = String(scheduleId);
+    this._deletedScheduleIds.delete(docId);
+    try {
+      let persisted = JSON.parse(localStorage.getItem('fmcu_deleted_sch_ids_v1') || '[]');
+      persisted = persisted.filter((id) => String(id) !== docId);
+      localStorage.setItem('fmcu_deleted_sch_ids_v1', JSON.stringify(persisted));
+    } catch (e) {}
+  },
+
+  markReportDeleted(reportId) {
+    if (!reportId) return;
+    this._ensureDeletedIdsLoaded();
+    const docId = String(reportId);
+    this._deletedReportIds.add(docId);
+    try {
+      const persisted = JSON.parse(localStorage.getItem('fmcu_deleted_report_ids_v1') || '[]');
+      if (!persisted.includes(docId)) {
+        persisted.push(docId);
+        localStorage.setItem('fmcu_deleted_report_ids_v1', JSON.stringify(persisted.slice(-500)));
+      }
+    } catch (e) {}
+  },
+
+  unmarkReportDeleted(reportId) {
+    if (!reportId) return;
+    this._ensureDeletedIdsLoaded();
+    const docId = String(reportId);
+    this._deletedReportIds.delete(docId);
+    try {
+      let persisted = JSON.parse(localStorage.getItem('fmcu_deleted_report_ids_v1') || '[]');
+      persisted = persisted.filter((id) => String(id) !== docId);
+      localStorage.setItem('fmcu_deleted_report_ids_v1', JSON.stringify(persisted));
+    } catch (e) {}
+  },
+
   // ==========================================================================
   // REAL-TIME MULTI-TAB & CROSS-CLIENT BROADCAST CHANNEL & STORAGE SYNC
   // Sinkronisasi instan 0ms antar-jendela/tab dan fallback event storage
   // ==========================================================================
   initSyncChannel() {
+    this._ensureDeletedIdsLoaded();
     if (typeof BroadcastChannel !== 'undefined' && !this._syncChannel) {
       try {
         this._syncChannel = new BroadcastChannel('fmcu_realtime_sync');
@@ -596,6 +670,13 @@ window.FMCUData = {
             this._cachedSchedules = JSON.parse(e.newValue);
             if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
               window.FMCUApp.onCloudDataUpdated('schedules');
+            }
+          } catch (err) {}
+        } else if (e.key === STORAGE_KEYS.REPORTS && e.newValue) {
+          try {
+            this._cachedReports = JSON.parse(e.newValue);
+            if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
+              window.FMCUApp.onCloudDataUpdated('reports');
             }
           } catch (err) {}
         } else if (e.key === STORAGE_KEYS.USERS && e.newValue) {
@@ -628,11 +709,19 @@ window.FMCUData = {
       }
     } else if (msg.type === 'SCHEDULE_DELETED') {
       if (msg.scheduleId) {
-        this._deletedScheduleIds.add(String(msg.scheduleId));
+        this.markScheduleDeleted(msg.scheduleId);
       }
       this.clearCache('schedules');
       if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
         window.FMCUApp.onCloudDataUpdated('schedules');
+      }
+    } else if (msg.type === 'REPORT_DELETED') {
+      if (msg.reportId) {
+        this.markReportDeleted(msg.reportId);
+      }
+      this.clearCache('reports');
+      if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
+        window.FMCUApp.onCloudDataUpdated('reports');
       }
     } else if (msg.type === 'LOCATION_UPDATED') {
       if (msg.userId && msg.location) {
@@ -1108,6 +1197,8 @@ window.FMCUData = {
         let storesChanged = false;
         let locationsChanged = false;
 
+        this._ensureDeletedIdsLoaded();
+
         // 1. Sync Schedules
         const localSchedules = this.getSchedules() || [];
         if (Array.isArray(resp.schedules) && resp.schedules.length > 0) {
@@ -1117,13 +1208,23 @@ window.FMCUData = {
           // Cloud vault adalah master kebenaran jadwal lintas perangkat
           const schMap = new Map();
           resp.schedules.forEach((s) => {
-            if (s && s.id) schMap.set(String(s.id), s);
+            if (s && s.id) {
+              const sid = String(s.id);
+              if (this._deletedScheduleIds.has(sid)) {
+                // Bersihkan langsung di background jika cloud masih mengembalikan item yang pernah dihapus
+                this.callGasDatabase('db_delete_item', { collection: 'schedules', id: sid });
+                this.callGasDatabase('db_delete_schedule', { scheduleId: sid });
+                return;
+              }
+              schMap.set(sid, s);
+            }
           });
 
           // Cek jadwal lokal jika ada sesi audit aktif atau jadwal offline
           localSchedules.forEach((local) => {
             if (!local || !local.id) return;
             const sId = String(local.id);
+            if (this._deletedScheduleIds.has(sId)) return;
             if (schMap.has(sId)) {
               const cloud = schMap.get(sId);
               // Pertahankan status check-in lokal jika Bestie di perangkat ini sedang aktif audit di toko tersebut
@@ -1149,6 +1250,41 @@ window.FMCUData = {
         } else if (localSchedules.length > 0) {
           // Cloud vault jadwal masih kosong: upload seed/local schedules ke cloud vault sekarang!
           this.callGasDatabase('db_save_collection', { collection: 'schedules', data: localSchedules });
+        }
+
+        // 1B. Sync Reports (History Laporan Lintas Perangkat)
+        if (Array.isArray(resp.reports) && resp.reports.length > 0) {
+          const localReports = this.getReports() || [];
+          const repMap = new Map();
+          resp.reports.forEach((r) => {
+            if (r && r.id) {
+              const rid = String(r.id);
+              if (this._deletedReportIds.has(rid)) {
+                this.callGasDatabase('db_delete_item', { collection: 'reports', id: rid });
+                this.callGasDatabase('db_delete_report', { reportId: rid });
+                return;
+              }
+              repMap.set(rid, r);
+            }
+          });
+          localReports.forEach((localR) => {
+            if (!localR || !localR.id) return;
+            const rid = String(localR.id);
+            if (this._deletedReportIds.has(rid)) return;
+            if (!repMap.has(rid)) {
+              repMap.set(rid, localR);
+            }
+          });
+          const mergedReports = Array.from(repMap.values()).sort((a, b) =>
+            String(b.createdAt || b.visitDate || '').localeCompare(String(a.createdAt || a.visitDate || ''))
+          );
+          if (JSON.stringify(localReports) !== JSON.stringify(mergedReports)) {
+            this._cachedReports = mergedReports;
+            this.saveReportsLocalOnly(mergedReports);
+            if (window.FMCUApp && typeof window.FMCUApp.onCloudDataUpdated === 'function') {
+              window.FMCUApp.onCloudDataUpdated('reports');
+            }
+          }
         }
 
         // 2. Sync Users (Bestie & Admin)
@@ -1525,11 +1661,8 @@ window.FMCUData = {
         const cloudSchedules = [];
         const seenIds = new Set();
 
-        // Inisialisasi daftar id jadwal yang pernah dihapus agar tidak hidup lagi
-        try {
-          const persisted = JSON.parse(localStorage.getItem('fmcu_deleted_sch_ids_v1') || '[]');
-          persisted.forEach((id) => this._deletedScheduleIds.add(String(id)));
-        } catch (e) {}
+        // Inisialisasi daftar id jadwal & laporan yang pernah dihapus agar tidak hidup lagi
+        this._ensureDeletedIdsLoaded();
 
         snapshot.forEach((doc) => {
           const d = doc.data();
@@ -1585,6 +1718,7 @@ window.FMCUData = {
     const unsubReports = this.db.collection('reports').onSnapshot(
       (snapshot) => {
         this.setCloudStatus('ONLINE');
+        this._ensureDeletedIdsLoaded();
         const localReports = this.getReports();
         const cloudReports = [];
         const seenIds = new Set();
@@ -2161,14 +2295,26 @@ window.FMCUData = {
   },
 
   getSchedules(forceRefresh = false) {
+    this._ensureDeletedIdsLoaded();
     if (!forceRefresh && Array.isArray(this._cachedSchedules)) {
-      return this._cachedSchedules;
+      return this._cachedSchedules.filter((s) => s && s.id && !this._deletedScheduleIds.has(String(s.id)));
     }
-    const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.SCHEDULES) || '[]');
-    // Urutkan jadwal toko dimulai dari tanggal terdekat secara kronologis
-    const sorted = list.sort((a, b) => String(a.scheduledDate || '').localeCompare(String(b.scheduledDate || '')));
-    this._cachedSchedules = sorted;
-    return sorted;
+    let list = [];
+    try {
+      list = JSON.parse(localStorage.getItem(STORAGE_KEYS.SCHEDULES) || '[]');
+    } catch (e) {
+      list = [];
+    }
+    // Filter ketat terhadap _deletedScheduleIds agar jadwal terhapus tidak pernah hidup lagi
+    const filtered = (list || []).filter((s) => s && s.id && !this._deletedScheduleIds.has(String(s.id)));
+    filtered.sort((a, b) => String(a.scheduledDate || '').localeCompare(String(b.scheduledDate || '')));
+    if (filtered.length !== list.length) {
+      try {
+        localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(filtered));
+      } catch (e) {}
+    }
+    this._cachedSchedules = filtered;
+    return filtered;
   },
   
   // ==========================================================================
@@ -2176,7 +2322,7 @@ window.FMCUData = {
   // Menjaga sinkronisasi antar-perangkat tetap berjalan saat Firestore mencapai limit
   // ==========================================================================
   async backupSchedulesToGDrive(schedules) {
-    if (!Array.isArray(schedules) || schedules.length === 0) return;
+    if (!Array.isArray(schedules)) return;
     const settings = this.getSettings();
     const gasUrl = (settings.gasWebhookUrl || '').trim();
     if (!gasUrl || !gasUrl.startsWith('http')) return;
@@ -2194,6 +2340,7 @@ window.FMCUData = {
   },
 
   async fetchSchedulesFromGDrive() {
+    this._ensureDeletedIdsLoaded();
     const settings = this.getSettings();
     const gasUrl = (settings.gasWebhookUrl || '').trim();
     if (!gasUrl || !gasUrl.startsWith('http')) return null;
@@ -2208,7 +2355,7 @@ window.FMCUData = {
       });
       const json = await res.json();
       if (json && json.status === 'SUCCESS' && Array.isArray(json.schedules) && json.schedules.length > 0) {
-        return json.schedules;
+        return json.schedules.filter((s) => s && s.id && !this._deletedScheduleIds.has(String(s.id)));
       }
     } catch (e) {
       console.warn('Fetch schedules from GDrive failed:', e);
@@ -2219,6 +2366,7 @@ window.FMCUData = {
   saveSingleSchedule(sch) {
     if (!sch || !sch.id) return;
     const docId = String(sch.id);
+    this.unmarkScheduleDeleted(docId);
     const schedules = this.getSchedules() || [];
     const idx = schedules.findIndex((s) => String(s.id) === docId);
     const enrichedSch = { ...sch, updatedAt: new Date().toISOString() };
@@ -2254,24 +2402,26 @@ window.FMCUData = {
   deleteSchedule(scheduleId) {
     if (!scheduleId) return;
     const docId = String(scheduleId);
-    this._deletedScheduleIds.add(docId);
-    try {
-      const persistedDeleted = JSON.parse(localStorage.getItem('fmcu_deleted_sch_ids_v1') || '[]');
-      if (!persistedDeleted.includes(docId)) {
-        persistedDeleted.push(docId);
-        localStorage.setItem('fmcu_deleted_sch_ids_v1', JSON.stringify(persistedDeleted.slice(-200)));
-      }
-    } catch (e) {}
+    this.markScheduleDeleted(docId);
 
     const schedules = (this.getSchedules() || []).filter((s) => String(s.id) !== docId);
     this._cachedSchedules = schedules;
-    localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
+    try {
+      localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
+    } catch (e) {}
 
-    // 1. Hapus langsung di Cloudflare D1 Edge DB (~20ms atomic delete)
+    // 1. Hapus langsung di Cloudflare D1 Edge DB & Google Apps Script
     this.callGasDatabase('db_delete_item', { collection: 'schedules', id: docId });
+    this.callGasDatabase('db_delete_schedule', { scheduleId: docId });
+    this.callGasDatabase('db_save_collection', { collection: 'schedules', data: schedules });
 
+    // 2. Backup list terbaru ke Google Drive Vault agar sinkron permanen
+    this.backupSchedulesToGDrive(schedules);
+
+    // 3. Broadcast sync ke tab/jendela lain
     this.broadcastSync({ type: 'SCHEDULE_DELETED', scheduleId: docId });
 
+    // 4. Hapus di Firestore jika aktif
     if (this.db && this.cloudStatus !== 'QUOTA_EXCEEDED') {
       this.db
         .collection('schedules')
@@ -2284,23 +2434,28 @@ window.FMCUData = {
   deleteBulkSchedules(ids = []) {
     if (!ids || ids.length === 0) return;
     const idSet = new Set(ids.map(String));
-    ids.forEach((id) => this._deletedScheduleIds.add(String(id)));
-    try {
-      const persistedDeleted = JSON.parse(localStorage.getItem('fmcu_deleted_sch_ids_v1') || '[]');
-      ids.forEach((id) => {
-        if (!persistedDeleted.includes(String(id))) persistedDeleted.push(String(id));
-      });
-      localStorage.setItem('fmcu_deleted_sch_ids_v1', JSON.stringify(persistedDeleted.slice(-200)));
-    } catch (e) {}
+    ids.forEach((id) => this.markScheduleDeleted(id));
 
     const schedules = (this.getSchedules() || []).filter((s) => !idSet.has(String(s.id)));
     this._cachedSchedules = schedules;
-    localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
+    try {
+      localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
+    } catch (e) {}
 
-    // Hapus batch di Cloudflare D1 Edge DB
+    // 1. Hapus batch di Cloudflare D1 Edge DB & Google Apps Script
     this.callGasDatabase('db_delete_items', { collection: 'schedules', ids: ids });
+    ids.forEach((id) => {
+      this.callGasDatabase('db_delete_schedule', { scheduleId: String(id) });
+    });
+    this.callGasDatabase('db_save_collection', { collection: 'schedules', data: schedules });
+
+    // 2. Backup list terbaru ke Google Drive Vault
+    this.backupSchedulesToGDrive(schedules);
+
+    // 3. Broadcast sync
     this.broadcastSync({ type: 'SCHEDULES_UPDATED', count: schedules.length });
 
+    // 4. Hapus di Firestore jika aktif
     if (this.db) {
       ids.forEach((id) => {
         this.db
@@ -2920,6 +3075,7 @@ window.FMCUData = {
 
         // 3. Preload foto & laporan lengkap dari reports store di IndexedDB dan gabungkan ke _cachedReports
         if (db.objectStoreNames.contains('reports')) {
+          this._ensureDeletedIdsLoaded();
           const idbReports = [];
           await new Promise((resolve) => {
             const timer = setTimeout(resolve, 1500);
@@ -2928,7 +3084,7 @@ window.FMCUData = {
               resolve();
             };
             try {
-              const repTx = db.transaction('reports', 'readonly');
+              const repTx = db.transaction('reports', 'readwrite');
               const repStore = repTx.objectStore('reports');
               const repCursorReq = repStore.openCursor();
               repCursorReq.onsuccess = (e) => {
@@ -2939,6 +3095,8 @@ window.FMCUData = {
                     if (rep && rep.id && !this._deletedReportIds.has(String(rep.id))) {
                       this.cacheReportPhotosInMemory(rep, false);
                       idbReports.push(rep);
+                    } else if (rep && rep.id && this._deletedReportIds.has(String(rep.id))) {
+                      try { cursor.delete(); } catch (_) {}
                     }
                     cursor.continue();
                   } else {
@@ -2963,6 +3121,7 @@ window.FMCUData = {
           });
           idbReports.forEach((idbRep) => {
             const rid = String(idbRep.id);
+            if (this._deletedReportIds.has(rid)) return;
             if (mergedMap.has(rid)) {
               const cur = mergedMap.get(rid);
               const tsIdb = Date.parse(idbRep.updatedAt || idbRep.createdAt || '') || 0;
@@ -3249,8 +3408,9 @@ window.FMCUData = {
   },
 
   getReports(forceRefresh = false) {
+    this._ensureDeletedIdsLoaded();
     if (!forceRefresh && Array.isArray(this._cachedReports)) {
-      return this._cachedReports;
+      return this._cachedReports.filter((r) => r && r.id && !this._deletedReportIds.has(String(r.id)));
     }
     let raw = [];
     try {
@@ -3258,7 +3418,14 @@ window.FMCUData = {
     } catch (e) {
       raw = [];
     }
-    const hydrated = (raw || []).map((rep) => this.hydrateReportPhotos(rep));
+    const filtered = (raw || []).filter((r) => r && r.id && !this._deletedReportIds.has(String(r.id)));
+    const hydrated = filtered.map((rep) => this.hydrateReportPhotos(rep));
+    if (filtered.length !== raw.length) {
+      try {
+        const lightweightReports = filtered.map((r) => prepareReportForLocalStorage(r));
+        localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(lightweightReports));
+      } catch (e) {}
+    }
     this._cachedReports = hydrated;
     return hydrated;
   },
@@ -3380,7 +3547,7 @@ window.FMCUData = {
   saveReport(report, options = {}) {
     if (!report || !report.id) return false;
     const syncCloud = options.syncCloud !== false;
-    this._deletedReportIds.delete(String(report.id));
+    this.unmarkReportDeleted(report.id);
     const nowIso = new Date().toISOString();
     const incoming = {
       ...report,
@@ -3459,12 +3626,27 @@ window.FMCUData = {
 
   deleteReport(reportId) {
     if (!reportId) return;
-    this._deletedReportIds.add(String(reportId));
-    this.deleteReportFromDb(reportId);
-    const reports = this.getReports().filter((r) => String(r.id) !== String(reportId));
+    const docId = String(reportId);
+    this.markReportDeleted(docId);
+
+    // 1. Hapus dari IndexedDB
+    this.deleteReportFromDb(docId);
+
+    // 2. Filter dari local reports & simpan ke LocalStorage
+    const reports = (this.getReports() || []).filter((r) => String(r.id) !== docId);
     this.saveReportsLocalOnly(reports);
+
+    // 3. Hapus permanen di Cloudflare D1 Edge DB & Google Apps Script Database
+    this.callGasDatabase('db_delete_item', { collection: 'reports', id: docId });
+    this.callGasDatabase('db_delete_report', { reportId: docId });
+    this.callGasDatabase('db_save_collection', { collection: 'reports', data: reports });
+
+    // 4. Broadcast sync ke tab/jendela lain
+    this.broadcastSync({ type: 'REPORT_DELETED', reportId: docId });
+
+    // 5. Hapus di Cloud Firestore jika aktif
     if (this.db) {
-      this.db.collection('reports').doc(String(reportId)).delete().catch((e) => console.warn('Delete report error:', e));
+      this.db.collection('reports').doc(docId).delete().catch((e) => console.warn('Delete report error:', e));
     }
     return reports;
   },
