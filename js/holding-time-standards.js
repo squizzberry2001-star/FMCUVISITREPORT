@@ -530,22 +530,40 @@ window.FMCU_HOLDING_TIME_R23 = {
           keterangan: "Tutup rapat selalu"
         },
         {
-          name: "Koko Krunch",
-          holding: "Suhu Ruang: 1 bulan",
-          storage: "Tuang ke box bulat",
-          keterangan: "Tutup rapat selalu"
+          name: "Choco Crunchy (Topping Crunchy Choco)",
+          thawing: "-",
+          shelfLife: "-",
+          cooking: "-",
+          holding: "Suhu Ruang: 14 hari (Pindah kemasan) • 1 bulan (Sisa kemasan)",
+          storage: "Pindah kemasan di container bulat • Sisa kemasan di box 2,4L",
+          keterangan: "14 hari pindah kemasan di container bulat, 1 bulan sisa kemasan di box 2,4L"
+        },
+        {
+          name: "Peanut Dice (Topping Diced Peanut)",
+          thawing: "-",
+          shelfLife: "-",
+          cooking: "-",
+          holding: "Suhu Ruang: 14 hari (Pindah kemasan) • 1 bulan (Sisa kemasan)",
+          storage: "Pindah kemasan di container bulat • Sisa kemasan di box 2,4L",
+          keterangan: "14 hari pindah kemasan di container bulat, 1 bulan sisa kemasan di box 2,4L"
+        },
+        {
+          name: "Coco Crunch (Koko Krunch)",
+          thawing: "-",
+          shelfLife: "-",
+          cooking: "-",
+          holding: "Suhu Ruang: 14 hari (Pindah kemasan) • 1 bulan (Sisa kemasan)",
+          storage: "Pindah kemasan di container bulat • Sisa kemasan di box 2,4L",
+          keterangan: "14 hari pindah kemasan di container bulat, 1 bulan sisa kemasan di box 2,4L"
         },
         {
           name: "Coconut Powder",
+          thawing: "-",
+          shelfLife: "Chiller: 1 bulan",
+          cooking: "-",
           holding: "Suhu Ruang: 1 bulan • Chiller: 1 bulan",
           storage: "Tuang ke box 2.4 L",
           keterangan: "Saat closing simpan di chiller"
-        },
-        {
-          name: "Topping Crunchy Choco / Topping Diced Peanut",
-          holding: "Suhu Ruang: 1 bulan",
-          storage: "Tuang ke box bulat / Sisa kemasan asli",
-          keterangan: "Tutup rapat selalu"
         },
         {
           name: "Butterscotch Sauce",

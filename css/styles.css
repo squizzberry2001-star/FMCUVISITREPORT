@@ -1255,7 +1255,25 @@ div#form-top-geofence-banner,
    REVAMP 18: RUNNING TEXT MARQUEE, IOS 27 FLOATING NAVBAR, LIGHTBOX & TOAST
    ========================================================================== */
 
-/* 1. Running Text Marquee (Section Observasi) */
+/* 1. Running Text Marquee & Sticky AI Warning Banner (Section Observasi) */
+#sticky-top-header-wrapper {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 40 !important;
+}
+
+#obs-ai-running-banner {
+  background-color: #000000 !important;
+  background: #000000 !important;
+  color: #fde047 !important;
+  border-bottom: 1px solid rgba(250, 204, 21, 0.45) !important;
+  opacity: 1 !important;
+  z-index: 41 !important;
+}
+
+#obs-ai-running-banner .animate-marquee {
+  color: #fde047 !important;
+}
 @keyframes marqueeScroll {
   0% { transform: translateX(0%); }
   100% { transform: translateX(-50%); }
@@ -1293,80 +1311,148 @@ div#form-top-geofence-banner,
 @media (max-width: 1023px) {
   #mobile-bottom-nav {
     position: fixed !important;
-    /* Turunkan mendekat ke batas bawah layar tanpa menempel langsung */
-    bottom: max(3px, env(safe-area-inset-bottom, 3px)) !important;
-    left: 10px !important;
-    right: 10px !important;
-    width: calc(100% - 20px) !important;
-    max-width: 420px !important;
+    /* Posisikan mentok mendekat ke batas bawah layar mobile dengan jarak aman mikro */
+    bottom: max(4px, env(safe-area-inset-bottom, 4px)) !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: calc(100% - 16px) !important;
+    max-width: 410px !important;
     margin: 0 auto !important;
     border-radius: 9999px !important;
-    background: rgba(18, 22, 28, 0.58) !important;
-    backdrop-filter: blur(32px) saturate(220%) contrast(115%) !important;
-    -webkit-backdrop-filter: blur(32px) saturate(220%) contrast(115%) !important;
-    border: 1px solid rgba(255, 255, 255, 0.22) !important;
-    box-shadow: 0 10px 30px -4px rgba(0, 0, 0, 0.5), inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.35), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.35) !important;
+    /* Liquid Glass smoke background */
+    background: linear-gradient(180deg, rgba(28, 32, 40, 0.78) 0%, rgba(14, 16, 22, 0.90) 100%) !important;
+    backdrop-filter: blur(40px) saturate(240%) contrast(115%) !important;
+    -webkit-backdrop-filter: blur(40px) saturate(240%) contrast(115%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    /* Specular inner glow on top rim & layered soft shadows for dynamic flotation */
+    box-shadow: 
+      0 18px 42px -6px rgba(0, 0, 0, 0.7),
+      0 6px 18px -2px rgba(0, 0, 0, 0.5),
+      inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.45),
+      inset 0 -1.5px 2px 0 rgba(0, 0, 0, 0.6) !important;
     padding: 3.5px 6px !important;
     z-index: 45 !important;
-    transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1), background 0.3s ease !important;
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease !important;
+    overflow: visible !important;
+  }
+
+  /* Subtle Chromatic Dispersion Rim */
+  #mobile-bottom-nav::before {
+    content: '' !important;
+    position: absolute !important;
+    inset: -1px !important;
+    border-radius: 9999px !important;
+    padding: 1px !important;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(56, 189, 248, 0.25) 25%, rgba(52, 211, 153, 0.22) 55%, rgba(244, 114, 182, 0.2) 80%, rgba(255, 255, 255, 0.25) 100%) !important;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0) !important;
+    -webkit-mask-composite: xor !important;
+    mask-composite: exclude !important;
+    pointer-events: none !important;
+    z-index: 1 !important;
+  }
+
+  /* Dynamic Expansion on Hover or Touch */
+  #mobile-bottom-nav:hover,
+  #mobile-bottom-nav.nav-expanding {
+    transform: scale(1.018) translateY(-0.5px) !important;
+    box-shadow: 
+      0 22px 48px -6px rgba(0, 0, 0, 0.75),
+      0 8px 22px -2px rgba(0, 0, 0, 0.55),
+      inset 0 1.8px 1px 0 rgba(255, 255, 255, 0.55),
+      inset 0 -1.5px 2px 0 rgba(0, 0, 0, 0.6) !important;
+  }
+
+  /* Fluid Morphing Liquid Indicator Bubble (Framer Motion spring physics simulation: stiffness 400, damping 30) */
+  .mobile-nav-liquid-pill {
+    position: absolute !important;
+    top: 2px !important;
+    bottom: 2px !important;
+    left: 0 !important;
+    border-radius: 9999px !important;
+    background: radial-gradient(100% 85% at 50% 10%, rgba(255, 255, 255, 0.26) 0%, rgba(255, 255, 255, 0.12) 100%) !important;
+    backdrop-filter: blur(24px) saturate(200%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(200%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.28) !important;
+    box-shadow: 
+      0 4px 14px -1px rgba(0, 0, 0, 0.35),
+      inset 0 1.2px 1px 0 rgba(255, 255, 255, 0.55),
+      inset 0 -1px 1px 0 rgba(0, 0, 0, 0.35) !important;
+    pointer-events: none !important;
+    z-index: 1 !important;
+    transform-origin: center center !important;
+    will-change: transform, width !important;
   }
 
   .mobile-nav-item {
     position: relative !important;
     border-radius: 9999px !important;
-    padding: 5px 3px !important;
-    color: rgba(255, 255, 255, 0.6) !important;
-    transition: all 0.35s cubic-bezier(0.32, 0.72, 0, 1) !important;
-    overflow: hidden !important;
+    padding: 4.5px 2px !important;
+    color: rgba(255, 255, 255, 0.55) !important;
+    transition: color 0.25s ease !important;
+    z-index: 2 !important;
+    background: transparent !important;
   }
 
+  /* Micro-interactions: scale bounce halus saat diklik */
   .mobile-nav-item:active {
-    transform: scale(0.92) !important;
-    transition: transform 0.1s ease !important;
+    transform: scale(0.88) !important;
+    transition: transform 0.1s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
   }
 
   .mobile-nav-item i {
     font-size: 14px !important;
-    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.25s ease !important;
+    transition: color 0.25s ease !important;
+    display: inline-block !important;
   }
 
   .mobile-nav-item span {
     font-size: 9px !important;
     font-weight: 700 !important;
     letter-spacing: -0.01em !important;
-    color: rgba(255, 255, 255, 0.65) !important;
+    color: rgba(255, 255, 255, 0.6) !important;
     transition: color 0.25s ease !important;
   }
 
-  /* Active Pill with Liquid Sheen */
+  /* Active appearance */
   .mobile-nav-item.active {
-    background: rgba(255, 255, 255, 0.22) !important;
-    backdrop-filter: blur(16px) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
     color: #ffffff !important;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.45) !important;
-  }
-
-  .mobile-nav-item.active i {
-    color: #34d399 !important;
-    transform: translateY(-1px) scale(1.12) !important;
   }
 
   .mobile-nav-item.active span {
     color: #ffffff !important;
+    font-weight: 800 !important;
+  }
+
+  /* Haptic bounce feel: Icon menu memiliki animasi floating/jiggle mikro saat aktif */
+  @keyframes liquidIconJiggle {
+    0% { transform: scale(0.78) translateY(2px); }
+    38% { transform: scale(1.28) translateY(-3.5px); }
+    68% { transform: scale(0.92) translateY(1px); }
+    86% { transform: scale(1.10) translateY(-0.8px); }
+    100% { transform: scale(1.06) translateY(0); }
+  }
+
+  @keyframes liquidIconFloat {
+    0%, 100% { transform: scale(1.06) translateY(0); }
+    50% { transform: scale(1.08) translateY(-1.5px); }
+  }
+
+  .mobile-nav-item.active i {
+    color: #34d399 !important;
+    animation: liquidIconJiggle 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, liquidIconFloat 3.2s ease-in-out infinite 0.45s !important;
   }
 
   /* Status badge dot iOS style on active tab with liquid pulse */
   .mobile-nav-item.active::after {
     content: '' !important;
     position: absolute !important;
-    top: 4px !important;
+    top: 3px !important;
     right: 18% !important;
-    width: 6px !important;
-    height: 6px !important;
+    width: 5.5px !important;
+    height: 5.5px !important;
     border-radius: 9999px !important;
     background: #10b981 !important;
-    box-shadow: 0 0 8px #10b981, 0 0 14px rgba(16, 185, 129, 0.6) !important;
+    box-shadow: 0 0 6px #10b981, 0 0 12px rgba(16, 185, 129, 0.7) !important;
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
   }
 

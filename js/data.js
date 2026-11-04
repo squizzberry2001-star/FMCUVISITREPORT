@@ -161,7 +161,7 @@ const STORAGE_KEYS = {
   SETTINGS: 'fmcu_settings_v2',
   ATTENDANCE_LOGS: 'fmcu_attendance_logs_v2',
   NEWS: 'fmcu_news_v2',
-  HOLDING_TIME_STANDARDS: 'fmcu_holding_time_standards_v1',
+  HOLDING_TIME_STANDARDS: 'fmcu_holding_time_standards_v2',
   BESTIE_IN_CHARGE: 'fmcu_bestie_in_charge_v1'
 };
 
@@ -3786,12 +3786,24 @@ window.FMCUData = {
   },
 
   getHoldingTimeStandards() {
+    // Clean up old legacy cache if present
+    try {
+      localStorage.removeItem('fmcu_holding_time_standards_v1');
+    } catch (e) {}
+
     const raw = localStorage.getItem(STORAGE_KEYS.HOLDING_TIME_STANDARDS);
     if (raw) {
       try {
         const parsed = JSON.parse(raw);
         if (parsed && Array.isArray(parsed.categories) && parsed.categories.length > 0) {
-          return parsed;
+          // Pastikan cache memiliki pembaruan Choco Crunchy / Peanut Dice / Coco Crunch
+          const allItems = parsed.categories.flatMap((c) => c.items || []);
+          const hasUpdatedToppings = allItems.some(
+            (it) => it.name && (it.name.includes('Choco Crunchy') || it.name.includes('Peanut Dice')) && it.holding && it.holding.includes('14 hari')
+          );
+          if (hasUpdatedToppings) {
+            return parsed;
+          }
         }
       } catch (e) {}
     }

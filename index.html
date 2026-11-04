@@ -769,63 +769,66 @@
     <!-- MAIN CONTENT AREA -->
     <div class="flex-1 lg:pl-72 flex flex-col min-w-0 pb-20 lg:pb-8">
 
-      <!-- TOP HEADER BAR -->
-      <header class="sticky top-[5px] z-20 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
-        <div class="flex items-center gap-3 min-w-0">
-          <img src="FMCUICON.png" alt="FMCU Logo" class="lg:hidden w-9 h-9 object-contain shrink-0" width="36" height="36" decoding="async" />
-          <div class="min-w-0">
-            <h1 id="header-page-title" class="font-extrabold text-sm sm:text-lg text-slate-900 truncate">
-              Home — Jadwal Toko &amp; History Visit
-            </h1>
-            <p id="header-page-subtitle" class="text-[11px] sm:text-xs text-slate-500 truncate">
-              Daftar jadwal toko yang diminta visit serta riwayat & arsip laporan PDF
-            </p>
-          </div>
-        </div>
-
-        <!-- Right Header Controls: Cloud Firestore Pill, Live GPS Pill, Profile -->
-        <div class="flex items-center gap-2 sm:gap-3 shrink-0">
-          <!-- Cloud Firestore Sync Status Pill -->
-          <div id="header-firestore-pill" class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-[11px] font-bold" title="Status Koneksi Cloud Firestore (fmcu-visit-database)">
-            <i id="header-firestore-icon" class="fa-solid fa-cloud text-[#0099A6]"></i>
-            <span id="header-firestore-text">Firestore: Menghubungkan...</span>
-          </div>
-
-          <!-- Live GPS Pill -->
-          <button type="button" onclick="FMCUApp.refreshGpsLocation(true)" class="hidden md:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold hover:bg-emerald-100 transition cursor-pointer" title="Klik untuk memperbarui titik GPS aktual">
-            <span class="w-2 h-2 rounded-full bg-emerald-500 gps-pulse"></span>
-            <span id="header-gps-text">GPS Aktif</span>
-          </button>
-
-          <!-- Home Navigation Button (Tampil di Form & sub-halaman lain) -->
-          <button id="header-home-btn" type="button" onclick="FMCUApp.navigate('home')" class="hidden h-10 w-10 rounded-2xl items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition cursor-pointer shadow-2xs shrink-0" title="Kembali ke Beranda (Home)" aria-label="Kembali ke Beranda (Home)">
-            <i class="fa-solid fa-house text-sm"></i>
-          </button>
-
-          <!-- Standar Holding Time Guide Button (HANYA tampil saat user berada di dalam Form Visit - Diperingkas Cukup Icon & Badge Saja) -->
-          <button id="header-holding-time-btn" type="button" onclick="FMCUApp.openHoldingTimeModal()" class="hidden h-10 px-2.5 rounded-2xl items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-800 border border-amber-300 font-extrabold text-xs transition cursor-pointer shadow-2xs shrink-0" title="Panduan Standar Holding Time Resmi (QC)">
-            <i class="fa-solid fa-clock-rotate-left text-sm text-amber-600"></i>
-            <span id="header-holding-badge" class="px-1.5 py-0.5 rounded-full text-[9px] bg-amber-600 text-white font-extrabold leading-none">R23</span>
-          </button>
-
-          <!-- Profile Button -->
-          <button type="button" onclick="FMCUApp.openProfileModal()" class="h-10 flex items-center gap-2 px-2 sm:px-3 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition cursor-pointer shadow-2xs shrink-0">
-            <div id="header-user-avatar" class="w-7 h-7 rounded-full bg-[#0099A6] text-white font-extrabold text-xs flex items-center justify-center shrink-0">
-              VS
+      <!-- STICKY TOP HEADER & BANNER WRAPPER (Guaranteed Sticky & Zero Transparency) -->
+      <div id="sticky-top-header-wrapper" class="sticky top-0 z-30 w-full shadow-xs">
+        <!-- TOP HEADER BAR -->
+        <header class="bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3 min-w-0">
+            <img src="FMCUICON.png" alt="FMCU Logo" class="lg:hidden w-9 h-9 object-contain shrink-0" width="36" height="36" decoding="async" />
+            <div class="min-w-0">
+              <h1 id="header-page-title" class="font-extrabold text-sm sm:text-lg text-slate-900 truncate">
+                Home — Jadwal Toko &amp; History Visit
+              </h1>
+              <p id="header-page-subtitle" class="text-[11px] sm:text-xs text-slate-500 truncate">
+                Daftar jadwal toko yang diminta visit serta riwayat & arsip laporan PDF
+              </p>
             </div>
-            <span id="header-user-name" class="hidden sm:inline font-bold text-xs text-slate-800">Visitor FMCU</span>
-          </button>
-        </div>
-      </header>
+          </div>
 
-      <!-- POINT 3: Running Text Peringatan AI (Minimalist, Sticky, Pure Black Background & Slim Profile) -->
-      <div id="obs-ai-running-banner" class="hidden sticky top-[53px] sm:top-[57px] z-30 w-full bg-black text-amber-300 border-b border-amber-400/40 shadow-xs flex items-center px-2.5 py-0.5 sm:py-1 h-6 sm:h-7 overflow-hidden select-none">
-        <span class="shrink-0 flex items-center gap-1 font-black text-[8.5px] sm:text-[9.5px] bg-amber-400 text-black px-1 py-0.2 rounded uppercase tracking-wider mr-2 shadow-2xs leading-none">
-          <i class="fa-solid fa-triangle-exclamation animate-pulse"></i> AI
-        </span>
-        <div class="overflow-hidden whitespace-nowrap flex-1">
-          <div class="animate-marquee font-bold text-[10.5px] sm:text-xs text-amber-300 tracking-wide">
-            ⚠️ PERHATIAN: Jika menggunakan analisa AI, hasil analisa AI dapat membuat kesalahan. Periksa hasil jawaban kembali disetiap kolom temuan sebelum disimpan. &nbsp;&nbsp;&bull;&nbsp;&nbsp; ⚠️ PERHATIAN: Jika menggunakan analisa AI, hasil analisa AI dapat membuat kesalahan. Periksa hasil jawaban kembali disetiap kolom temuan sebelum disimpan.
+          <!-- Right Header Controls: Cloud Firestore Pill, Live GPS Pill, Profile -->
+          <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+            <!-- Cloud Firestore Sync Status Pill -->
+            <div id="header-firestore-pill" class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-[11px] font-bold" title="Status Koneksi Cloud Firestore (fmcu-visit-database)">
+              <i id="header-firestore-icon" class="fa-solid fa-cloud text-[#0099A6]"></i>
+              <span id="header-firestore-text">Firestore: Menghubungkan...</span>
+            </div>
+
+            <!-- Live GPS Pill -->
+            <button type="button" onclick="FMCUApp.refreshGpsLocation(true)" class="hidden md:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold hover:bg-emerald-100 transition cursor-pointer" title="Klik untuk memperbarui titik GPS aktual">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 gps-pulse"></span>
+              <span id="header-gps-text">GPS Aktif</span>
+            </button>
+
+            <!-- Home Navigation Button (Tampil di Form & sub-halaman lain) -->
+            <button id="header-home-btn" type="button" onclick="FMCUApp.navigate('home')" class="hidden h-10 w-10 rounded-2xl items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition cursor-pointer shadow-2xs shrink-0" title="Kembali ke Beranda (Home)" aria-label="Kembali ke Beranda (Home)">
+              <i class="fa-solid fa-house text-sm"></i>
+            </button>
+
+            <!-- Standar Holding Time Guide Button (HANYA tampil saat user berada di dalam Form Visit - Diperingkas Cukup Icon & Badge Saja) -->
+            <button id="header-holding-time-btn" type="button" onclick="FMCUApp.openHoldingTimeModal()" class="hidden h-10 px-2.5 rounded-2xl items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-800 border border-amber-300 font-extrabold text-xs transition cursor-pointer shadow-2xs shrink-0" title="Panduan Standar Holding Time Resmi (QC)">
+              <i class="fa-solid fa-clock-rotate-left text-sm text-amber-600"></i>
+              <span id="header-holding-badge" class="px-1.5 py-0.5 rounded-full text-[9px] bg-amber-600 text-white font-extrabold leading-none">R23</span>
+            </button>
+
+            <!-- Profile Button -->
+            <button type="button" onclick="FMCUApp.openProfileModal()" class="h-10 flex items-center gap-2 px-2 sm:px-3 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition cursor-pointer shadow-2xs shrink-0">
+              <div id="header-user-avatar" class="w-7 h-7 rounded-full bg-[#0099A6] text-white font-extrabold text-xs flex items-center justify-center shrink-0">
+                VS
+              </div>
+              <span id="header-user-name" class="hidden sm:inline font-bold text-xs text-slate-800">Visitor FMCU</span>
+            </button>
+          </div>
+        </header>
+
+        <!-- POINT 1 & 3: Running Text Peringatan AI (Sticky, Pure Pitch-Black Solid Background, Glowing Yellow Text) -->
+        <div id="obs-ai-running-banner" class="hidden w-full text-amber-300 border-b border-amber-400/50 shadow-md flex items-center px-2.5 py-0.5 sm:py-1 h-6 sm:h-7 overflow-hidden select-none" style="background-color: #000000 !important; background: #000000 !important;">
+          <span class="shrink-0 flex items-center gap-1 font-black text-[8.5px] sm:text-[9.5px] bg-amber-400 text-black px-1.5 py-0.5 rounded uppercase tracking-wider mr-2 shadow-2xs leading-none">
+            <i class="fa-solid fa-triangle-exclamation animate-pulse"></i> AI
+          </span>
+          <div class="overflow-hidden whitespace-nowrap flex-1">
+            <div class="animate-marquee font-bold text-[10.5px] sm:text-xs text-amber-300 tracking-wide">
+              ⚠️ PERHATIAN: Jika menggunakan analisa AI, hasil analisa AI dapat membuat kesalahan. Periksa hasil jawaban kembali disetiap kolom temuan sebelum disimpan. &nbsp;&nbsp;&bull;&nbsp;&nbsp; ⚠️ PERHATIAN: Jika menggunakan analisa AI, hasil analisa AI dapat membuat kesalahan. Periksa hasil jawaban kembali disetiap kolom temuan sebelum disimpan.
+            </div>
           </div>
         </div>
       </div>
@@ -3608,59 +3611,65 @@ service cloud.firestore {
        MOBILE BOTTOM NAVIGATION BAR
        (Posisi Center Presisi, Tanpa Geser-Geser, & Icon Lengkap di Form Visit)
        ==================================================================== -->
-  <nav id="mobile-bottom-nav" aria-label="Menu Navigasi Mobile" class="lg:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40 py-1.5 px-3 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
+  <nav id="mobile-bottom-nav" aria-label="Menu Navigasi Mobile" class="lg:hidden fixed bottom-0 inset-x-0 z-40 py-1 px-2.5">
     <!-- A. MENU UTAMA MOBILE (Posisi Center Merata, Tanpa Scroll/Geser-Geser) -->
-    <div id="mobile-main-nav" class="flex items-center justify-around w-full max-w-md mx-auto">
-      <button type="button" onclick="FMCUApp.navigate('home')" id="mnav-home" class="mobile-nav-item active flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-500 cursor-pointer text-center">
+    <div id="mobile-main-nav" class="relative flex items-center justify-around w-full max-w-md mx-auto">
+      <!-- Fluid Morphing Liquid Indicator Bubble -->
+      <div id="mobile-main-pill" class="mobile-nav-liquid-pill" aria-hidden="true"></div>
+
+      <button type="button" onclick="FMCUApp.navigate('home')" id="mnav-home" class="mobile-nav-item active flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-400 cursor-pointer text-center relative z-10">
         <i class="fa-solid fa-house text-base"></i>
         <span class="text-[10px] mt-0.5">Home</span>
       </button>
-      <button type="button" onclick="FMCUApp.navigate('analytics')" id="mnav-analytics" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-500 cursor-pointer text-center">
+      <button type="button" onclick="FMCUApp.navigate('analytics')" id="mnav-analytics" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-400 cursor-pointer text-center relative z-10">
         <i class="fa-solid fa-chart-pie text-base"></i>
         <span class="text-[10px] mt-0.5">Analitik</span>
       </button>
-      <button type="button" onclick="FMCUApp.navigate('form')" id="mnav-form" class="mobile-nav-item hidden flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-500 cursor-pointer text-center">
+      <button type="button" onclick="FMCUApp.navigate('form')" id="mnav-form" class="mobile-nav-item hidden flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-400 cursor-pointer text-center relative z-10">
         <i class="fa-solid fa-clipboard-check text-base"></i>
         <span class="text-[10px] mt-0.5">Form Toko</span>
       </button>
-      <button type="button" onclick="FMCUApp.navigate('preview')" id="mnav-preview" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-500 cursor-pointer text-center">
+      <button type="button" onclick="FMCUApp.navigate('preview')" id="mnav-preview" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-400 cursor-pointer text-center relative z-10">
         <i class="fa-solid fa-file-pdf text-base"></i>
         <span class="text-[10px] mt-0.5">Preview PDF</span>
       </button>
-      <button type="button" onclick="FMCUApp.navigate('schedules')" id="mnav-schedules" class="mobile-nav-item hidden flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-500 cursor-pointer text-center">
+      <button type="button" onclick="FMCUApp.navigate('schedules')" id="mnav-schedules" class="mobile-nav-item hidden flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-400 cursor-pointer text-center relative z-10">
         <i class="fa-solid fa-calendar-days text-base"></i>
         <span class="text-[10px] mt-0.5">Jadwal</span>
       </button>
-      <button type="button" onclick="FMCUApp.navigate('live-maps')" id="mnav-live-maps" class="mobile-nav-item hidden flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-500 cursor-pointer text-center">
+      <button type="button" onclick="FMCUApp.navigate('live-maps')" id="mnav-live-maps" class="mobile-nav-item hidden flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-400 cursor-pointer text-center relative z-10">
         <i class="fa-solid fa-map-location-dot text-base text-[#0099A6]"></i>
         <span class="text-[10px] mt-0.5 font-bold">Live Maps</span>
       </button>
-      <button type="button" onclick="FMCUApp.navigate('stores')" id="mnav-stores" class="mobile-nav-item hidden flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-500 cursor-pointer text-center">
+      <button type="button" onclick="FMCUApp.navigate('stores')" id="mnav-stores" class="mobile-nav-item hidden flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-400 cursor-pointer text-center relative z-10">
         <i class="fa-solid fa-store text-base"></i>
         <span class="text-[10px] mt-0.5">Master Toko</span>
       </button>
-      <button type="button" onclick="FMCUApp.navigate('admin')" id="mnav-admin" class="mobile-nav-item hidden flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-500 cursor-pointer text-center">
+      <button type="button" onclick="FMCUApp.navigate('admin')" id="mnav-admin" class="mobile-nav-item hidden flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-400 cursor-pointer text-center relative z-10">
         <i class="fa-solid fa-user-shield text-base"></i>
         <span class="text-[10px] mt-0.5">Admin</span>
       </button>
     </div>
 
     <!-- B. MENU SECTION FORM VISIT MOBILE (Dengan 4 Section Lengkap & Center) -->
-    <div id="mobile-form-nav" class="hidden flex items-center justify-around w-full max-w-md mx-auto py-1">
-      <button type="button" onclick="FMCUApp.switchFormSection(1)" id="mfnav-sec-1" class="mobile-nav-item active flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-500 cursor-pointer text-center">
+    <div id="mobile-form-nav" class="hidden relative flex items-center justify-around w-full max-w-md mx-auto py-1">
+      <!-- Fluid Morphing Liquid Indicator Bubble -->
+      <div id="mobile-form-pill" class="mobile-nav-liquid-pill" aria-hidden="true"></div>
+
+      <button type="button" onclick="FMCUApp.switchFormSection(1)" id="mfnav-sec-1" class="mobile-nav-item active flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-400 cursor-pointer text-center relative z-10">
         <i class="fa-solid fa-clipboard-list text-sm"></i>
         <span class="text-[9px] font-bold mt-0.5">Info</span>
       </button>
-      <button type="button" onclick="FMCUApp.switchFormSection(2)" id="mfnav-sec-2" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-500 cursor-pointer text-center">
+      <button type="button" onclick="FMCUApp.switchFormSection(2)" id="mfnav-sec-2" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-400 cursor-pointer text-center relative z-10">
         <i class="fa-solid fa-magnifying-glass-chart text-sm"></i>
         <span class="text-[9px] font-bold mt-0.5">Observasi</span>
       </button>
-      <button type="button" onclick="FMCUApp.switchFormSection(3)" id="mfnav-sec-3" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-500 cursor-pointer text-center">
+      <button type="button" onclick="FMCUApp.switchFormSection(3)" id="mfnav-sec-3" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-400 cursor-pointer text-center relative z-10">
         <i class="fa-solid fa-camera-retro text-sm"></i>
         <span class="text-[9px] font-bold mt-0.5">Bukti</span>
       </button>
-      <button type="button" onclick="FMCUApp.handleSaveAndPreview(event)" id="mfnav-sec-preview" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-500 cursor-pointer text-center">
-        <i class="fa-solid fa-file-pdf text-sm text-rose-600"></i>
+      <button type="button" onclick="FMCUApp.handleSaveAndPreview(event)" id="mfnav-sec-preview" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-400 cursor-pointer text-center relative z-10">
+        <i class="fa-solid fa-file-pdf text-sm text-rose-500"></i>
         <span class="text-[9px] font-bold mt-0.5">Preview PDF</span>
       </button>
     </div>
@@ -4174,8 +4183,13 @@ service cloud.firestore {
         </div>
 
         <div>
-          <label class="block font-bold text-slate-700 mb-1">Wadah Penyimpanan / Keterangan</label>
-          <input type="text" id="edit-holding-storage" placeholder="Contoh: Showcase Warmer • Plastik Klip" class="fm-input text-xs" aria-label="Contoh: Showcase Warmer • Plastik Klip" />
+          <label class="block font-bold text-slate-700 mb-1">Wadah Penyimpanan</label>
+          <input type="text" id="edit-holding-storage" placeholder="Contoh: Showcase Warmer • Container Bulat • Box 2,4L" class="fm-input text-xs" aria-label="Wadah Penyimpanan" />
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Cara Baca / Catatan Khusus</label>
+          <input type="text" id="edit-holding-keterangan" placeholder="Contoh: 14 hari pindah kemasan di container bulat, 1 bulan sisa kemasan di box 2,4L" class="fm-input text-xs" aria-label="Cara Baca / Catatan Khusus" />
         </div>
 
         <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">

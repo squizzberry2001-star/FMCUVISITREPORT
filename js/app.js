@@ -2422,6 +2422,7 @@ window.FMCUApp = {
       subEl.classList.toggle('hidden', !sub);
     }
     this.triggerHaptic('light');
+    this.updateMobileNavLiquidPill();
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -2560,6 +2561,7 @@ window.FMCUApp = {
     if (sideForm) sideForm.classList.toggle('hidden', !isFormActive);
     if (mobMain) mobMain.classList.toggle('hidden', isFormActive);
     if (mobForm) mobForm.classList.toggle('hidden', !isFormActive);
+    setTimeout(() => this.updateMobileNavLiquidPill(), 40);
 
     // Sembunyikan tombol "Buka Form Toko Ini" di widget atas jika sudah berada di dalam form
     if (checkInWidget && this.hasActiveStoreForm) {
@@ -2663,6 +2665,7 @@ window.FMCUApp = {
     if (scrollTop) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
+    this.updateMobileNavLiquidPill();
   },
 
   showAdminSectionPanel(sectionName) {
@@ -5731,7 +5734,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         out += `* [${cat.name}] (Suhu Alat: ${cat.machineTemp || '-'})
 `;
         (cat.items || []).forEach((it) => {
-          out += `  - ${it.name}: Holding ${it.holding} | Thawing: ${it.thawing} | Umur Chiller: ${it.shelfLife} | Pemanasan: ${it.cooking}\n`;
+          out += `  - ${it.name}: Holding ${it.holding} | Wadah: ${it.storage || '-'} | Cara Baca: ${it.keterangan || '-'} | Thawing: ${it.thawing || '-'} | Umur Chiller: ${it.shelfLife || '-'} | Pemanasan: ${it.cooking || '-'}\n`;
         });
       });
       out += `========================================\n`;
@@ -7965,7 +7968,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         kondisiIdeal: `Seluruh produk dan bahan baku (${findingText.slice(0, 45).trim()}) wajib memiliki tanggal kedaluwarsa yang valid dan terdisplay mematuhi prinsip FEFO (First Expired, First Out).`,
         dampak: 'Berisiko fatal terhadap standar keamanan pangan (Food Safety), membahayakan kesehatan konsumen jika terbeli, dan menurunkan reputasi toko.',
         penyebab: 'Kelalaian crew dalam pengecekan rutin tanggal kedaluwarsa saat pergantian shift dan minimnya verifikasi silang (double check) FEFO saat restocking produk.',
-        tindakanPerbaikan: '1. Segera tarik dan musnahkan (waste) produk expired sesuai prosedur. 2. Lakukan audit FEFO menyeluruh pada rak/chiller terkait. 3. Briefing ulang crew mengenai disiplin pengecekan daily expired checklist.',
+        tindakanPerbaikan: '1. Segera tarik dan musnahkan (waste) produk kadaluarsa dalam waktu 15 menit dari sekarang.\n2. Lakukan audit rotasi FEFO menyeluruh pada rak/chiller sebelum pergantian shift hari ini.\n3. Shift Leader wajib memverifikasi dan menandatangani Checklist Expired harian maksimal H+1.',
         hasil: 'Akan dimonitoring pada visit berikutnya'
       };
     }
@@ -7976,7 +7979,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         kondisiIdeal: 'Suhu penyimpanan unit pendingin wajib stabil pada standar FamilyMart (Chiller: 2°C - 8°C, Freezer: -18°C s/d -20°C) dan tercatat rutin di logbook kontrol.',
         dampak: 'Kenaikan suhu menyebabkan kualitas produk chilled/frozen menurun cepat (bakteri berkembang), produk cepat rusak, serta potensi komplain pelanggan.',
         penyebab: 'Pintu chiller sering terbuka lama, kotoran menumpuk di kondensor/evaporator, atau penurunan performa kompresor/termostat pendingin.',
-        tindakanPerbaikan: '1. Periksa kerapatan seal pintu dan bersihkan area ventilasi. 2. Pindahkan produk rentan ke unit cadangan jika suhu tidak kunjung stabil. 3. Laporkan segera ke tim Maintenance/Teknisi.',
+        tindakanPerbaikan: '1. Bersihkan sirip kondensor dan periksa seal pintu unit dalam 30 menit ke depan.\n2. Pindahkan produk rentan ke unit cadangan jika suhu di luar 2°C-8°C dalam 1 jam.\n3. Lapor dan buat tiket servis ke tim Maintenance/Teknisi maksimal 1x24 jam.',
         hasil: 'Akan dimonitoring pada visit berikutnya'
       };
     }
@@ -7987,7 +7990,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         kondisiIdeal: 'Seluruh area operasional, display rak, meja dining, dan fasilitas toko dalam kondisi bersih, higienis, kering, dan bebas dari debu maupun bau.',
         dampak: 'Mengurangi kenyamanan belanja konsumen, menciptakan kesan toko kumuh/tidak terawat, serta berpotensi menjadi sarang kontaminasi hama/serangga.',
         penyebab: 'Pembersihan harian tidak dijalankan secara disiplin sesuai jadwal checklist kebersihan toko, terutama saat jam sibuk (rush hour).',
-        tindakanPerbaikan: '1. Lakukan pembersihan dan sanitasi menyeluruh pada area temuan saat ini juga. 2. Pastikan Shift Leader mengontrol pengisian dan eksekusi checklist kebersihan per shift.',
+        tindakanPerbaikan: '1. Lakukan pembersihan dan sanitasi menyeluruh dengan chemical standar dalam 15 menit dari sekarang.\n2. Terapkan Clean As You Go dengan menyeka meja dining maksimal 3 menit setelah pelanggan selesai.\n3. Shift Leader mengontrol verifikasi checklist kebersihan sebelum closing shift.',
         hasil: 'Akan dimonitoring pada visit berikutnya'
       };
     }
@@ -8009,7 +8012,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         kondisiIdeal: 'Seluruh produk hot snack dan makanan siap saji wajib dipajang dengan timer holding time aktif dan ditarik tepat waktu sesuai Standar Holding Time R23 resmi.',
         dampak: 'Tekstur dan cita rasa produk menurun (kering/alot/dingin), serta melanggar standar food safety FamilyMart jika melewati batas waktu holding.',
         penyebab: 'Timer digital holding time tidak dinyalakan saat produk dimasukkan ke showcase warmer, atau crew lupa membuang produk yang lewat batas jam holding.',
-        tindakanPerbaikan: '1. Segera tarik dan musnahkan produk yang melewati holding time. 2. Pasang dan aktifkan timer digital setiap kali display produk baru dilakukan.',
+        tindakanPerbaikan: '1. Segera tarik dan timbang produk melewati holding time untuk dicatat waste dalam 15 menit.\n2. Pasang label stiker ROX baru dengan tanggal dan jam akurat sekarang juga (Topping: 14 hari container bulat / 1 bulan box 2,4L).\n3. Shift Leader wajib menginspeksi timer warmer dan topping bar setiap 2 jam sekali.',
         hasil: 'Akan dimonitoring pada visit berikutnya'
       };
     }
@@ -8067,10 +8070,16 @@ Tugas Anda menganalisa temuan observasi toko berikut:
 Kategori: ${category || 'Umum / QSC'}
 Temuan: "${findingText}"
 
+METODOLOGI ANALISIS S.M.A.R.T (WAJIB DITERAPKAN DI SELURUH ASPEK JAWABAN):
+1. Specific (Spesifik): Uraikan produk, area, atau peralatan secara detail dan presisi, jangan menggunakan kalimat multitafsir atau mengambang.
+2. Measurable (Terukur): Cantumkan indikator standar kuantitatif terukur (contoh: suhu chiller 2°C-8°C, freezer -18°C s/d -20°C, holding time hot snack 4-6 jam, holding topping 14 hari container bulat / 1 bulan box 2,4L, kuantitas atau durasi).
+3. Achievable (Dapat Dicapai): Tindakan perbaikan realistis dan dapat langsung dikerjakan oleh kru toko / Shift Leader / Store Leader.
+4. Relevant (Relevan): Berorientasi pada kepatuhan Food Safety, Standar Holding Time R23 resmi, SOP FamilyMart Indonesia, QSC, OPI, dan Clean As You Go.
+5. Time-bound (Batas Waktu Jelas): Tindakan perbaikan WAJIB mencantumkan tenggat waktu tegas (contoh: "Tarik/musnahkan dalam 15 menit", "Selesaikan sebelum pergantian shift hari ini", "Maksimal 1x24 jam", "Kontrol rutin setiap 2 jam").
+
 Instruksi Khusus & Terminologi FamilyMart:
-- Gunakan terminologi operasional resmi FamilyMart Indonesia: Shift Leader, Store Leader, Area Manager, Clean As You Go, Tabel Holding Time, Tabel Standar Holding Time, Waste jika relevan.
-- Berikan analisis operasional yang tajam, profesional, dan to the point sesuai standar retail convenience store (SOP & Food Safety FamilyMart Indonesia).
-- Jika jawaban dalam bentuk poin-poin (misal 1., 2., 3. atau bullet - ), WAJIB pisahkan setiap poin dengan karakter baris baru (\n) sehingga otomatis turun ke bawah per-point dan tidak bersambung.
+- Gunakan terminologi operasional resmi: Shift Leader, Store Leader, Area Manager, Clean As You Go, Tabel Standar Holding Time, Waste jika relevan.
+- Jika jawaban dalam bentuk poin-poin (misal 1., 2., 3.), WAJIB pisahkan setiap poin dengan karakter baris baru (\n) sehingga otomatis turun ke bawah per-point.
 - Balas HANYA dalam format JSON valid persis tanpa tanda kutip markdown backticks, dengan 5 field berikut:
 {
   "kondisiIdeal": "Standar kondisi ideal yang seharusnya berlaku di toko...",
@@ -8283,11 +8292,18 @@ Tugas Anda: Kompilasi dan ringkas kumpulan deskripsi foto visit menjadi daftar t
 - Lingkungan Store (Kebersihan area toko: sales floor, langit-langit, kaca, tempat sampah, penerangan)
 - Grooming (Standar kerapian kru: seragam lengkap, apron, topi/hairnet, nametag, kebersihan personal)
 
-ATURAN PERINGKASAN TEMUAN (SANGAT PENTING):
+METODOLOGI S.M.A.R.T (WAJIB DITERAPKAN DI SETIAP TEMUAN & TINDAKAN PERBAIKAN):
+- Specific (Spesifik): Objek produk, alat, atau area toko jelas dan tidak mengambang.
+- Measurable (Terukur): Cantumkan parameter ukuran terukur (suhu standar, batas waktu holding time, jumlah/persentase).
+- Achievable (Dapat Dicapai): Solusi realistis dapat dikerjakan kru/Shift Leader toko saat ini juga.
+- Relevant (Relevan): Mematuhi standar QSC, OPI, SOP, dan Food Safety FamilyMart Indonesia.
+- Time-bound (Batas Waktu Jelas): Tindakan perbaikan WAJIB berbatas waktu tegas (misal: "Segera dalam 15-30 menit", "Sebelum pergantian shift", "Maksimal 1x24 jam").
+
+ATURAN PERINGKASAN TEMUAN:
 1. JANGAN menyalin persis deskripsi foto yang panjang!
-2. OLAH KEMBALI dan RINGKAS temuan menjadi kalimat profesional, lugas, dan padat (maksimal 1-2 kalimat to the point).
+2. OLAH KEMBALI dan RINGKAS temuan menjadi kalimat profesional, lugas, padat, dan memenuhi kaidah S.M.A.R.T.
 3. Gabungkan foto-foto yang membahas masalah serupa menjadi satu temuan kompilasi solid.
-4. Gunakan kata kunci operasional resmi FamilyMart: Shift Leader, Store Leader, Area Manager, Clean As You Go, Tabel Standar Holding Time, Waste jika relevan.
+4. Gunakan kata kunci operasional resmi: Shift Leader, Store Leader, Area Manager, Clean As You Go, Tabel Standar Holding Time, Waste jika relevan.
 5. Jika tindakan perbaikan berupa poin-poin, pisahkan baris baru (\n) per poin.
 
 DAFTAR DESKRIPSI FOTO VISIT:
@@ -19101,7 +19117,7 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
         return;
       }
       (cat.items || []).forEach((item) => {
-        if (!query || item.name.toLowerCase().includes(query) || cat.name.toLowerCase().includes(query) || (item.storage && item.storage.toLowerCase().includes(query))) {
+        if (!query || item.name.toLowerCase().includes(query) || cat.name.toLowerCase().includes(query) || (item.storage && item.storage.toLowerCase().includes(query)) || (item.holding && item.holding.toLowerCase().includes(query)) || (item.keterangan && item.keterangan.toLowerCase().includes(query))) {
           matchedProducts.push({
             ...item,
             categoryName: cat.name,
@@ -19175,6 +19191,16 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
                 <div class="font-semibold text-slate-800 mt-0.5 break-words leading-snug">${p.storage || '-'}</div>
               </div>
             </div>
+
+            ${p.keterangan ? `
+              <div class="p-2.5 rounded-xl bg-amber-50/90 border border-amber-200/90 text-[11px] text-amber-950 flex items-start gap-2">
+                <i class="fa-solid fa-circle-info text-amber-600 text-xs shrink-0 mt-0.5"></i>
+                <div class="leading-relaxed">
+                  <span class="font-extrabold text-[10px] text-amber-900 uppercase tracking-wider block">Cara Baca / Catatan Khusus:</span>
+                  <span class="font-semibold text-slate-800">${p.keterangan}</span>
+                </div>
+              </div>
+            ` : ''}
           </div>
         `).join('')}
       </div>
