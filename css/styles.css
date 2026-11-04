@@ -1350,13 +1350,13 @@ div#form-top-geofence-banner,
   #mobile-bottom-nav {
     position: fixed !important;
     bottom: 12px !important;
-    left: 12px !important;
-    right: 12px !important;
-    width: calc(100% - 24px) !important;
-    max-width: 385px !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: calc(100% - 16px) !important;
+    max-width: 420px !important;
     margin: 0 auto !important;
-    border-radius: 9999px !important;
-    background: linear-gradient(180deg, rgba(20, 24, 32, 0.40) 0%, rgba(10, 14, 20, 0.55) 100%) !important;
+    border-radius: 24px !important;
+    background: linear-gradient(180deg, rgba(20, 24, 32, 0.42) 0%, rgba(10, 14, 20, 0.58) 100%) !important;
     backdrop-filter: blur(48px) saturate(240%) contrast(108%) !important;
     -webkit-backdrop-filter: blur(48px) saturate(240%) contrast(108%) !important;
     border: 1px solid rgba(255, 255, 255, 0.22) !important;
@@ -1366,7 +1366,7 @@ div#form-top-geofence-banner,
       inset 0 1.2px 1px 0 rgba(255, 255, 255, 0.45),
       inset 0 -1px 1.5px 0 rgba(0, 0, 0, 0.6) !important;
     padding: 3.5px 6px !important;
-    height: 52px !important;
+    height: 54px !important;
     display: flex !important;
     align-items: center !important;
     z-index: 45 !important;
@@ -1379,7 +1379,7 @@ div#form-top-geofence-banner,
     content: '' !important;
     position: absolute !important;
     inset: -1px !important;
-    border-radius: 9999px !important;
+    border-radius: 24px !important;
     padding: 1px !important;
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(56, 189, 248, 0.25) 25%, rgba(52, 211, 153, 0.22) 55%, rgba(244, 114, 182, 0.2) 80%, rgba(255, 255, 255, 0.25) 100%) !important;
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0) !important;
@@ -1403,17 +1403,17 @@ div#form-top-geofence-banner,
   /* Fluid Morphing Liquid Indicator Bubble (Framer Motion spring physics simulation: stiffness 400, damping 30) */
   .mobile-nav-liquid-pill {
     position: absolute !important;
-    top: 3.5px !important;
-    bottom: 3.5px !important;
+    top: 4px !important;
+    bottom: 4px !important;
     left: 0 !important;
-    border-radius: 9999px !important;
-    background: radial-gradient(100% 85% at 50% 10%, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.08) 100%) !important;
+    border-radius: 18px !important;
+    background: radial-gradient(100% 85% at 50% 10%, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0.10) 100%) !important;
     backdrop-filter: blur(32px) saturate(220%) !important;
     -webkit-backdrop-filter: blur(32px) saturate(220%) !important;
-    border: 1px solid rgba(255, 255, 255, 0.35) !important;
+    border: 1px solid rgba(255, 255, 255, 0.38) !important;
     box-shadow: 
-      0 4px 16px -1px rgba(0, 0, 0, 0.32),
-      inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.65),
+      0 4px 16px -1px rgba(0, 0, 0, 0.35),
+      inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.70),
       inset 0 -1px 1px 0 rgba(0, 0, 0, 0.25) !important;
     pointer-events: none !important;
     z-index: 1 !important;
@@ -1424,8 +1424,8 @@ div#form-top-geofence-banner,
 
   .mobile-nav-item {
     position: relative !important;
-    border-radius: 9999px !important;
-    padding: 3.5px 4px !important;
+    border-radius: 18px !important;
+    padding: 3.5px 5px !important;
     color: rgba(255, 255, 255, 0.55) !important;
     transition: color 0.25s ease !important;
     z-index: 2 !important;
@@ -1515,38 +1515,62 @@ div#form-top-geofence-banner,
   padding-bottom: 0 !important;
 }
 
-/* 14. Lightbox Swipe & Gallery Navigation: Transparent & Proportional */
+/* 14. Lightbox Swipe & Gallery Navigation: Transparent, Proportional & Edge-Pinned */
 #modal-photo-lightbox .lightbox-nav-btn {
-  background: rgba(255, 255, 255, 0.1) !important;
+  position: absolute !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  z-index: 50 !important;
+  background: rgba(255, 255, 255, 0.15) !important;
   backdrop-filter: blur(16px) !important;
   -webkit-backdrop-filter: blur(16px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.22) !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
-  color: rgba(255, 255, 255, 0.9) !important;
-  width: 44px !important;
-  height: 44px !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+  color: rgba(255, 255, 255, 0.95) !important;
+  width: 46px !important;
+  height: 46px !important;
   border-radius: 9999px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  transition: all 0.2s ease !important;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
   pointer-events: auto !important;
+  cursor: pointer !important;
 }
+
+#photo-lightbox-prev {
+  left: 20px !important;
+  right: auto !important;
+}
+
+#photo-lightbox-next {
+  right: 20px !important;
+  left: auto !important;
+}
+
 @media (max-width: 640px) {
   #modal-photo-lightbox .lightbox-nav-btn {
-    width: 38px !important;
-    height: 38px !important;
+    width: 40px !important;
+    height: 40px !important;
     font-size: 14px !important;
+  }
+  #photo-lightbox-prev {
+    left: 10px !important;
+    right: auto !important;
+  }
+  #photo-lightbox-next {
+    right: 10px !important;
+    left: auto !important;
   }
 }
 #modal-photo-lightbox .lightbox-nav-btn:hover {
-  background: rgba(255, 255, 255, 0.25) !important;
+  background: rgba(255, 255, 255, 0.3) !important;
   color: #ffffff !important;
-  transform: translateY(-50%) scale(1.08) !important;
+  transform: translateY(-50%) scale(1.1) !important;
 }
 #modal-photo-lightbox .lightbox-nav-btn:active {
-  background: rgba(255, 255, 255, 0.35) !important;
-  transform: translateY(-50%) scale(0.95) !important;
+  background: rgba(255, 255, 255, 0.45) !important;
+  transform: translateY(-50%) scale(0.92) !important;
 }
 
 
