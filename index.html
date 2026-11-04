@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1793910000000" as="style" />
-  <link rel="preload" href="css/styles.css?v=1793910000000" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1793930000000" as="style" />
+  <link rel="preload" href="css/styles.css?v=1793930000000" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1793910000000" />
-  <link rel="stylesheet" href="css/styles.css?v=1793910000000" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1793930000000" />
+  <link rel="stylesheet" href="css/styles.css?v=1793930000000" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -818,14 +818,14 @@
         </div>
       </header>
 
-      <!-- POINT 2: Running Text Peringatan AI (Menempel Tepat di Bawah Bar Atas saat di Section Observasi) -->
-      <div id="obs-ai-running-banner" class="hidden sticky top-[57px] z-19 w-full bg-black text-amber-300 border-b border-amber-400/50 shadow-xs flex items-center px-3 py-1.5 overflow-hidden">
-        <span class="shrink-0 flex items-center gap-1 font-black text-[10px] bg-amber-400 text-black px-1.5 py-0.5 rounded uppercase tracking-wider mr-2 shadow-2xs">
+      <!-- POINT 3: Running Text Peringatan AI (Minimalist, Sticky, Pure Black Background & Slim Profile) -->
+      <div id="obs-ai-running-banner" class="hidden sticky top-[53px] sm:top-[57px] z-30 w-full bg-black text-amber-300 border-b border-amber-400/40 shadow-xs flex items-center px-2.5 py-0.5 sm:py-1 h-6 sm:h-7 overflow-hidden select-none">
+        <span class="shrink-0 flex items-center gap-1 font-black text-[8.5px] sm:text-[9.5px] bg-amber-400 text-black px-1 py-0.2 rounded uppercase tracking-wider mr-2 shadow-2xs leading-none">
           <i class="fa-solid fa-triangle-exclamation animate-pulse"></i> AI
         </span>
         <div class="overflow-hidden whitespace-nowrap flex-1">
-          <div class="animate-marquee font-bold text-xs text-amber-300 tracking-wide">
-            ⚠️ PERHATIAN: Jika menggunakan analisa AI, hasil analisa AI dapat membuat kesalahan. Periksa hasil jawaban kembali disetiap kolom temuan sebelum disimpan. &nbsp;&nbsp;&nbsp;&bull;&nbsp;&nbsp;&nbsp; ⚠️ PERHATIAN: Jika menggunakan analisa AI, hasil analisa AI dapat membuat kesalahan. Periksa hasil jawaban kembali disetiap kolom temuan sebelum disimpan.
+          <div class="animate-marquee font-bold text-[10.5px] sm:text-xs text-amber-300 tracking-wide">
+            ⚠️ PERHATIAN: Jika menggunakan analisa AI, hasil analisa AI dapat membuat kesalahan. Periksa hasil jawaban kembali disetiap kolom temuan sebelum disimpan. &nbsp;&nbsp;&bull;&nbsp;&nbsp; ⚠️ PERHATIAN: Jika menggunakan analisa AI, hasil analisa AI dapat membuat kesalahan. Periksa hasil jawaban kembali disetiap kolom temuan sebelum disimpan.
           </div>
         </div>
       </div>
@@ -1662,14 +1662,14 @@
 
               <!-- Sub-section Switcher Tabs: QSC vs OPI (Horizontal Segment Button) -->
               <div class="grid grid-cols-2 gap-2 p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200">
-                <!-- Tab QSC -->
-                <button type="button" id="tab-btn-obs-qsc" onclick="FMCUApp.switchObsSubSection('qsc')" class="form-subtab-pill active flex items-center justify-between px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl cursor-pointer transition select-none min-w-0 border">
-                  <div class="flex items-center gap-1.5 sm:gap-2 min-w-0 truncate">
-                    <i class="fa-solid fa-chart-simple text-xs sm:text-sm shrink-0"></i>
-                    <span class="text-xs sm:text-sm font-extrabold tracking-tight truncate">QSC<span class="hidden sm:inline"> Observation</span></span>
-                    <span id="count-badge-obs-qsc" class="text-[9.5px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 ml-1">0 Temuan</span>
+                <!-- Tab QSC (Anti-Overlap pada Layar Mobile) -->
+                <button type="button" id="tab-btn-obs-qsc" onclick="FMCUApp.switchObsSubSection('qsc')" class="form-subtab-pill active flex items-center justify-between px-2 sm:px-4 py-2 sm:py-2.5 rounded-xl cursor-pointer transition select-none min-w-0 border gap-1">
+                  <div class="flex items-center gap-1.5 min-w-0 shrink">
+                    <i class="fa-solid fa-chart-simple text-xs sm:text-sm shrink-0 text-emerald-600"></i>
+                    <span class="text-xs sm:text-sm font-extrabold tracking-tight shrink-0">QSC</span>
+                    <span id="count-badge-obs-qsc" class="text-[9.5px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 shrink-0 leading-none">0<span class="hidden sm:inline"> Temuan</span></span>
                   </div>
-                  <div class="flex items-center gap-1 sm:gap-2 ml-1.5 shrink-0" onclick="event.stopPropagation()">
+                  <div class="flex items-center gap-1 ml-0.5 sm:ml-2 shrink-0" onclick="event.stopPropagation()">
                     <label class="fm-toggle-switch fm-toggle-sm" title="Aktifkan/Nonaktifkan QSC di PDF">
                       <input type="checkbox" id="form-toggle-qsc" checked onchange="FMCUApp.toggleObservationSubSection('qsc', this.checked)" aria-label="Form Toggle Qsc" />
                       <span class="fm-toggle-track"><span class="fm-toggle-knob"></span></span>
@@ -1678,14 +1678,14 @@
                   </div>
                 </button>
 
-                <!-- Tab OPI -->
-                <button type="button" id="tab-btn-obs-opi" onclick="FMCUApp.switchObsSubSection('opi')" class="form-subtab-pill flex items-center justify-between px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl cursor-pointer transition select-none min-w-0 border">
-                  <div class="flex items-center gap-1.5 sm:gap-2 min-w-0 truncate">
-                    <i class="fa-solid fa-lightbulb text-xs sm:text-sm shrink-0"></i>
-                    <span class="text-xs sm:text-sm font-extrabold tracking-tight truncate">OPI<span class="hidden sm:inline"> Project</span></span>
-                    <span id="count-badge-obs-opi" class="text-[9.5px] font-black px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-800 ml-1">0 Temuan</span>
+                <!-- Tab OPI (Anti-Overlap pada Layar Mobile) -->
+                <button type="button" id="tab-btn-obs-opi" onclick="FMCUApp.switchObsSubSection('opi')" class="form-subtab-pill flex items-center justify-between px-2 sm:px-4 py-2 sm:py-2.5 rounded-xl cursor-pointer transition select-none min-w-0 border gap-1">
+                  <div class="flex items-center gap-1.5 min-w-0 shrink">
+                    <i class="fa-solid fa-lightbulb text-xs sm:text-sm shrink-0 text-amber-500"></i>
+                    <span class="text-xs sm:text-sm font-extrabold tracking-tight shrink-0">OPI</span>
+                    <span id="count-badge-obs-opi" class="text-[9.5px] font-black px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-800 shrink-0 leading-none">0<span class="hidden sm:inline"> Temuan</span></span>
                   </div>
-                  <div class="flex items-center gap-1 sm:gap-2 ml-1.5 shrink-0" onclick="event.stopPropagation()">
+                  <div class="flex items-center gap-1 ml-0.5 sm:ml-2 shrink-0" onclick="event.stopPropagation()">
                     <label class="fm-toggle-switch fm-toggle-sm" title="Aktifkan/Nonaktifkan OPI di PDF">
                       <input type="checkbox" id="form-toggle-opi" checked onchange="FMCUApp.toggleObservationSubSection('opi', this.checked)" aria-label="Form Toggle Opi" />
                       <span class="fm-toggle-track"><span class="fm-toggle-knob"></span></span>
@@ -4038,13 +4038,13 @@ service cloud.firestore {
   <script defer src="js/holding-time-standards.js"></script>
   <script defer src="js/master-stores-seed.js"></script>
   <script defer src="js/bestie-in-charge-seed.js"></script>
-  <script defer src="js/data.js?v=1793910000000"></script>
-  <script defer src="js/pdf-generator.js?v=1793910000000"></script>
-  <script defer src="js/app.js?v=1793910000000"></script>
+  <script defer src="js/data.js?v=1793930000000"></script>
+  <script defer src="js/pdf-generator.js?v=1793930000000"></script>
+  <script defer src="js/app.js?v=1793930000000"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1793910000000"></script>
+  <script async src="js/pdf-assets.js?v=1793930000000"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================

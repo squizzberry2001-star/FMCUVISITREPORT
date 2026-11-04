@@ -1289,65 +1289,74 @@ div#form-top-geofence-banner,
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 8px 10px -6px rgba(0, 0, 0, 0.2) !important;
 }
 
-/* 16. iPhone iOS Liquid Glass Mobile Navbar & Safe Action Positioning */
+/* 16. iPhone iOS Liquid Glass Mobile Navbar & Smooth Dynamic Transition */
 @media (max-width: 1023px) {
   #mobile-bottom-nav {
     position: fixed !important;
-    bottom: max(6px, env(safe-area-inset-bottom, 6px)) !important;
-    left: 12px !important;
-    right: 12px !important;
-    width: calc(100% - 24px) !important;
+    /* Turunkan mendekat ke batas bawah layar tanpa menempel langsung */
+    bottom: max(3px, env(safe-area-inset-bottom, 3px)) !important;
+    left: 10px !important;
+    right: 10px !important;
+    width: calc(100% - 20px) !important;
     max-width: 420px !important;
     margin: 0 auto !important;
     border-radius: 9999px !important;
-    background: rgba(18, 22, 28, 0.65) !important;
-    backdrop-filter: blur(28px) saturate(210%) contrast(110%) !important;
-    -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(110%) !important;
+    background: rgba(18, 22, 28, 0.58) !important;
+    backdrop-filter: blur(32px) saturate(220%) contrast(115%) !important;
+    -webkit-backdrop-filter: blur(32px) saturate(220%) contrast(115%) !important;
     border: 1px solid rgba(255, 255, 255, 0.22) !important;
-    box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.5), inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.35), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.4) !important;
-    padding: 4px 8px !important;
+    box-shadow: 0 10px 30px -4px rgba(0, 0, 0, 0.5), inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.35), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.35) !important;
+    padding: 3.5px 6px !important;
     z-index: 45 !important;
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1), background 0.3s ease !important;
   }
 
   .mobile-nav-item {
     position: relative !important;
     border-radius: 9999px !important;
-    padding: 5px 4px !important;
-    color: rgba(255, 255, 255, 0.65) !important;
-    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    padding: 5px 3px !important;
+    color: rgba(255, 255, 255, 0.6) !important;
+    transition: all 0.35s cubic-bezier(0.32, 0.72, 0, 1) !important;
+    overflow: hidden !important;
+  }
+
+  .mobile-nav-item:active {
+    transform: scale(0.92) !important;
+    transition: transform 0.1s ease !important;
   }
 
   .mobile-nav-item i {
     font-size: 14px !important;
-    transition: transform 0.2s ease !important;
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.25s ease !important;
   }
 
   .mobile-nav-item span {
     font-size: 9px !important;
     font-weight: 700 !important;
     letter-spacing: -0.01em !important;
-    color: rgba(255, 255, 255, 0.7) !important;
+    color: rgba(255, 255, 255, 0.65) !important;
+    transition: color 0.25s ease !important;
   }
 
+  /* Active Pill with Liquid Sheen */
   .mobile-nav-item.active {
-    background: rgba(255, 255, 255, 0.2) !important;
-    backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
+    background: rgba(255, 255, 255, 0.22) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
     color: #ffffff !important;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.35) !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.45) !important;
   }
 
   .mobile-nav-item.active i {
     color: #34d399 !important;
-    transform: scale(1.08) !important;
+    transform: translateY(-1px) scale(1.12) !important;
   }
 
   .mobile-nav-item.active span {
     color: #ffffff !important;
   }
 
-  /* Status badge dot iOS style on active tab */
+  /* Status badge dot iOS style on active tab with liquid pulse */
   .mobile-nav-item.active::after {
     content: '' !important;
     position: absolute !important;
@@ -1357,21 +1366,22 @@ div#form-top-geofence-banner,
     height: 6px !important;
     border-radius: 9999px !important;
     background: #10b981 !important;
-    box-shadow: 0 0 8px #10b981 !important;
+    box-shadow: 0 0 8px #10b981, 0 0 14px rgba(16, 185, 129, 0.6) !important;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
   }
 
-  /* FIX: Pindahkan posisi FAB observasi (+) & camera bukti ke atas navbar mobile agar tidak tertutup */
+  /* FAB observasi (+) & camera bukti bebas tumpang tindih */
   #floating-obs-actions,
   #floating-evidence-actions {
-    bottom: calc(max(6px, env(safe-area-inset-bottom, 6px)) + 64px) !important;
-    right: 16px !important;
+    bottom: calc(max(3px, env(safe-area-inset-bottom, 3px)) + 58px) !important;
+    right: 14px !important;
     z-index: 50 !important;
   }
 
   /* Berikan padding bawah yang cukup agar konten form & foto bukti tidak terpotong navbar */
   #view-form,
   .view-section {
-    padding-bottom: 96px !important;
+    padding-bottom: 90px !important;
   }
 }
 
