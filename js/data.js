@@ -535,6 +535,38 @@ function prepareReportForFirestore(report) {
 }
 
 window.FMCUData = {
+  sanitizeMojibake(str) {
+    if (!str || typeof str !== 'string') return str || '';
+    return str
+      .replace(/\u00f0\u0178\u201c\u0152/g, '')
+      .replace(/\u00f0\u0178\u0152\u00b4/g, '')
+      .replace(/\u00f0\u0178\u2019\u00a4/g, '')
+      .replace(/\u00f0\u0178\u008f\u00ac/g, '')
+      .replace(/\u00f0\u0178\u008f\u00a2/g, '')
+      .replace(/ðŸ“Œ|ðŸŒ´|ðŸ’¤|ðŸ ¬|ðŸ ¢/g, '')
+      .replace(/\u00f0\u0178[\u0080-\u024f]{1,3}/g, '')
+      .replace(/\u00f0\u0178/g, '')
+      .replace(/ðŸ/g, '')
+      .replace(/\u00e2\u0153\u201c|âœ“/g, '✓')
+      .replace(/\u00e2\s*\u00b3|\u00e2\u008f\u00b3|â ³/g, '⏳')
+      .replace(/\u00e2\u0161\u00a0\u00ef\u00b8\u008f\s*|âš ï¸\s*/g, '⚠️ ')
+      .replace(/\u00e2\u0161\u00a0|âš /g, '⚠️')
+      .replace(/\u00e2\u0161\u00a1|âš¡/g, '⚡')
+      .replace(/\u00e2\u0153\u00a8|âœ¨/g, '✨')
+      .replace(/\u00e2\u0153\u2026|âœ…/g, '✅')
+      .replace(/\u00e2\u0152\u02dc|â Œ/g, '❌')
+      .replace(/\u00e2\u0153\u2014|âœ—/g, '✗')
+      .replace(/\u00e2\u0153\u2022|âœ•/g, '✕')
+      .replace(/\u00e2\u0153\u00a6|âœ¦/g, '✦')
+      .replace(/\u00e2\u017d\u2039|âŽ‹/g, '')
+      .replace(/\u00e2\u20ac\u00a2|â€¢/g, '•')
+      .replace(/\u00e2\u20ac\u2013|â€“/g, '-')
+      .replace(/\u00e2\u20ac\u2014|â€”/g, '-')
+      .replace(/\u00e2\u2030\u00a5|â‰¥/g, '≥')
+      .replace(/\u00e2\u00ad\u0090|\u00e2\u00ad|â­/g, '⭐')
+      .trim();
+  },
+
   FINDING_PRESETS,
   FIREBASE_CONFIG,
   GEMINI_CONFIG,
@@ -2305,10 +2337,31 @@ window.FMCUData = {
     } catch (e) {
       list = [];
     }
+    // Auto-sanitasi jika data di storage sempat terinfeksi mojibake UTF-8 (misal )
+    let hasMojibake = false;
+    for (const s of list) {
+      if (!s) continue;
+      if (s.storeName && (s.storeName.includes('ð') || s.storeName.includes('â'))) {
+        s.storeName = this.sanitizeMojibake(s.storeName);
+        hasMojibake = true;
+      }
+      if (s.agendaCategory && (s.agendaCategory.includes('ð') || s.agendaCategory.includes('â'))) {
+        s.agendaCategory = this.sanitizeMojibake(s.agendaCategory);
+        hasMojibake = true;
+      }
+      if (s.notes && (s.notes.includes('ð') || s.notes.includes('â'))) {
+        s.notes = this.sanitizeMojibake(s.notes);
+        hasMojibake = true;
+      }
+      if (s.auditFocus && (s.auditFocus.includes('ð') || s.auditFocus.includes('â'))) {
+        s.auditFocus = this.sanitizeMojibake(s.auditFocus);
+        hasMojibake = true;
+      }
+    }
     // Filter ketat terhadap _deletedScheduleIds agar jadwal terhapus tidak pernah hidup lagi
     const filtered = (list || []).filter((s) => s && s.id && !this._deletedScheduleIds.has(String(s.id)));
     filtered.sort((a, b) => String(a.scheduledDate || '').localeCompare(String(b.scheduledDate || '')));
-    if (filtered.length !== list.length) {
+    if (hasMojibake || filtered.length !== list.length) {
       try {
         localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(filtered));
       } catch (e) {}

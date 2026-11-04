@@ -7,6 +7,38 @@
 // ============================================================================
 
 window.FMCUApp = {
+  sanitizeMojibake(str) {
+    if (!str || typeof str !== 'string') return str || '';
+    return str
+      .replace(/\u00f0\u0178\u201c\u0152/g, '')
+      .replace(/\u00f0\u0178\u0152\u00b4/g, '')
+      .replace(/\u00f0\u0178\u2019\u00a4/g, '')
+      .replace(/\u00f0\u0178\u008f\u00ac/g, '')
+      .replace(/\u00f0\u0178\u008f\u00a2/g, '')
+      .replace(/ðŸ“Œ|ðŸŒ´|ðŸ’¤|ðŸ ¬|ðŸ ¢/g, '')
+      .replace(/\u00f0\u0178[\u0080-\u024f]{1,3}/g, '')
+      .replace(/\u00f0\u0178/g, '')
+      .replace(/ðŸ/g, '')
+      .replace(/\u00e2\u0153\u201c|âœ“/g, '✓')
+      .replace(/\u00e2\s*\u00b3|\u00e2\u008f\u00b3|â ³/g, '⏳')
+      .replace(/\u00e2\u0161\u00a0\u00ef\u00b8\u008f\s*|âš ï¸\s*/g, '⚠️ ')
+      .replace(/\u00e2\u0161\u00a0|âš /g, '⚠️')
+      .replace(/\u00e2\u0161\u00a1|âš¡/g, '⚡')
+      .replace(/\u00e2\u0153\u00a8|âœ¨/g, '✨')
+      .replace(/\u00e2\u0153\u2026|âœ…/g, '✅')
+      .replace(/\u00e2\u0152\u02dc|â Œ/g, '❌')
+      .replace(/\u00e2\u0153\u2014|âœ—/g, '✗')
+      .replace(/\u00e2\u0153\u2022|âœ•/g, '✕')
+      .replace(/\u00e2\u0153\u00a6|âœ¦/g, '✦')
+      .replace(/\u00e2\u017d\u2039|âŽ‹/g, '')
+      .replace(/\u00e2\u20ac\u00a2|â€¢/g, '•')
+      .replace(/\u00e2\u20ac\u2013|â€“/g, '-')
+      .replace(/\u00e2\u20ac\u2014|â€”/g, '-')
+      .replace(/\u00e2\u2030\u00a5|â‰¥/g, '≥')
+      .replace(/\u00e2\u00ad\u0090|\u00e2\u00ad|â­/g, '⭐')
+      .trim();
+  },
+
   currentView: 'home',
   _debouncedSearchTimers: {},
   debounceAction(key, fn, delay = 250) {
@@ -397,7 +429,7 @@ window.FMCUApp = {
           ? 'hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-50 border border-amber-300 text-amber-900 text-[11px] font-bold cursor-pointer hover:bg-amber-100 transition shadow-2xs'
           : 'hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-teal-50 border border-teal-300 text-teal-800 text-[11px] font-bold cursor-pointer hover:bg-teal-100 transition shadow-2xs';
         pill.title = isD1
-          ? 'Database aktif di Cloudflare D1 Edge SQLite (âš¡ Latensi ~20ms â€¢ 5 Juta Kuota/Hari). Klik untuk sinkronisasi manual.'
+          ? 'Database aktif di Cloudflare D1 Edge SQLite (⚡ Latensi ~20ms • 5 Juta Kuota/Hari). Klik untuk sinkronisasi manual.'
           : 'Database aktif di Google Drive Vault (Terenkripsi, Bebas Kuota 429). Klik untuk sinkronisasi manual.';
         pill.onclick = () => {
           this.showToast(isD1 ? 'Menyinkronkan dengan Cloudflare D1 Edge Database...' : 'Menyinkronkan dengan Google Drive Vault...', 'info', 2000);
@@ -405,10 +437,10 @@ window.FMCUApp = {
         };
       }
       if (icon) icon.className = isD1 ? 'fa-solid fa-bolt text-amber-500' : 'fa-brands fa-google-drive text-[#009944]';
-      if (text) text.textContent = isD1 ? 'Cloudflare D1: Terhubung (âš¡ 20ms)' : 'Drive Vault: Terhubung (Aman)';
+      if (text) text.textContent = isD1 ? 'Cloudflare D1: Terhubung (⚡ 20ms)' : 'Drive Vault: Terhubung (Aman)';
       if (admBadge) {
         admBadge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800';
-        admBadge.textContent = isD1 ? 'CLOUDFLARE D1 EDGE â€¢ âš¡ 20ms' : 'GOOGLE DRIVE VAULT â€¢ Bebas Kuota';
+        admBadge.textContent = isD1 ? 'CLOUDFLARE D1 EDGE • ⚡ 20ms' : 'GOOGLE DRIVE VAULT • Bebas Kuota';
       }
       if (admWarn) admWarn.classList.add('hidden');
     } else if (status === 'ONLINE') {
@@ -419,7 +451,7 @@ window.FMCUApp = {
       if (text) text.textContent = 'Firestore: Terhubung';
       if (admBadge) {
         admBadge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800';
-        admBadge.textContent = 'ONLINE â€¢ Real-Time Sync Aktif';
+        admBadge.textContent = 'ONLINE • Real-Time Sync Aktif';
       }
       if (admWarn) admWarn.classList.add('hidden');
     } else if (status === 'QUOTA_EXCEEDED') {
@@ -432,7 +464,7 @@ window.FMCUApp = {
       if (text) text.textContent = 'Firestore: Kuota Habis (429)';
       if (admBadge) {
         admBadge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 cursor-pointer shadow-2xs';
-        admBadge.textContent = 'KUOTA HABIS (429) â€¢ Klik untuk Solusi';
+        admBadge.textContent = 'KUOTA HABIS (429) • Klik untuk Solusi';
         admBadge.onclick = () => this.showCloudQuotaModal();
       }
       if (admWarn) {
@@ -473,7 +505,7 @@ window.FMCUApp = {
       if (text) text.textContent = 'Firestore: Mode Lokal';
       if (admBadge) {
         admBadge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800';
-        admBadge.textContent = 'OFFLINE â€¢ Cache Lokal';
+        admBadge.textContent = 'OFFLINE • Cache Lokal';
       }
     }
     this.updateAdminFirestoreSummary();
@@ -599,7 +631,7 @@ window.FMCUApp = {
     const stCount = window.FMCUData.getStores().length;
     const schCount = window.FMCUData.getSchedules().length;
     const repCount = window.FMCUData.getReports().length;
-    summaryEl.innerHTML = `Data tersinkronisasi di Cloud Firestore: <strong>${uCount} User</strong> (<code>users</code>) â€¢ <strong>${stCount} Master Toko</strong> (<code>stores</code>) â€¢ <strong>${schCount} Jadwal Visit</strong> (<code>schedules</code>) â€¢ <strong>${repCount} Laporan</strong> (<code>reports</code>).`;
+    summaryEl.innerHTML = `Data tersinkronisasi di Cloud Firestore: <strong>${uCount} User</strong> (<code>users</code>) • <strong>${stCount} Master Toko</strong> (<code>stores</code>) • <strong>${schCount} Jadwal Visit</strong> (<code>schedules</code>) • <strong>${repCount} Laporan</strong> (<code>reports</code>).`;
   },
 
   async forceSyncFirestoreNow() {
@@ -1985,9 +2017,9 @@ window.FMCUApp = {
       sortedUsers
         .map(
           (u) =>
-            `<option value="${u.id}" ${this.currentUser && this.currentUser.id === u.id ? 'selected' : ''}>ðŸ‘¤ ${u.name} (${u.role === 'SUPER_ADMIN' ? 'Admin' : u.role === 'ADMIN_SCHEDULE' ? 'Admin Jadwal' : 'Visitor'})</option>`
+            `<option value="${u.id}" ${this.currentUser && this.currentUser.id === u.id ? 'selected' : ''}>👤 ${u.name} (${u.role === 'SUPER_ADMIN' ? 'Admin' : u.role === 'ADMIN_SCHEDULE' ? 'Admin Jadwal' : 'Visitor'})</option>`
         )
-        .join('') + `<option value="__LOGOUT__">ðŸšª Ganti Login / Keluar...</option>`;
+        .join('') + `<option value="__LOGOUT__">🚪 Ganti Login / Keluar...</option>`;
     if (sel.innerHTML !== newHeaderHtml) {
       sel.innerHTML = newHeaderHtml;
     }
@@ -2634,7 +2666,7 @@ window.FMCUApp = {
 
     const coordStr = `${this.liveGps.lat}, ${this.liveGps.lng}`;
     const sideEl = document.getElementById('sidebar-gps-coords');
-    if (sideEl) sideEl.textContent = `${coordStr} (Â±${this.liveGps.accuracy || 10}m)`;
+    if (sideEl) sideEl.textContent = `${coordStr} (±${this.liveGps.accuracy || 10}m)`;
 
     const headEl = document.getElementById('header-gps-text');
     if (headEl) headEl.textContent = `GPS: ${coordStr}`;
@@ -2650,7 +2682,7 @@ window.FMCUApp = {
 
     const formGpsEl = document.getElementById('form-banner-gps');
     if (formGpsEl) {
-      formGpsEl.innerHTML = `<i class="fa-solid fa-location-dot text-emerald-400"></i><span>Live GPS User: ${coordStr} (Â±${this.liveGps.accuracy || 10}m)</span>`;
+      formGpsEl.innerHTML = `<i class="fa-solid fa-location-dot text-emerald-400"></i><span>Live GPS User: ${coordStr} (±${this.liveGps.accuracy || 10}m)</span>`;
     }
 
     if (this.currentUser) {
@@ -2746,7 +2778,7 @@ window.FMCUApp = {
                   <span>FamilyMart ${st.name}</span>
                 </div>
                 <div class="text-[11px] font-mono text-slate-500 font-bold">
-                  Site: ${st.code} â€¢ ${st.type || 'CVS'}
+                  Site: ${st.code} • ${st.type || 'CVS'}
                 </div>
                 <div class="text-[11px] text-slate-700 leading-snug">
                   ${st.address || st.city || '-'}
@@ -3009,13 +3041,13 @@ window.FMCUApp = {
             <span>FamilyMart ${st.name}</span>
           </div>
           <div class="text-[11px] font-mono text-slate-500 font-bold">
-            Site: ${st.code} â€¢ Tipe: ${st.type || 'CVS'}
+            Site: ${st.code} • Tipe: ${st.type || 'CVS'}
           </div>
           <div class="text-[11px] text-slate-700 leading-snug">
             ${st.address || st.city || '-'}
           </div>
           <div class="text-[10px] font-mono text-slate-600 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
-            ðŸ“ Lat: ${lat.toFixed(5)}, Long: ${lng.toFixed(5)} ${distText ? `<br/>ðŸŽ¯ Jarak: <strong>${distText}</strong>` : ''}
+            📍  Lat: ${lat.toFixed(5)}, Long: ${lng.toFixed(5)} ${distText ? `<br/>🎯 Jarak: <strong>${distText}</strong>` : ''}
           </div>
           <div class="pt-1.5 flex items-center justify-between border-t border-slate-100 text-[11px]">
             <span class="text-slate-600">PIC: <strong>${st.storeHead || '-'}</strong></span>
@@ -3265,7 +3297,7 @@ window.FMCUApp = {
         key: 'VISITING',
         label: 'Sedang Visit',
         badgeHtml: '<span class="text-[9px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-extrabold border border-emerald-300 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 gps-pulse"></span>Sedang Visit</span>',
-        subtitleHtml: `<span class="text-[10px] text-emerald-700 font-bold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Di Toko (${distToStore !== null ? distToStore + 'm' : '1m-50m'}) â€¢ ${timeAgoText}</span>`,
+        subtitleHtml: `<span class="text-[10px] text-emerald-700 font-bold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Di Toko (${distToStore !== null ? distToStore + 'm' : '1m-50m'}) • ${timeAgoText}</span>`,
         lat,
         lng,
         hasActualLocation: true,
@@ -3283,7 +3315,7 @@ window.FMCUApp = {
       key: 'OUTSIDE_RADIUS',
       label: 'Diluar Radius Toko',
       badgeHtml: '<span class="text-[9px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-extrabold border border-amber-300 flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation text-[9px] text-amber-600"></i>Diluar Radius Toko</span>',
-      subtitleHtml: `<span class="text-[10px] text-amber-700 font-bold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Diluar Radius Toko (${distText}) â€¢ ${timeAgoText}</span>`,
+      subtitleHtml: `<span class="text-[10px] text-amber-700 font-bold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Diluar Radius Toko (${distText}) • ${timeAgoText}</span>`,
       lat,
       lng,
       hasActualLocation: true,
@@ -3404,7 +3436,7 @@ window.FMCUApp = {
               </div>
               <div class="text-[10px] text-indigo-700 font-extrabold flex items-center gap-1">
                 <i class="fa-solid fa-id-badge"></i>
-                <span>${bestie.roleBadge || 'Regional Bestie'} â€¢ NIK: ${bestie.nik || '-'}</span>
+                <span>${bestie.roleBadge || 'Regional Bestie'} • NIK: ${bestie.nik || '-'}</span>
               </div>
             </div>
           </div>
@@ -3439,7 +3471,7 @@ window.FMCUApp = {
           </div>
 
           <div class="bg-slate-50 p-1.5 rounded-lg border border-slate-200 text-[10px] font-mono text-slate-600 flex items-center justify-between">
-            <span>ðŸ“ ${lat.toFixed(5)}, ${lng.toFixed(5)}</span>
+            <span>📍  ${lat.toFixed(5)}, ${lng.toFixed(5)}</span>
             <span class="text-[9px] font-bold text-emerald-700">GPS Verified</span>
           </div>
 
@@ -3510,7 +3542,7 @@ window.FMCUApp = {
         this.modalMap.setView([foundBestie.lat, foundBestie.lng], 16);
         foundBestie.marker.openPopup();
         if (statusEl) {
-          statusEl.innerHTML = `<span class="text-indigo-700 font-extrabold">âœ“ Ditemukan: Regional Bestie ${foundBestie.bestie.name}</span>`;
+          statusEl.innerHTML = `<span class="text-indigo-700 font-extrabold">✓ Ditemukan: Regional Bestie ${foundBestie.bestie.name}</span>`;
         }
         return;
       }
@@ -3536,7 +3568,7 @@ window.FMCUApp = {
         this.modalMap.setView([foundStore.lat, foundStore.lng], 16);
         foundStore.marker.openPopup();
         if (statusEl) {
-          statusEl.innerHTML = `<span class="text-emerald-700 font-bold">âœ“ Ditemukan: ${foundStore.store.name} (${foundStore.store.code})</span>`;
+          statusEl.innerHTML = `<span class="text-emerald-700 font-bold">✓ Ditemukan: ${foundStore.store.name} (${foundStore.store.code})</span>`;
         }
         return;
       }
@@ -3779,7 +3811,7 @@ window.FMCUApp = {
 
       this.updateActiveCheckInUI();
       this.showToast(
-        `âœ“ Actual IN Tercatat: ${autoInTime} (Terdeteksi di titik pinpoint toko, jarak ${distanceMeters}m, Radius 1m-50m)`,
+        `✓ Actual IN Tercatat: ${autoInTime} (Terdeteksi di titik pinpoint toko, jarak ${distanceMeters}m, Radius 1m-50m)`,
         'success'
       );
     }
@@ -3840,11 +3872,11 @@ window.FMCUApp = {
       radarPill.style.background = 'rgba(6, 78, 59, 0.6)';
       radarPill.style.borderColor = 'rgba(52, 211, 153, 0.5)';
       if (titleEl) {
-        titleEl.textContent = 'âœ“ Di Titik Pinpoint Toko (Radius 1m-50m)';
+        titleEl.textContent = '✓ Di Titik Pinpoint Toko (Radius 1m-50m)';
         titleEl.style.color = '#a7f3d0';
       }
       if (descEl) {
-        descEl.textContent = `Jarak: ${distance}m â€¢ In: ${auxInfo || '08:30 WIB'} â€¢ Out aktif jam â‰¥ 17:30`;
+        descEl.textContent = `Jarak: ${distance}m • In: ${auxInfo || '08:30 WIB'} • Out aktif jam ≥ 17:30`;
         descEl.style.color = 'rgba(110, 231, 183, 0.95)';
       }
       if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0';
@@ -3854,11 +3886,11 @@ window.FMCUApp = {
       radarPill.style.background = 'rgba(19, 78, 74, 0.6)';
       radarPill.style.borderColor = 'rgba(45, 212, 191, 0.5)';
       if (titleEl) {
-        titleEl.textContent = 'âœ“ Sesi Presensi Selesai (Actual IN & OUT Lengkap)';
+        titleEl.textContent = '✓ Sesi Presensi Selesai (Actual IN & OUT Lengkap)';
         titleEl.style.color = '#99f6e4';
       }
       if (descEl) {
-        descEl.textContent = `Actual Out: ${auxInfo || '17:30 WIB'} â€¢ Jarak toko: ${distance}m`;
+        descEl.textContent = `Actual Out: ${auxInfo || '17:30 WIB'} • Jarak toko: ${distance}m`;
         descEl.style.color = 'rgba(94, 234, 212, 0.95)';
       }
       if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-emerald-400 shrink-0';
@@ -3872,7 +3904,7 @@ window.FMCUApp = {
         titleEl.style.color = '#fecdd3';
       }
       if (descEl) {
-        descEl.textContent = `Jarak: ${distance}m > 50m (Radius 1m-50m) â€¢ Mendekat ke titik toko untuk record Actual IN`;
+        descEl.textContent = `Jarak: ${distance}m > 50m (Radius 1m-50m) • Mendekat ke titik toko untuk record Actual IN`;
         descEl.style.color = 'rgba(253, 164, 175, 0.95)';
       }
       if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
@@ -3886,7 +3918,7 @@ window.FMCUApp = {
         titleEl.style.color = '#fde68a';
       }
       if (descEl) {
-        descEl.textContent = `In: ${auxInfo} â€¢ Out TIDAK direcord jika web dibuka di luar lokasi toko`;
+        descEl.textContent = `In: ${auxInfo} • Out TIDAK direcord jika web dibuka di luar lokasi toko`;
         descEl.style.color = 'rgba(254, 240, 138, 0.95)';
       }
       if (inDot) inDot.className = 'w-2 h-2 rounded-full bg-emerald-400 shrink-0';
@@ -3896,7 +3928,7 @@ window.FMCUApp = {
       radarPill.style.background = 'rgba(120, 53, 15, 0.65)';
       radarPill.style.borderColor = 'rgba(251, 191, 36, 0.5)';
       if (titleEl) {
-        titleEl.textContent = 'âš ï¸ Koordinat Pinpoint Toko Belum Ada';
+        titleEl.textContent = '⚠️  Koordinat Pinpoint Toko Belum Ada';
         titleEl.style.color = '#fde68a';
       }
       if (descEl) {
@@ -3910,7 +3942,7 @@ window.FMCUApp = {
       radarPill.style.background = 'rgba(51, 65, 85, 0.65)';
       radarPill.style.borderColor = 'rgba(148, 163, 184, 0.45)';
       if (titleEl) {
-        titleEl.textContent = 'âš ï¸ Sinyal GPS Tidak Terdeteksi';
+        titleEl.textContent = '⚠️  Sinyal GPS Tidak Terdeteksi';
         titleEl.style.color = '#e2e8f0';
       }
       if (descEl) {
@@ -4215,15 +4247,15 @@ window.FMCUApp = {
       const isOff = nonStore.storeCode === 'OFF' || nonStore.status === 'OFF';
       if (isCuti) {
         btn.className = 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-extrabold p-2.5 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm shadow-none transition flex items-center justify-center text-center gap-1.5 sm:gap-2 cursor-pointer';
-        label.textContent = 'Jadwal Hari Ini: ðŸŒ´ CUTI (Tidak Ada Visit)';
+        label.innerHTML = '<i class="fa-solid fa-umbrella-beach text-amber-600 mr-1.5"></i>Jadwal Hari Ini: CUTI (Tidak Ada Visit)';
         btn.title = 'Hari ini Anda berstatus CUTI (Bebas dari penugasan visit toko)';
       } else if (isOff) {
         btn.className = 'bg-indigo-100 hover:bg-indigo-200 text-indigo-900 border border-indigo-300 font-extrabold p-2.5 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm shadow-none transition flex items-center justify-center text-center gap-1.5 sm:gap-2 cursor-pointer';
-        label.textContent = 'Jadwal Hari Ini: ðŸ’¤ LIBUR / OFF (Tidak Ada Visit)';
+        label.innerHTML = '<i class="fa-solid fa-bed text-indigo-600 mr-1.5"></i>Jadwal Hari Ini: LIBUR / OFF (Tidak Ada Visit)';
         btn.title = 'Hari ini adalah hari LIBUR / OFF Anda (Bebas dari penugasan visit toko)';
       } else {
         btn.className = 'bg-purple-100 hover:bg-purple-200 text-purple-900 border border-purple-300 font-extrabold p-2.5 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm shadow-none transition flex items-center justify-center text-center gap-1.5 sm:gap-2 cursor-pointer';
-        label.textContent = `Jadwal Hari Ini: ðŸ“Œ ${nonStore.storeName || 'Agenda'} (Non-Visit)`;
+        label.innerHTML = `<i class="fa-solid fa-thumbtack text-purple-600 mr-1.5"></i>Jadwal Hari Ini: ${this.sanitizeMojibake(nonStore.storeName || 'Agenda')} (Non-Visit)`;
         btn.title = `Hari ini terjadwal agenda internal: ${nonStore.storeName} (Tidak ada form visit)`;
       }
     } else if (storeSchedules.length === 0) {
@@ -4236,7 +4268,7 @@ window.FMCUApp = {
       btn.title = `Ada ${pendingToday.length} toko pada jadwal hari ini yang siap divisit`;
     } else {
       btn.className = 'bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold p-2.5 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm shadow-sm transition flex items-center justify-center text-center gap-1.5 sm:gap-2 cursor-pointer';
-      label.textContent = 'Visit Jadwal Hari Ini (âœ“ Selesai)';
+      label.textContent = 'Visit Jadwal Hari Ini (✓ Selesai)';
       btn.title = 'Semua jadwal visit hari ini telah selesai dilaksanakan';
     }
   },
@@ -4588,7 +4620,7 @@ window.FMCUApp = {
     const kpiFindEl = document.getElementById('kpi-total-findings');
     if (kpiFindEl) kpiFindEl.textContent = String(totalFindings);
     const kpiOpenEl = document.getElementById('kpi-open-findings');
-    if (kpiOpenEl) kpiOpenEl.textContent = `${openFindings} Open â€¢ ${closedFindings} Closed`;
+    if (kpiOpenEl) kpiOpenEl.textContent = `${openFindings} Open • ${closedFindings} Closed`;
 
     const avgDur = reports.length > 0 ? Math.round(totalDuration / reports.length) : 0;
     const hrs = Math.floor(avgDur / 60);
@@ -4700,24 +4732,33 @@ window.FMCUApp = {
         if (isCuti || isOff || isAgenda || s.storeType === 'NON_STORE') {
           const bgCard = isCuti ? 'border-amber-200 bg-amber-50/60' : isOff ? 'border-indigo-200 bg-indigo-50/60' : 'border-purple-200 bg-purple-50/60';
           const badgeBg = isCuti ? 'bg-amber-100 text-amber-800' : isOff ? 'bg-indigo-100 text-indigo-800' : 'bg-purple-100 text-purple-800';
-          const title = isCuti ? 'CUTI TAHUNAN / KHUSUS' : isOff ? 'HARI LIBUR / OFF' : (s.storeName || 'AGENDA INTERNAL');
-          const icon = isCuti ? 'ðŸŒ´' : isOff ? 'ðŸ’¤' : 'ðŸ“Œ';
-          const catPill = isCuti ? 'CUTI' : isOff ? 'LIBUR / OFF' : (s.agendaCategory || 'AGENDA');
+          const rawTitle = isCuti ? 'CUTI TAHUNAN / KHUSUS' : isOff ? 'HARI LIBUR / OFF' : (s.storeName || 'AGENDA INTERNAL');
+          const rawCat = isCuti ? 'CUTI' : isOff ? 'LIBUR / OFF' : (s.agendaCategory || 'AGENDA');
+          const title = this.sanitizeMojibake(rawTitle);
+          const catPill = this.sanitizeMojibake(rawCat);
+          const iconFa = isCuti
+            ? '<i class="fa-solid fa-umbrella-beach text-amber-600 mr-1.5"></i>'
+            : isOff
+            ? '<i class="fa-solid fa-bed text-indigo-600 mr-1.5"></i>'
+            : '<i class="fa-solid fa-thumbtack text-purple-600 mr-1.5"></i>';
           const subTitle = isCuti ? 'Jadwal Cuti Terkonfirmasi' : isOff ? 'Hari Bebas Kerja / Libur Resmi' : 'Informasi Jadwal Kegiatan Internal';
+          const notesText = this.sanitizeMojibake(s.notes || s.auditFocus || subTitle);
 
           return `
             <div class="border ${bgCard} rounded-2xl p-4 flex flex-col justify-between gap-3 shadow-xs hover:shadow-md transition">
               <div class="space-y-2">
                 <div class="flex items-center justify-between gap-2">
-                  <span class="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full ${badgeBg}">
-                    ${icon} ${catPill}
+                  <span class="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full ${badgeBg} inline-flex items-center">
+                    ${iconFa}<span>${catPill}</span>
                   </span>
                   <span class="text-[11px] font-mono font-bold text-slate-500">Non-Visit</span>
                 </div>
 
                 <div>
                   <div class="flex items-center gap-2 flex-wrap mb-1">
-                    <h4 class="font-black text-base text-slate-900">${icon} ${title}</h4>
+                    <h4 class="font-black text-base text-slate-900 flex items-center">
+                      ${iconFa}<span>${title}</span>
+                    </h4>
                   </div>
                   <div class="text-xs text-slate-600 flex items-center gap-1.5 mt-0.5">
                     <i class="fa-regular fa-calendar text-[#0099A6]"></i>
@@ -4736,7 +4777,7 @@ window.FMCUApp = {
                 </div>
 
                 <p class="text-[11px] text-slate-600 bg-white/70 p-2.5 rounded-xl leading-relaxed border border-slate-200/50">
-                  ${s.notes || s.auditFocus || subTitle}
+                  ${notesText}
                 </p>
               </div>
 
@@ -4763,7 +4804,7 @@ window.FMCUApp = {
                     ? 'bg-slate-200 text-slate-700'
                     : 'bg-amber-100 text-amber-800'
                 }">
-                  ${isDone ? 'ðŸ—ƒï¸ Arsip â€¢ Selesai Visit' : isPast ? 'ðŸ—ƒï¸ Arsip â€¢ Lewat Hari' : 'â³ Menunggu Visit'}
+                  ${isDone ? '📁  Arsip • Selesai Visit' : isPast ? '📁  Arsip • Lewat Hari' : 'â³ Menunggu Visit'}
                 </span>
                 <span class="text-[11px] font-mono font-bold text-slate-500">Kode: ${s.storeCode} (${s.storeType})</span>
               </div>
@@ -4793,7 +4834,7 @@ window.FMCUApp = {
                 isDone
                   ? `
                 <div class="text-[11px] text-emerald-700 font-semibold">
-                  <i class="fa-solid fa-clock-rotate-left mr-1"></i>In: ${s.actualIn || '-'} â€¢ Out: ${s.actualOut || '-'}
+                  <i class="fa-solid fa-clock-rotate-left mr-1"></i>In: ${s.actualIn || '-'} • Out: ${s.actualOut || '-'}
                 </div>
                 <div class="flex items-center gap-1.5">
                   ${
@@ -5482,7 +5523,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       'Kualitas kopi Famima Cafe & display hot snack yang prima berawal dari komitmen kita bersama!'
     ];
     const randomGreet = greetings[Math.floor(Math.random() * greetings.length)];
-    this.showToast(`ðŸ¤– ${randomGreet}`, 'info');
+    this.showToast(`🤖 ${randomGreet}`, 'info');
   },
 
   buildReportDataForGemini(reports) {
@@ -5859,7 +5900,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
                   <i class="fa-solid fa-arrow-up-right-from-square"></i>
                 </a>
               </div>
-              <div class="text-[10px] mt-0.5">${locDesc} â€¢ ${stInfo.timeAgoText}</div>
+              <div class="text-[10px] mt-0.5">${locDesc} • ${stInfo.timeAgoText}</div>
             </div>
           `;
         } else {
@@ -5883,7 +5924,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
                 </div>
                 <div>
                   <div class="font-bold text-slate-900">${u.name}</div>
-                  <div class="text-[11px] text-slate-400">NIK: ${u.nik || '-'} â€¢ @${u.username}</div>
+                  <div class="text-[11px] text-slate-400">NIK: ${u.nik || '-'} • @${u.username}</div>
                 </div>
               </div>
             </td>
@@ -6000,15 +6041,15 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
             <div class="space-y-1.5">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="px-2.5 py-0.5 rounded-md bg-teal-50 text-[#0099A6] font-extrabold text-xs">
-                  ${r.storeCode} â€¢ ${r.storeType || 'CVS'}
+                  ${r.storeCode} • ${r.storeType || 'CVS'}
                 </span>
                 ${isAutoArchived ? `
                   <span class="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 font-extrabold text-[10px] uppercase">
-                    ðŸ—ƒï¸ Auto History (â‰¥ 24 Jam)
+                    📁  Auto History (≥ 24 Jam)
                   </span>
                 ` : ''}
                 <h4 class="font-extrabold text-base sm:text-lg text-slate-900">FamilyMart ${r.storeName}</h4>
-                <span class="text-xs text-slate-400">â€¢</span>
+                <span class="text-xs text-slate-400">•</span>
                 <span class="text-xs font-semibold text-slate-600">${dateText}</span>
               </div>
 
@@ -6332,7 +6373,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     }
 
     if (document.getElementById('form-banner-title')) {
-      document.getElementById('form-banner-title').textContent = `FMCU Visit Store Report â€” ${st.name}`;
+      document.getElementById('form-banner-title').textContent = `FMCU Visit Store Report — ${st.name}`;
     }
     const badge = document.getElementById('form-banner-store-badge');
     if (badge) badge.textContent = `Kode Toko: ${st.code} (${st.type || 'CVS'})`;
@@ -6601,7 +6642,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     document.getElementById('form-actual-in').value = rep.actualIn || '';
     document.getElementById('form-actual-out').value = rep.actualOut || '';
 
-    if (document.getElementById('form-banner-title')) document.getElementById('form-banner-title').textContent = `FMCU Visit Store Report â€” ${rep.storeName || '-'}`;
+    if (document.getElementById('form-banner-title')) document.getElementById('form-banner-title').textContent = `FMCU Visit Store Report — ${rep.storeName || '-'}`;
     document.getElementById('form-banner-store-badge').textContent = `Kode Toko: ${rep.storeCode || '-'} (${rep.storeType || 'CVS'})`;
 
     const navSub = document.getElementById('nav-form-store-subtitle');
@@ -7280,7 +7321,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
                   : ''
               }
               <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full ${displaySrc ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-50 text-rose-700 border border-rose-200'}">
-                ${displaySrc ? 'âœ“ Terpasang' : '* Wajib'}
+                ${displaySrc ? '✓ Terpasang' : '* Wajib'}
               </span>
             </div>
           </div>
@@ -7878,8 +7919,8 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     return text
       .replace(/([.;?!])\s*(\d+[\.\)])\s+/g, '$1\n$2 ')
       .replace(/\s+(\d+[\.\)])\s+/g, '\n$1 ')
-      .replace(/([.;?!])\s*([â€¢\-\*])\s+/g, '$1\n$2 ')
-      .replace(/\s+([â€¢\-\*])\s+/g, '\n$1 ')
+      .replace(/([.;?!])\s*([•\-\*])\s+/g, '$1\n$2 ')
+      .replace(/\s+([•\-\*])\s+/g, '\n$1 ')
       .split('\n')
       .map((l) => l.trim())
       .filter((l) => l.length > 0)
@@ -8307,7 +8348,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
         this.renderObservationsList();
         this.updateFormProgress();
         this.saveCurrentFormDraft();
-        this.showToast(`âœ“ Berhasil! ${this.formObservations.length} Observasi terkompilasi otomatis oleh T.A.R.O AI.`, 'success', 3500);
+        this.showToast(`✓ Berhasil! ${this.formObservations.length} Observasi terkompilasi otomatis oleh T.A.R.O AI.`, 'success', 3500);
       }
     } catch (err) {
       console.warn('Auto compile observations error:', err);
@@ -8669,7 +8710,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
           : ev.driveFileId
           ? `<a href="${ev.driveViewUrl || ev.driveUrl || '#'}" target="_blank" class="mt-1 text-[10px] font-bold text-emerald-700 hover:text-emerald-800 hover:underline inline-flex items-center gap-1.5 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200"><i class="fa-brands fa-google-drive text-emerald-600"></i><span>Tersimpan di Google Drive</span></a>`
           : displaySrc
-          ? `<button type="button" onclick="FMCUApp.retryUploadEvidencePhoto(${idx})" class="mt-1 text-[10px] font-bold text-amber-700 hover:bg-amber-100 flex items-center gap-1.5 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 cursor-pointer text-left transition" title="Penyimpanan lokal darurat â€¢ Klik untuk unggah ke Google Drive sekarang"><i class="fa-solid fa-triangle-exclamation text-amber-500"></i><span>Tersimpan Lokal (Darurat Offline) â€¢ Klik Unggah</span></button>`
+          ? `<button type="button" onclick="FMCUApp.retryUploadEvidencePhoto(${idx})" class="mt-1 text-[10px] font-bold text-amber-700 hover:bg-amber-100 flex items-center gap-1.5 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 cursor-pointer text-left transition" title="Penyimpanan lokal darurat • Klik untuk unggah ke Google Drive sekarang"><i class="fa-solid fa-triangle-exclamation text-amber-500"></i><span>Tersimpan Lokal (Darurat Offline) • Klik Unggah</span></button>`
           : '';
 
         return `
@@ -8888,7 +8929,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
           : ca.driveFileId
           ? `<a href="${ca.driveViewUrl || ca.driveUrl || '#'}" target="_blank" class="mt-1 text-[10px] font-bold text-emerald-700 hover:text-emerald-800 hover:underline inline-flex items-center gap-1.5 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200"><i class="fa-brands fa-google-drive text-emerald-600"></i><span>Tersimpan di Google Drive</span></a>`
           : displaySrc
-          ? `<button type="button" onclick="FMCUApp.retryUploadCaPhoto(${idx})" class="mt-1 text-[10px] font-bold text-amber-700 hover:bg-amber-100 flex items-center gap-1.5 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 cursor-pointer text-left transition" title="Penyimpanan lokal darurat â€¢ Klik untuk unggah ke Google Drive sekarang"><i class="fa-solid fa-triangle-exclamation text-amber-500"></i><span>Tersimpan Lokal (Darurat Offline) â€¢ Klik Unggah</span></button>`
+          ? `<button type="button" onclick="FMCUApp.retryUploadCaPhoto(${idx})" class="mt-1 text-[10px] font-bold text-amber-700 hover:bg-amber-100 flex items-center gap-1.5 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 cursor-pointer text-left transition" title="Penyimpanan lokal darurat • Klik untuk unggah ke Google Drive sekarang"><i class="fa-solid fa-triangle-exclamation text-amber-500"></i><span>Tersimpan Lokal (Darurat Offline) • Klik Unggah</span></button>`
           : '';
 
         return `
@@ -9526,8 +9567,8 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     }
 
     const liveLabel = hasCurrentStore
-      ? `ðŸŽ¯ [Draft Form Toko Aktif: ${currentStoreName} (${currentStoreCode})]`
-      : `ðŸŽ¯ [Draft Form Toko Saat Ini]`;
+      ? `🎯 [Draft Form Toko Aktif: ${currentStoreName} (${currentStoreCode})]`
+      : `🎯 [Draft Form Toko Saat Ini]`;
 
     const liveOptionHtml = shouldShowLiveDraft
       ? `<option value="__LIVE_FORM__" ${this.activePreviewReportId === '__LIVE_FORM__' ? 'selected' : ''}>${liveLabel}</option>`
@@ -9536,7 +9577,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     const reportsOptionsHtml = reports
       .map(
         (r) =>
-          `<option value="${r.id}" ${r.id === this.activePreviewReportId ? 'selected' : ''}>${r.storeName} (${r.storeCode}) â€” ${r.visitDateFormatted || r.visitDate} [${r.auditorName}]</option>`
+          `<option value="${r.id}" ${r.id === this.activePreviewReportId ? 'selected' : ''}>${r.storeName} (${r.storeCode}) — ${r.visitDateFormatted || r.visitDate} [${r.auditorName}]</option>`
       )
       .join('');
 
@@ -9552,7 +9593,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     } else {
       const activeRep = reports.find((r) => r.id === this.activePreviewReportId);
       if (activeRep) {
-        activeTitle = `${activeRep.storeName} (${activeRep.storeCode}) â€” ${activeRep.visitDateFormatted || activeRep.visitDate} [${activeRep.auditorName || 'FMCU'}]`;
+        activeTitle = `${activeRep.storeName} (${activeRep.storeCode}) — ${activeRep.visitDateFormatted || activeRep.visitDate} [${activeRep.auditorName || 'FMCU'}]`;
       } else {
         activeTitle = liveLabel;
       }
@@ -9564,9 +9605,9 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
         trackEl.classList.add('is-running');
         trackEl.innerHTML = `
           <span class="inline-block pr-6">${activeTitle}</span>
-          <span class="text-teal-500 font-extrabold pr-6">âœ¦</span>
+          <span class="text-teal-500 font-extrabold pr-6">✦</span>
           <span class="inline-block pr-6">${activeTitle}</span>
-          <span class="text-teal-500 font-extrabold pr-6">âœ¦</span>
+          <span class="text-teal-500 font-extrabold pr-6">✦</span>
         `;
       } else {
         trackEl.classList.remove('is-running');
@@ -9599,8 +9640,8 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
 
     if (!liveLabel) {
       liveLabel = hasCurrentStore
-        ? `ðŸŽ¯ [Draft Form Toko Aktif: ${currentStoreName} (${currentStoreCode})]`
-        : `ðŸŽ¯ [Draft Form Toko Saat Ini]`;
+        ? `🎯 [Draft Form Toko Aktif: ${currentStoreName} (${currentStoreCode})]`
+        : `🎯 [Draft Form Toko Saat Ini]`;
     }
 
     let itemsHtml = '';
@@ -9626,7 +9667,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     reports.forEach((r) => {
       const isSel = this.activePreviewReportId === r.id;
       const title = `${r.storeName} (${r.storeCode})`;
-      const meta = `${r.visitDateFormatted || r.visitDate || '-'} â€¢ Visitor: ${r.auditorName || '-'}`;
+      const meta = `${r.visitDateFormatted || r.visitDate || '-'} • Visitor: ${r.auditorName || '-'}`;
       itemsHtml += `
         <button
           type="button"
@@ -10278,7 +10319,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
 
     // Set header info
     if (titleEl) titleEl.textContent = `${rep.storeName || 'Toko'} (Site ${rep.storeCode || '-'})`;
-    if (subtitleEl) subtitleEl.textContent = `Visitor: ${rep.auditorName || '-'} â€¢ Tanggal: ${window.FMCUPdf.formatIndonesianDate(rep.visitDate, true)}`;
+    if (subtitleEl) subtitleEl.textContent = `Visitor: ${rep.auditorName || '-'} • Tanggal: ${window.FMCUPdf.formatIndonesianDate(rep.visitDate, true)}`;
     if (pagesBadge) pagesBadge.textContent = 'Memuat Dokumen...';
 
     // Buka modal & reset state tampilan
@@ -10589,13 +10630,13 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
             <div class="space-y-1.5 min-w-0">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="px-2.5 py-0.5 rounded-md bg-teal-50 text-[#0099A6] font-extrabold text-xs">
-                  Site ${r.storeCode} â€¢ ${r.storeType || 'CVS'}
+                  Site ${r.storeCode} • ${r.storeType || 'CVS'}
                 </span>
                 <h4 class="font-extrabold text-base sm:text-lg text-slate-900">FamilyMart ${r.storeName}</h4>
                 <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
                   <i class="fa-solid fa-circle-check mr-1"></i>VISIT SELESAI
                 </span>
-                <span class="text-xs text-slate-400">â€¢</span>
+                <span class="text-xs text-slate-400">•</span>
                 <span class="text-xs font-semibold text-slate-600">${dateText}</span>
               </div>
 
@@ -10752,12 +10793,12 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
   // ==========================================================================
   _psychologyTipInterval: null,
   _psychologyTips: [
-    'ðŸ’¡ Tips: Foto otomatis dikompresi beresolusi HD tanpa kehilangan detail penting & irit kuota (<10MB).',
-    'ðŸš€ Berkas tersimpan permanen di Google Drive resmi FMCU sehingga aman saat Anda berganti ponsel.',
-    'ðŸ“‹ Kolase lembar QSC vertikal dirancang khusus agar mudah dibaca di layar HP tim operasional.',
-    'ðŸ“Š Spreadsheet CA otomatis menyusun nama temuan & deadline untuk percepatan perbaikan toko.',
-    'ðŸ”’ Seluruh transmisi berkas terenkripsi aman langsung ke cloud Google Workspace FamilyMart.',
-    'âœ¨ Hampir selesai! Mengamankan dan memvalidasi tautan cloud berkas Anda...'
+    '💡 Tips: Foto otomatis dikompresi beresolusi HD tanpa kehilangan detail penting & irit kuota (<10MB).',
+    '🚀 Berkas tersimpan permanen di Google Drive resmi FMCU sehingga aman saat Anda berganti ponsel.',
+    '📋 Kolase lembar QSC vertikal dirancang khusus agar mudah dibaca di layar HP tim operasional.',
+    '📊 Spreadsheet CA otomatis menyusun nama temuan & deadline untuk percepatan perbaikan toko.',
+    '🔒 Seluruh transmisi berkas terenkripsi aman langsung ke cloud Google Workspace FamilyMart.',
+    '✨ Hampir selesai! Mengamankan dan memvalidasi tautan cloud berkas Anda...'
   ],
   _currentTipIdx: 0,
 
@@ -10889,7 +10930,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       if (cardEl) cardEl.className = 'p-3 rounded-2xl border border-emerald-300 bg-emerald-50/60 shadow-xs transition-all duration-300';
       if (statusEl) {
         statusEl.className = 'shrink-0 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center gap-1.5 animate-pop-check';
-        statusEl.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-600 text-xs"></i><span>Tahap 3/3: Tersimpan di Cloud âœ“</span>';
+        statusEl.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-600 text-xs"></i><span>Tahap 3/3: Tersimpan di Cloud ✓</span>';
       }
       if (progEl) {
         progEl.style.width = '100%';
@@ -11052,11 +11093,11 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
 
     const nameEl = document.getElementById('modal-send-report-name');
     if (nameEl) {
-      nameEl.textContent = `FamilyMart ${rep.storeName || '-'} (${rep.storeCode || '-'}) â€” ${rep.visitDateFormatted || rep.visitDate}`;
+      nameEl.textContent = `FamilyMart ${rep.storeName || '-'} (${rep.storeCode || '-'}) — ${rep.visitDateFormatted || rep.visitDate}`;
     }
     const metaEl = document.getElementById('modal-send-report-meta');
     if (metaEl) {
-      metaEl.textContent = `Visitor: ${rep.auditorName || '-'} â€¢ ${(rep.observations || []).length} Temuan Observasi â€¢ ${(rep.evidencePhotos || []).length} Foto Bukti`;
+      metaEl.textContent = `Visitor: ${rep.auditorName || '-'} • ${(rep.observations || []).length} Temuan Observasi • ${(rep.evidencePhotos || []).length} Foto Bukti`;
     }
 
     // Set tautan tombol buka folder toko dan spreadsheet CA jika ada di DOM
@@ -11315,7 +11356,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
 
       if (gasJson && gasJson.status === 'SUCCESS') {
         // ====================================================================
-        // TAHAP 3 DARI 3 BERKAS: TERVERIFIKASI & TERSIMPAN DI GOOGLE DRIVE âœ“
+        // TAHAP 3 DARI 3 BERKAS: TERVERIFIKASI & TERSIMPAN DI GOOGLE DRIVE ✓
         // ====================================================================
         this.setFileSyncStage('pdf', 3, 'PDF Laporan 16:9 tersimpan aman di Google Drive');
         this.setFileSyncStage('qsc', 3, 'Dokumen QSC vertikal tersimpan di Google Drive');
@@ -11608,7 +11649,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
               if (isAlreadyChosen) {
                 return `<option value="${s.code}" disabled class="text-slate-400 bg-slate-100">[SUDAH DIJADWALKAN HARI INI] ${s.code} - ${s.name} (${s.type || 'CVS'})</option>`;
               }
-              return `<option value="${s.code}">${s.code} - ${s.name} (${s.type || 'CVS'}${s.city ? ' â€¢ ' + s.city : ''})</option>`;
+              return `<option value="${s.code}">${s.code} - ${s.name} (${s.type || 'CVS'}${s.city ? ' • ' + s.city : ''})</option>`;
             })
             .join('')
         : `<option value="">-- Tidak ada toko yang cocok dengan pencarian --</option>`;
@@ -11770,7 +11811,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
 
       if (statusBox) {
         statusBox.className = 'text-xs font-semibold p-3 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200 block';
-        statusBox.innerHTML = `âœ… Berhasil mengekstrak <strong>${extracted.length} Toko</strong> dari file <strong>${file.name}</strong> (Total Master Toko: <strong>${finalStores.length} Toko</strong>) dan menyinkronkannya ke Cloud Firestore!`;
+        statusBox.innerHTML = `✅ Berhasil mengekstrak <strong>${extracted.length} Toko</strong> dari file <strong>${file.name}</strong> (Total Master Toko: <strong>${finalStores.length} Toko</strong>) dan menyinkronkannya ke Cloud Firestore!`;
       }
       this.showToast(`Berhasil import ${extracted.length} Master Toko dari ${file.name}!`, 'success');
       fileInput.value = '';
@@ -11804,7 +11845,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       this.updateAdminFirestoreSummary();
       if (statusBox) {
         statusBox.className = 'text-xs font-semibold p-3 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200 block';
-        statusBox.innerHTML = `âœ… Berhasil mengekstrak ulang <strong>${extracted.length} Master Toko</strong> dari <code>10. List PIC Oktober 2026_rev01.xlsx</code> dan menyinkronkannya ke Cloud Firestore!`;
+        statusBox.innerHTML = `✅ Berhasil mengekstrak ulang <strong>${extracted.length} Master Toko</strong> dari <code>10. List PIC Oktober 2026_rev01.xlsx</code> dan menyinkronkannya ke Cloud Firestore!`;
       }
       this.showToast(`${extracted.length} Master Toko dari 10. List PIC Oktober 2026_rev01.xlsx berhasil dimuat!`, 'success');
     } else {
@@ -12072,7 +12113,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                     ? 'bg-amber-100 text-amber-800'
                     : 'bg-teal-100 text-teal-800'
                 }">${u.roleBadge || u.role}</span>
-                <div class="text-[10px] text-slate-500 mt-0.5">${u.jabatan ? u.jabatan + (u.region && u.region !== '-' ? ' â€¢ ' + u.region : '') : u.region || '-'}</div>
+                <div class="text-[10px] text-slate-500 mt-0.5">${u.jabatan ? u.jabatan + (u.region && u.region !== '-' ? ' • ' + u.region : '') : u.region || '-'}</div>
               </td>
               <td class="py-2.5 px-3">
                 <div class="flex flex-wrap gap-1 max-w-xs">
@@ -12212,7 +12253,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     if (!val) return;
     const snappedMonday = this.getMondayOfWeek(val);
     if (snappedMonday !== val) {
-      this.showToast('Tanggal otomatis disesuaikan ke hari Senin terdekat pada minggu tersebut (Seninâ€“Minggu).', 'info');
+      this.showToast('Tanggal otomatis disesuaikan ke hari Senin terdekat pada minggu tersebut (Senin–Minggu).', 'info');
     }
     this.weeklyMondayDate = snappedMonday;
     this.renderWeeklySchedulePlanner();
@@ -12588,7 +12629,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       );
     });
 
-    // Render Tab Scope Controls: [â­ Toko Milik Bestie Ini] vs [Semua Master Toko]
+    // Render Tab Scope Controls: [⭐ Toko Milik Bestie Ini] vs [Semua Master Toko]
     const scopeContainer = document.getElementById('weekly-picker-scope-controls');
     if (scopeContainer) {
       scopeContainer.innerHTML = `
@@ -12695,12 +12736,12 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                   <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-slate-100 text-slate-600">${st.type || 'CVS'}</span>
                   ${st.city ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-100 text-slate-500">${st.city}</span>` : ''}
                   ${ownedStoreCodes.has(String(st.code)) ? `<span class="px-2 py-0.2 rounded-full text-[9px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs"><i class="fa-solid fa-star text-amber-500 mr-0.5"></i> Milik Bestie Ini</span>` : ((window.FMCUData && typeof window.FMCUData.getBestieByStoreCode === 'function' && window.FMCUData.getBestieByStoreCode(st.code)) ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">PIC: ${window.FMCUData.getBestieByStoreCode(st.code)}</span>` : '')}
-                  ${isAssigned ? `<span class="px-2 py-0.2 rounded-full text-[9px] font-extrabold bg-emerald-200 text-emerald-900">âœ“ Terjadwal Hari Ini</span>` : ''}
+                  ${isAssigned ? `<span class="px-2 py-0.2 rounded-full text-[9px] font-extrabold bg-emerald-200 text-emerald-900">✓ Terjadwal Hari Ini</span>` : ''}
                   ${assignedToOtherName ? `<span class="px-2 py-0.2 rounded-full text-[9px] font-extrabold bg-rose-100 text-rose-800 border border-rose-200">[Dipilih ${assignedToOtherName}]</span>` : ''}
                   ${this.renderStoreVisitBadgeHtml(st.code)}
                 </div>
                 <h5 class="font-extrabold text-xs sm:text-sm text-slate-900 truncate leading-snug mt-0.5" title="${st.name}">${st.name}</h5>
-                <p class="text-[10px] text-slate-500 truncate mt-0.5">${st.address || '-'} ${st.areaManager ? ' â€¢ AM: ' + st.areaManager : ''}</p>
+                <p class="text-[10px] text-slate-500 truncate mt-0.5">${st.address || '-'} ${st.areaManager ? ' • AM: ' + st.areaManager : ''}</p>
               </div>
             </div>
             <div class="shrink-0">
@@ -13161,7 +13202,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
           ? `${ownedStoreCodes.size} Toko Milik Bestie In Charge`
           : 'Master Toko Umum (Bebas)';
         this.showToast(
-          `Berhasil mengisi otomatis ${added} hari (Seninâ€“Minggu) untuk ${visitorName || 'Visitor'} berbasis ${sourceDesc} (100% Bebas Bentrok & Toko Tidak Dobel)!`,
+          `Berhasil mengisi otomatis ${added} hari (Senin–Minggu) untuk ${visitorName || 'Visitor'} berbasis ${sourceDesc} (100% Bebas Bentrok & Toko Tidak Dobel)!`,
           'success'
         );
       } else {
@@ -13259,7 +13300,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
             <div class="font-extrabold text-xs text-slate-800 group-hover:text-slate-900 truncate mt-0.5" title="${st.name}">${st.name}</div>
           </div>
           <div class="text-[9.5px] text-slate-500 truncate mt-1">
-            ${st.city || '-'} ${st.areaManager ? 'â€¢ AM: ' + st.areaManager : ''}
+            ${st.city || '-'} ${st.areaManager ? '• AM: ' + st.areaManager : ''}
           </div>
         </button>
       `
@@ -13468,7 +13509,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     const fiveDays = this.getFiveWorkDays(this.weeklyMondayDate);
     const rangeBadge = document.getElementById('weekly-date-range-badge');
     if (rangeBadge && fiveDays.length === 7) {
-      rangeBadge.textContent = `${fiveDays[0].shortDate} â€“ ${fiveDays[6].shortDate} (Seninâ€“Minggu)`;
+      rangeBadge.textContent = `${fiveDays[0].shortDate} – ${fiveDays[6].shortDate} (Senin–Minggu)`;
     }
     const nearestInfoEl = document.getElementById('weekly-nearest-monday-info');
     if (nearestInfoEl && fiveDays.length === 7) {
@@ -13520,7 +13561,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                       : `<span class="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-slate-100 text-slate-500" title="Bebas Master Toko">Bebas</span>`
                     }
                   </div>
-                  <div class="text-[10px] text-slate-500 truncate">${u.roleBadge || u.role} ${u.region ? 'â€¢ ' + u.region : ''}</div>
+                  <div class="text-[10px] text-slate-500 truncate">${u.roleBadge || u.role} ${u.region ? '• ' + u.region : ''}</div>
                 </div>
               </div>
               <div class="flex flex-col items-end shrink-0 gap-1">
@@ -13530,7 +13571,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                   <i class="fa-solid fa-check"></i>
                 </span>
                 <span class="text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-white border border-slate-200 text-slate-700">
-                  Draft: ${draftCount}${savedThisWeek > 0 ? ` â€¢ Aktif: ${savedThisWeek}` : ''}
+                  Draft: ${draftCount}${savedThisWeek > 0 ? ` • Aktif: ${savedThisWeek}` : ''}
                 </span>
               </div>
             </div>
@@ -13546,9 +13587,9 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     const activeDayObj = fiveDays[this.weeklyActiveSlot.dayIndex] || fiveDays[0];
     if (activeIndicator) {
       if (activeAudObj && activeDayObj) {
-        activeIndicator.innerHTML = `ðŸŽ¯ Target Aktif: <strong>${activeAudObj.name}</strong> &mdash; <strong>${activeDayObj.dayName} (${activeDayObj.shortDate})</strong>`;
+        activeIndicator.innerHTML = `🎯 Target Aktif: <strong>${activeAudObj.name}</strong> &mdash; <strong>${activeDayObj.dayName} (${activeDayObj.shortDate})</strong>`;
       } else {
-        activeIndicator.textContent = 'ðŸŽ¯ Pilih Visitor di Langkah 2 terlebih dahulu';
+        activeIndicator.textContent = '🎯 Pilih Visitor di Langkah 2 terlebih dahulu';
       }
     }
     this.renderWeeklyQuickStoreResults();
@@ -13615,7 +13656,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                           ? 'bg-teal-100 text-teal-800'
                           : 'bg-slate-200/70 text-slate-600'
                       }">
-                        ${isSlotActive ? 'ðŸŽ¯ Aktif' : `${draftItems.length} Toko`}
+                        ${isSlotActive ? '🎯 Aktif' : `${draftItems.length} Toko`}
                       </span>
                     </div>
 
@@ -13650,7 +13691,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                                   class="py-1.5 px-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 font-extrabold text-[10px] transition flex items-center justify-center gap-1 shadow-2xs cursor-pointer active:scale-95"
                                   title="Tandai hari ${dayObj.dayName} sebagai CUTI untuk ${u.name}"
                                 >
-                                  <span>ðŸŒ´ CUTI</span>
+                                  <span class="flex items-center gap-1"><i class="fa-solid fa-umbrella-beach text-amber-600"></i> CUTI</span>
                                 </button>
                                 <button
                                   type="button"
@@ -13658,7 +13699,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                                   class="py-1.5 px-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-300 font-extrabold text-[10px] transition flex items-center justify-center gap-1 shadow-2xs cursor-pointer active:scale-95"
                                   title="Tandai hari ${dayObj.dayName} sebagai OFF / LIBUR untuk ${u.name}"
                                 >
-                                  <span>ðŸ’¤ OFF</span>
+                                  <span class="flex items-center gap-1"><i class="fa-solid fa-bed text-indigo-600"></i> OFF</span>
                                 </button>
                               </div>
                             </div>`
@@ -13671,7 +13712,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                                 if (isCuti || isOff) {
                                   const isC = isCuti;
                                   const badgeBg = isC ? 'bg-amber-50 border-amber-300' : 'bg-indigo-50 border-indigo-300';
-                                  const icon = isC ? 'ðŸŒ´' : 'ðŸ’¤';
+                                  const icon = isC ? '<i class="fa-solid fa-umbrella-beach text-amber-600"></i>' : '<i class="fa-solid fa-bed text-indigo-600"></i>';
                                   const title = isC ? 'CUTI TAHUNAN / KHUSUS' : 'HARI LIBUR / OFF';
                                   const txtColor = isC ? 'text-amber-900' : 'text-indigo-900';
                                   const subTxt = isC ? 'Jadwal Cuti Terkonfirmasi' : 'Hari Off / Istirahat';
@@ -13716,7 +13757,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                                       <div class="flex items-start justify-between gap-1">
                                         <div class="min-w-0">
                                           <div class="font-extrabold text-[11px] text-purple-950 flex items-center gap-1.5">
-                                            <span class="text-purple-600">ðŸ“Œ</span>
+                                            <i class="fa-solid fa-thumbtack text-purple-600 text-xs"></i>
                                             <span class="truncate font-black" title="${title}">${title}</span>
                                           </div>
                                           <div class="text-[9px] text-purple-700 font-semibold mt-0.5 flex items-center gap-1">
@@ -13861,7 +13902,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                         : `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200" title="Visitor bebas memilih dari master toko umum"><i class="fa-solid fa-store mr-1"></i>Bebas Master Toko</span>`
                       }
                     </div>
-                    <p class="text-[11px] text-slate-500">@${u.username} â€¢ Wilayah: ${u.region || 'Nasional'} â€¢ ${(window.FMCUData && window.FMCUData.getStoreCodesOwnedByBestie(u.name).size > 0) ? 'Auto-Klasifikasi: ' + window.FMCUData.getStoreCodesOwnedByBestie(u.name).size + ' toko kepemilikan' : 'Auto-Klasifikasi: Bebas master data toko'}</p>
+                    <p class="text-[11px] text-slate-500">@${u.username} • Wilayah: ${u.region || 'Nasional'} • ${(window.FMCUData && window.FMCUData.getStoreCodesOwnedByBestie(u.name).size > 0) ? 'Auto-Klasifikasi: ' + window.FMCUData.getStoreCodesOwnedByBestie(u.name).size + ' toko kepemilikan' : 'Auto-Klasifikasi: Bebas master data toko'}</p>
                   </div>
                 </div>
 
@@ -13872,7 +13913,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                     class="px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#009944] border border-emerald-200 font-extrabold text-[11px] transition flex items-center gap-1 cursor-pointer"
                   >
                     <i class="fa-solid fa-wand-magic-sparkles"></i>
-                    <span>Isi Otomatis Senâ€“Min</span>
+                    <span>Isi Otomatis Sen–Min</span>
                   </button>
                   <button
                     type="button"
@@ -13928,7 +13969,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     if (totalDraftBadge) {
       totalDraftBadge.innerHTML = `
         <span class="sm:hidden">${totalDraftSchedules} Jadwal Siap</span>
-        <span class="hidden sm:inline">${totalDraftSchedules} Jadwal Visit Siap Ditugaskan (Seninâ€“Minggu)</span>
+        <span class="hidden sm:inline">${totalDraftSchedules} Jadwal Visit Siap Ditugaskan (Senin–Minggu)</span>
       `;
     }
     const totalAudBadge = document.getElementById('weekly-total-auditor-badge');
@@ -14051,7 +14092,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     });
 
     if (newSchedules.length === 0) {
-      this.showToast('Belum ada toko yang dimasukkan ke dalam jadwal 1 minggu (Seninâ€“Minggu). Silakan pilih toko terlebih dahulu.', 'warning');
+      this.showToast('Belum ada toko yang dimasukkan ke dalam jadwal 1 minggu (Senin–Minggu). Silakan pilih toko terlebih dahulu.', 'warning');
       return;
     }
 
@@ -14069,7 +14110,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     });
 
     if (conflictList.length > 0) {
-      const confirmMsg = `âš ï¸ Terdeteksi ${conflictList.length} jadwal bentrok (toko yang sama dijadwalkan ke beberapa visitor di hari yang sama):\n- ${conflictList.slice(0, 3).join('\n- ')}\n\nTetap terapkan dan simpan jadwal ini?`;
+      const confirmMsg = `⚠️  Terdeteksi ${conflictList.length} jadwal bentrok (toko yang sama dijadwalkan ke beberapa visitor di hari yang sama):\n- ${conflictList.slice(0, 3).join('\n- ')}\n\nTetap terapkan dan simpan jadwal ini?`;
       if (!confirm(confirmMsg)) {
         return;
       }
@@ -14088,7 +14129,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     this.switchScheduleSubSection('list');
     this.renderAdminView();
     this.showToast(
-      `ðŸŽ‰ Berhasil menerapkan ${newSchedules.length} Jadwal Visit 1 Week (Seninâ€“Minggu) untuk ${involvedAuditors.size} Visitor!`,
+      `🎉 Berhasil menerapkan ${newSchedules.length} Jadwal Visit 1 Week (Senin–Minggu) untuk ${involvedAuditors.size} Visitor!`,
       'success'
     );
   },
@@ -14135,14 +14176,14 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                 <div class="font-extrabold text-xs text-slate-900 truncate leading-tight">${u.name}</div>
                 <div class="text-[9.5px] text-slate-500 truncate flex items-center gap-1 mt-0.5">
                   <span>${u.region || 'Nasional'}</span>
-                  ${ownedCount > 0 ? `â€¢ <span class="text-amber-700 font-bold"><i class="fa-solid fa-star text-[8px] text-amber-500"></i> ${ownedCount}</span>` : ''}
+                  ${ownedCount > 0 ? `• <span class="text-amber-700 font-bold"><i class="fa-solid fa-star text-[8px] text-amber-500"></i> ${ownedCount}</span>` : ''}
                 </div>
               </div>
             </div>
             <div class="flex items-center gap-1.5 shrink-0 text-right">
               <div class="flex flex-col items-end">
                 <span class="text-xs font-black ${mySch.length > 0 ? 'text-slate-900' : 'text-slate-400'}">${mySch.length} Visit</span>
-                <span class="text-[9px] font-bold text-slate-500">${completed} Sel â€¢ ${pending} Pnd</span>
+                <span class="text-[9px] font-bold text-slate-500">${completed} Sel • ${pending} Pnd</span>
               </div>
               <span class="w-8 py-0.5 rounded-md text-[9.5px] font-black text-center ${
                 pct >= 80 ? 'bg-emerald-100 text-emerald-800' : pct > 0 ? 'bg-teal-100 text-teal-800' : 'bg-slate-100 text-slate-500'
@@ -14237,7 +14278,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
         const items = draftItems.length > 0 ? draftItems : savedItems;
 
         if (items.length === 0) {
-          // Output hari kosong sebagai OFF agar seluruh hari Seninâ€“Minggu rapi tercatat
+          // Output hari kosong sebagai OFF agar seluruh hari Senin–Minggu rapi tercatat
           rows.push([
             u.name,
             dateStr,
@@ -14723,7 +14764,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
             ? daySch.map((s) => `[${s.storeCode}] ${s.storeName} (${s.status})`).join(' ; ')
             : '-';
       });
-      row['Total Toko Minggu Ini (Seninâ€“Minggu)'] = weekTotal;
+      row['Total Toko Minggu Ini (Senin–Minggu)'] = weekTotal;
       return row;
     });
 
@@ -15422,7 +15463,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       this.deferredPwaPrompt = null;
       const banner = document.getElementById('pwa-install-banner');
       if (banner) banner.classList.add('hidden');
-      this.showToast('ðŸŽ‰ Aplikasi FMCU-ONEGATESYSTEM berhasil dipasang di layar utama!', 'success');
+      this.showToast('🎉 Aplikasi FMCU-ONEGATESYSTEM berhasil dipasang di layar utama!', 'success');
     });
   },
 
@@ -15439,7 +15480,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     } else {
       const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
       if (isIos) {
-        alert('Untuk memasang di iPhone/iPad:\n1. Ketuk tombol Bagikan (Share âŽ‹) di Safari\n2. Gulir ke bawah lalu pilih "Tambahkan ke Layar Utama" (+)');
+        alert('Untuk memasang di iPhone/iPad:\n1. Ketuk tombol Bagikan (Share ) di Safari\n2. Gulir ke bawah lalu pilih "Tambahkan ke Layar Utama" (+)');
       } else {
         this.showToast('Buka menu browser (titik 3 di kanan atas) lalu pilih "Tambahkan ke Layar Utama" atau "Install App".', 'info', 5000);
       }
@@ -15509,7 +15550,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
         const acc = Math.round(pos.coords.accuracy || 0);
         this.checkAutomaticGeofenceInOut();
         this.updateFormGuardVisibility();
-        this.showToast(`ðŸ“ GPS diperbarui (Akurasi Â±${acc}m). ${distMsg}Mode Mall/Gedung (Toleransi 50m) Aktif.`, 'success', 5000);
+        this.showToast(`📍  GPS diperbarui (Akurasi ±${acc}m). ${distMsg}Mode Mall/Gedung (Toleransi 50m) Aktif.`, 'success', 5000);
       },
       (err) => {
         if (icon) icon.classList.remove('fa-spin');
@@ -15538,7 +15579,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     const visitDate = document.getElementById('form-visit-date')?.value.trim() || this.getLocalDateISO();
     const dateFormatted = window.FMCUPdf.formatIndonesianDate(visitDate, true);
 
-    if (infoEl) infoEl.textContent = `${storeName} (${storeCode}) â€¢ ${dateFormatted}`;
+    if (infoEl) infoEl.textContent = `${storeName} (${storeCode}) • ${dateFormatted}`;
 
     const actualIn = document.getElementById('form-actual-in')?.value.trim() || '-';
     const actualOut = document.getElementById('form-actual-out')?.value.trim() || this.getCurrentTimeWIB();
@@ -15554,13 +15595,13 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
 
     // Validasi Kelengkapan
     if (qscUploaded === 0) {
-      warnings.push('âš ï¸ Belum ada foto lembar QSC / FamiTrack yang diunggah (Wajib minimal 1 lembar).');
+      warnings.push('⚠️  Belum ada foto lembar QSC / FamiTrack yang diunggah (Wajib minimal 1 lembar).');
     }
     if (actualIn === '--:-- WIB' || actualIn === '-') {
-      warnings.push('âš ï¸ Jam Actual In belum terekam otomatis oleh geofence.');
+      warnings.push('⚠️  Jam Actual In belum terekam otomatis oleh geofence.');
     }
     if (crewCount === 0) {
-      warnings.push('âš ï¸ Belum ada data kru toko (Store Head / Shift Leader) yang diisi.');
+      warnings.push('⚠️  Belum ada data kru toko (Store Head / Shift Leader) yang diisi.');
     }
 
     container.innerHTML = `
@@ -15587,7 +15628,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
             Skor QSC: ${qscScoreVal > 0 ? qscScoreVal.toFixed(1) + '%' : 'Belum diisi'}
           </div>
           <div class="text-[11px] ${qscUploaded > 0 ? 'text-emerald-700' : 'text-rose-600 font-bold'}">
-            ${qscUploaded > 0 ? `âœ“ ${qscUploaded} Foto lembar QSC siap cetak` : 'âœ— Belum ada foto lembar QSC'}
+            ${qscUploaded > 0 ? `✓ ${qscUploaded} Foto lembar QSC siap cetak` : '✗ Belum ada foto lembar QSC'}
           </div>
         </div>
 
@@ -15653,7 +15694,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       const res = await window.FMCUData.syncBestieInChargeFromSheet(true);
       if (res && res.success) {
         this.showToast(
-          `âœ“ Berhasil sinkronisasi ${res.count} data toko kepemilikan Bestie dari Google Spreadsheet (${res.source === 'LIVE_GOOGLE_SHEETS' ? 'Live Online' : 'Cache'})!`,
+          `✓ Berhasil sinkronisasi ${res.count} data toko kepemilikan Bestie dari Google Spreadsheet (${res.source === 'LIVE_GOOGLE_SHEETS' ? 'Live Online' : 'Cache'})!`,
           'success'
         );
       } else {
@@ -15739,7 +15780,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
 
     this.renderWeeklySchedulePlanner();
     const nextFormatted = window.FMCUPdf.formatIndonesianDate(nextMonday, false);
-    this.showToast(`ðŸ“‹ Berhasil menyalin jadwal ke minggu berikutnya (${nextFormatted})! Silakan tinjau dan klik "Terapkan & Simpan Jadwal".`, 'success', 6000);
+    this.showToast(`📋 Berhasil menyalin jadwal ke minggu berikutnya (${nextFormatted})! Silakan tinjau dan klik "Terapkan & Simpan Jadwal".`, 'success', 6000);
     this.logScheduleAction('DUPLICATE', `Menduplikasi susunan jadwal dari minggu ${curMonday} ke minggu ${nextMonday}`, 'Planner 1 Week');
   },
 
@@ -15857,7 +15898,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                   <span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-rose-100 text-rose-800 shrink-0">Skor: ${item.score}</span>
                 </div>
                 <div class="text-[10px] text-slate-500">
-                  <span>${item.visitDate}</span> â€¢ <span>${item.auditorName}</span>
+                  <span>${item.visitDate}</span> • <span>${item.auditorName}</span>
                 </div>
                 <div class="text-[11px] text-rose-700 font-semibold line-clamp-2">
                   <i class="fa-solid fa-circle-exclamation text-rose-500 mr-1 text-[10px]"></i>${item.criticalDetail}
@@ -16043,11 +16084,11 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     const statTotalEl = document.getElementById('admin-cal-stat-total');
     if (statTotalEl) statTotalEl.innerHTML = `Total: <strong>${totalInMonth}</strong> Jadwal`;
     const statCompEl = document.getElementById('admin-cal-stat-completed');
-    if (statCompEl) statCompEl.innerHTML = `âœ“ Selesai: <strong>${completedInMonth}</strong>`;
+    if (statCompEl) statCompEl.innerHTML = `<i class="fa-solid fa-check mr-1 text-emerald-600"></i>Selesai: <strong>${completedInMonth}</strong>`;
     const statPendEl = document.getElementById('admin-cal-stat-pending');
-    if (statPendEl) statPendEl.innerHTML = `â³ Pending: <strong>${pendingInMonth}</strong>`;
+    if (statPendEl) statPendEl.innerHTML = `<i class="fa-regular fa-clock mr-1 text-amber-600"></i>Pending: <strong>${pendingInMonth}</strong>`;
     const statStoresEl = document.getElementById('admin-cal-stat-stores');
-    if (statStoresEl) statStoresEl.innerHTML = `ðŸ¬ Toko: <strong>${uniqueStoresSet.size}</strong>`;
+    if (statStoresEl) statStoresEl.innerHTML = `<i class="fa-solid fa-store mr-1 text-[#009944]"></i>Toko: <strong>${uniqueStoresSet.size}</strong>`;
 
     // 4. Calculate 7-day grid starting from Monday
     const firstDay = new Date(year, month, 1);
@@ -16135,7 +16176,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
 
             ${daySchedules.length > 0 ? `
               <div class="flex items-center gap-0.5">
-                ${completedCount > 0 ? `<span class="text-[9px] font-extrabold px-1 rounded-full bg-emerald-100 text-emerald-800" title="${completedCount} Selesai">âœ“${completedCount}</span>` : ''}
+                ${completedCount > 0 ? `<span class="text-[9px] font-extrabold px-1 rounded-full bg-emerald-100 text-emerald-800" title="${completedCount} Selesai">✓${completedCount}</span>` : ''}
                 ${pendingCount > 0 ? `<span class="text-[9px] font-extrabold px-1 rounded-full bg-amber-100 text-amber-800" title="${pendingCount} Pending">â³${pendingCount}</span>` : ''}
               </div>
             ` : ''}
@@ -16266,7 +16307,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
               <div>
                 <div class="flex items-center gap-2 flex-wrap">
                   <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${isDone ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
-                    ${isDone ? 'âœ“ Selesai' : 'â³ Terjadwal'}
+                    ${isDone ? '✓ Selesai' : 'â³ Terjadwal'}
                   </span>
                   <span class="text-xs font-black text-slate-900">${s.storeName} (${s.storeCode})</span>
                   ${this.renderStoreVisitBadgeHtml(s.storeCode)}
@@ -16567,7 +16608,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
 
       if (statusBox) {
         statusBox.className = 'text-xs font-semibold p-3 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200 block';
-        statusBox.innerHTML = `âœ… Berhasil meng-import <strong>${extracted.length} User Karyawan</strong> dari file <strong>${file.name}</strong> (Total User Terdaftar: <strong>${finalUsers.length} Akun</strong>) dan menyinkronkannya ke Cloud Firestore!`;
+        statusBox.innerHTML = `✅ Berhasil meng-import <strong>${extracted.length} User Karyawan</strong> dari file <strong>${file.name}</strong> (Total User Terdaftar: <strong>${finalUsers.length} Akun</strong>) dan menyinkronkannya ke Cloud Firestore!`;
       }
       this.showToast(`Berhasil import ${extracted.length} User dari ${file.name}!`, 'success');
       fileInput.value = '';
@@ -16608,7 +16649,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
 
       if (statusBox) {
         statusBox.className = 'text-xs font-semibold p-3 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200 block';
-        statusBox.innerHTML = `âœ… Berhasil mengekstrak & meng-import <strong>${extracted.length} Karyawan (Nama, NIK, JABATAN)</strong> dari <code>Data_Karyawan_NIK.xlsx</code> (Total User: <strong>${finalUsers.length} Akun</strong>) dan menyinkronkannya ke Cloud Firestore!`;
+        statusBox.innerHTML = `✅ Berhasil mengekstrak & meng-import <strong>${extracted.length} Karyawan (Nama, NIK, JABATAN)</strong> dari <code>Data_Karyawan_NIK.xlsx</code> (Total User: <strong>${finalUsers.length} Akun</strong>) dan menyinkronkannya ke Cloud Firestore!`;
       }
       this.showToast(`${extracted.length} User dari Data_Karyawan_NIK.xlsx berhasil di-import!`, 'success');
     } else {
@@ -16818,22 +16859,22 @@ function testConnection() {
 
   try {
     var folder = DriveApp.getFolderById(rootId);
-    Logger.log('âœ“ BERHASIL TERHUBUNG KE GOOGLE DRIVE!');
+    Logger.log('✓ BERHASIL TERHUBUNG KE GOOGLE DRIVE!');
     Logger.log('  Nama Folder  : "' + folder.getName() + '"');
     Logger.log('  URL Folder   : ' + folder.getUrl());
 
     // Uji coba membuat sub-folder sementara
     var testSubName = '_uji_koneksi_' + new Date().getTime();
     var testSub = folder.createFolder(testSubName);
-    Logger.log('âœ“ BERHASIL MEMBUAT FOLDER UJI: "' + testSub.getName() + '"');
+    Logger.log('✓ BERHASIL MEMBUAT FOLDER UJI: "' + testSub.getName() + '"');
     testSub.setTrashed(true);
-    Logger.log('âœ“ FOLDER UJI BERHASIL DIBERSIHKAN (TRASHED).');
+    Logger.log('✓ FOLDER UJI BERHASIL DIBERSIHKAN (TRASHED).');
     Logger.log('====================================================');
     Logger.log('STATUS FINAL: DRIVEAPP 100% AKTIF, TEROTORISASI & SIAP DIGUNAKAN!');
     Logger.log('====================================================');
     return 'SUKSES: DriveApp aktif dan terhubung ke folder: ' + folder.getName();
   } catch (err) {
-    Logger.log('âœ— GAGAL MENGAKSES FOLDER: ' + err.toString());
+    Logger.log('✗ GAGAL MENGAKSES FOLDER: ' + err.toString());
     Logger.log('----------------------------------------------------');
     Logger.log('PANDUAN SOLUSI "Akses ditolak DriveApp":');
     Logger.log('1. Akun "' + (userEmail || 'Anda') + '" belum ditambahkan sebagai Editor pada folder ' + rootId);
@@ -17375,7 +17416,7 @@ function bersihkanFolderSpamDiRoot() {
   var root = DriveApp.getFolderById(DEFAULT_ROOT_GDRIVE_ID);
   var count = cleanupSpamStoreFoldersFromRoot_(root);
   Logger.log('====================================================');
-  Logger.log('âœ“ PEMBERSIHAN SELESAI!');
+  Logger.log('✓ PEMBERSIHAN SELESAI!');
   Logger.log('  Total folder toko yang dipindahkan dari root: ' + count);
   Logger.log('  Root folder "05. VISIT STORE" sekarang bersih tanpa spam folder toko.');
   Logger.log('====================================================');
@@ -17486,7 +17527,7 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
         <div>
           <div class="text-xs font-extrabold text-[#009944] uppercase">${u.roleBadge || u.role}</div>
           <h4 class="text-lg font-extrabold text-slate-900">${u.name}</h4>
-          <div class="text-xs text-slate-500">@${u.username} â€¢ ${u.region || '-'}</div>
+          <div class="text-xs text-slate-500">@${u.username} • ${u.region || '-'}</div>
         </div>
       </div>
 
@@ -17515,7 +17556,7 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
               <div class="p-3 rounded-xl border border-slate-200 text-xs flex items-center justify-between">
                 <div>
                   <div class="font-bold text-slate-900">FamilyMart ${r.storeName} (${r.storeCode})</div>
-                  <div class="text-[11px] text-slate-500">${r.visitDayDateFormatted || r.visitDate} â€¢ GPS: ${r.gpsLat || '-'}, ${r.gpsLng || '-'}</div>
+                  <div class="text-[11px] text-slate-500">${r.visitDayDateFormatted || r.visitDate} • GPS: ${r.gpsLat || '-'}, ${r.gpsLng || '-'}</div>
                 </div>
                 <div class="text-right font-mono font-bold text-emerald-700">
                   <div>In: ${r.actualIn}</div>
@@ -17600,7 +17641,7 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
     const schedSubEl = document.getElementById('live-loc-stat-schedule-sub');
     if (schedSubEl) {
       const completedCount = todaySchedules.filter((s) => s.status === 'COMPLETED').length;
-      schedSubEl.textContent = `${completedCount} Selesai â€¢ ${todaySchedules.length - completedCount} Berjalan`;
+      schedSubEl.textContent = `${completedCount} Selesai • ${todaySchedules.length - completedCount} Berjalan`;
     }
 
     // 2. Populate Bestie Select Dropdown
@@ -17720,7 +17761,7 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
             <span>FamilyMart ${st.name}</span>
           </div>
           <div class="text-[11px] font-mono text-slate-500 font-bold">
-            Kode: <span class="text-slate-800 font-bold">${st.code}</span> â€¢ ${st.city || 'Jabodetabek'}
+            Kode: <span class="text-slate-800 font-bold">${st.code}</span> • ${st.city || 'Jabodetabek'}
           </div>
           <div class="text-[11px] text-slate-600">
             ${st.address || '-'}
@@ -17874,7 +17915,7 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
             </div>
             <div class="min-w-0">
               <div class="font-extrabold text-slate-900 text-sm truncate">${bestie.name} ${isMe ? '<span class="text-xs text-teal-600 font-bold">(Anda)</span>' : ''}</div>
-              <div class="text-[10px] text-slate-400 font-mono">NIK: ${bestie.nik || '-'} â€¢ ${bestie.roleBadge || bestie.role}</div>
+              <div class="text-[10px] text-slate-400 font-mono">NIK: ${bestie.nik || '-'} • ${bestie.roleBadge || bestie.role}</div>
             </div>
           </div>
 
@@ -18093,7 +18134,7 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
                     ${b.name} ${isMe ? '<span class="text-[10px] text-teal-600 font-bold">(Anda)</span>' : ''}
                   </div>
                   <div class="text-[10px] text-slate-400 font-mono truncate">
-                    NIK: ${b.nik || '-'} â€¢ ${stInfo.subtitleHtml}
+                    NIK: ${b.nik || '-'} • ${stInfo.subtitleHtml}
                   </div>
                 </div>
               </div>
@@ -18436,7 +18477,7 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
             ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
             : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
         }">
-              ${item.active !== false ? 'âœ“ Aktif di Slide' : 'âœ• Dinonaktifkan'}
+              ${item.active !== false ? '✓ Aktif di Slide' : '✕ Dinonaktifkan'}
             </button>
           </td>
           <td class="py-2.5 px-3 text-center whitespace-nowrap space-x-1.5">
@@ -18917,7 +18958,7 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
     const modalPill = document.getElementById('modal-holding-version-pill');
     if (modalPill) modalPill.textContent = rev;
     const modalMeta = document.getElementById('modal-holding-meta-text');
-    if (modalMeta) modalMeta.textContent = `${st.version || 'STD/FMI/PD-QC/001/' + rev} â€¢ Efektif: ${st.effectiveDateFormatted || st.effectiveDate || '-'}`;
+    if (modalMeta) modalMeta.textContent = `${st.version || 'STD/FMI/PD-QC/001/' + rev} • Efektif: ${st.effectiveDateFormatted || st.effectiveDate || '-'}`;
   },
 
   onHoldingTimeStandardsUpdated(data) {
@@ -18968,7 +19009,7 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
     if (versionPill) versionPill.textContent = standards.revision || 'R23';
     const metaText = document.getElementById('modal-holding-meta-text');
     if (metaText) {
-      metaText.textContent = `${standards.version || 'STD/FMI/PD-QC/001/R23'} â€¢ Efektif: ${standards.effectiveDateFormatted || standards.effectiveDate || '-'}`;
+      metaText.textContent = `${standards.version || 'STD/FMI/PD-QC/001/R23'} • Efektif: ${standards.effectiveDateFormatted || standards.effectiveDate || '-'}`;
     }
 
     // Populate Rules Body
@@ -19133,7 +19174,7 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
     if (badge) badge.textContent = this.adminHoldingDraft.version || 'STD/FMI/PD-QC/001/' + (this.adminHoldingDraft.revision || 'R23');
     const sub = document.getElementById('adm-holding-doc-sub');
     if (sub) {
-      sub.textContent = `Acuan observasi food safety resmi PT FamilyMart Indonesia â€¢ Efektif: ${this.adminHoldingDraft.effectiveDateFormatted || this.adminHoldingDraft.effectiveDate || '-'} â€¢ Terhubung langsung ke AI T.A.R.O`;
+      sub.textContent = `Acuan observasi food safety resmi PT FamilyMart Indonesia • Efektif: ${this.adminHoldingDraft.effectiveDateFormatted || this.adminHoldingDraft.effectiveDate || '-'} • Terhubung langsung ke AI T.A.R.O`;
     }
 
     // Fill Input Fields
