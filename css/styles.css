@@ -1349,7 +1349,7 @@ div#form-top-geofence-banner,
 @media (max-width: 1023px) {
   #mobile-bottom-nav {
     position: fixed !important;
-    bottom: 2px !important;
+    bottom: 12px !important;
     left: 8px !important;
     right: 8px !important;
     width: calc(100% - 16px) !important;
@@ -1491,7 +1491,7 @@ div#form-top-geofence-banner,
   #floating-obs-actions,
   #floating-evidence-actions {
     position: fixed !important;
-    bottom: 50px !important;
+    bottom: 62px !important;
     right: 12px !important;
     z-index: 50 !important;
   }
@@ -1499,7 +1499,7 @@ div#form-top-geofence-banner,
   /* Padding bawah luas agar konten paling bawah bisa di-scroll bebas melewati FAB */
   #view-form,
 .view-section {
-  padding-bottom: 130px !important;
+  padding-bottom: 140px !important;
 }
 }
 
@@ -1558,7 +1558,7 @@ div#form-top-geofence-banner,
 #floating-obs-actions,
 #floating-evidence-actions {
   position: fixed !important;
-  bottom: 50px !important;
+  bottom: 62px !important;
   right: 12px !important;
   z-index: 50 !important;
 }
@@ -1632,7 +1632,7 @@ div#form-top-geofence-banner,
 /* Padding bawah luas agar konten paling bawah bisa di-scroll bebas melewati FAB */
 #view-form,
 .view-section {
-  padding-bottom: 130px !important;
+  padding-bottom: 140px !important;
 }
 
 
