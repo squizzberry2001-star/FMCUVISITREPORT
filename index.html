@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1800120000000" as="style" />
-  <link rel="preload" href="css/styles.css?v=1800120000000" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1800130000000" as="style" />
+  <link rel="preload" href="css/styles.css?v=1800130000000" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1800120000000" />
-  <link rel="stylesheet" href="css/styles.css?v=1800120000000" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1800130000000" />
+  <link rel="stylesheet" href="css/styles.css?v=1800130000000" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -3879,16 +3879,16 @@ service cloud.firestore {
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js" crossorigin="anonymous"></script>
 
   <!-- Core Application Scripts (Fast Startup & Auth Priority) -->
-  <script defer src="js/holding-time-standards.js?v=1800120000000"></script>
-  <script defer src="js/master-stores-seed.js?v=1800120000000"></script>
-  <script defer src="js/bestie-in-charge-seed.js?v=1800120000000"></script>
-  <script defer src="js/data.js?v=1800120000000"></script>
-  <script defer src="js/pdf-generator.js?v=1800120000000"></script>
-  <script defer src="js/app.js?v=1800120000000"></script>
+  <script defer src="js/holding-time-standards.js?v=1800130000000"></script>
+  <script defer src="js/master-stores-seed.js?v=1800130000000"></script>
+  <script defer src="js/bestie-in-charge-seed.js?v=1800130000000"></script>
+  <script defer src="js/data.js?v=1800130000000"></script>
+  <script defer src="js/pdf-generator.js?v=1800130000000"></script>
+  <script defer src="js/app.js?v=1800130000000"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1800120000000"></script>
+  <script async src="js/pdf-assets.js?v=1800130000000"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================
@@ -4847,7 +4847,7 @@ service cloud.firestore {
          ============================================================ -->
     <div
       id="modal-in-page-pdf-preview"
-      class="hidden fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-sm transition-all duration-200"
+      class="hidden fixed inset-0 z-[10000008] flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-sm transition-all duration-200"
       onclick="if(event.target === this) FMCUApp.closeInAppPdfModal()"
     >
       <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-5xl max-h-[96vh] flex flex-col overflow-hidden">
@@ -4868,6 +4868,17 @@ service cloud.firestore {
 
           <!-- Tombol Aksi di Modal -->
           <div class="flex items-center gap-1.5 shrink-0">
+            <a
+              id="modal-pdf-drive-link"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="hidden px-2.5 sm:px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              title="Buka Dokumen PDF Asli di Google Drive"
+            >
+              <i class="fa-brands fa-google-drive text-[#009944] text-xs"></i>
+              <span class="hidden sm:inline">PDF Asli GDrive</span>
+            </a>
             <button
               type="button"
               onclick="FMCUApp.openReportPreviewFromModal()"

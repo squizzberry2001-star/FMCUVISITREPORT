@@ -10312,8 +10312,12 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     }
   },
 
-  async openInAppPdfModal(reportId) {
+  async openInAppPdfModal(reportId, returnCalendarDate = null) {
     this.triggerHaptic('light');
+    if (returnCalendarDate) {
+      this._returnCalendarDate = returnCalendarDate;
+    }
+
     const reports = window.FMCUData.getReports() || [];
     const rep = reports.find((r) => String(r.id) === String(reportId));
     if (!rep) {
@@ -10333,6 +10337,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     const pagesContainer = document.getElementById('modal-pdf-pages-container');
     const frameContainer = document.getElementById('modal-pdf-frame-container');
     const iframe = document.getElementById('modal-pdf-iframe');
+    const driveLinkBtn = document.getElementById('modal-pdf-drive-link');
 
     if (!modalEl) {
       this.openReportPreview(reportId);
@@ -10343,6 +10348,19 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     if (titleEl) titleEl.textContent = `${rep.storeName || 'Toko'} (Site ${rep.storeCode || '-'})`;
     if (subtitleEl) subtitleEl.textContent = `Visitor: ${rep.auditorName || '-'} • Tanggal: ${window.FMCUPdf.formatIndonesianDate(rep.visitDate, true)}`;
     if (pagesBadge) pagesBadge.textContent = 'Memuat Dokumen...';
+
+    // Set link ke PDF Asli Google Drive
+    const drivePdfUrl = rep.pdfDriveUrl || rep.pdfUrl || rep.drivePdfUrl || rep.gdrivePdfUrl || rep.storeFolderUrl || rep.visitorFolderUrl || '';
+    if (driveLinkBtn) {
+      if (drivePdfUrl) {
+        driveLinkBtn.href = drivePdfUrl;
+        driveLinkBtn.classList.remove('hidden');
+        driveLinkBtn.classList.add('flex');
+      } else {
+        driveLinkBtn.classList.add('hidden');
+        driveLinkBtn.classList.remove('flex');
+      }
+    }
 
     // Buka modal & reset state tampilan
     modalEl.classList.remove('hidden');
@@ -10511,6 +10529,11 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     if (this.currentModalPdfBlobUrl) {
       try { URL.revokeObjectURL(this.currentModalPdfBlobUrl); } catch (e) {}
       this.currentModalPdfBlobUrl = null;
+    }
+    if (this._returnCalendarDate) {
+      const d = this._returnCalendarDate;
+      this._returnCalendarDate = null;
+      this.openAdminCalendarDayDetail(d);
     }
   },
 
@@ -16272,6 +16295,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
         const matchedRep = reports.find((r) => (s.reportId && r.id === s.reportId) || (r.storeCode === s.storeCode && r.visitDate === s.scheduledDate));
         const isDone = s.status === 'COMPLETED' || Boolean(s.reportId) || Boolean(matchedRep);
         const repId = s.reportId || matchedRep?.id || null;
+        const drivePdfUrl = matchedRep?.pdfDriveUrl || matchedRep?.pdfUrl || matchedRep?.drivePdfUrl || matchedRep?.gdrivePdfUrl || matchedRep?.storeFolderUrl || matchedRep?.visitorFolderUrl || '';
         return `
           <div class="border ${isDone ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200 bg-white'} rounded-2xl p-4 space-y-3 shadow-2xs">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
@@ -16288,12 +16312,29 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                 </div>
               </div>
 
-              <div class="flex items-center gap-1.5">
+              <div class="flex items-center gap-1.5 flex-wrap">
                 ${isDone && repId ? `
-                  <button type="button" onclick="FMCUApp.openReportPreview('${repId}'); FMCUApp.closeAdminCalendarDayDetail();" class="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-2xs transition flex items-center gap-1 cursor-pointer">
+                  <button
+                    type="button"
+                    onclick="FMCUApp.closeAdminCalendarDayDetail(); FMCUApp.openInAppPdfModal('${repId}', '${dateStr}');"
+                    class="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-2xs transition flex items-center gap-1.5 cursor-pointer active:scale-98"
+                    title="Langsung preview PDF di halaman web ini"
+                  >
                     <i class="fa-solid fa-file-pdf"></i>
                     <span>Lihat PDF</span>
                   </button>
+                  ${drivePdfUrl ? `
+                    <a
+                      href="${drivePdfUrl}"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="px-2.5 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-xs transition flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-98"
+                      title="Buka dokumen PDF asli di Google Drive"
+                    >
+                      <i class="fa-brands fa-google-drive text-[#009944]"></i>
+                      <span>PDF GDrive</span>
+                    </a>
+                  ` : ''}
                 ` : (s.storeType === 'NON_STORE' || s.storeCode === 'CUTI' || s.storeCode === 'OFF' || s.storeCode === 'AGENDA') ? `
                   <span class="px-2.5 py-1 rounded-xl text-xs font-bold text-slate-500 bg-slate-100 border border-slate-200">
                     <i class="fa-solid fa-circle-info mr-1 text-slate-400"></i>Non-Visit
