@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1793970000000" as="style" />
-  <link rel="preload" href="css/styles.css?v=1793970000000" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1800020000000" as="style" />
+  <link rel="preload" href="css/styles.css?v=1800020000000" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1793970000000" />
-  <link rel="stylesheet" href="css/styles.css?v=1793970000000" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1800020000000" />
+  <link rel="stylesheet" href="css/styles.css?v=1800020000000" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -3613,7 +3613,7 @@ service cloud.firestore {
        ==================================================================== -->
   <nav id="mobile-bottom-nav" aria-label="Menu Navigasi Mobile" class="lg:hidden fixed bottom-0 inset-x-0 z-40 py-1 px-2.5">
     <!-- A. MENU UTAMA MOBILE (Posisi Center Merata, Tanpa Scroll/Geser-Geser) -->
-    <div id="mobile-main-nav" class="relative flex items-center justify-around w-full max-w-md mx-auto">
+    <div id="mobile-main-nav" class="relative flex items-center justify-around w-full h-full max-w-md mx-auto">
       <!-- Fluid Morphing Liquid Indicator Bubble -->
       <div id="mobile-main-pill" class="mobile-nav-liquid-pill" aria-hidden="true"></div>
 
@@ -3652,7 +3652,7 @@ service cloud.firestore {
     </div>
 
     <!-- B. MENU SECTION FORM VISIT MOBILE (Dengan 4 Section Lengkap & Center) -->
-    <div id="mobile-form-nav" class="hidden relative flex items-center justify-around w-full max-w-md mx-auto py-1">
+    <div id="mobile-form-nav" class="hidden relative flex items-center justify-around w-full h-full max-w-md mx-auto">
       <!-- Fluid Morphing Liquid Indicator Bubble -->
       <div id="mobile-form-pill" class="mobile-nav-liquid-pill" aria-hidden="true"></div>
 
@@ -4044,16 +4044,16 @@ service cloud.firestore {
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js" crossorigin="anonymous"></script>
 
   <!-- Core Application Scripts (Fast Startup & Auth Priority) -->
-  <script defer src="js/holding-time-standards.js?v=1793970000000"></script>
-  <script defer src="js/master-stores-seed.js?v=1793970000000"></script>
-  <script defer src="js/bestie-in-charge-seed.js?v=1793970000000"></script>
-  <script defer src="js/data.js?v=1793970000000"></script>
-  <script defer src="js/pdf-generator.js?v=1793970000000"></script>
-  <script defer src="js/app.js?v=1793970000000"></script>
+  <script defer src="js/holding-time-standards.js?v=1800020000000"></script>
+  <script defer src="js/master-stores-seed.js?v=1800020000000"></script>
+  <script defer src="js/bestie-in-charge-seed.js?v=1800020000000"></script>
+  <script defer src="js/data.js?v=1800020000000"></script>
+  <script defer src="js/pdf-generator.js?v=1800020000000"></script>
+  <script defer src="js/app.js?v=1800020000000"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1793970000000"></script>
+  <script async src="js/pdf-assets.js?v=1800020000000"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================
@@ -4387,36 +4387,36 @@ service cloud.firestore {
       </div>
     </div>
 
-    <!-- Floating Action Button for Section 2: Observation (Quick Jump & Add Observation '+') -->
-          <div id="floating-obs-actions" class="hidden fixed bottom-20 sm:bottom-8 right-4 sm:right-8 z-40 flex items-center gap-2.5">
-            <!-- Quick Jump Navigator FAB -->
-            <button type="button" id="btn-fab-obs-jump" onclick="FMCUApp.scrollToNextObservation()" class="hidden floating-fab-glow-dark h-14 px-3.5 sm:px-4 rounded-full bg-slate-900/95 hover:bg-black text-white flex items-center gap-1.5 sm:gap-2 text-xs font-black shadow-xl cursor-pointer select-none border border-slate-700/50 backdrop-blur-sm" title="Lompat Cepat ke Temuan Berikutnya">
-              <i class="fa-solid fa-angles-down text-emerald-400 text-sm sm:text-base"></i>
-              <span id="floating-obs-jump-label" class="text-[11px] font-extrabold whitespace-nowrap">Temuan #1</span>
+    <!-- Floating Action Button for Section 2: Observation (Compact Liquid Glass) -->
+          <div id="floating-obs-actions" class="hidden fixed z-40 flex items-center gap-2">
+            <!-- Quick Jump Navigator FAB: Minimalis, Ramping & Simpel -->
+            <button type="button" id="btn-fab-obs-jump" onclick="FMCUApp.scrollToNextObservation()" class="hidden text-white flex items-center gap-1 cursor-pointer select-none" title="Lompat ke Temuan Berikutnya">
+              <i class="fa-solid fa-chevron-down text-emerald-400 text-[10px]"></i>
+              <span id="floating-obs-jump-label" class="font-extrabold whitespace-nowrap text-[11px]">#1</span>
             </button>
 
-            <!-- Add Observation '+' Button -->
-            <button type="button" id="btn-fab-obs-main" onclick="FMCUApp.addActiveObservation()" class="floating-fab-glow w-14 h-14 rounded-full fm-gradient text-white flex items-center justify-center cursor-pointer text-2xl select-none" title="Tambah Temuan Baru" aria-label="Tambah Temuan Baru">
-              <i class="fa-solid fa-plus"></i>
+            <!-- Add Observation '+' Button: Ukuran Di-adjust Compact (38px x 38px) -->
+            <button type="button" id="btn-fab-obs-main" onclick="FMCUApp.addActiveObservation()" class="text-white flex items-center justify-center cursor-pointer select-none" title="Tambah Temuan Baru" aria-label="Tambah Temuan Baru">
+              <i class="fa-solid fa-plus text-sm"></i>
             </button>
           </div>
 
-          <!-- Floating Action Buttons for Section 3: Evidence (Camera & Gallery with blur shadow) -->
-          <div id="floating-evidence-actions" class="hidden fixed bottom-20 sm:bottom-8 right-4 sm:right-8 z-40 flex items-center gap-3">
+          <!-- Floating Action Buttons for Section 3: Evidence (Camera & Gallery Compact) -->
+          <div id="floating-evidence-actions" class="hidden fixed z-40 flex items-center gap-2">
             <!-- Camera FAB -->
-            <button type="button" onclick="FMCUApp.handleFloatingCameraClick()" class="floating-fab-glow w-14 h-14 rounded-full fm-gradient text-white flex items-center justify-center cursor-pointer text-2xl select-none" title="Ambil Foto Kamera" aria-label="Ambil Foto Kamera">
-              <i class="fa-solid fa-camera text-2xl"></i>
+            <button type="button" id="btn-fab-evidence-cam" onclick="FMCUApp.handleFloatingCameraClick()" class="text-white flex items-center justify-center cursor-pointer select-none" title="Ambil Foto Kamera" aria-label="Ambil Foto Kamera">
+              <i class="fa-solid fa-camera text-xs"></i>
             </button>
 
             <!-- Gallery FAB -->
-            <button type="button" onclick="FMCUApp.handleFloatingGalleryClick()" class="floating-fab-glow-dark w-14 h-14 rounded-full bg-slate-900 hover:bg-black text-white flex items-center justify-center cursor-pointer text-2xl select-none" title="Pilih dari Galeri" aria-label="Pilih dari Galeri">
-              <i class="fa-solid fa-images text-2xl"></i>
+            <button type="button" id="btn-fab-evidence-gallery" onclick="FMCUApp.handleFloatingGalleryClick()" class="text-white flex items-center justify-center cursor-pointer select-none" title="Pilih dari Galeri" aria-label="Pilih dari Galeri">
+              <i class="fa-solid fa-images text-xs"></i>
             </button>
 
             <!-- Hidden file inputs triggered programmatically -->
             <input type="file" id="fab-camera-input" accept="image/*" capture="environment" onchange="FMCUApp.handleFloatingCameraUpload(event)" class="hidden" aria-label="Fab Camera Input" />
             <input type="file" id="fab-gallery-input" accept="image/*" multiple onchange="FMCUApp.handleFloatingGalleryUpload(event)" class="hidden" aria-label="Fab Gallery Input" />
-    </div>
+          </div>
 
     <!-- ============================================================
          MODAL LOG RIWAYAT PERUBAHAN JADWAL (AUDIT TRAIL)

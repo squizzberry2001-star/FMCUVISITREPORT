@@ -2292,6 +2292,7 @@ window.FMCUApp = {
   // NAVIGATION & VIEW ROUTER (HOME, ANALYTICS, FORM, PREVIEW, SCHEDULES, STORES, ADMIN)
   // ==========================================================================
   // POINT 16: Liquid Glass Morphing Indicator (Framer Motion spring physics: stiffness 400, damping 30)
+  // POINT 16: Liquid Glass Smooth Sliding Indicator (Buttery 60/120fps GPU Glide)
   updateMobileNavLiquidPill() {
     try {
       const isForm = this.currentView === 'form' && this.hasActiveStoreForm;
@@ -2313,27 +2314,9 @@ window.FMCUApp = {
         const left = itemRect.left - containerRect.left;
         const width = itemRect.width;
 
-        const prevLeft = parseFloat(pill.dataset.prevLeft || left);
-        const deltaX = left - prevLeft;
-        pill.dataset.prevLeft = left;
-
-        // Mercury droplet morphing: meregangkan bubble sesuai arah pergeseran
-        const stretch = Math.min(1.22, 1 + Math.abs(deltaX) / 280);
-
         pill.style.opacity = '1';
         pill.style.width = `${Math.round(width)}px`;
-
-        if (Math.abs(deltaX) > 6) {
-          pill.style.transition = 'transform 0.16s cubic-bezier(0.32, 0.72, 0, 1), width 0.16s ease';
-          pill.style.transform = `translate3d(${Math.round(left)}px, 0, 0) scaleX(${stretch})`;
-          setTimeout(() => {
-            pill.style.transition = 'transform 0.32s cubic-bezier(0.175, 0.885, 0.32, 1.275), width 0.32s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-            pill.style.transform = `translate3d(${Math.round(left)}px, 0, 0) scaleX(1)`;
-          }, 90);
-        } else {
-          pill.style.transition = 'transform 0.32s cubic-bezier(0.175, 0.885, 0.32, 1.275), width 0.32s ease';
-          pill.style.transform = `translate3d(${Math.round(left)}px, 0, 0) scaleX(1)`;
-        }
+        pill.style.transform = `translate3d(${Math.round(left)}px, 0, 0)`;
       });
     } catch (e) {
       console.warn('updateMobileNavLiquidPill error:', e);
@@ -2477,8 +2460,7 @@ window.FMCUApp = {
     }
     this.triggerHaptic('light');
     this.updateMobileNavLiquidPill();
-
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo(0, 0);
 
     // Toggle Tombol Home di Header (HANYA tampil saat di Form Visit)
     const headerHomeBtn = document.getElementById('header-home-btn');
@@ -2717,7 +2699,7 @@ window.FMCUApp = {
     });
 
     if (scrollTop) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo(0, 0);
     }
     this.updateMobileNavLiquidPill();
   },
@@ -2806,7 +2788,7 @@ window.FMCUApp = {
     }
 
     if (scrollTop) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo(0, 0);
     }
   },
 
@@ -4784,7 +4766,7 @@ window.FMCUApp = {
   switchAnalyticsSubSection(subSec, scrollTop = true) {
     this.renderAnalyticsPerformance();
     if (scrollTop) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo(0, 0);
     }
   },
 
@@ -8004,7 +7986,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
 
     btnJump.classList.remove('hidden');
     const nextIdx = typeof this._currentObsJumpIdx === 'number' ? ((this._currentObsJumpIdx + 1) % list.length) : 1;
-    if (label) label.textContent = `Temuan #${nextIdx + 1}`;
+    if (label) label.textContent = `#${nextIdx + 1}`;
   },
 
   // ==========================================================================

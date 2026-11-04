@@ -157,9 +157,10 @@ html, body, .overflow-y-auto, .overflow-x-auto, .scrollable, [class*="overflow-"
 }
 
 .mobile-nav-item.active i {
-  color: #009944 !important;
-  transform: translateY(-1px);
-}
+    color: #34d399 !important;
+    transform: translateY(-1px) scale(1.06) !important;
+    transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1), color 0.2s ease !important;
+  }
 
 /* 16:9 Widescreen Slide Preview Container for PDF Preview Page */
 .pdf-slide-wrapper {
@@ -1311,26 +1312,26 @@ div#form-top-geofence-banner,
 @media (max-width: 1023px) {
   #mobile-bottom-nav {
     position: fixed !important;
-    /* Posisikan mentok mendekat ke batas bawah layar mobile dengan jarak aman mikro */
-    bottom: max(4px, env(safe-area-inset-bottom, 4px)) !important;
+    bottom: 2px !important;
     left: 8px !important;
     right: 8px !important;
     width: calc(100% - 16px) !important;
-    max-width: 410px !important;
+    max-width: 400px !important;
     margin: 0 auto !important;
     border-radius: 9999px !important;
-    /* Liquid Glass smoke background */
-    background: linear-gradient(180deg, rgba(28, 32, 40, 0.78) 0%, rgba(14, 16, 22, 0.90) 100%) !important;
-    backdrop-filter: blur(40px) saturate(240%) contrast(115%) !important;
-    -webkit-backdrop-filter: blur(40px) saturate(240%) contrast(115%) !important;
-    border: 1px solid rgba(255, 255, 255, 0.18) !important;
-    /* Specular inner glow on top rim & layered soft shadows for dynamic flotation */
+    background: linear-gradient(180deg, rgba(20, 24, 32, 0.40) 0%, rgba(10, 14, 20, 0.55) 100%) !important;
+    backdrop-filter: blur(48px) saturate(240%) contrast(108%) !important;
+    -webkit-backdrop-filter: blur(48px) saturate(240%) contrast(108%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.22) !important;
     box-shadow: 
-      0 18px 42px -6px rgba(0, 0, 0, 0.7),
-      0 6px 18px -2px rgba(0, 0, 0, 0.5),
-      inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.45),
-      inset 0 -1.5px 2px 0 rgba(0, 0, 0, 0.6) !important;
-    padding: 3.5px 6px !important;
+      0 12px 32px -4px rgba(0, 0, 0, 0.65),
+      0 4px 12px -2px rgba(0, 0, 0, 0.45),
+      inset 0 1.2px 1px 0 rgba(255, 255, 255, 0.45),
+      inset 0 -1px 1.5px 0 rgba(0, 0, 0, 0.6) !important;
+    padding: 2px 6px !important;
+    height: 44px !important;
+    display: flex !important;
+    align-items: center !important;
     z-index: 45 !important;
     transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease !important;
     overflow: visible !important;
@@ -1369,18 +1370,19 @@ div#form-top-geofence-banner,
     bottom: 2px !important;
     left: 0 !important;
     border-radius: 9999px !important;
-    background: radial-gradient(100% 85% at 50% 10%, rgba(255, 255, 255, 0.26) 0%, rgba(255, 255, 255, 0.12) 100%) !important;
-    backdrop-filter: blur(24px) saturate(200%) !important;
-    -webkit-backdrop-filter: blur(24px) saturate(200%) !important;
-    border: 1px solid rgba(255, 255, 255, 0.28) !important;
+    background: radial-gradient(100% 85% at 50% 10%, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.08) 100%) !important;
+    backdrop-filter: blur(32px) saturate(220%) !important;
+    -webkit-backdrop-filter: blur(32px) saturate(220%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.35) !important;
     box-shadow: 
-      0 4px 14px -1px rgba(0, 0, 0, 0.35),
-      inset 0 1.2px 1px 0 rgba(255, 255, 255, 0.55),
-      inset 0 -1px 1px 0 rgba(0, 0, 0, 0.35) !important;
+      0 4px 16px -1px rgba(0, 0, 0, 0.32),
+      inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.65),
+      inset 0 -1px 1px 0 rgba(0, 0, 0, 0.25) !important;
     pointer-events: none !important;
     z-index: 1 !important;
     transform-origin: center center !important;
     will-change: transform, width !important;
+    transition: transform 0.32s cubic-bezier(0.25, 1, 0.5, 1), width 0.28s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.2s ease !important;
   }
 
   .mobile-nav-item {
@@ -1439,36 +1441,29 @@ div#form-top-geofence-banner,
 
   .mobile-nav-item.active i {
     color: #34d399 !important;
-    animation: liquidIconJiggle 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, liquidIconFloat 3.2s ease-in-out infinite 0.45s !important;
+    transform: translateY(-1px) scale(1.06) !important;
+    transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1), color 0.2s ease !important;
   }
 
-  /* Status badge dot iOS style on active tab with liquid pulse */
+  /* Badge titik dihilangkan sesuai permintaan */
   .mobile-nav-item.active::after {
-    content: '' !important;
-    position: absolute !important;
-    top: 3px !important;
-    right: 18% !important;
-    width: 5.5px !important;
-    height: 5.5px !important;
-    border-radius: 9999px !important;
-    background: #10b981 !important;
-    box-shadow: 0 0 6px #10b981, 0 0 12px rgba(16, 185, 129, 0.7) !important;
-    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    display: none !important;
   }
 
-  /* FAB observasi (+) & camera bukti bebas tumpang tindih */
+  /* FAB observasi (+) & camera bukti: compact, minimalis & tepat di atas navbar */
   #floating-obs-actions,
   #floating-evidence-actions {
-    bottom: calc(max(3px, env(safe-area-inset-bottom, 3px)) + 58px) !important;
-    right: 14px !important;
+    position: fixed !important;
+    bottom: 50px !important;
+    right: 12px !important;
     z-index: 50 !important;
   }
 
-  /* Berikan padding bawah yang cukup agar konten form & foto bukti tidak terpotong navbar */
+  /* Padding bawah luas agar konten paling bawah bisa di-scroll bebas melewati FAB */
   #view-form,
-  .view-section {
-    padding-bottom: 90px !important;
-  }
+.view-section {
+  padding-bottom: 130px !important;
+}
 }
 
 /* 14. Lightbox Swipe & Gallery Navigation: Transparent & Proportional */
@@ -1503,4 +1498,147 @@ div#form-top-geofence-banner,
 #modal-photo-lightbox .lightbox-nav-btn:active {
   background: rgba(255, 255, 255, 0.35) !important;
   transform: translateY(-50%) scale(0.95) !important;
+}
+
+
+/* Smooth Silky Fade Transition saat Berpindah Section */
+.form-step-section {
+  animation: sectionStepFadeIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}
+@keyframes sectionStepFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* FAB observasi (+) & camera bukti: compact, minimalis & tepat di atas navbar */
+#floating-obs-actions,
+#floating-evidence-actions {
+  position: fixed !important;
+  bottom: 50px !important;
+  right: 12px !important;
+  z-index: 50 !important;
+}
+
+/* Efek Liquid Glass Blurry Transparent Kuat pada Tombol Jump Pindah Temuan */
+#btn-fab-obs-jump {
+  height: 32px !important;
+  padding: 0 10px !important;
+  border-radius: 9999px !important;
+  background: rgba(15, 23, 42, 0.46) !important;
+  backdrop-filter: blur(28px) saturate(220%) contrast(110%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(220%) contrast(110%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  box-shadow: 
+    inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.3),
+    0 8px 24px -2px rgba(0, 0, 0, 0.4) !important;
+  color: #ffffff !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  font-weight: 800 !important;
+  font-size: 11px !important;
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+#btn-fab-obs-jump:active {
+  transform: scale(0.9) !important;
+}
+
+/* Efek Emerald Liquid Glass Blurry Transparent Kuat pada Tombol Tambah (+) */
+#btn-fab-obs-main {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 9999px !important;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.58) 0%, rgba(5, 150, 105, 0.68) 100%) !important;
+  backdrop-filter: blur(28px) saturate(220%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(220%) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 
+    inset 0 1.5px 1.5px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.2),
+    0 8px 24px -2px rgba(16, 185, 129, 0.45) !important;
+  color: #ffffff !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 16px !important;
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+#btn-fab-obs-main:active {
+  transform: scale(0.88) !important;
+}
+
+/* Efek Liquid Glass Blurry Transparent pada FAB Evidence */
+#floating-evidence-actions button {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 9999px !important;
+  backdrop-filter: blur(28px) saturate(220%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(220%) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.45) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+#floating-evidence-actions button:active {
+  transform: scale(0.88) !important;
+}
+
+/* Padding bawah luas agar konten paling bawah bisa di-scroll bebas melewati FAB */
+#view-form,
+.view-section {
+  padding-bottom: 130px !important;
+}
+
+
+#btn-fab-evidence-cam {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 9999px !important;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.58) 0%, rgba(5, 150, 105, 0.68) 100%) !important;
+  backdrop-filter: blur(28px) saturate(220%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(220%) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 
+    inset 0 1.5px 1.5px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.2),
+    0 8px 24px -2px rgba(16, 185, 129, 0.45) !important;
+  color: #ffffff !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+#btn-fab-evidence-cam:active {
+  transform: scale(0.88) !important;
+}
+
+#btn-fab-evidence-gallery {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 9999px !important;
+  background: rgba(15, 23, 42, 0.46) !important;
+  backdrop-filter: blur(28px) saturate(220%) contrast(110%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(220%) contrast(110%) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.4) !important;
+  box-shadow: 
+    inset 0 1.2px 1.5px 0 rgba(255, 255, 255, 0.65),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.3),
+    0 8px 24px -2px rgba(0, 0, 0, 0.4) !important;
+  color: #ffffff !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+#btn-fab-evidence-gallery:active {
+  transform: scale(0.88) !important;
 }
