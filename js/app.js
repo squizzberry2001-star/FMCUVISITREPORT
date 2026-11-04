@@ -2103,8 +2103,8 @@ window.FMCUApp = {
         const itemRect = activeItem.getBoundingClientRect();
         if (containerRect.width === 0 || itemRect.width === 0) return;
 
-        // Beri margin ekspansi lateral (4px) agar inner pill benar-benar lega & icon tidak sesak
-        const extraX = 4;
+        // Beri margin ekspansi lateral (6px) agar inner pill benar-benar lega & icon tidak sesak/terhimpit
+        const extraX = 6;
         const rawLeft = itemRect.left - containerRect.left - extraX;
         const maxLeft = Math.max(0, containerRect.width - (itemRect.width + extraX * 2));
         const clampedLeft = Math.max(0, Math.min(rawLeft, maxLeft));
