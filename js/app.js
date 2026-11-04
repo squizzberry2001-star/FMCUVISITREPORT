@@ -759,8 +759,7 @@ window.FMCUApp = {
   // Helper: GPS hanya bekerja jika user di agendakan VISIT atau NSO hari ini (Admin Jadwal, Super Admin, dan user lain dimatikan)
   isUserScheduledForVisitOrNsoToday(user = this.currentUser) {
     if (!user) return false;
-    const role = String(user.role || '').toUpperCase();
-    if (role === 'ADMIN_SCHEDULE' || role === 'SUPER_ADMIN' || role === 'ADMIN' || user.username === 'admin') {
+    if (user.username === 'admin' || user.id === 'usr-admin' || user.name === 'Admin FMCU') {
       return false;
     }
     const todayStr = this.getLocalDateISO();
@@ -1796,7 +1795,7 @@ window.FMCUApp = {
 
     const users = window.FMCUData.getUsers();
     const visibleLoginUsers = users
-      .filter((u) => u.role !== 'SUPER_ADMIN')
+      .filter((u) => u.username !== 'admin' && u.id !== 'usr-admin' && u.name !== 'Admin FMCU')
       .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'id', { sensitivity: 'base' }));
 
     const listSig = visibleLoginUsers.map((u) => `${u.username}:${u.name}:${u.nik || ''}`).join('|');
@@ -1963,7 +1962,9 @@ window.FMCUApp = {
 
   selectCustomUser(username, shouldFocusPassword = true) {
     if (!this._cachedLoginUsers) {
-      this._cachedLoginUsers = window.FMCUData.getUsers().filter((u) => u.role !== 'SUPER_ADMIN');
+      this._cachedLoginUsers = window.FMCUData.getUsers()
+        .filter((u) => u.username !== 'admin' && u.id !== 'usr-admin' && u.name !== 'Admin FMCU')
+        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'id', { sensitivity: 'base' }));
     }
     const user = this._cachedLoginUsers.find((u) => u.username === username || u.nik === username);
     if (!user) return;
@@ -2012,7 +2013,7 @@ window.FMCUApp = {
 
     if (!this._cachedLoginUsers) {
       this._cachedLoginUsers = window.FMCUData.getUsers()
-        .filter((u) => u.role !== 'SUPER_ADMIN')
+        .filter((u) => u.username !== 'admin' && u.id !== 'usr-admin' && u.name !== 'Admin FMCU')
         .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'id', { sensitivity: 'base' }));
     }
 
@@ -2049,7 +2050,7 @@ window.FMCUApp = {
     const loginInput = document.getElementById('login-username');
     if (loginInput && loginInput.tagName === 'SELECT') {
       const visibleLoginUsers = users
-        .filter((u) => u.role !== 'SUPER_ADMIN')
+        .filter((u) => u.username !== 'admin' && u.id !== 'usr-admin' && u.name !== 'Admin FMCU')
         .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'id', { sensitivity: 'base' }));
       const newHtml =
         `<option value="">-- Pilih Nama User --</option>` +
@@ -4176,8 +4177,10 @@ window.FMCUApp = {
 
   isAuditorUser(user = this.currentUser) {
     if (!user) return false;
-    if (user.id === 'usr-admin' || user.username === 'admin') return false;
-    if (user.role === 'SUPER_ADMIN') return false;
+    // Kecualikan hanya akun sistem root admin murni
+    if (user.id === 'usr-admin' || user.username === 'admin' || user.name === 'Admin FMCU') return false;
+    const nameLower = String(user.name || '').toLowerCase();
+    if (nameLower.includes('aan bagus')) return true;
     if (user.role === 'AUDITOR' || user.role === 'VISITOR') return true;
     const badge = String(user.roleBadge || '').toLowerCase();
     const jab = String(user.jabatan || '').toLowerCase();
@@ -4188,7 +4191,8 @@ window.FMCUApp = {
       badge.includes('trainer') ||
       jab.includes('trainer') ||
       jab.includes('bestie') ||
-      user.role === 'ADMIN_SCHEDULE'
+      user.role === 'ADMIN_SCHEDULE' ||
+      user.role === 'SUPER_ADMIN'
     );
   },
 
