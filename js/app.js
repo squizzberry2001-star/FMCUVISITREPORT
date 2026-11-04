@@ -2296,6 +2296,8 @@ window.FMCUApp = {
       // POINT 4: Tandai kebutuhan refresh data AI TARO analitik saat keluar dari form
       this._needsTaroRefresh = true;
       try { localStorage.removeItem('fmcu_taro_ai_cache_v5'); } catch (_) {}
+      const aiBanner = document.getElementById('obs-ai-running-banner');
+      if (aiBanner) aiBanner.classList.add('hidden');
     }
 
     if (viewName === 'schedules' && !this.hasAuthority('manage_schedule')) {
@@ -2626,6 +2628,12 @@ window.FMCUApp = {
     const topBanner = document.getElementById('form-top-geofence-banner');
     if (topBanner) {
       topBanner.classList.toggle('hidden', !(targetSec === 1 || targetSec === 4));
+    }
+
+    // POINT 2: Running text peringatan AI menempel tepat di bawah bar atas (hanya saat di Section 2)
+    const aiBanner = document.getElementById('obs-ai-running-banner');
+    if (aiBanner) {
+      aiBanner.classList.toggle('hidden', targetSec !== 2);
     }
 
     // Floating action button bar for Observation (HANYA tampil di Section 2: Observation)
@@ -8256,9 +8264,9 @@ Instruksi Khusus & Terminologi FamilyMart:
       }
     });
 
-    if (photoDescriptions.length === 0) {
-      this.showToast('Belum ada deskripsi foto bukti atau QSC yang dimasukkan. Silakan tambahkan foto beserta deskripsi di Section 3 (Evidence) atau isi Observasi Manual.', 'warning', 4500);
-      return;
+    let hasUserDescriptions = photoDescriptions.length > 0;
+    if (!hasUserDescriptions) {
+      this.showToast('T.A.R.O AI menyusun 4 pilar observasi standar FamilyMart Indonesia (Cleanliness, Food Safety, Waste, Service)...', 'info', 3500);
     }
 
     this.showToast('T.A.R.O AI sedang mengompilasi & mengelompokkan deskripsi foto menjadi daftar observasi...', 'info', 3000);
@@ -8312,25 +8320,63 @@ Outputkan HANYA JSON array valid persis berikut:
         } catch (eGroq) {}
       }
 
-      // Fallback heuristik jika API offline
+      // Fallback heuristik berstandar FamilyMart Indonesia jika API offline atau belum ada deskripsi foto
       if (!Array.isArray(compiledObservations) || compiledObservations.length === 0) {
-        compiledObservations = photoDescriptions.map((p) => {
-          let cat = 'Quality';
-          const lower = p.text.toLowerCase();
-          if (lower.includes('bersih') || lower.includes('kotor') || lower.includes('debu') || lower.includes('lantai')) cat = 'Cleanliness';
-          else if (lower.includes('holding') || lower.includes('suhu') || lower.includes('chiller') || lower.includes('kadaluarsa') || lower.includes('expired')) cat = 'Food Safety & Holding Time';
-          else if (lower.includes('rusak') || lower.includes('mati') || lower.includes('lampu') || lower.includes('ac')) cat = 'Maintenance';
-          else if (lower.includes('seragam') || lower.includes('sapa') || lower.includes('kasir') || lower.includes('ramah')) cat = 'Service';
+        if (photoDescriptions.length > 0) {
+          compiledObservations = photoDescriptions.map((p) => {
+            let cat = 'Quality';
+            const lower = p.text.toLowerCase();
+            if (lower.includes('bersih') || lower.includes('kotor') || lower.includes('debu') || lower.includes('lantai')) cat = 'Cleanliness';
+            else if (lower.includes('holding') || lower.includes('suhu') || lower.includes('chiller') || lower.includes('kadaluarsa') || lower.includes('expired')) cat = 'Food Safety & Holding Time';
+            else if (lower.includes('rusak') || lower.includes('mati') || lower.includes('lampu') || lower.includes('ac')) cat = 'Maintenance';
+            else if (lower.includes('seragam') || lower.includes('sapa') || lower.includes('kasir') || lower.includes('ramah')) cat = 'Service';
 
-          return {
-            category: cat,
-            temuan: p.text,
-            kondisiIdeal: `SOP FamilyMart ${cat} dijalankan konsisten dengan prinsip Clean As You Go.`,
-            dampak: 'Dapat mempengaruhi standar kenyamanan pelanggan dan performa toko.',
-            penyebab: 'Monitoring berkala oleh Shift Leader & Store Leader perlu ditingkatkan.',
-            tindakanPerbaikan: 'Store Leader segera memberikan briefing dan tindak lanjut perbaikan.'
-          };
-        });
+            return {
+              category: cat,
+              temuan: p.text,
+              kondisiIdeal: `SOP FamilyMart ${cat} dijalankan konsisten dengan prinsip Clean As You Go.`,
+              dampak: 'Dapat mempengaruhi kenyamanan pelanggan, integritas food safety, atau peningkatan waste toko.',
+              penyebab: 'Pengawasan dan kontrol berkala oleh Shift Leader & Store Leader perlu ditingkatkan.',
+              tindakanPerbaikan: 'Store Leader dan Shift Leader segera melakukan tindakan perbaikan dan briefing tim toko.'
+            };
+          });
+        } else {
+          // Template Observasi Standar 4 Pilar FamilyMart jika foto belum diberi keterangan
+          compiledObservations = [
+            {
+              category: 'Cleanliness',
+              temuan: 'Penerapan Clean As You Go di area sales floor, chiller, dan counter belum konsisten.',
+              kondisiIdeal: 'Seluruh area kerja, lantai, dan peralatan bersih prima sesuai standar Clean As You Go FamilyMart.',
+              dampak: 'Menurunkan kenyamanan pelanggan dan citra standar kebersihan toko.',
+              penyebab: 'Kurangnya kontrol rutin checklist kebersihan per shift oleh Shift Leader.',
+              tindakanPerbaikan: '1. Bersihkan area secara tuntas saat ini juga.\n2. Shift Leader wajib mengontrol checklist Clean As You Go setiap pergantian shift.'
+            },
+            {
+              category: 'Food Safety & Holding Time',
+              temuan: 'Pemeriksaan kepatuhan Tabel Standar Holding Time pada warm & chilled food perlu dimonitor ketat.',
+              kondisiIdeal: 'Setiap produk ready-to-eat memiliki label holding time yang akurat sesuai Tabel Standar Holding Time R23.',
+              dampak: 'Risiko penurunan mutu kualitas rasa dan potensi food safety bagi konsumen.',
+              penyebab: 'Kepatuhan penempelan dan pencatatan holding time saat jam sibuk terlewat oleh crew.',
+              tindakanPerbaikan: '1. Tarik produk yang melampaui batas holding time.\n2. Pastikan Shift Leader memverifikasi jam holding time secara berkala.'
+            },
+            {
+              category: 'Waste',
+              temuan: 'Penataan rak display dan pemisahan produk mendekati expired date perlu dioptimalkan untuk meminimalkan waste.',
+              kondisiIdeal: 'Penerapan FIFO (First In First Out) berjalan 100% dan produk berisiko waste terpantau rapi.',
+              dampak: 'Peningkatan nilai waste toko yang melebihi target toleransi operasional.',
+              penyebab: 'Rotasi barang saat display replenishment belum menyeluruh.',
+              tindakanPerbaikan: '1. Lakukan penataan ulang produk dengan prinsip FIFO.\n2. Store Leader mengontrol laporan waste harian bersama Area Manager.'
+            },
+            {
+              category: 'Service',
+              temuan: 'Standar sapaan ramah dan kesiapan seragam crew toko perlu dipertahankan optimal saat melayani pelanggan.',
+              kondisiIdeal: 'Crew berpenampilan rapi dengan seragam lengkap dan aktif memberikan salam hangat kepada pelanggan.',
+              dampak: 'Mempengaruhi kepuasan belanja dan loyalitas pelanggan toko.',
+              penyebab: 'Briefing awal shift belum menekankan pentingnya keramahan pelayanan.',
+              tindakanPerbaikan: 'Store Leader memberikan evaluasi positif dan mengingatkan 5 standar pelayanan prima FamilyMart.'
+            }
+          ];
+        }
       }
 
       if (Array.isArray(compiledObservations) && compiledObservations.length > 0) {
@@ -8344,10 +8390,10 @@ Outputkan HANYA JSON array valid persis berikut:
           hasil: 'Akan dimonitoring pada visit berikutnya'
         }));
 
-        this.renderObservationList();
+        this.renderObservationsList();
         this.updateFormProgress();
         this.saveCurrentFormDraft();
-        this.showToast(`✓ Berhasil! ${this.formObservations.length} Observasi terkompilasi otomatis berdasarkan foto.`, 'success', 3500);
+        this.showToast(`✓ Berhasil! ${this.formObservations.length} Observasi terkompilasi otomatis oleh T.A.R.O AI.`, 'success', 3500);
       }
     } catch (err) {
       console.warn('Auto compile observations error:', err);
@@ -8468,6 +8514,11 @@ Outputkan HANYA JSON array valid persis berikut:
   },
 
   // --- Section 2: QSC Observation Findings ---
+  // Alias agar panggilan renderObservationList / renderObservationsList selalu berhasil
+  renderObservationList() {
+    this.renderObservationsList();
+  },
+
   renderObservationsList() {
     const container = document.getElementById('form-observations-list');
     if (!container) return;
@@ -18570,95 +18621,125 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
     window.open(url, '_blank');
   },
 
-  // POINT 2: ROBUST MULTI-USE SPEECH RECOGNITION (Dapat digunakan berulang kali di seluruh kolom)
+  // POINT 2: OPTIMIZED SPEECH-TO-TEXT WITH LIVE STREAMING TRANSCRIPTION & TOGGLE STOP
   _activeRecognition: null,
   _activeVoiceBtn: null,
   _activeVoiceBtnOriginalHtml: '',
+  _activeVoiceTargetId: null,
 
   startVoiceInput(targetId, btn) {
     this.triggerHaptic('medium');
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      this.showToast('Fitur Dikte Suara belum didukung browser ini. Silakan gunakan keyboard.', 'warning');
+      this.showToast('Browser Anda belum mendukung Dikte Suara. Gunakan keyboard atau Chrome/Edge.', 'warning');
       return;
     }
     const targetEl = document.getElementById(targetId);
     if (!targetEl) return;
 
-    // Bersihkan sesi aktif lama secara instan dan aman
+    // JIKA USER KLIK TOMBOL YANG SAMA SAAT SEDANG MENDENGARKAN -> STOP DAN FINALKAN
+    if (this._activeRecognition && this._activeVoiceTargetId === targetId) {
+      try {
+        this._activeRecognition.stop();
+      } catch (_) {}
+      return;
+    }
+
+    // Bersihkan sesi aktif sebelumnya jika mengklik kolom lain
     if (this._activeRecognition) {
       try {
         this._activeRecognition.onend = null;
         this._activeRecognition.onerror = null;
         this._activeRecognition.onresult = null;
         this._activeRecognition.abort();
-      } catch (e) {}
+      } catch (_) {}
       this._activeRecognition = null;
     }
     if (this._activeVoiceBtn && this._activeVoiceBtnOriginalHtml) {
-      this._activeVoiceBtn.classList.remove('mic-recording');
+      this._activeVoiceBtn.classList.remove('mic-recording', 'bg-rose-100', 'border-rose-400', 'text-rose-700');
       this._activeVoiceBtn.innerHTML = this._activeVoiceBtnOriginalHtml;
-      this._activeVoiceBtn = null;
     }
 
     try {
       const recognition = new SpeechRecognition();
       recognition.lang = 'id-ID';
-      recognition.continuous = false;
-      recognition.interimResults = false;
+      recognition.continuous = true; // Tetap mendengarkan agar kalimat panjang tidak terpotong tiba-tiba
+      recognition.interimResults = true; // Tampilkan teks langsung berjalan saat user berbicara
+      recognition.maxAlternatives = 1;
 
       const originalHtml = btn ? btn.innerHTML : '';
+      this._activeVoiceBtn = btn;
+      this._activeVoiceBtnOriginalHtml = originalHtml;
+      this._activeVoiceTargetId = targetId;
+
       if (btn) {
-        this._activeVoiceBtn = btn;
-        this._activeVoiceBtnOriginalHtml = originalHtml;
-        btn.classList.add('mic-recording');
-        btn.innerHTML = '<i class="fa-solid fa-microphone-lines animate-pulse text-rose-500"></i> <span class="text-rose-600 font-extrabold">Mendengarkan...</span>';
+        btn.classList.add('mic-recording', 'bg-rose-100', 'border-rose-400', 'text-rose-700');
+        btn.innerHTML = '<i class="fa-solid fa-microphone-lines animate-pulse text-rose-600"></i> <span class="font-extrabold text-rose-700">Mendengarkan...</span>';
       }
-      this.showToast('Mendengarkan... Silakan berbicara sekarang.', 'info', 3000);
+      this.showToast('Mendengarkan suara Anda... Silakan berbicara. (Klik lagi untuk selesai)', 'info', 4000);
+
+      const baseValue = targetEl.value ? targetEl.value.trim() : '';
+      let accumulatedFinal = '';
 
       recognition.onresult = (event) => {
-        const transcript = event.results?.[0]?.[0]?.transcript;
-        if (transcript) {
-          const prev = targetEl.value ? targetEl.value.trim() + ' ' : '';
-          targetEl.value = prev + transcript;
+        let interimText = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const res = event.results[i];
+          const transcript = res[0]?.transcript || '';
+          if (res.isFinal) {
+            accumulatedFinal += (accumulatedFinal ? ' ' : '') + transcript.trim();
+          } else {
+            interimText += transcript;
+          }
+        }
+
+        // Tampilkan teks live di input
+        const currentSpoken = (accumulatedFinal + (interimText ? ' ' + interimText : '')).trim();
+        if (currentSpoken) {
+          targetEl.value = (baseValue ? baseValue + ' ' : '') + currentSpoken;
+          this.autoExpandTextarea(targetEl);
+        }
+      };
+
+      const finalizeAndReset = () => {
+        if (btn && this._activeVoiceBtnOriginalHtml) {
+          btn.classList.remove('mic-recording', 'bg-rose-100', 'border-rose-400', 'text-rose-700');
+          btn.innerHTML = this._activeVoiceBtnOriginalHtml;
+        }
+        this._activeRecognition = null;
+        this._activeVoiceBtn = null;
+        this._activeVoiceTargetId = null;
+
+        if (targetEl.value && targetEl.value !== baseValue) {
           targetEl.dispatchEvent(new Event('input', { bubbles: true }));
           this.triggerHaptic('success');
-          this.showToast('Dikte suara berhasil dicatat!', 'success', 2000);
+          this.showToast('Dikte suara selesai dicatat!', 'success', 2000);
           this.triggerAutoSaveDraft(1000);
         }
       };
 
       recognition.onerror = (e) => {
-        if (btn) {
-          btn.classList.remove('mic-recording');
-          btn.innerHTML = originalHtml;
-        }
-        this._activeRecognition = null;
-        this._activeVoiceBtn = null;
         if (e.error !== 'no-speech' && e.error !== 'aborted') {
-          this.showToast('Mikrofon: ' + (e.error || 'silakan coba lagi'), 'info', 2500);
+          this.showToast('Mikrofon: ' + (e.error === 'not-allowed' ? 'Izin mikrofon belum diberikan' : e.error), 'warning', 3000);
         }
+        finalizeAndReset();
       };
 
       recognition.onend = () => {
-        if (btn) {
-          btn.classList.remove('mic-recording');
-          btn.innerHTML = originalHtml;
-        }
-        this._activeRecognition = null;
-        this._activeVoiceBtn = null;
+        finalizeAndReset();
       };
 
       this._activeRecognition = recognition;
       recognition.start();
     } catch (err) {
-      if (btn) {
+      if (btn && this._activeVoiceBtnOriginalHtml) {
         btn.classList.remove('mic-recording');
-        if (this._activeVoiceBtnOriginalHtml) btn.innerHTML = this._activeVoiceBtnOriginalHtml;
+        btn.innerHTML = this._activeVoiceBtnOriginalHtml;
       }
       this._activeRecognition = null;
       this._activeVoiceBtn = null;
-      this.showToast('Gagal memulai mikrofon: ' + (err.message || ''), 'error');
+      this._activeVoiceTargetId = null;
+      this.showToast('Tidak dapat mengaktifkan mikrofon: ' + (err.message || ''), 'error');
     }
   },
 

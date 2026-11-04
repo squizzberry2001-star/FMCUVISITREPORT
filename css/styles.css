@@ -1289,23 +1289,23 @@ div#form-top-geofence-banner,
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 8px 10px -6px rgba(0, 0, 0, 0.2) !important;
 }
 
-/* 16. iOS 27 Style Floating Capsule Island Mobile Navbar */
+/* 16. iPhone iOS Liquid Glass Mobile Navbar & Safe Action Positioning */
 @media (max-width: 1023px) {
   #mobile-bottom-nav {
     position: fixed !important;
-    bottom: max(16px, env(safe-area-inset-bottom, 16px)) !important;
+    bottom: max(6px, env(safe-area-inset-bottom, 6px)) !important;
     left: 12px !important;
     right: 12px !important;
     width: calc(100% - 24px) !important;
-    max-width: 440px !important;
+    max-width: 420px !important;
     margin: 0 auto !important;
     border-radius: 9999px !important;
-    background: rgba(18, 22, 28, 0.88) !important;
-    backdrop-filter: blur(24px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
-    border: 1px solid rgba(255, 255, 255, 0.12) !important;
-    box-shadow: 0 12px 36px 0 rgba(0, 0, 0, 0.45), 0 2px 8px 0 rgba(0, 0, 0, 0.3) !important;
-    padding: 6px 8px !important;
+    background: rgba(18, 22, 28, 0.65) !important;
+    backdrop-filter: blur(28px) saturate(210%) contrast(110%) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(210%) contrast(110%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.22) !important;
+    box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.5), inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.35), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.4) !important;
+    padding: 4px 8px !important;
     z-index: 45 !important;
     transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
@@ -1313,32 +1313,34 @@ div#form-top-geofence-banner,
   .mobile-nav-item {
     position: relative !important;
     border-radius: 9999px !important;
-    padding: 6px 4px !important;
+    padding: 5px 4px !important;
     color: rgba(255, 255, 255, 0.65) !important;
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
 
   .mobile-nav-item i {
-    font-size: 15px !important;
+    font-size: 14px !important;
     transition: transform 0.2s ease !important;
   }
 
   .mobile-nav-item span {
-    font-size: 9.5px !important;
+    font-size: 9px !important;
     font-weight: 700 !important;
     letter-spacing: -0.01em !important;
     color: rgba(255, 255, 255, 0.7) !important;
   }
 
   .mobile-nav-item.active {
-    background: rgba(255, 255, 255, 0.18) !important;
+    background: rgba(255, 255, 255, 0.2) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
     color: #ffffff !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.35) !important;
   }
 
   .mobile-nav-item.active i {
     color: #34d399 !important;
-    transform: scale(1.1) !important;
+    transform: scale(1.08) !important;
   }
 
   .mobile-nav-item.active span {
@@ -1349,7 +1351,7 @@ div#form-top-geofence-banner,
   .mobile-nav-item.active::after {
     content: '' !important;
     position: absolute !important;
-    top: 5px !important;
+    top: 4px !important;
     right: 18% !important;
     width: 6px !important;
     height: 6px !important;
@@ -1357,20 +1359,52 @@ div#form-top-geofence-banner,
     background: #10b981 !important;
     box-shadow: 0 0 8px #10b981 !important;
   }
+
+  /* FIX: Pindahkan posisi FAB observasi (+) & camera bukti ke atas navbar mobile agar tidak tertutup */
+  #floating-obs-actions,
+  #floating-evidence-actions {
+    bottom: calc(max(6px, env(safe-area-inset-bottom, 6px)) + 64px) !important;
+    right: 16px !important;
+    z-index: 50 !important;
+  }
+
+  /* Berikan padding bawah yang cukup agar konten form & foto bukti tidak terpotong navbar */
+  #view-form,
+  .view-section {
+    padding-bottom: 96px !important;
+  }
 }
 
-/* 14. Lightbox Swipe & Gallery Navigation */
+/* 14. Lightbox Swipe & Gallery Navigation: Transparent & Proportional */
 #modal-photo-lightbox .lightbox-nav-btn {
-  background: rgba(15, 23, 42, 0.75) !important;
-  backdrop-filter: blur(8px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 9999px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   transition: all 0.2s ease !important;
+  pointer-events: auto !important;
+}
+@media (max-width: 640px) {
+  #modal-photo-lightbox .lightbox-nav-btn {
+    width: 38px !important;
+    height: 38px !important;
+    font-size: 14px !important;
+  }
 }
 #modal-photo-lightbox .lightbox-nav-btn:hover {
-  background: rgba(15, 23, 42, 0.95) !important;
-  transform: scale(1.08) !important;
+  background: rgba(255, 255, 255, 0.25) !important;
+  color: #ffffff !important;
+  transform: translateY(-50%) scale(1.08) !important;
 }
 #modal-photo-lightbox .lightbox-nav-btn:active {
-  transform: scale(0.95) !important;
+  background: rgba(255, 255, 255, 0.35) !important;
+  transform: translateY(-50%) scale(0.95) !important;
 }

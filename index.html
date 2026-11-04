@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1793890000000" as="style" />
-  <link rel="preload" href="css/styles.css?v=1793890000000" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1793910000000" as="style" />
+  <link rel="preload" href="css/styles.css?v=1793910000000" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1793890000000" />
-  <link rel="stylesheet" href="css/styles.css?v=1793890000000" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1793910000000" />
+  <link rel="stylesheet" href="css/styles.css?v=1793910000000" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -817,6 +817,18 @@
           </button>
         </div>
       </header>
+
+      <!-- POINT 2: Running Text Peringatan AI (Menempel Tepat di Bawah Bar Atas saat di Section Observasi) -->
+      <div id="obs-ai-running-banner" class="hidden sticky top-[57px] z-19 w-full bg-black text-amber-300 border-b border-amber-400/50 shadow-xs flex items-center px-3 py-1.5 overflow-hidden">
+        <span class="shrink-0 flex items-center gap-1 font-black text-[10px] bg-amber-400 text-black px-1.5 py-0.5 rounded uppercase tracking-wider mr-2 shadow-2xs">
+          <i class="fa-solid fa-triangle-exclamation animate-pulse"></i> AI
+        </span>
+        <div class="overflow-hidden whitespace-nowrap flex-1">
+          <div class="animate-marquee font-bold text-xs text-amber-300 tracking-wide">
+            ⚠️ PERHATIAN: Jika menggunakan analisa AI, hasil analisa AI dapat membuat kesalahan. Periksa hasil jawaban kembali disetiap kolom temuan sebelum disimpan. &nbsp;&nbsp;&nbsp;&bull;&nbsp;&nbsp;&nbsp; ⚠️ PERHATIAN: Jika menggunakan analisa AI, hasil analisa AI dapat membuat kesalahan. Periksa hasil jawaban kembali disetiap kolom temuan sebelum disimpan.
+          </div>
+        </div>
+      </div>
 
       <!-- ==================================================================
            HALAMAN 1A: HOME (HANYA JADWAL TOKO YANG DIMINTA & HISTORY VISIT)
@@ -1624,17 +1636,7 @@
                 </div>
               </div>
 
-              <!-- POINT 1: RUNNING TEXT WARNING BANNER (Background Hitam & Teks Kuning) -->
-              <div class="w-full bg-neutral-950 text-amber-300 py-2.5 px-3 rounded-2xl border border-amber-400/50 overflow-hidden shadow-sm flex items-center gap-2.5">
-                <span class="shrink-0 flex items-center gap-1 font-black text-[10px] sm:text-xs bg-amber-400 text-neutral-950 px-2 py-0.5 rounded-lg uppercase tracking-wider shadow-2xs">
-                  <i class="fa-solid fa-triangle-exclamation animate-pulse"></i> Perhatian
-                </span>
-                <div class="overflow-hidden whitespace-nowrap flex-1">
-                  <div class="animate-marquee font-bold text-xs sm:text-[13px] text-amber-300 tracking-wide">
-                    ⚠️ PERHATIAN: Jika menggunakan analisa AI, hasil analisa AI dapat membuat kesalahan. Periksa hasil jawaban kembali disetiap kolom temuan sebelum disimpan. &nbsp;&nbsp;&nbsp;&bull;&nbsp;&nbsp;&nbsp; ⚠️ PERHATIAN: Jika menggunakan analisa AI, hasil analisa AI dapat membuat kesalahan. Periksa hasil jawaban kembali disetiap kolom temuan sebelum disimpan.
-                  </div>
-                </div>
-              </div>
+              <!-- Running text kini menempel rapi di bar atas (#obs-ai-running-banner) -->
 
               <!-- POINT 7: 2 TOMBOL PILIHAN MODE OBSERVASI (MANUAL VS T.A.R.O AI BANTU OBSERVASI) -->
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
@@ -4036,13 +4038,13 @@ service cloud.firestore {
   <script defer src="js/holding-time-standards.js"></script>
   <script defer src="js/master-stores-seed.js"></script>
   <script defer src="js/bestie-in-charge-seed.js"></script>
-  <script defer src="js/data.js?v=1793890000000"></script>
-  <script defer src="js/pdf-generator.js?v=1793890000000"></script>
-  <script defer src="js/app.js?v=1793890000000"></script>
+  <script defer src="js/data.js?v=1793910000000"></script>
+  <script defer src="js/pdf-generator.js?v=1793910000000"></script>
+  <script defer src="js/app.js?v=1793910000000"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1793890000000"></script>
+  <script async src="js/pdf-assets.js?v=1793910000000"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================
@@ -4941,29 +4943,29 @@ service cloud.firestore {
 
       <!-- Central Image Preview Area -->
       <div id="lightbox-swipe-container" class="relative flex-1 w-full p-2 sm:p-5 flex items-center justify-center overflow-hidden" onclick="if(event.target === this) FMCUApp.closePhotoPreviewModal()">
-        <!-- Lightbox Prev / Next Nav Buttons (Swipe & Click) -->
+        <!-- Lightbox Prev / Next Nav Buttons (Transparan, Proporsional & Posisi Pas) -->
         <button
           type="button"
           id="photo-lightbox-prev"
           onclick="FMCUApp.lightboxPrevPhoto(event)"
-          class="lightbox-nav-btn absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-lg z-30 cursor-pointer shadow-2xl"
+          class="lightbox-nav-btn absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 z-30 cursor-pointer"
           title="Foto Sebelumnya (Swipe Kanan)"
         >
-          <i class="fa-solid fa-chevron-left"></i>
+          <i class="fa-solid fa-chevron-left text-white/90"></i>
         </button>
 
-        <div class="relative max-w-full max-h-full flex items-center justify-center">
-          <img id="photo-lightbox-img" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Preview Full" class="max-w-[95vw] max-h-[80vh] object-contain rounded-xl shadow-2xl border border-slate-700/80 bg-slate-900 transition duration-150" width="800" height="600" decoding="async" />
+        <div class="relative max-w-full max-h-full flex items-center justify-center px-10 sm:px-14">
+          <img id="photo-lightbox-img" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Preview Full" class="max-w-[85vw] max-h-[75vh] object-contain rounded-xl shadow-2xl border border-white/10 bg-black/40 transition duration-150" width="800" height="600" decoding="async" />
         </div>
 
         <button
           type="button"
           id="photo-lightbox-next"
           onclick="FMCUApp.lightboxNextPhoto(event)"
-          class="lightbox-nav-btn absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-lg z-30 cursor-pointer shadow-2xl"
+          class="lightbox-nav-btn absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 z-30 cursor-pointer"
           title="Foto Berikutnya (Swipe Kiri)"
         >
-          <i class="fa-solid fa-chevron-right"></i>
+          <i class="fa-solid fa-chevron-right text-white/90"></i>
         </button>
       </div>
 
