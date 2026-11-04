@@ -2491,19 +2491,27 @@ window.FMCUApp = {
     }
   },
 
+  _isNavigating: false,
   navigate(viewName, subTab = null) {
-    this.updateSidebarAuthoritiesUI();
+    if (this._isNavigating && this.currentView === viewName) return;
+    this._isNavigating = true;
+    try {
+      this.updateSidebarAuthoritiesUI();
 
-    // Auto-save form draft jika visitor berpindah dari halaman Form
-    if (this.currentView === 'form' && viewName !== 'form') {
-      this.syncAllFormInputsToMemory();
-      this.saveCurrentFormDraft();
-      // POINT 4: Tandai kebutuhan refresh data AI TARO analitik saat keluar dari form
-      this._needsTaroRefresh = true;
-      try { localStorage.removeItem('fmcu_taro_ai_cache_v5'); } catch (_) {}
-      const aiBanner = document.getElementById('obs-ai-running-banner');
-      if (aiBanner) aiBanner.classList.add('hidden');
-    }
+      // Auto-save form draft jika visitor berpindah dari halaman Form
+      if (this.currentView === 'form' && viewName !== 'form') {
+        try {
+          this.syncAllFormInputsToMemory();
+          this.saveCurrentFormDraft();
+        } catch (e) {
+          console.warn('Form auto-save on exit error:', e);
+        }
+        // POINT 4: Tandai kebutuhan refresh data AI TARO analitik saat keluar dari form
+        this._needsTaroRefresh = true;
+        try { localStorage.removeItem('fmcu_taro_ai_cache_v5'); } catch (_) {}
+        const aiBanner = document.getElementById('obs-ai-running-banner');
+        if (aiBanner) aiBanner.classList.add('hidden');
+      }
 
     if (viewName === 'schedules' && !this.hasAuthority('manage_schedule')) {
       this.showToast('Akun Anda tidak memiliki otoritas untuk mengakses Atur Jadwal Visit.', 'warning');
@@ -2706,7 +2714,11 @@ window.FMCUApp = {
         }
       }
       this.updateFormGuardVisibility();
-      this.switchFormSection(this.currentFormSection || 1, false);
+      try {
+        this.switchFormSection(this.currentFormSection || 1, false);
+      } catch (e) {
+        console.warn('navigate form section switch warning:', e);
+      }
     } else if (viewName === 'preview') {
       if (this.currentView === 'form' && this.hasActiveStoreForm) {
         this.activePreviewReportId = '__LIVE_FORM__';
@@ -2759,6 +2771,13 @@ window.FMCUApp = {
     }
 
     this.updateNavbarModeUI();
+    } catch (err) {
+      console.error('navigate error caught safely:', err);
+    } finally {
+      setTimeout(() => {
+        this._isNavigating = false;
+      }, 80);
+    }
   },
 
   updateNavbarModeUI() {
@@ -2814,77 +2833,113 @@ window.FMCUApp = {
     });
   },
 
+  _isSwitchingSection: false,
   switchFormSection(secNum, scrollTop = false) {
-    this.triggerHaptic('light');
-    const targetSec = Number(secNum) || 1;
-    if (targetSec >= 4) {
+    const rawTarget = Number(secNum) || 1;
+    if (rawTarget >= 4) {
       this.handleSaveAndPreview();
       return;
     }
+    const targetSec = Math.max(1, Math.min(3, rawTarget));
+    if (this._isSwitchingSection && this.currentFormSection === targetSec) {
+      return;
+    }
+    this._isSwitchingSection = true;
 
-    // Simpan posisi scroll section sebelumnya agar saat berpindah tidak auto kembali ke atas
-    this._sectionScrollPositions = this._sectionScrollPositions || {};
-    const prevSec = this.currentFormSection || 1;
-    this._sectionScrollPositions[prevSec] = window.scrollY;
-
-    this.updateFormProgress();
-    this.saveCurrentFormDraft();
-    this.currentFormSection = targetSec;
     try {
-      localStorage.setItem('fmcu_active_form_section', String(targetSec));
-      sessionStorage.setItem('fmcu_active_form_section', String(targetSec));
-    } catch (e) {}
-    setTimeout(() => this.expandAllVisibleTextareas(), 60);
+      this.triggerHaptic('light');
 
-    // Auto-fill nama visitor jika masih kosong
-    if (targetSec === 1) {
-      const audInput = document.getElementById('form-auditor-name');
-      if (audInput && !audInput.value.trim() && this.currentUser) {
-        audInput.value = this.currentUser.name || this.currentUser.username || '';
+      // Simpan posisi scroll section sebelumnya agar saat berpindah tidak auto kembali ke atas
+      this._sectionScrollPositions = this._sectionScrollPositions || {};
+      const prevSec = this.currentFormSection || 1;
+      this._sectionScrollPositions[prevSec] = window.scrollY;
+
+      try {
+        this.syncAllFormInputsToMemory();
+      } catch (e) {
+        console.warn('syncAllFormInputsToMemory warning:', e);
       }
+      this.updateFormProgress();
+      this.triggerAutoSaveDraft(false, 300);
+      this.currentFormSection = targetSec;
+      try {
+        localStorage.setItem('fmcu_active_form_section', String(targetSec));
+        sessionStorage.setItem('fmcu_active_form_section', String(targetSec));
+      } catch (e) {}
+      setTimeout(() => this.expandAllVisibleTextareas(), 60);
+
+      // Auto-fill nama visitor jika masih kosong
+      if (targetSec === 1) {
+        const audInput = document.getElementById('form-auditor-name');
+        if (audInput && !audInput.value.trim() && this.currentUser) {
+          audInput.value = this.currentUser.name || this.currentUser.username || '';
+        }
+      }
+
+      // Tampilkan top banner Geofence Radar HANYA di Section 1 dan Section 4
+      const topBanner = document.getElementById('form-top-geofence-banner');
+      if (topBanner) {
+        topBanner.classList.toggle('hidden', !(targetSec === 1 || targetSec === 4));
+      }
+
+      // POINT 2: Running text peringatan AI menempel tepat di bawah bar atas (hanya saat di Section 2)
+      const aiBanner = document.getElementById('obs-ai-running-banner');
+      if (aiBanner) {
+        aiBanner.classList.toggle('hidden', targetSec !== 2);
+      }
+
+      // Floating action button bar for Observation (HANYA tampil di Section 2: Observation)
+      const fabObs = document.getElementById('floating-obs-actions');
+      if (fabObs) {
+        fabObs.classList.toggle('hidden', targetSec !== 2);
+      }
+
+      // Floating action button bar for Evidence (HANYA tampil di Section 3: Evidence)
+      const fabEvidence = document.getElementById('floating-evidence-actions');
+      if (fabEvidence) {
+        fabEvidence.classList.toggle('hidden', targetSec !== 3);
+      }
+
+      // Pastikan wrapper form aktif selalu terbuka saat hasActiveStoreForm true
+      const wrapperEl = document.getElementById('form-active-store-wrapper');
+      if (wrapperEl && this.hasActiveStoreForm) {
+        wrapperEl.classList.remove('hidden');
+      }
+      const guardEl = document.getElementById('form-no-store-guard');
+      if (guardEl && this.hasActiveStoreForm) {
+        guardEl.classList.add('hidden');
+      }
+
+      [1, 2, 3].forEach((n) => {
+        const secEl = document.getElementById(`form-sec-${n}`);
+        if (secEl) {
+          if (n === targetSec) {
+            secEl.classList.remove('hidden');
+          } else {
+            secEl.classList.add('hidden');
+          }
+        }
+
+        const dBtn = document.getElementById(`fnav-sec-${n}`);
+        if (dBtn) dBtn.classList.toggle('active', n === targetSec);
+
+        const mBtn = document.getElementById(`mfnav-sec-${n}`);
+        if (mBtn) mBtn.classList.toggle('active', n === targetSec);
+      });
+
+      // Pulihkan posisi scroll terakhir dari section tujuan
+      const restoredY = this._sectionScrollPositions[targetSec] !== undefined ? this._sectionScrollPositions[targetSec] : (scrollTop ? 0 : window.scrollY);
+      requestAnimationFrame(() => {
+        window.scrollTo(0, restoredY);
+      });
+      this.updateMobileNavLiquidPill();
+    } catch (err) {
+      console.error('switchFormSection error caught safely:', err);
+    } finally {
+      setTimeout(() => {
+        this._isSwitchingSection = false;
+      }, 80);
     }
-
-    // Tampilkan top banner Geofence Radar HANYA di Section 1 dan Section 4
-    const topBanner = document.getElementById('form-top-geofence-banner');
-    if (topBanner) {
-      topBanner.classList.toggle('hidden', !(targetSec === 1 || targetSec === 4));
-    }
-
-    // POINT 2: Running text peringatan AI menempel tepat di bawah bar atas (hanya saat di Section 2)
-    const aiBanner = document.getElementById('obs-ai-running-banner');
-    if (aiBanner) {
-      aiBanner.classList.toggle('hidden', targetSec !== 2);
-    }
-
-    // Floating action button bar for Observation (HANYA tampil di Section 2: Observation)
-    const fabObs = document.getElementById('floating-obs-actions');
-    if (fabObs) {
-      fabObs.classList.toggle('hidden', targetSec !== 2);
-    }
-
-    // Floating action button bar for Evidence (HANYA tampil di Section 3: Evidence)
-    const fabEvidence = document.getElementById('floating-evidence-actions');
-    if (fabEvidence) {
-      fabEvidence.classList.toggle('hidden', targetSec !== 3);
-    }
-
-    [1, 2, 3, 4].forEach((n) => {
-      const secEl = document.getElementById(`form-sec-${n}`);
-      if (secEl) secEl.classList.toggle('hidden', n !== targetSec);
-
-      const dBtn = document.getElementById(`fnav-sec-${n}`);
-      if (dBtn) dBtn.classList.toggle('active', n === targetSec);
-
-      const mBtn = document.getElementById(`mfnav-sec-${n}`);
-      if (mBtn) mBtn.classList.toggle('active', n === targetSec);
-    });
-
-    // Pulihkan posisi scroll terakhir dari section tujuan
-    const restoredY = this._sectionScrollPositions[targetSec] !== undefined ? this._sectionScrollPositions[targetSec] : (scrollTop ? 0 : window.scrollY);
-    requestAnimationFrame(() => {
-      window.scrollTo(0, restoredY);
-    });
-    this.updateMobileNavLiquidPill();
   },
 
   showAdminSectionPanel(sectionName) {
@@ -4718,105 +4773,118 @@ window.FMCUApp = {
     this.activePreviewReportId = '__LIVE_FORM__';
   },
 
+  _isOpeningVisitForm: false,
   openStoreVisitForm(storeCode = '', scheduleId = null) {
-    const stores = window.FMCUData.getStores();
-    const schedules = window.FMCUData.getSchedules();
-    const sch = schedules.find((s) => s.id === scheduleId) || null;
-    const store = stores.find((s) => s.code === storeCode) || null;
-    const targetCode = store ? store.code : sch ? sch.storeCode : storeCode;
-    const targetName = store ? store.name : sch ? sch.storeName : 'Toko Visit';
-    const todayStr = this.getLocalDateISO();
+    if (this._isOpeningVisitForm) return;
+    this._isOpeningVisitForm = true;
+    try {
+      const stores = window.FMCUData.getStores();
+      const schedules = window.FMCUData.getSchedules();
+      const sch = schedules.find((s) => s.id === scheduleId) || null;
+      const store = stores.find((s) => s.code === storeCode) || null;
+      const targetCode = store ? store.code : sch ? sch.storeCode : storeCode;
+      const targetName = store ? store.name : sch ? sch.storeName : 'Toko Visit';
+      const todayStr = this.getLocalDateISO();
 
-    // GUARD NON-VISIT (CUTI, OFF, AGENDA MANUAL):
-    // Jika jadwal adalah CUTI, OFF, atau AGENDA, form visit tidak dapat dibuka karena bukan kunjungan toko
-    const isNonVisit =
-      targetCode === 'CUTI' ||
-      targetCode === 'OFF' ||
-      targetCode === 'AGENDA' ||
-      sch?.storeType === 'NON_STORE' ||
-      sch?.status === 'CUTI' ||
-      sch?.status === 'OFF' ||
-      sch?.status === 'AGENDA' ||
-      sch?.isAgenda;
+      // GUARD NON-VISIT (CUTI, OFF, AGENDA MANUAL):
+      // Jika jadwal adalah CUTI, OFF, atau AGENDA, form visit tidak dapat dibuka karena bukan kunjungan toko
+      const isNonVisit =
+        targetCode === 'CUTI' ||
+        targetCode === 'OFF' ||
+        targetCode === 'AGENDA' ||
+        sch?.storeType === 'NON_STORE' ||
+        sch?.status === 'CUTI' ||
+        sch?.status === 'OFF' ||
+        sch?.status === 'AGENDA' ||
+        sch?.isAgenda;
 
-    if (isNonVisit) {
-      const isC = targetCode === 'CUTI' || sch?.status === 'CUTI';
-      const isO = targetCode === 'OFF' || sch?.status === 'OFF';
-      const label = isC ? 'CUTI RESMI' : isO ? 'HARI LIBUR / OFF' : `AGENDA: ${targetName}`;
-      this.showToast(`Status jadwal ini adalah "${label}" (informasi kegiatan non-visit, tanpa form visit).`, 'info', 4500);
-      return;
-    }
-
-    // Simpan draft toko saat ini jika visitor berpindah membuka form toko lain
-    const currentStoreCode = document.getElementById('form-store-code')?.value.trim();
-    if (currentStoreCode && currentStoreCode !== '-' && currentStoreCode !== targetCode) {
-      this.saveCurrentFormDraft();
-    }
-
-    // KEPATUHAN TANGGAL HARI AKTUAL:
-    // Jika visitor atau regional bestie mencoba membuka jadwal visit di hari yang bukan aktual, form visit TIDAK BISA DIBUKA
-    // Catatan: Jadwal yang sudah selesai visit / tersimpan di arsip tetap dapat dibuka untuk review!
-    const isVisitorOrRegionalBestie = this.isAuditorUser(this.currentUser) || !this.hasAuthority('manage_schedule');
-    const reports = window.FMCUData.getReports();
-    const isCompleted = sch && (sch.status === 'COMPLETED' || sch.reportId || reports.some((r) => (sch.reportId && r.id === sch.reportId) || (r.storeCode === targetCode && r.visitDate === sch.scheduledDate)));
-    if (!isCompleted && isVisitorOrRegionalBestie && sch && sch.scheduledDate && sch.scheduledDate !== todayStr) {
-      const schDateFormatted = window.FMCUPdf.formatIndonesianDate(sch.scheduledDate, true);
-      const todayFormatted = window.FMCUPdf.formatIndonesianDate(todayStr, true);
-      this.showToast(
-        `⛔ Akses Ditolak: Jadwal visit ke FamilyMart ${sch.storeName || ''} terjadwal untuk ${schDateFormatted}. Form visit hanya dapat dibuka pada hari aktual kunjungan (Hari ini: ${todayFormatted}).`,
-        'warning',
-        6000
-      );
-      return;
-    }
-
-    // Pulihkan data laporan yang sudah ada, draft toko yang tersimpan, atau mulai form baru
-    this.restoreStoreData(targetCode, scheduleId);
-
-    if (scheduleId) {
-      const schIdEl = document.getElementById('form-schedule-id');
-      if (schIdEl) schIdEl.value = scheduleId;
-    }
-    if (sch?.actualIn && !document.getElementById('form-actual-in').value) {
-      document.getElementById('form-actual-in').value = sch.actualIn;
-    }
-    if (sch?.actualOut && !document.getElementById('form-actual-out').value) {
-      document.getElementById('form-actual-out').value = sch.actualOut;
-    }
-    if (this.currentUser) {
-      const audInput = document.getElementById('form-auditor-name');
-      if (audInput && !audInput.value.trim()) {
-        audInput.value = this.currentUser.name || this.currentUser.username || '';
+      if (isNonVisit) {
+        const isC = targetCode === 'CUTI' || sch?.status === 'CUTI';
+        const isO = targetCode === 'OFF' || sch?.status === 'OFF';
+        const label = isC ? 'CUTI RESMI' : isO ? 'HARI LIBUR / OFF' : `AGENDA: ${targetName}`;
+        this.showToast(`Status jadwal ini adalah "${label}" (informasi kegiatan non-visit, tanpa form visit).`, 'info', 4500);
+        return;
       }
+
+      // Simpan draft toko saat ini jika visitor berpindah membuka form toko lain
+      const currentStoreCode = document.getElementById('form-store-code')?.value?.trim();
+      if (currentStoreCode && currentStoreCode !== '-' && currentStoreCode !== targetCode) {
+        try { this.saveCurrentFormDraft(); } catch (_) {}
+      }
+
+      // KEPATUHAN TANGGAL HARI AKTUAL:
+      // Jika visitor atau regional bestie mencoba membuka jadwal visit di hari yang bukan aktual, form visit TIDAK BISA DIBUKA
+      // Catatan: Jadwal yang sudah selesai visit / tersimpan di arsip tetap dapat dibuka untuk review!
+      const isVisitorOrRegionalBestie = this.isAuditorUser(this.currentUser) || !this.hasAuthority('manage_schedule');
+      const reports = window.FMCUData.getReports();
+      const isCompleted = sch && (sch.status === 'COMPLETED' || sch.reportId || reports.some((r) => (sch.reportId && r.id === sch.reportId) || (r.storeCode === targetCode && r.visitDate === sch.scheduledDate)));
+      if (!isCompleted && isVisitorOrRegionalBestie && sch && sch.scheduledDate && sch.scheduledDate !== todayStr) {
+        const schDateFormatted = window.FMCUPdf.formatIndonesianDate(sch.scheduledDate, true);
+        const todayFormatted = window.FMCUPdf.formatIndonesianDate(todayStr, true);
+        this.showToast(
+          `⛔ Akses Ditolak: Jadwal visit ke FamilyMart ${sch.storeName || ''} terjadwal untuk ${schDateFormatted}. Form visit hanya dapat dibuka pada hari aktual kunjungan (Hari ini: ${todayFormatted}).`,
+          'warning',
+          6000
+        );
+        return;
+      }
+
+      // Pulihkan data laporan yang sudah ada, draft toko yang tersimpan, atau mulai form baru
+      this.restoreStoreData(targetCode, scheduleId);
+
+      if (scheduleId) {
+        const schIdEl = document.getElementById('form-schedule-id');
+        if (schIdEl) schIdEl.value = scheduleId;
+      }
+      const inEl = document.getElementById('form-actual-in');
+      if (sch?.actualIn && inEl && !inEl.value) {
+        inEl.value = sch.actualIn;
+      }
+      const outEl = document.getElementById('form-actual-out');
+      if (sch?.actualOut && outEl && !outEl.value) {
+        outEl.value = sch.actualOut;
+      }
+      if (this.currentUser) {
+        const audInput = document.getElementById('form-auditor-name');
+        if (audInput && !audInput.value.trim()) {
+          audInput.value = this.currentUser.name || this.currentUser.username || '';
+        }
+      }
+
+      const checkInObj = {
+        storeCode: targetCode,
+        storeName: targetName,
+        scheduleId: scheduleId,
+        auditorId: this.currentUser ? this.currentUser.id : (sch?.auditorId || null),
+        auditorName: this.currentUser ? this.currentUser.name : (sch?.auditorName || null),
+        auditorUsername: this.currentUser ? this.currentUser.username : (sch?.auditorUsername || null),
+        auditorNik: this.currentUser ? this.currentUser.nik : (sch?.auditorNik || null),
+        actualIn: document.getElementById('form-actual-in')?.value || sch?.actualIn || null,
+        actualOut: document.getElementById('form-actual-out')?.value || sch?.actualOut || null,
+        latIn: this.liveGps?.lat ?? null,
+        lngIn: this.liveGps?.lng ?? null,
+        storeLat: store?.lat || null,
+        storeLng: store?.lng || null,
+        startedAt: Date.now()
+      };
+      window.FMCUData.setActiveCheckIn(checkInObj);
+      this.updateActiveCheckInUI();
+
+      this.hasActiveStoreForm = true;
+      this.updateFormGuardVisibility();
+      this.activePreviewReportId = '__LIVE_FORM__';
+
+      this.navigate('form');
+
+      // Segera evaluasi geofence otomatis (1m-50m radius & 15m away span)
+      this.checkAutomaticGeofenceInOut();
+    } catch (err) {
+      console.error('openStoreVisitForm error caught safely:', err);
+    } finally {
+      setTimeout(() => {
+        this._isOpeningVisitForm = false;
+      }, 300);
     }
-
-    const checkInObj = {
-      storeCode: targetCode,
-      storeName: targetName,
-      scheduleId: scheduleId,
-      auditorId: this.currentUser ? this.currentUser.id : (sch?.auditorId || null),
-      auditorName: this.currentUser ? this.currentUser.name : (sch?.auditorName || null),
-      auditorUsername: this.currentUser ? this.currentUser.username : (sch?.auditorUsername || null),
-      auditorNik: this.currentUser ? this.currentUser.nik : (sch?.auditorNik || null),
-      actualIn: document.getElementById('form-actual-in')?.value || sch?.actualIn || null,
-      actualOut: document.getElementById('form-actual-out')?.value || sch?.actualOut || null,
-      latIn: this.liveGps.lat,
-      lngIn: this.liveGps.lng,
-      storeLat: store?.lat || null,
-      storeLng: store?.lng || null,
-      startedAt: Date.now()
-    };
-    window.FMCUData.setActiveCheckIn(checkInObj);
-    this.updateActiveCheckInUI();
-
-    this.hasActiveStoreForm = true;
-    this.updateFormGuardVisibility();
-    this.activePreviewReportId = '__LIVE_FORM__';
-
-    this.navigate('form');
-
-    // Segera evaluasi geofence otomatis (1m-50m radius & 15m away span)
-    this.checkAutomaticGeofenceInOut();
   },
 
   checkInAndOpenForm(storeCode = '', scheduleId = null) {
@@ -6931,8 +6999,8 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       auditorNik: this.currentUser ? this.currentUser.nik : null,
       actualIn: document.getElementById('form-actual-in')?.value || null,
       actualOut: document.getElementById('form-actual-out')?.value || null,
-      latIn: this.liveGps.lat,
-      lngIn: this.liveGps.lng,
+      latIn: this.liveGps?.lat ?? null,
+      lngIn: this.liveGps?.lng ?? null,
       storeLat: st?.lat || null,
       storeLng: st?.lng || null,
       startedAt: Date.now()
@@ -6973,26 +7041,33 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     this.populateMasterStoreSelect();
     const todayStr = new Date().toISOString().slice(0, 10);
 
-    document.getElementById('form-report-id').value = '';
-    document.getElementById('form-schedule-id').value = '';
-    document.getElementById('form-store-select').value = '';
-    document.getElementById('form-store-name').value = '';
-    document.getElementById('form-store-code').value = '';
-    document.getElementById('form-store-type').value = 'CVS';
-    const defaultAuditor = this.currentUser?.name || this.currentUser?.username || '';
-    document.getElementById('form-auditor-name').value = defaultAuditor;
-    document.getElementById('form-visit-date').value = todayStr;
-    document.getElementById('form-qsc-score').value = '';
-    document.getElementById('form-store-head').value = '';
-    document.getElementById('form-area-manager').value = '';
-    document.getElementById('form-regional-manager').value = '';
-    document.getElementById('form-store-email').value = '';
-    const caEl1 = document.getElementById('form-ca-link'); if (caEl1) caEl1.value = '';
-    document.getElementById('form-actual-in').value = '';
-    document.getElementById('form-actual-out').value = '';
+    const setVal = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.value = val ?? '';
+    };
 
-    if (document.getElementById('form-banner-title')) document.getElementById('form-banner-title').textContent = 'FMCU Visit Store Report';
-    document.getElementById('form-banner-store-badge').textContent = 'Kode Toko: -';
+    setVal('form-report-id', '');
+    setVal('form-schedule-id', '');
+    setVal('form-store-select', '');
+    setVal('form-store-name', '');
+    setVal('form-store-code', '');
+    setVal('form-store-type', 'CVS');
+    const defaultAuditor = this.currentUser?.name || this.currentUser?.username || '';
+    setVal('form-auditor-name', defaultAuditor);
+    setVal('form-visit-date', todayStr);
+    setVal('form-qsc-score', '');
+    setVal('form-store-head', '');
+    setVal('form-area-manager', '');
+    setVal('form-regional-manager', '');
+    setVal('form-store-email', '');
+    setVal('form-ca-link', '');
+    setVal('form-actual-in', '');
+    setVal('form-actual-out', '');
+
+    const bannerTitle = document.getElementById('form-banner-title');
+    if (bannerTitle) bannerTitle.textContent = 'FMCU Visit Store Report';
+    const bannerBadge = document.getElementById('form-banner-store-badge');
+    if (bannerBadge) bannerBadge.textContent = 'Kode Toko: -';
 
     this.enableOpi = true;
     this.enableQsc = true;
@@ -7046,25 +7121,32 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     this.hasActiveStoreForm = true;
     this.updateFormGuardVisibility();
 
-    document.getElementById('form-report-id').value = rep.id || '';
-    document.getElementById('form-schedule-id').value = rep.scheduleId || '';
-    document.getElementById('form-store-select').value = rep.storeCode || '';
-    document.getElementById('form-store-name').value = rep.storeName || '';
-    document.getElementById('form-store-code').value = rep.storeCode || '';
-    document.getElementById('form-store-type').value = rep.storeType || 'CVS';
-    document.getElementById('form-auditor-name').value = rep.auditorName || '';
-    document.getElementById('form-visit-date').value = rep.visitDate || new Date().toISOString().slice(0, 10);
-    document.getElementById('form-qsc-score').value = rep.qscScore ?? '';
-    document.getElementById('form-store-head').value = rep.storeHead || '';
-    document.getElementById('form-area-manager').value = rep.areaManager || '';
-    document.getElementById('form-regional-manager').value = rep.regionalManager || '';
-    document.getElementById('form-store-email').value = rep.storeEmail || '';
-    const caEl2 = document.getElementById('form-ca-link'); if (caEl2) caEl2.value = rep.caSpreadsheetUrl || rep.caLink || '';
-    document.getElementById('form-actual-in').value = rep.actualIn || '';
-    document.getElementById('form-actual-out').value = rep.actualOut || '';
+    const setVal = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.value = val ?? '';
+    };
 
-    if (document.getElementById('form-banner-title')) document.getElementById('form-banner-title').textContent = `FMCU Visit Store Report — ${rep.storeName || '-'}`;
-    document.getElementById('form-banner-store-badge').textContent = `Kode Toko: ${rep.storeCode || '-'} (${rep.storeType || 'CVS'})`;
+    setVal('form-report-id', rep.id || '');
+    setVal('form-schedule-id', rep.scheduleId || '');
+    setVal('form-store-select', rep.storeCode || '');
+    setVal('form-store-name', rep.storeName || '');
+    setVal('form-store-code', rep.storeCode || '');
+    setVal('form-store-type', rep.storeType || 'CVS');
+    setVal('form-auditor-name', rep.auditorName || '');
+    setVal('form-visit-date', rep.visitDate || new Date().toISOString().slice(0, 10));
+    setVal('form-qsc-score', rep.qscScore ?? '');
+    setVal('form-store-head', rep.storeHead || '');
+    setVal('form-area-manager', rep.areaManager || '');
+    setVal('form-regional-manager', rep.regionalManager || '');
+    setVal('form-store-email', rep.storeEmail || '');
+    setVal('form-ca-link', rep.caSpreadsheetUrl || rep.caLink || '');
+    setVal('form-actual-in', rep.actualIn || '');
+    setVal('form-actual-out', rep.actualOut || '');
+
+    const bannerTitle = document.getElementById('form-banner-title');
+    if (bannerTitle) bannerTitle.textContent = `FMCU Visit Store Report — ${rep.storeName || '-'}`;
+    const bannerBadge = document.getElementById('form-banner-store-badge');
+    if (bannerBadge) bannerBadge.textContent = `Kode Toko: ${rep.storeCode || '-'} (${rep.storeType || 'CVS'})`;
 
     const navSub = document.getElementById('nav-form-store-subtitle');
     if (navSub) navSub.textContent = `${rep.storeName || 'Toko'} (${rep.storeCode || '-'})`;
@@ -7417,15 +7499,15 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       this.showToast('Memproses foto & timestamp...', 'info');
       const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
         storeName,
-        gpsLat: this.liveGps.lat,
-        gpsLng: this.liveGps.lng,
+        gpsLat: this.liveGps?.lat ?? null,
+        gpsLng: this.liveGps?.lng ?? null,
         applyWatermark: applyWm
       });
 
       if (isCa) {
         if (!this.formCaPhotos) this.formCaPhotos = [];
         const caObj = {
-          id: 'ca-' + Date.now(),
+          id: 'ca-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
           description: '',
           dataUrl,
           driveFileId: '',
@@ -7440,7 +7522,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       } else {
         if (!this.formEvidencePhotos) this.formEvidencePhotos = [];
         const evObj = {
-          id: 'ev-' + Date.now(),
+          id: 'ev-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
           description: '',
           dataUrl,
           driveFileId: '',
@@ -7471,8 +7553,8 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
 
           const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
             storeName,
-            gpsLat: this.liveGps.lat,
-            gpsLng: this.liveGps.lng,
+            gpsLat: this.liveGps?.lat ?? null,
+            gpsLng: this.liveGps?.lng ?? null,
             applyWatermark: applyWm
           });
 
@@ -7886,8 +7968,8 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
       const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
         storeName,
-        gpsLat: this.liveGps.lat,
-        gpsLng: this.liveGps.lng,
+        gpsLat: this.liveGps?.lat ?? null,
+        gpsLng: this.liveGps?.lng ?? null,
         applyWatermark: true,
         compact: true,
         photoType: 'QSC'
@@ -7918,8 +8000,8 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         // 1. Watermark & GPS pada foto penuh (utuh)
         const fullStampedDataUrl = await window.FMCUPdf.processAndStampImage(rawFullDataUrl, {
           storeName,
-          gpsLat: this.liveGps.lat,
-          gpsLng: this.liveGps.lng,
+          gpsLat: this.liveGps?.lat ?? null,
+          gpsLng: this.liveGps?.lng ?? null,
           applyWatermark: true,
           compact: true,
           photoType: 'QSC'
@@ -7979,8 +8061,8 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
       const dataUrl = await window.FMCUPdf.processAndStampImage(rawDataUrl, {
         storeName,
-        gpsLat: this.liveGps.lat,
-        gpsLng: this.liveGps.lng,
+        gpsLat: this.liveGps?.lat ?? null,
+        gpsLng: this.liveGps?.lng ?? null,
         applyWatermark: true,
         compact: true,
         photoType: 'QSC'
@@ -8863,7 +8945,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     const todayStr = new Date().toISOString().slice(0, 10);
     if (!this.formOpiObservations) this.formOpiObservations = [];
     this.formOpiObservations.push({
-      id: 'opi-obs-' + Date.now(),
+      id: 'opi-obs-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
       category: 'OPI Project',
       temuan: '',
       kondisiIdeal: '',
@@ -8872,11 +8954,11 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       tindakanPerbaikan: '',
       hasil: '',
       deadline: todayStr,
-      deadlineFormatted: window.FMCUPdf.formatIndonesianDate(todayStr, false),
+      deadlineFormatted: window.FMCUPdf?.formatIndonesianDate ? window.FMCUPdf.formatIndonesianDate(todayStr, false) : todayStr,
       status: 'OPEN'
     });
     this.renderOpiObservationsList();
-    this.saveCurrentFormDraft();
+    this.triggerAutoSaveDraft(false, 300);
   },
 
   removeOpiObservationCard(idx) {
@@ -9043,11 +9125,11 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     this.updateFloatingJumpLabel();
   },
 
-    addObservationCard() {
+  addObservationCard() {
     const todayStr = new Date().toISOString().slice(0, 10);
     if (!this.formObservations) this.formObservations = [];
     this.formObservations.push({
-      id: 'obs-' + Date.now(),
+      id: 'obs-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
       category: 'Food Safety & Expired',
       temuan: '',
       kondisiIdeal: '',
@@ -9056,12 +9138,12 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       tindakanPerbaikan: '',
       hasil: '',
       deadline: todayStr,
-      deadlineFormatted: window.FMCUPdf.formatIndonesianDate(todayStr, false),
+      deadlineFormatted: window.FMCUPdf?.formatIndonesianDate ? window.FMCUPdf.formatIndonesianDate(todayStr, false) : todayStr,
       status: 'OPEN'
     });
     this.renderObservationsList();
     this.updateFormProgress();
-    this.saveCurrentFormDraft();
+    this.triggerAutoSaveDraft(false, 300);
     setTimeout(() => {
       const list = document.getElementById('form-observations-list');
       if (list && list.lastElementChild) {
@@ -9242,8 +9324,8 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       const applyWm = true;
       const dataUrl = await window.FMCUPdf.processAndStampImage(rawDataUrl, {
         storeName,
-        gpsLat: this.liveGps.lat,
-        gpsLng: this.liveGps.lng,
+        gpsLat: this.liveGps?.lat ?? null,
+        gpsLng: this.liveGps?.lng ?? null,
         applyWatermark: applyWm
       });
       const evObj = this.formEvidencePhotos[idx];
@@ -9272,8 +9354,8 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
       const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
         storeName,
-        gpsLat: this.liveGps.lat,
-        gpsLng: this.liveGps.lng,
+        gpsLat: this.liveGps?.lat ?? null,
+        gpsLng: this.liveGps?.lng ?? null,
         applyWatermark: false
       });
       evObj.id = evObj.id || 'ev-' + Date.now();
@@ -9297,8 +9379,8 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     for (const file of files) {
       const dataUrl = await window.FMCUPdf.processAndStampImage(file, {
         storeName,
-        gpsLat: this.liveGps.lat,
-        gpsLng: this.liveGps.lng,
+        gpsLat: this.liveGps?.lat ?? null,
+        gpsLng: this.liveGps?.lng ?? null,
         applyWatermark: applyWm
       });
       const evObj = {
@@ -9462,8 +9544,8 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       const applyWm = true;
       const dataUrl = await window.FMCUPdf.processAndStampImage(rawDataUrl, {
         storeName,
-        gpsLat: this.liveGps.lat,
-        gpsLng: this.liveGps.lng,
+        gpsLat: this.liveGps?.lat ?? null,
+        gpsLng: this.liveGps?.lng ?? null,
         applyWatermark: applyWm
       });
       if (!this.formCaPhotos) this.formCaPhotos = [];
@@ -9494,8 +9576,8 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
       const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
         storeName,
-        gpsLat: this.liveGps.lat,
-        gpsLng: this.liveGps.lng,
+        gpsLat: this.liveGps?.lat ?? null,
+        gpsLng: this.liveGps?.lng ?? null,
         applyWatermark: false
       });
       caObj.id = caObj.id || 'ca-' + Date.now();
@@ -9520,8 +9602,8 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     for (const file of files) {
       const dataUrl = await window.FMCUPdf.processAndStampImage(file, {
         storeName,
-        gpsLat: this.liveGps.lat,
-        gpsLng: this.liveGps.lng,
+        gpsLat: this.liveGps?.lat ?? null,
+        gpsLng: this.liveGps?.lng ?? null,
         applyWatermark: applyWm
       });
       const caObj = {
@@ -9804,22 +9886,22 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       scheduleId: scheduleId || null,
       reportTitle: settings.reportTitle || 'FMCU Visit Store Report',
       auditorId: this.currentUser?.id || 'usr-auditor',
-      auditorName: document.getElementById('form-auditor-name')?.value.trim() || '-',
+      auditorName: (document.getElementById('form-auditor-name')?.value || '').trim() || '-',
       visitDate,
-      visitDateFormatted: window.FMCUPdf.formatIndonesianDate(visitDate, false),
-      visitDayDateFormatted: window.FMCUPdf.formatIndonesianDate(visitDate, true),
-      storeCode: document.getElementById('form-store-code')?.value.trim() || '-',
-      storeName: (document.getElementById('form-store-name')?.value.trim() || '-').toUpperCase(),
+      visitDateFormatted: window.FMCUPdf?.formatIndonesianDate ? window.FMCUPdf.formatIndonesianDate(visitDate, false) : visitDate,
+      visitDayDateFormatted: window.FMCUPdf?.formatIndonesianDate ? window.FMCUPdf.formatIndonesianDate(visitDate, true) : visitDate,
+      storeCode: (document.getElementById('form-store-code')?.value || '').trim() || '-',
+      storeName: ((document.getElementById('form-store-name')?.value || '').trim() || '-').toUpperCase(),
       storeType: document.getElementById('form-store-type')?.value || 'CVS',
-      storeHead: document.getElementById('form-store-head')?.value.trim() || '',
-      areaManager: document.getElementById('form-area-manager')?.value.trim() || '',
-      regionalManager: document.getElementById('form-regional-manager')?.value.trim() || '',
-      storeEmail: document.getElementById('form-store-email')?.value.trim() || '',
-      actualIn: document.getElementById('form-actual-in')?.value.trim() || '',
-      actualOut: document.getElementById('form-actual-out')?.value.trim() || '',
+      storeHead: (document.getElementById('form-store-head')?.value || '').trim(),
+      areaManager: (document.getElementById('form-area-manager')?.value || '').trim(),
+      regionalManager: (document.getElementById('form-regional-manager')?.value || '').trim(),
+      storeEmail: (document.getElementById('form-store-email')?.value || '').trim(),
+      actualIn: (document.getElementById('form-actual-in')?.value || '').trim(),
+      actualOut: (document.getElementById('form-actual-out')?.value || '').trim(),
       durationMinutes: 0,
-      gpsLat: this.liveGps.lat,
-      gpsLng: this.liveGps.lng,
+      gpsLat: this.liveGps?.lat ?? null,
+      gpsLng: this.liveGps?.lng ?? null,
       qscScore: Number(document.getElementById('form-qsc-score')?.value || 0),
       crewList: cloneCrew(this.formCrew),
       qscPhotos: (this.formQscPhotos || []).map((p, idx) => ({
@@ -9833,24 +9915,25 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       })),
       opiObservations: (this.formOpiObservations || []).map((o) => ({
         ...o,
-        deadlineFormatted: o.deadlineFormatted || window.FMCUPdf.formatIndonesianDate(o.deadline, false)
+        deadlineFormatted: o.deadlineFormatted || (window.FMCUPdf?.formatIndonesianDate ? window.FMCUPdf.formatIndonesianDate(o.deadline, false) : (o.deadline || ''))
       })),
-      observations: this.formObservations.map((o) => ({
+      observations: (this.formObservations || []).map((o) => ({
         ...o,
-        deadlineFormatted: o.deadlineFormatted || window.FMCUPdf.formatIndonesianDate(o.deadline, false)
+        deadlineFormatted: o.deadlineFormatted || (window.FMCUPdf?.formatIndonesianDate ? window.FMCUPdf.formatIndonesianDate(o.deadline, false) : (o.deadline || ''))
       })),
       evidencePhotos: clonePhotos(this.formEvidencePhotos),
       caPhotos: caClones,
       correctiveActionPhotos: caClones,
-      caLink: document.getElementById('form-ca-link')?.value?.trim() || '',
+      caLink: (document.getElementById('form-ca-link')?.value || '').trim(),
       createdAt: new Date().toISOString()
     };
   },
 
   async collectAndSaveFormReport() {
     this.syncAllFormInputsToMemory();
-    if (!document.getElementById('form-actual-out').value.trim()) {
-      document.getElementById('form-actual-out').value = this.getCurrentTimeWIB();
+    const actualOutEl = document.getElementById('form-actual-out');
+    if (actualOutEl && !actualOutEl.value.trim()) {
+      actualOutEl.value = this.getCurrentTimeWIB();
     }
     const reportObj = this.buildCurrentFormReportObject();
     reportObj._isLocalDraftOnly = false;
@@ -11232,8 +11315,8 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       isArchivedView: true,
       actualIn: rep.actualIn || null,
       actualOut: rep.actualOut || null,
-      latIn: rep.gpsLat || this.liveGps.lat,
-      lngIn: rep.gpsLng || this.liveGps.lng,
+      latIn: rep.gpsLat || this.liveGps?.lat || null,
+      lngIn: rep.gpsLng || this.liveGps?.lng || null,
       storeLat: null,
       storeLng: null,
       startedAt: Date.now()
@@ -21825,6 +21908,28 @@ ${extractedPdfText}`;
     a.click();
   }
 };
+
+// Global Error Boundary & Crash Protection to prevent blank screen errors
+window.addEventListener('error', (event) => {
+  console.error('[FMCU Global Error Caught]', event.error || event.message);
+  try {
+    const activeView = window.FMCUApp?.currentView || 'home';
+    const activeEl = document.getElementById(`view-${activeView}`);
+    if (activeEl && activeEl.classList.contains('hidden')) {
+      activeEl.classList.remove('hidden');
+    }
+    if (activeView === 'form') {
+      const wrapper = document.getElementById('form-active-store-wrapper');
+      const sec = document.getElementById(`form-sec-${window.FMCUApp?.currentFormSection || 1}`);
+      if (wrapper && window.FMCUApp?.hasActiveStoreForm) wrapper.classList.remove('hidden');
+      if (sec) sec.classList.remove('hidden');
+    }
+  } catch (_) {}
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  console.warn('[FMCU Unhandled Promise Rejection]', event.reason);
+});
 
 document.addEventListener('DOMContentLoaded', () => {
   window.FMCUApp.init();
