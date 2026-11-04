@@ -631,20 +631,57 @@ html, body, .overflow-y-auto, .overflow-x-auto, .scrollable, [class*="overflow-"
 }
 
 /* Mobile Date Input normalization & alignment */
-input[type="date"].fm-input,
-input[type="date"] {
+input[type="date"].fm-input {
   max-width: 100%;
   min-height: 42px;
   box-sizing: border-box;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  display: flex;
-  align-items: center;
+  display: block;
   line-height: 1.25;
+  cursor: pointer;
 }
 input[type="date"]::-webkit-date-and-time-value {
   text-align: left;
+  min-height: 1.25em;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+/* Deadline date badge di card observasi (Responsif, Mudah di-klik di Mobile & Tablet) */
+.obs-deadline-badge {
+  min-height: 36px !important;
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: transparent !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+input[type="date"].obs-deadline-input {
+  min-height: 28px !important;
+  height: 28px !important;
+  max-width: 100% !important;
+  -webkit-appearance: auto !important;
+  -moz-appearance: auto !important;
+  appearance: auto !important;
+  display: inline-block !important;
+  cursor: pointer !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  color: #be123c !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 4px !important;
+  margin: 0 !important;
+  line-height: normal !important;
+  touch-action: manipulation !important;
+}
+input[type="date"].obs-deadline-input::-webkit-calendar-picker-indicator {
+  cursor: pointer !important;
+  opacity: 0.75 !important;
+  filter: invert(18%) sepia(85%) saturate(3400%) hue-rotate(330deg) brightness(85%) contrast(95%) !important;
+  display: inline-block !important;
+  margin-left: 2px !important;
+  padding: 2px !important;
 }
 
 /* Floating Evidence Action Buttons */

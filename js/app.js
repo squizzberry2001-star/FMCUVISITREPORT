@@ -2293,6 +2293,23 @@ window.FMCUApp = {
   // ==========================================================================
   // POINT 16: Liquid Glass Morphing Indicator (Framer Motion spring physics: stiffness 400, damping 30)
   // POINT 16: Liquid Glass Smooth Sliding Indicator (Buttery 60/120fps GPU Glide)
+  openObservationDatePicker(inputEl, evt) {
+    if (!inputEl) return;
+    if (evt && evt.target === inputEl) {
+      // Biarkan native trigger
+    }
+    try {
+      if (typeof inputEl.showPicker === 'function') {
+        inputEl.showPicker();
+        return;
+      }
+    } catch (err) {
+      console.warn('showPicker error:', err);
+    }
+    inputEl.focus();
+    inputEl.click();
+  },
+
   updateMobileNavLiquidPill() {
     try {
       const isForm = this.currentView === 'form' && this.hasActiveStoreForm;
@@ -7799,9 +7816,15 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       return;
     }
 
+    const todayStr = new Date().toISOString().split('T')[0];
     container.innerHTML = this.formOpiObservations
       .map(
-        (obs, idx) => `
+        (obs, idx) => {
+          if (!obs.deadline) {
+            obs.deadline = todayStr;
+            obs.deadlineFormatted = window.FMCUPdf ? window.FMCUPdf.formatIndonesianDate(todayStr, false) : todayStr;
+          }
+          return `
         <div id="obs-card-opi-${idx}" class="relative bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 sm:p-5 shadow-xs transition space-y-4 scroll-mt-24">
           <!-- Top Right Corner Delete Button (Dengan Konfirmasi Iya / Tidak) -->
           <button type="button" onclick="FMCUApp.confirmRemoveObservation(${idx}, 'opi')" class="absolute top-3.5 right-3.5 w-8 h-8 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition cursor-pointer" title="Hapus Temuan OPI #${idx + 1}">
@@ -7819,10 +7842,14 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
               </span>
             </div>
 
-            <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-xl text-xs font-bold border border-slate-200 max-w-full">
-              <span class="text-rose-700 text-[11px] font-extrabold whitespace-nowrap shrink-0"><i class="fa-regular fa-calendar-xmark mr-1"></i>Deadline:</span>
-              <input type="date" value="${obs.deadline || ''}" onchange="FMCUApp.formOpiObservations[${idx}].deadline = this.value; FMCUApp.formOpiObservations[${idx}].deadlineFormatted = window.FMCUPdf.formatIndonesianDate(this.value, false);" class="text-xs font-bold text-rose-700 focus:outline-none bg-transparent cursor-pointer min-w-0 w-full sm:w-auto" />
-            </div>
+            <label for="obs-opi-deadline-${idx}" onclick="FMCUApp.openObservationDatePicker(document.getElementById('obs-opi-deadline-${idx}'), event)" class="obs-deadline-badge flex items-center gap-1.5 bg-rose-50/80 hover:bg-rose-100 active:bg-rose-200/70 border border-rose-200/80 px-2.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer select-none max-w-full transition shadow-2xs">
+              <span class="text-rose-700 text-[11px] font-extrabold whitespace-nowrap shrink-0 pointer-events-none flex items-center gap-1">
+                <i class="fa-solid fa-calendar-day text-rose-500"></i>
+                <span>Deadline:</span>
+              </span>
+              <input type="date" id="obs-opi-deadline-${idx}" value="${obs.deadline || todayStr}" onchange="FMCUApp.formOpiObservations[${idx}].deadline = this.value; FMCUApp.formOpiObservations[${idx}].deadlineFormatted = window.FMCUPdf.formatIndonesianDate(this.value, false); FMCUApp.saveCurrentFormDraft();" onclick="event.stopPropagation(); FMCUApp.openObservationDatePicker(this, event);" class="obs-deadline-input text-xs font-bold text-rose-700 focus:outline-none bg-transparent cursor-pointer min-w-0 flex-1 w-full sm:w-auto" />
+              <i class="fa-solid fa-pen-to-square text-rose-400 hover:text-rose-600 text-[10px] ml-auto shrink-0 pointer-events-none"></i>
+            </label>
           </div>
 
           <!-- Clean Form Groups -->
@@ -7878,8 +7905,8 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
             </div>
           </div>
         </div>
-      `
-      )
+      `;
+      })
       .join('');
 
     container.querySelectorAll('textarea').forEach((ta) => this.autoExpandTextarea(ta));
@@ -8481,6 +8508,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       }
 
       if (Array.isArray(compiledObservations) && compiledObservations.length > 0) {
+        const todayStr = new Date().toISOString().split('T')[0];
         this.formObservations = compiledObservations.map((obs) => ({
           category: obs.category || 'Quality',
           temuan: this.formatBulletPoints(obs.temuan || ''),
@@ -8488,7 +8516,10 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
           dampak: this.formatBulletPoints(obs.dampak || ''),
           penyebab: this.formatBulletPoints(obs.penyebab || ''),
           tindakanPerbaikan: this.formatBulletPoints(obs.tindakanPerbaikan || ''),
-          hasil: 'Akan dimonitoring pada visit berikutnya'
+          hasil: 'Akan dimonitoring pada visit berikutnya',
+          deadline: obs.deadline || todayStr,
+          deadlineFormatted: window.FMCUPdf ? window.FMCUPdf.formatIndonesianDate(obs.deadline || todayStr, false) : todayStr,
+          status: 'OPEN'
         }));
 
         this.renderObservationsList();
@@ -8654,9 +8685,15 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       return;
     }
 
+    const todayStr = new Date().toISOString().split('T')[0];
     container.innerHTML = this.formObservations
       .map(
-        (obs, idx) => `
+        (obs, idx) => {
+          if (!obs.deadline) {
+            obs.deadline = todayStr;
+            obs.deadlineFormatted = window.FMCUPdf ? window.FMCUPdf.formatIndonesianDate(todayStr, false) : todayStr;
+          }
+          return `
         <div id="obs-card-qsc-${idx}" class="relative bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 sm:p-5 shadow-xs transition space-y-4 scroll-mt-24">
           <!-- Top Right Corner Delete Button (Dengan Konfirmasi Iya / Tidak) -->
           <button type="button" onclick="FMCUApp.confirmRemoveObservation(${idx}, 'qsc')" class="absolute top-3.5 right-3.5 w-8 h-8 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition cursor-pointer" title="Hapus Temuan QSC #${idx + 1}">
@@ -8691,10 +8728,14 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
               </select>
             </div>
 
-            <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-xl text-xs font-bold border border-slate-200 max-w-full">
-              <span class="text-rose-700 text-[11px] font-extrabold whitespace-nowrap shrink-0"><i class="fa-regular fa-calendar-xmark mr-1"></i>Deadline:</span>
-              <input type="date" value="${obs.deadline || ''}" onchange="FMCUApp.formObservations[${idx}].deadline = this.value; FMCUApp.formObservations[${idx}].deadlineFormatted = window.FMCUPdf.formatIndonesianDate(this.value, false);" class="text-xs font-bold text-rose-700 focus:outline-none bg-transparent cursor-pointer min-w-0 w-full sm:w-auto" />
-            </div>
+            <label for="obs-qsc-deadline-${idx}" onclick="FMCUApp.openObservationDatePicker(document.getElementById('obs-qsc-deadline-${idx}'), event)" class="obs-deadline-badge flex items-center gap-1.5 bg-rose-50/80 hover:bg-rose-100 active:bg-rose-200/70 border border-rose-200/80 px-2.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer select-none max-w-full transition shadow-2xs">
+              <span class="text-rose-700 text-[11px] font-extrabold whitespace-nowrap shrink-0 pointer-events-none flex items-center gap-1">
+                <i class="fa-solid fa-calendar-day text-rose-500"></i>
+                <span>Deadline:</span>
+              </span>
+              <input type="date" id="obs-qsc-deadline-${idx}" value="${obs.deadline || todayStr}" onchange="FMCUApp.formObservations[${idx}].deadline = this.value; FMCUApp.formObservations[${idx}].deadlineFormatted = window.FMCUPdf.formatIndonesianDate(this.value, false); FMCUApp.saveCurrentFormDraft();" onclick="event.stopPropagation(); FMCUApp.openObservationDatePicker(this, event);" class="obs-deadline-input text-xs font-bold text-rose-700 focus:outline-none bg-transparent cursor-pointer min-w-0 flex-1 w-full sm:w-auto" />
+              <i class="fa-solid fa-pen-to-square text-rose-400 hover:text-rose-600 text-[10px] ml-auto shrink-0 pointer-events-none"></i>
+            </label>
           </div>
 
           <!-- Clean Form Groups -->
@@ -8750,8 +8791,8 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
             </div>
           </div>
         </div>
-      `
-      )
+      `;
+      })
       .join('');
 
     container.querySelectorAll('textarea').forEach((ta) => this.autoExpandTextarea(ta));
