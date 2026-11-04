@@ -277,7 +277,7 @@ const DEFAULT_SETTINGS = {
 
 // Data Karyawan hasil ekstraksi "Data_Karyawan_NIK.xlsx" & "Templete Jadwal.xlsx" (Total 35 Karyawan: 18 Regional Bestie + 17 Karyawan/Trainer FMCU)
 const EMPLOYEE_NIK_SEED_ROWS = [
-  { name: 'Aan Bagus Permana', nik: '210822947', jabatan: 'Web Application Developer & System Architect', role: 'SUPER_ADMIN' },
+  { name: 'Aan Bagus Permana', nik: '210822947', jabatan: 'Regional Bestie', role: 'AUDITOR' },
   { name: 'Al Azis Rachman Rizal', nik: 'TR-alazisrach', jabatan: 'Trainer FMCU / Regional Bestie' },
   { name: 'Anggi Novita', nik: '230723742', jabatan: 'Regional Bestie' },
   { name: 'Aulia Puspita Dewi', nik: 'TR-auliapuspi', jabatan: 'Trainer FMCU / Regional Bestie' },
@@ -340,15 +340,10 @@ function mapEmployeeRowToUserObject(row, index = 0, options = {}) {
 
   if (
     row.role === 'SUPER_ADMIN' ||
-    jabLower.includes('super admin') ||
-    jabLower.includes('developer') ||
-    jabLower.includes('system architect') ||
-    nameLower.includes('aan bagus')
+    jabLower.includes('super admin')
   ) {
     role = 'SUPER_ADMIN';
-    roleBadge = nameLower.includes('aan bagus')
-      ? 'Web Application Developer & System Architect'
-      : 'Super Admin FMCU';
+    roleBadge = 'Super Admin FMCU';
     authorities = [
       'view_home',
       'view_analytics',
@@ -1350,7 +1345,7 @@ window.FMCUData = {
               userMap.set(key, u);
             } else {
               const curNorm = String(cur.name || '').toLowerCase();
-              const isSuper = cur.role === 'SUPER_ADMIN' || cur.username === 'admin' || curNorm.includes('aan bagus') || curNorm.includes('admin fmcu');
+              const isSuper = cur.role === 'SUPER_ADMIN' || cur.username === 'admin' || curNorm.includes('admin fmcu');
               const isScheduleAdmin = !isSuper && (cur.role === 'ADMIN_SCHEDULE' || (cur.jabatan && /admin jadwal|regional manager|area manager/i.test(cur.jabatan)));
               const targetAuths = Array.isArray(u.authorities)
                 ? u.authorities
@@ -1359,9 +1354,7 @@ window.FMCUData = {
                 ...cur,
                 ...u,
                 role: isSuper ? 'SUPER_ADMIN' : (isScheduleAdmin ? 'ADMIN_SCHEDULE' : (cur.role || u.role)),
-                roleBadge: isSuper && curNorm.includes('aan bagus')
-                  ? 'Web Application Developer & System Architect'
-                  : (cur.roleBadge || u.roleBadge),
+                roleBadge: isSuper ? 'Super Admin FMCU' : (cur.roleBadge || u.roleBadge),
                 authorities: targetAuths,
                 _v2AuthSchema: true
               });
@@ -2101,13 +2094,25 @@ window.FMCUData = {
     });
 
     const deduped = Array.from(userMapByName.values());
+    // Sanitasi otomatis: pastikan Aan Bagus Permana dihormati sebagai Visitor
+    deduped.forEach((u) => {
+      if (!u) return;
+      const normName = String(u.name || '').toLowerCase();
+      if (normName.includes('aan bagus') && u.username !== 'admin') {
+        if (u.role === 'SUPER_ADMIN' || !u.role || u.role === 'AUDITOR' || u.role === 'VISITOR') {
+          u.role = 'AUDITOR';
+          u.roleBadge = 'Visitor / Regional Bestie';
+          u.authorities = ['view_home', 'view_analytics', 'create_visit', 'export_pdf'];
+        }
+      }
+    });
     if (deduped.length !== raw.length) {
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(deduped));
     }
 
     const result = deduped.map((u) => {
       const normName = String(u.name || '').toLowerCase();
-      const isSuper = u.role === 'SUPER_ADMIN' || u.username === 'admin' || normName.includes('aan bagus') || normName.includes('admin fmcu');
+      const isSuper = u.role === 'SUPER_ADMIN' || u.username === 'admin' || normName.includes('admin fmcu');
       const isScheduleAdmin = !isSuper && (u.role === 'ADMIN_SCHEDULE' || (u.jabatan && /admin jadwal|regional manager|area manager/i.test(u.jabatan)));
 
       let finalAuths = Array.isArray(u.authorities) ? [...u.authorities] : null;
@@ -2132,8 +2137,8 @@ window.FMCUData = {
       return {
         ...u,
         role: isSuper ? 'SUPER_ADMIN' : (isScheduleAdmin ? 'ADMIN_SCHEDULE' : (u.role || 'AUDITOR')),
-        roleBadge: isSuper && normName.includes('aan bagus')
-          ? 'Web Application Developer & System Architect'
+        roleBadge: isSuper
+          ? 'Super Admin FMCU'
           : String(u.roleBadge || '').replace(/Auditor/gi, 'Visitor'),
         authorities: finalAuths,
         _v2AuthSchema: true,
@@ -4033,7 +4038,13 @@ window.FMCUData = {
       const userObj = parsed && parsed.user ? parsed.user : parsed;
       if (!userObj || !userObj.username) return null;
       const freshUser = this.getUsers().find((u) => u.id === userObj.id || u.username === userObj.username);
-      return freshUser || userObj;
+      const effectiveUser = freshUser || userObj;
+      if (effectiveUser && String(effectiveUser.name || '').toLowerCase().includes('aan bagus') && (effectiveUser.role === 'AUDITOR' || effectiveUser.role === 'VISITOR' || effectiveUser.role === 'SUPER_ADMIN')) {
+        effectiveUser.role = 'AUDITOR';
+        effectiveUser.roleBadge = 'Visitor / Regional Bestie';
+        effectiveUser.authorities = ['view_home', 'view_analytics', 'create_visit', 'export_pdf'];
+      }
+      return effectiveUser;
     } catch {
       return null;
     }

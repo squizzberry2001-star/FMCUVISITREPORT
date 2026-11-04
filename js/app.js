@@ -239,6 +239,14 @@ window.FMCUApp = {
     // Cek sesi login aktif di tab ini (sessionStorage). Jika tutup tab / buka baru / expired -> wajib login!
     const sessionUser = window.FMCUData.getSession();
     this.currentUser = sessionUser || null;
+    if (this.currentUser && String(this.currentUser.name || '').toLowerCase().includes('aan bagus') && (this.currentUser.role === 'AUDITOR' || this.currentUser.role === 'VISITOR' || this.currentUser.role === 'SUPER_ADMIN')) {
+      // Pastikan sesi aktif untuk Aan Bagus Permana mematuhi role Visitor yang telah disetup
+      const freshAan = window.FMCUData.getUsers().find((u) => String(u.name || '').toLowerCase().includes('aan bagus'));
+      if (freshAan) {
+        this.currentUser = { ...freshAan };
+        window.FMCUData.setSession(this.currentUser);
+      }
+    }
     const authScreen = document.getElementById('auth-screen');
     if (authScreen) {
       authScreen.classList.toggle('hidden', Boolean(this.currentUser));
@@ -1382,11 +1390,10 @@ window.FMCUApp = {
     const username = String(user.username || '').toLowerCase();
     const name = String(user.name || '').toLowerCase();
 
-    // 1. Super Admin, Developer & root admin selalu memiliki SEMUA otoritas tanpa pengecualian
+    // 1. Super Admin & root admin selalu memiliki SEMUA otoritas tanpa pengecualian
     if (
       role === 'SUPER_ADMIN' ||
       username === 'admin' ||
-      name.includes('aan bagus') ||
       name.includes('admin fmcu') ||
       name.includes('administrator')
     ) {
@@ -17323,7 +17330,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
               <div>
                 <div class="flex items-center gap-2 flex-wrap">
                   <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${isDone ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
-                    ${isDone ? '<i class="fa-solid fa-circle-check text-emerald-700 mr-1"></i>Selesai' : '<i class="fa-regular fa-clock text-amber-700 mr-1"></i>Terjadwal'}
+                    ${isDone ? '<i class="fa-solid fa-circle-check text-emerald-700 mr-1"></i>Selesai' : '<i class="fa-solid fa-clock text-amber-700 mr-1"></i>Terjadwal'}
                   </span>
                   <span class="text-xs font-black text-slate-900">${s.storeName} (${s.storeCode})</span>
                   ${this.renderStoreVisitBadgeHtml(s.storeCode)}
