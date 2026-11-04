@@ -250,15 +250,22 @@ window.FMCUApp = {
       }
     }
 
-    // Check if there was an active store check-in session
+    // Check if there was an active store check-in session (Validasi hanya milik user yang sedang aktif)
     this.checkAndExpireOldCheckIns();
     const activeCheckIn = window.FMCUData.getActiveCheckIn();
-    this.hasActiveStoreForm = Boolean(activeCheckIn && activeCheckIn.storeCode);
+    const isMine = Boolean(
+      activeCheckIn &&
+      activeCheckIn.storeCode &&
+      this.currentUser &&
+      this.isCheckInOwnedByUser(activeCheckIn, this.currentUser)
+    );
+    this.hasActiveStoreForm = isMine;
 
     this.setupCustomUserSelectListeners();
     this.populateHeaderRoleSwitcher();
     this.updateUserHeaderUI();
     this.setupFormAutoDraftListeners();
+    this.setupAutoHidingTopNavbar();
     this.onCloudStatusChanged(window.FMCUData.cloudStatus, window.FMCUData.cloudErrorMsg);
 
     // Pastikan database IndexedDB foto, draft & reports terinisialisasi penuh terlebih dahulu sebelum merestore form
@@ -266,7 +273,7 @@ window.FMCUApp = {
       window.FMCUData.initPhotoStorage()
         .then(() => {
           const curCheckIn = window.FMCUData.getActiveCheckIn();
-          if (curCheckIn && curCheckIn.storeCode) {
+          if (curCheckIn && curCheckIn.storeCode && this.currentUser && this.isCheckInOwnedByUser(curCheckIn, this.currentUser)) {
             this.restoreActiveCheckInToForm(curCheckIn);
           }
           if (this.currentUser) {
@@ -274,7 +281,7 @@ window.FMCUApp = {
           }
         })
         .catch(() => {});
-    } else if (activeCheckIn && activeCheckIn.storeCode) {
+    } else if (isMine && activeCheckIn && activeCheckIn.storeCode) {
       this.restoreActiveCheckInToForm(activeCheckIn);
     }
 
@@ -756,6 +763,83 @@ window.FMCUApp = {
     );
   },
 
+  // Auto-hiding Top Navbar (Memberikan tampilan layar penuh seperti native apps saat scroll ke bawah)
+  setupAutoHidingTopNavbar() {
+    const headerWrapper = document.getElementById('sticky-top-header-wrapper');
+    if (!headerWrapper || this._autoHideNavbarInitialized) return;
+    this._autoHideNavbarInitialized = true;
+
+    let lastScrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
+    let ticking = false;
+    let touchStartY = 0;
+
+    const updateHeaderVisibility = (currentScrollY) => {
+      // Selalu munculkan navbar jika posisi scroll berada di area paling atas
+      if (currentScrollY <= 25) {
+        headerWrapper.classList.remove('header-scrolled-hidden');
+        lastScrollY = currentScrollY;
+        return;
+      }
+
+      const diff = currentScrollY - lastScrollY;
+
+      // Abaikan getaran mikro scroll kecil (< 8px)
+      if (Math.abs(diff) < 8) {
+        return;
+      }
+
+      // Scroll ke bawah (swipe ke atas pada layar) -> Sembunyikan navbar agar layar lebih luas
+      if (diff > 10 && currentScrollY > 70) {
+        if (!headerWrapper.classList.contains('header-scrolled-hidden')) {
+          headerWrapper.classList.add('header-scrolled-hidden');
+        }
+      }
+      // Scroll ke atas (swipe ke bawah pada layar) -> Munculkan kembali navbar seketika
+      else if (diff < -8) {
+        if (headerWrapper.classList.contains('header-scrolled-hidden')) {
+          headerWrapper.classList.remove('header-scrolled-hidden');
+        }
+      }
+
+      lastScrollY = currentScrollY;
+    };
+
+    const onScroll = () => {
+      const scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          updateHeaderVisibility(scrollY);
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    // Touch event listener untuk deteksi gesture swipe secara instan pada mobile
+    window.addEventListener('touchstart', (e) => {
+      if (e.touches && e.touches.length > 0) {
+        touchStartY = e.touches[0].clientY;
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (e) => {
+      if (!e.touches || e.touches.length === 0) return;
+      const touchCurrentY = e.touches[0].clientY;
+      const touchDiff = touchStartY - touchCurrentY;
+      const scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
+
+      if (scrollY <= 25) {
+        headerWrapper.classList.remove('header-scrolled-hidden');
+      } else if (touchDiff > 16 && scrollY > 70) {
+        headerWrapper.classList.add('header-scrolled-hidden');
+      } else if (touchDiff < -12) {
+        headerWrapper.classList.remove('header-scrolled-hidden');
+      }
+    }, { passive: true });
+  },
+
   // Helper: GPS hanya bekerja jika user di agendakan VISIT atau NSO hari ini (Admin Jadwal, Super Admin, dan user lain dimatikan)
   isUserScheduledForVisitOrNsoToday(user = this.currentUser) {
     if (!user) return false;
@@ -1029,9 +1113,16 @@ window.FMCUApp = {
     this.updateUserHeaderUI();
     this.checkAndDispatchUserVisitNotifications(true);
 
-    // Pastikan jika ada sesi form toko yang sebelumnya aktif, datanya telah siap di memori setelah IndexedDB siap
+    // Pastikan jika ada sesi form toko yang sebelumnya aktif, datanya hanya di-restore jika milik user ini
     const activeCheckIn = window.FMCUData.getActiveCheckIn();
-    if (activeCheckIn && activeCheckIn.storeCode) {
+    const isMine = Boolean(
+      activeCheckIn &&
+      activeCheckIn.storeCode &&
+      this.isCheckInOwnedByUser(activeCheckIn, user)
+    );
+
+    if (isMine) {
+      this.hasActiveStoreForm = true;
       if (window.FMCUData._photoStorageReady) {
         this.restoreActiveCheckInToForm(activeCheckIn);
       } else if (typeof window.FMCUData.initPhotoStorage === 'function') {
@@ -1039,7 +1130,12 @@ window.FMCUApp = {
           this.restoreActiveCheckInToForm(activeCheckIn);
         }).catch(() => {});
       }
+    } else {
+      this.hasActiveStoreForm = false;
+      this.resetVisitForm(true);
+      this.activePreviewReportId = null;
     }
+    this.updateActiveCheckInUI();
 
     // Prioritaskan savedView jika masih valid untuk role baru, atau ambil default role
     const savedView = sessionStorage.getItem('fmcu_active_view');
@@ -1330,12 +1426,69 @@ window.FMCUApp = {
 
   isReportOwnedByUser(report, user = this.currentUser) {
     if (!report || !user) return false;
-    if (report.auditorId && user.id && String(report.auditorId) === String(user.id)) return true;
-    if (report.auditorUsername && user.username && String(report.auditorUsername).toLowerCase() === String(user.username).toLowerCase()) return true;
-    if (report.auditorNik && user.nik && String(report.auditorNik) === String(user.nik)) return true;
-    const rName = String(report.auditorName || '').trim().toLowerCase();
-    const uName = String(user.name || '').trim().toLowerCase();
-    return Boolean(rName && uName && rName === uName);
+    const uId = String(user.id || '').trim();
+    const rAudId = String(report.auditorId || '').trim();
+    if (rAudId && uId && (rAudId === uId || rAudId === `usr-${uId}` || `usr-${rAudId}` === uId)) return true;
+
+    const rUsername = String(report.auditorUsername || '').trim().toLowerCase();
+    const uUsername = String(user.username || '').trim().toLowerCase();
+    if (rUsername && uUsername && rUsername === uUsername) return true;
+
+    const rNik = String(report.auditorNik || '').trim().toLowerCase();
+    const uNik = String(user.nik || '').trim().toLowerCase();
+    if (rNik && uNik && rNik === uNik) return true;
+
+    const clean = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const rNorm = clean(report.auditorName);
+    const uNorm = clean(user.name);
+    if (rNorm && uNorm && (rNorm === uNorm || rNorm.includes(uNorm) || uNorm.includes(rNorm))) return true;
+
+    return false;
+  },
+
+  isCheckInOwnedByUser(checkIn, user = this.currentUser) {
+    if (!checkIn || !user) return false;
+    const uId = String(user.id || '').trim();
+    const cId = String(checkIn.auditorId || '').trim();
+    if (cId && uId && (cId === uId || cId === `usr-${uId}` || `usr-${cId}` === uId)) return true;
+
+    const cUser = String(checkIn.auditorUsername || '').trim().toLowerCase();
+    const uUser = String(user.username || '').trim().toLowerCase();
+    if (cUser && uUser && cUser === uUser) return true;
+
+    const cNik = String(checkIn.auditorNik || '').trim().toLowerCase();
+    const uNik = String(user.nik || '').trim().toLowerCase();
+    if (cNik && uNik && cNik === uNik) return true;
+
+    const clean = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const cName = clean(checkIn.auditorName);
+    const uName = clean(user.name);
+    if (cName && uName && (cName === uName || cName.includes(uName) || uName.includes(cName))) return true;
+
+    // Fallback jika scheduleId ada, cocokkan dengan kepemilikan jadwal di database
+    if (checkIn.scheduleId && window.FMCUData) {
+      const sch = window.FMCUData.getSchedules().find((s) => s.id === checkIn.scheduleId);
+      if (sch) return this.isScheduleOwnedByUser(sch, user);
+    }
+
+    return false;
+  },
+
+  isCurrentFormOwnedByUser(user = this.currentUser) {
+    if (!user) return false;
+    const audInput = document.getElementById('form-auditor-name')?.value.trim();
+    const schId = document.getElementById('form-schedule-id')?.value.trim();
+    if (schId && window.FMCUData) {
+      const sch = window.FMCUData.getSchedules().find((s) => s.id === schId);
+      if (sch) return this.isScheduleOwnedByUser(sch, user);
+    }
+    if (audInput) {
+      const clean = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const aNorm = clean(audInput);
+      const uNorm = clean(user.name);
+      return Boolean(aNorm && uNorm && (aNorm === uNorm || aNorm.includes(uNorm) || uNorm.includes(aNorm)));
+    }
+    return true;
   },
 
   hasMeaningfulVisitData() {
@@ -2260,6 +2413,7 @@ window.FMCUApp = {
     }
 
     this.currentView = viewName;
+    document.getElementById('sticky-top-header-wrapper')?.classList.remove('header-scrolled-hidden');
     try {
       localStorage.setItem('fmcu_active_view', viewName);
       sessionStorage.setItem('fmcu_active_view', viewName);
@@ -4146,7 +4300,14 @@ window.FMCUApp = {
 
   updateActiveCheckInUI() {
     this.checkAndExpireOldCheckIns();
-    const active = window.FMCUData.getActiveCheckIn();
+    const rawActive = window.FMCUData.getActiveCheckIn();
+    const isMine = Boolean(
+      rawActive &&
+      rawActive.storeCode &&
+      this.currentUser &&
+      this.isCheckInOwnedByUser(rawActive, this.currentUser)
+    );
+    const active = isMine ? rawActive : null;
     const sideWidget = document.getElementById('sidebar-checkin-widget');
     const homeSummary = document.getElementById('home-checkin-summary');
     const navSub = document.getElementById('nav-form-store-subtitle');
@@ -4166,14 +4327,19 @@ window.FMCUApp = {
         navSub.textContent = `${active.storeName} (${active.storeCode})`;
       }
     } else {
+      this.hasActiveStoreForm = false;
       if (sideWidget) sideWidget.classList.add('hidden');
       if (homeSummary) {
         homeSummary.textContent = 'Belum Check-In';
         homeSummary.className = 'font-bold text-slate-700 mt-0.5 truncate';
       }
+      if (navSub) {
+        navSub.textContent = 'Input QSC & Observasi';
+      }
     }
     this.updateFormGuardVisibility();
-    },
+    this.updateSidebarAuthoritiesUI();
+  },
 
   isAuditorUser(user = this.currentUser) {
     if (!user) return false;
@@ -4480,6 +4646,10 @@ window.FMCUApp = {
       storeCode: targetCode,
       storeName: targetName,
       scheduleId: scheduleId,
+      auditorId: this.currentUser ? this.currentUser.id : (sch?.auditorId || null),
+      auditorName: this.currentUser ? this.currentUser.name : (sch?.auditorName || null),
+      auditorUsername: this.currentUser ? this.currentUser.username : (sch?.auditorUsername || null),
+      auditorNik: this.currentUser ? this.currentUser.nik : (sch?.auditorNik || null),
       actualIn: document.getElementById('form-actual-in')?.value || sch?.actualIn || null,
       actualOut: document.getElementById('form-actual-out')?.value || sch?.actualOut || null,
       latIn: this.liveGps.lat,
@@ -6607,6 +6777,10 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       storeCode: storeCode,
       storeName: storeName,
       scheduleId: document.getElementById('form-schedule-id')?.value || null,
+      auditorId: this.currentUser ? this.currentUser.id : null,
+      auditorName: this.currentUser ? this.currentUser.name : null,
+      auditorUsername: this.currentUser ? this.currentUser.username : null,
+      auditorNik: this.currentUser ? this.currentUser.nik : null,
       actualIn: document.getElementById('form-actual-in')?.value || null,
       actualOut: document.getElementById('form-actual-out')?.value || null,
       latIn: this.liveGps.lat,
@@ -9628,7 +9802,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     const labelEl = document.getElementById('preview-report-label');
     const trackEl = document.getElementById('preview-report-running-track');
 
-    const isVisitor = this.isAuditorUser(this.currentUser) || !this.isPrivilegedAdmin(this.currentUser);
+    const isVisitor = !this.isPrivilegedAdmin(this.currentUser);
     let reports = window.FMCUData.getReports().filter((r) => r && r.id && r.storeCode);
     if (isVisitor) {
       reports = reports.filter((r) => this.isReportOwnedByUser(r, this.currentUser));
@@ -9637,7 +9811,8 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     // Urutkan laporan dari yang paling baru
     reports.sort((a, b) => String(b.createdAt || b.visitDate || '').localeCompare(String(a.createdAt || a.visitDate || '')));
 
-    const hasMeaningfulDraft = this.hasActiveStoreForm && this.hasMeaningfulVisitData();
+    const isDraftMine = this.currentUser && this.hasActiveStoreForm && this.isCurrentFormOwnedByUser(this.currentUser);
+    const hasMeaningfulDraft = isDraftMine && this.hasMeaningfulVisitData();
     const currentStoreName = document.getElementById('form-store-name')?.value.trim() || '';
     const currentStoreCode = document.getElementById('form-store-code')?.value.trim() || '';
     const hasCurrentStore = Boolean(currentStoreCode && currentStoreCode !== '-');
@@ -9722,7 +9897,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     const listEl = document.getElementById('preview-report-options-list');
     if (!listEl) return;
 
-    const isVisitor = this.isAuditorUser(this.currentUser) || !this.isPrivilegedAdmin(this.currentUser);
+    const isVisitor = !this.isPrivilegedAdmin(this.currentUser);
     if (!reports) {
       reports = window.FMCUData.getReports().filter((r) => r && r.id && r.storeCode);
       if (isVisitor) {
@@ -9731,7 +9906,8 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       reports.sort((a, b) => String(b.createdAt || b.visitDate || '').localeCompare(String(a.createdAt || a.visitDate || '')));
     }
 
-    const hasMeaningfulDraft = this.hasActiveStoreForm && this.hasMeaningfulVisitData();
+    const isDraftMine = this.currentUser && this.hasActiveStoreForm && this.isCurrentFormOwnedByUser(this.currentUser);
+    const hasMeaningfulDraft = isDraftMine && this.hasMeaningfulVisitData();
     const currentStoreName = document.getElementById('form-store-name')?.value.trim() || '';
     const currentStoreCode = document.getElementById('form-store-code')?.value.trim() || '';
     const hasCurrentStore = Boolean(currentStoreCode && currentStoreCode !== '-');
@@ -9811,7 +9987,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
 
   filterPreviewReports(query) {
     const q = (query || '').toLowerCase().trim();
-    const isVisitor = this.isAuditorUser(this.currentUser) || !this.isPrivilegedAdmin(this.currentUser);
+    const isVisitor = !this.isPrivilegedAdmin(this.currentUser);
     let reports = window.FMCUData.getReports().filter((r) => r && r.id && r.storeCode);
     if (isVisitor) {
       reports = reports.filter((r) => this.isReportOwnedByUser(r, this.currentUser));
@@ -9834,15 +10010,18 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
   },
 
   getActivePreviewReport() {
-    const isVisitor = this.isAuditorUser(this.currentUser) || !this.isPrivilegedAdmin(this.currentUser);
+    const isVisitor = !this.isPrivilegedAdmin(this.currentUser);
     let reports = window.FMCUData.getReports().filter((r) => r && r.id && r.storeCode);
     if (isVisitor) {
       reports = reports.filter((r) => this.isReportOwnedByUser(r, this.currentUser));
     }
     reports.sort((a, b) => String(b.createdAt || b.visitDate || '').localeCompare(String(a.createdAt || a.visitDate || '')));
 
+    const isDraftMine = this.currentUser && this.hasActiveStoreForm && this.isCurrentFormOwnedByUser(this.currentUser);
+    const hasMeaningfulDraft = isDraftMine && this.hasMeaningfulVisitData();
+
     if (this.activePreviewReportId === '__LIVE_FORM__') {
-      if (this.hasActiveStoreForm && this.hasMeaningfulVisitData()) {
+      if (hasMeaningfulDraft) {
         return this.buildCurrentFormReportObject();
       }
       return reports[0] || null;
@@ -9863,7 +10042,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       return draft ? window.FMCUData.mergeReportAndDraft(first, draft) : first;
     }
 
-    if (this.hasActiveStoreForm && this.hasMeaningfulVisitData()) {
+    if (hasMeaningfulDraft) {
       this.activePreviewReportId = '__LIVE_FORM__';
       return this.buildCurrentFormReportObject();
     }
@@ -10898,6 +11077,10 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       storeCode: rep.storeCode,
       storeName: rep.storeName,
       scheduleId: rep.scheduleId || null,
+      auditorId: this.currentUser ? this.currentUser.id : (rep.auditorId || null),
+      auditorName: this.currentUser ? this.currentUser.name : (rep.auditorName || null),
+      auditorUsername: this.currentUser ? this.currentUser.username : (rep.auditorUsername || null),
+      auditorNik: this.currentUser ? this.currentUser.nik : (rep.auditorNik || null),
       isArchivedView: true,
       actualIn: rep.actualIn || null,
       actualOut: rep.actualOut || null,

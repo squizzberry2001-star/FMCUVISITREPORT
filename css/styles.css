@@ -56,15 +56,33 @@ html, body, .overflow-y-auto, .overflow-x-auto, .scrollable, [class*="overflow-"
 
 .view-section.hidden,
 .view-pane.hidden,
-[id^="view-"].hidden,
-.hidden,
-[hidden],
-.nav-item.hidden,
-.mobile-nav-item.hidden,
-button.hidden {
+[id^="view-"].hidden {
   display: none !important;
   content-visibility: hidden;
   contain: strict;
+}
+
+.nav-item.hidden {
+  display: none !important;
+}
+
+/* Pastikan Sidebar Desktop Selalu Tampil Teratur & Stabil pada Layar Lebar (>= 1024px) */
+@media (min-width: 1024px) {
+  aside[role="complementary"],
+  aside.lg\:flex {
+    display: flex !important;
+  }
+}
+
+/* Auto-hiding Top Header (Native App Feel on Scroll) */
+#sticky-top-header-wrapper {
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  will-change: transform;
+}
+
+#sticky-top-header-wrapper.header-scrolled-hidden {
+  transform: translateY(-105%) !important;
+  pointer-events: none !important;
 }
 
 /* Isolate Form and Admin cards from layout reflows */
