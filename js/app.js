@@ -838,35 +838,40 @@ window.FMCUApp = {
   checkAndDispatchUserVisitNotifications() {},
 
   // ==========================================================================
-  // TOAST NOTIFICATION HELPER
+  // TOAST NOTIFICATION HELPER (iOS 27 Dynamic Island & Liquid Glass Style)
   // ==========================================================================
-  showToast(message, type = 'success') {
+  showToast(message, type = 'success', duration = 3200) {
     const container = document.getElementById('toast-container');
     if (!container) return;
-    const colors = {
-      success: 'bg-emerald-900 text-white border-emerald-500',
-      info: 'bg-slate-900 text-white border-teal-400',
-      warning: 'bg-amber-900 text-white border-amber-400',
-      error: 'bg-rose-900 text-white border-rose-400'
+    const iconConfig = {
+      success: { icon: 'fa-circle-check', color: 'text-emerald-400', glow: 'rgba(52, 211, 153, 0.7)' },
+      info: { icon: 'fa-circle-info', color: 'text-cyan-400', glow: 'rgba(34, 211, 238, 0.7)' },
+      warning: { icon: 'fa-triangle-exclamation', color: 'text-amber-400', glow: 'rgba(251, 191, 36, 0.7)' },
+      error: { icon: 'fa-circle-xmark', color: 'text-rose-400', glow: 'rgba(244, 63, 94, 0.7)' }
     };
-    const icons = {
-      success: 'fa-circle-check text-emerald-400',
-      info: 'fa-circle-info text-teal-400',
-      warning: 'fa-triangle-exclamation text-amber-400',
-      error: 'fa-circle-xmark text-rose-400'
-    };
+    const cfg = iconConfig[type] || iconConfig.info;
     const el = document.createElement('div');
-    el.className = `pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-xl border-l-4 text-xs font-bold transition-all duration-300 ${colors[type] || colors.info}`;
+    el.className = 'ios27-toast pointer-events-auto flex items-center gap-2.5 px-4 py-2.5 max-w-sm sm:max-w-md shadow-2xl cursor-default select-none';
+    el.style.transform = 'translateY(-16px) scale(0.92)';
+    el.style.opacity = '0';
     el.innerHTML = `
-      <i class="fa-solid ${icons[type] || icons.info} text-sm"></i>
-      <span>${message}</span>
+      <i class="fa-solid ${cfg.icon} ${cfg.color} text-sm shrink-0" style="filter: drop-shadow(0 0 6px ${cfg.glow});"></i>
+      <span class="text-xs sm:text-[13px] font-extrabold text-white leading-snug tracking-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] break-words">${message}</span>
     `;
     container.appendChild(el);
+
+    // Dynamic spring entrance
+    requestAnimationFrame(() => {
+      el.style.transform = 'translateY(0) scale(1)';
+      el.style.opacity = '1';
+    });
+
+    const ttl = typeof duration === 'number' && duration > 0 ? duration : 3200;
     setTimeout(() => {
+      el.style.transform = 'translateY(-14px) scale(0.92)';
       el.style.opacity = '0';
-      el.style.transform = 'translateX(20px)';
-      setTimeout(() => el.remove(), 300);
-    }, 3400);
+      setTimeout(() => el.remove(), 280);
+    }, ttl);
   },
 
   // ==========================================================================
@@ -2324,13 +2329,19 @@ window.FMCUApp = {
     });
   },
 
-  switchFormSection(secNum, scrollTop = true) {
+  switchFormSection(secNum, scrollTop = false) {
     this.triggerHaptic('light');
     const targetSec = Number(secNum) || 1;
     if (targetSec >= 4) {
       this.handleSaveAndPreview();
       return;
     }
+
+    // Simpan posisi scroll section sebelumnya agar saat berpindah tidak auto kembali ke atas
+    this._sectionScrollPositions = this._sectionScrollPositions || {};
+    const prevSec = this.currentFormSection || 1;
+    this._sectionScrollPositions[prevSec] = window.scrollY;
+
     this.updateFormProgress();
     this.saveCurrentFormDraft();
     this.currentFormSection = targetSec;
@@ -2361,7 +2372,6 @@ window.FMCUApp = {
     }
 
     // Floating action button bar for Observation (HANYA tampil di Section 2: Observation)
-    // Floating action button bar for Observation (HANYA tampil di Section 2: Observation)
     const fabObs = document.getElementById('floating-obs-actions');
     if (fabObs) {
       fabObs.classList.toggle('hidden', targetSec !== 2);
@@ -2384,9 +2394,11 @@ window.FMCUApp = {
       if (mBtn) mBtn.classList.toggle('active', n === targetSec);
     });
 
-    if (scrollTop) {
-      window.scrollTo(0, 0);
-    }
+    // Pulihkan posisi scroll terakhir dari section tujuan
+    const restoredY = this._sectionScrollPositions[targetSec] !== undefined ? this._sectionScrollPositions[targetSec] : (scrollTop ? 0 : window.scrollY);
+    requestAnimationFrame(() => {
+      window.scrollTo(0, restoredY);
+    });
     this.updateMobileNavLiquidPill();
   },
 
@@ -6417,6 +6429,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
   resetVisitForm(silent = false) {
     this._isHydratingForm = true;
     this._formDirty = false;
+    this._sectionScrollPositions = {};
     this.populateMasterStoreSelect();
     const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -7956,6 +7969,7 @@ Instruksi Khusus & Terminologi FamilyMart:
 
     // POINT 7: Ganti mode observasi (Manual vs AI)
   setObservationMode(mode = 'manual') {
+    this.triggerHaptic('light');
     const btnManual = document.getElementById('btn-mode-obs-manual');
     const btnAi = document.getElementById('btn-mode-obs-ai');
     if (mode === 'manual') {
@@ -7965,7 +7979,28 @@ Instruksi Khusus & Terminologi FamilyMart:
       if (btnAi) {
         btnAi.className = 'w-full py-2.5 px-3.5 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 border-2 border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-xs transition cursor-pointer';
       }
-      this.showToast('Mode Observasi Manual aktif. Anda dapat mengisi kolom temuan secara manual.', 'info', 2000);
+
+      // Pastikan ada kartu temuan observasi aktif yang siap diisi
+      const isOpi = this.currentObsSubTab === 'opi';
+      const obsList = isOpi ? this.formOpiObservations : this.formObservations;
+      if (!Array.isArray(obsList) || obsList.length === 0) {
+        this.addActiveObservation();
+        this.showToast('Mode Observasi Manual aktif. Kartu temuan baru siap diisi.', 'info', 2200);
+      } else {
+        this.showToast('Mode Observasi Manual aktif. Silakan isi form temuan.', 'info', 2000);
+      }
+
+      // Smooth scroll ke kartu observasi terdekat / aktif
+      setTimeout(() => {
+        const targetCard = document.querySelector(isOpi ? '.opi-obs-card' : '.qsc-obs-card') || document.getElementById(isOpi ? 'form-opi-observations-list' : 'form-observations-list');
+        if (targetCard) {
+          targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          const firstInput = targetCard.querySelector('textarea, input[type="text"]');
+          if (firstInput) {
+            setTimeout(() => firstInput.focus(), 250);
+          }
+        }
+      }, 60);
     } else {
       if (btnAi) {
         btnAi.className = 'w-full py-2.5 px-3.5 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 border-2 border-teal-500 bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-md transition cursor-pointer';
@@ -20006,15 +20041,12 @@ ${extractedPdfText}`;
   // POINT 14: Lightbox Gallery State & Navigation
   _lightboxGallery: [],
   _lightboxIndex: 0,
+  _lightboxGalleryType: null,
 
   openPhotoPreviewModal(imgSrc, title = 'Perbesar Foto', galleryType = null, index = 0) {
     if (!imgSrc) return;
     const modal = document.getElementById('modal-photo-lightbox');
-    const img = document.getElementById('photo-lightbox-img');
-    const titleEl = document.getElementById('photo-lightbox-title');
-    const counterEl = document.getElementById('photo-lightbox-counter');
-    const prevBtn = document.getElementById('photo-lightbox-prev');
-    const nextBtn = document.getElementById('photo-lightbox-next');
+    this._lightboxGalleryType = galleryType;
 
     // Kumpulkan foto galeri berdasarkan jenis
     let gallery = [];
@@ -20026,7 +20058,7 @@ ${extractedPdfText}`;
       gallery = this.formQscPhotos.filter((p) => p && (p.dataUrl || p.driveUrl || p.driveFileId));
     }
 
-    this._lightboxGallery = gallery.length > 0 ? gallery : [{ dataUrl: imgSrc, caption: title }];
+    this._lightboxGallery = gallery.length > 0 ? gallery : [{ dataUrl: imgSrc, caption: title, description: title }];
     this._lightboxIndex = Math.max(0, Math.min(index, this._lightboxGallery.length - 1));
 
     this.renderLightboxCurrentPhoto();
@@ -20044,6 +20076,7 @@ ${extractedPdfText}`;
     const counterEl = document.getElementById('photo-lightbox-counter');
     const prevBtn = document.getElementById('photo-lightbox-prev');
     const nextBtn = document.getElementById('photo-lightbox-next');
+    const descEl = document.getElementById('photo-lightbox-desc');
 
     if (!this._lightboxGallery || this._lightboxGallery.length === 0) return;
     const current = this._lightboxGallery[this._lightboxIndex];
@@ -20051,13 +20084,68 @@ ${extractedPdfText}`;
 
     const src = window.FMCUPdf ? window.FMCUPdf.getPhotoDisplaySrc(current) : (current.dataUrl || current.driveUrl || '');
     if (img && src) img.src = src;
-    if (titleEl) titleEl.textContent = current.caption || current.description || ('Foto #' + (this._lightboxIndex + 1));
+
+    // Header label
+    const gType = this._lightboxGalleryType;
+    const typeLabel = gType === 'evidence' ? 'Foto Bukti Temuan' : gType === 'ca' ? 'Foto Tindakan Perbaikan' : gType === 'qsc' ? 'Foto Lembar QSC' : 'Perbesar Foto';
+    if (titleEl) titleEl.textContent = typeLabel;
+
+    // Narasi/Deskripsi tepat di atas foto
+    const narasiText = (current.description || current.caption || '').trim();
+    if (descEl) {
+      descEl.textContent = narasiText || 'Belum ada narasi / keterangan untuk foto ini.';
+      descEl.className = narasiText
+        ? 'text-xs sm:text-sm font-semibold text-slate-100 line-clamp-2 leading-tight break-words'
+        : 'text-xs sm:text-sm italic text-slate-400 line-clamp-2 leading-tight break-words';
+    }
+
     if (counterEl) {
       counterEl.textContent = (this._lightboxIndex + 1) + ' / ' + this._lightboxGallery.length;
       counterEl.classList.toggle('hidden', this._lightboxGallery.length <= 1);
     }
     if (prevBtn) prevBtn.classList.toggle('hidden', this._lightboxGallery.length <= 1);
     if (nextBtn) nextBtn.classList.toggle('hidden', this._lightboxGallery.length <= 1);
+  },
+
+  editLightboxCurrentPhoto() {
+    this.triggerHaptic('medium');
+    if (!this._lightboxGallery || this._lightboxGallery.length === 0) return;
+    const current = this._lightboxGallery[this._lightboxIndex];
+    if (!current) return;
+
+    const currentText = current.description || current.caption || '';
+    const newText = window.prompt('Sunting Narasi / Keterangan Foto:', currentText);
+    if (newText === null) return; // User cancelled
+
+    const trimmed = newText.trim();
+    current.description = trimmed;
+    current.caption = trimmed;
+
+    const gType = this._lightboxGalleryType;
+    const idx = this._lightboxIndex;
+
+    // Sinkronkan ke form arrays dan elemen DOM
+    if (gType === 'evidence') {
+      if (this.formEvidencePhotos && this.formEvidencePhotos[idx]) {
+        this.formEvidencePhotos[idx].description = trimmed;
+      }
+      const inputEl = document.getElementById(`ev-desc-${idx}`);
+      if (inputEl) inputEl.value = trimmed;
+    } else if (gType === 'ca') {
+      if (this.formCaPhotos && this.formCaPhotos[idx]) {
+        this.formCaPhotos[idx].description = trimmed;
+      }
+      const inputEl = document.getElementById(`ca-desc-${idx}`);
+      if (inputEl) inputEl.value = trimmed;
+    } else if (gType === 'qsc') {
+      if (this.formQscPhotos && this.formQscPhotos[idx]) {
+        this.formQscPhotos[idx].description = trimmed;
+      }
+    }
+
+    this.saveCurrentFormDraft();
+    this.renderLightboxCurrentPhoto();
+    this.showToast('Narasi foto berhasil diperbarui!', 'success');
   },
 
   lightboxNextPhoto(e) {

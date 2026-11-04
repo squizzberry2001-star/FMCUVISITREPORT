@@ -1350,10 +1350,10 @@ div#form-top-geofence-banner,
   #mobile-bottom-nav {
     position: fixed !important;
     bottom: 12px !important;
-    left: 20px !important;
-    right: 20px !important;
-    width: calc(100% - 40px) !important;
-    max-width: 350px !important;
+    left: 12px !important;
+    right: 12px !important;
+    width: calc(100% - 24px) !important;
+    max-width: 385px !important;
     margin: 0 auto !important;
     border-radius: 9999px !important;
     background: linear-gradient(180deg, rgba(20, 24, 32, 0.40) 0%, rgba(10, 14, 20, 0.55) 100%) !important;
@@ -1365,8 +1365,8 @@ div#form-top-geofence-banner,
       0 4px 12px -2px rgba(0, 0, 0, 0.45),
       inset 0 1.2px 1px 0 rgba(255, 255, 255, 0.45),
       inset 0 -1px 1.5px 0 rgba(0, 0, 0, 0.6) !important;
-    padding: 3px 6px !important;
-    height: 48px !important;
+    padding: 3.5px 6px !important;
+    height: 52px !important;
     display: flex !important;
     align-items: center !important;
     z-index: 45 !important;
@@ -1403,8 +1403,8 @@ div#form-top-geofence-banner,
   /* Fluid Morphing Liquid Indicator Bubble (Framer Motion spring physics simulation: stiffness 400, damping 30) */
   .mobile-nav-liquid-pill {
     position: absolute !important;
-    top: 3px !important;
-    bottom: 3px !important;
+    top: 3.5px !important;
+    bottom: 3.5px !important;
     left: 0 !important;
     border-radius: 9999px !important;
     background: radial-gradient(100% 85% at 50% 10%, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.08) 100%) !important;
@@ -1425,7 +1425,7 @@ div#form-top-geofence-banner,
   .mobile-nav-item {
     position: relative !important;
     border-radius: 9999px !important;
-    padding: 4.5px 2px !important;
+    padding: 3.5px 4px !important;
     color: rgba(255, 255, 255, 0.55) !important;
     transition: color 0.25s ease !important;
     z-index: 2 !important;
@@ -1439,13 +1439,14 @@ div#form-top-geofence-banner,
   }
 
   .mobile-nav-item i {
-    font-size: 14px !important;
+    font-size: 14.5px !important;
+    margin-bottom: 1.5px !important;
     transition: color 0.25s ease !important;
     display: inline-block !important;
   }
 
   .mobile-nav-item span {
-    font-size: 9px !important;
+    font-size: 9.5px !important;
     font-weight: 700 !important;
     letter-spacing: -0.01em !important;
     color: rgba(255, 255, 255, 0.6) !important;
@@ -1498,9 +1499,20 @@ div#form-top-geofence-banner,
 
   /* Padding bawah luas agar konten paling bawah bisa di-scroll bebas melewati FAB */
   #view-form,
-.view-section {
-  padding-bottom: 145px !important;
+  main > .view-section {
+    padding-bottom: 145px !important;
+  }
 }
+
+/* Modal Dialogs & Overlays: Highest layer above FAB buttons & Mobile Nav */
+[id^="modal-"],
+.modal-backdrop,
+.fm-modal-backdrop {
+  z-index: 9999 !important;
+}
+
+[id^="modal-"] .view-section {
+  padding-bottom: 0 !important;
 }
 
 /* 14. Lightbox Swipe & Gallery Navigation: Transparent & Proportional */
@@ -1631,7 +1643,7 @@ div#form-top-geofence-banner,
 
 /* Padding bawah luas agar konten paling bawah bisa di-scroll bebas melewati FAB */
 #view-form,
-.view-section {
+main > .view-section {
   padding-bottom: 145px !important;
 }
 
@@ -1678,4 +1690,23 @@ div#form-top-geofence-banner,
 }
 #btn-fab-evidence-gallery:active {
   transform: scale(0.88) !important;
+}
+
+/* iOS 27 Dynamic Island & Liquid Glass In-App Notification System */
+.ios27-toast {
+  background: rgba(15, 23, 42, 0.82) !important;
+  backdrop-filter: blur(32px) saturate(240%) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(240%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.28) !important;
+  box-shadow: 
+    0 16px 36px -6px rgba(0, 0, 0, 0.55),
+    0 4px 12px -2px rgba(0, 0, 0, 0.35),
+    inset 0 1.2px 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.4) !important;
+  border-radius: 9999px !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease !important;
+  will-change: transform, opacity !important;
 }
