@@ -1548,6 +1548,17 @@ window.FMCUPdf = {
 
     const ws = XLSX.utils.aoa_to_sheet(data);
 
+    // POINT 10: Format sel metadata (Kode Toko, Nama Store, dll) agar sejajar rapi ke kiri
+    ['D3', 'D4', 'D5', 'D6', 'D7'].forEach((cellRef) => {
+      if (ws[cellRef]) {
+        ws[cellRef].t = 's'; // Force string type agar Excel tidak me-rata-kanan kode toko / tanggal
+        ws[cellRef].s = {
+          alignment: { horizontal: 'left', vertical: 'center' },
+          font: { bold: true }
+        };
+      }
+    });
+
     // Apply exact Merges from CA_Store_Assignment.xlsx
     ws['!merges'] = [
       { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }, // A1:F1

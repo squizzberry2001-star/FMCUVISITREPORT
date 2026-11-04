@@ -1250,3 +1250,127 @@ div#form-top-geofence-banner,
   touch-action: none !important;
   user-select: none !important;
 }
+
+/* ==========================================================================
+   REVAMP 18: RUNNING TEXT MARQUEE, IOS 27 FLOATING NAVBAR, LIGHTBOX & TOAST
+   ========================================================================== */
+
+/* 1. Running Text Marquee (Section Observasi) */
+@keyframes marqueeScroll {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+.animate-marquee {
+  display: inline-block;
+  white-space: nowrap;
+  animation: marqueeScroll 25s linear infinite;
+  will-change: transform;
+}
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* 12. Top-Center Toast Notifications (Proper & Non-blocking) */
+#toast-container {
+  top: max(16px, env(safe-area-inset-top, 16px)) !important;
+  bottom: auto !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: 92% !important;
+  max-width: 440px !important;
+  z-index: 999999 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  pointer-events: none !important;
+}
+#toast-container > * {
+  pointer-events: auto !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 8px 10px -6px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 16. iOS 27 Style Floating Capsule Island Mobile Navbar */
+@media (max-width: 1023px) {
+  #mobile-bottom-nav {
+    position: fixed !important;
+    bottom: max(16px, env(safe-area-inset-bottom, 16px)) !important;
+    left: 12px !important;
+    right: 12px !important;
+    width: calc(100% - 24px) !important;
+    max-width: 440px !important;
+    margin: 0 auto !important;
+    border-radius: 9999px !important;
+    background: rgba(18, 22, 28, 0.88) !important;
+    backdrop-filter: blur(24px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow: 0 12px 36px 0 rgba(0, 0, 0, 0.45), 0 2px 8px 0 rgba(0, 0, 0, 0.3) !important;
+    padding: 6px 8px !important;
+    z-index: 45 !important;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+
+  .mobile-nav-item {
+    position: relative !important;
+    border-radius: 9999px !important;
+    padding: 6px 4px !important;
+    color: rgba(255, 255, 255, 0.65) !important;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+
+  .mobile-nav-item i {
+    font-size: 15px !important;
+    transition: transform 0.2s ease !important;
+  }
+
+  .mobile-nav-item span {
+    font-size: 9.5px !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.01em !important;
+    color: rgba(255, 255, 255, 0.7) !important;
+  }
+
+  .mobile-nav-item.active {
+    background: rgba(255, 255, 255, 0.18) !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+  }
+
+  .mobile-nav-item.active i {
+    color: #34d399 !important;
+    transform: scale(1.1) !important;
+  }
+
+  .mobile-nav-item.active span {
+    color: #ffffff !important;
+  }
+
+  /* Status badge dot iOS style on active tab */
+  .mobile-nav-item.active::after {
+    content: '' !important;
+    position: absolute !important;
+    top: 5px !important;
+    right: 18% !important;
+    width: 6px !important;
+    height: 6px !important;
+    border-radius: 9999px !important;
+    background: #10b981 !important;
+    box-shadow: 0 0 8px #10b981 !important;
+  }
+}
+
+/* 14. Lightbox Swipe & Gallery Navigation */
+#modal-photo-lightbox .lightbox-nav-btn {
+  background: rgba(15, 23, 42, 0.75) !important;
+  backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+  transition: all 0.2s ease !important;
+}
+#modal-photo-lightbox .lightbox-nav-btn:hover {
+  background: rgba(15, 23, 42, 0.95) !important;
+  transform: scale(1.08) !important;
+}
+#modal-photo-lightbox .lightbox-nav-btn:active {
+  transform: scale(0.95) !important;
+}

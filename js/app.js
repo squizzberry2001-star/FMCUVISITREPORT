@@ -120,8 +120,8 @@ window.FMCUApp = {
         this.syncNotificationStateToServiceWorker();
       }
     });
+    // POINT 13: Matikan auto-trigger notifikasi spam saat ganti tab / focus
     window.addEventListener('focus', () => {
-      this.checkAndDispatchScheduledHourReminders();
       this.syncNotificationStateToServiceWorker();
     });
 
@@ -287,12 +287,7 @@ window.FMCUApp = {
     this.initMandatoryNotificationSystem();
     this.initPwaInstallPrompt();
 
-    // Listener visibility tab untuk re-check notifikasi saat kembali ke browser
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
-        this.checkAndDispatchUserVisitNotifications();
-      }
-    });
+    // Listener visibility tab (anti-spam: tidak memicu notifikasi berulang saat kembali ke tab)
 
     // Jalankan continuous Geofence Ticker setiap 4 detik untuk memantau radius 1m-50m & timer 15m
     if (this._geofenceInterval) clearInterval(this._geofenceInterval);
@@ -1092,9 +1087,10 @@ window.FMCUApp = {
     if (!this.currentUser) return;
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
+    // POINT 13: Throttle minimal 30 menit (anti-spam) & hanya informasikan hal penting
     const now = Date.now();
     const lastCheck = Number(sessionStorage.getItem('fmcu_last_notif_check_ts') || 0);
-    if (!forceCheck && now - lastCheck < 2 * 60 * 1000) {
+    if (!forceCheck && now - lastCheck < 30 * 60 * 1000) {
       return;
     }
     sessionStorage.setItem('fmcu_last_notif_check_ts', String(now));
@@ -2297,6 +2293,9 @@ window.FMCUApp = {
     if (this.currentView === 'form' && viewName !== 'form') {
       this.syncAllFormInputsToMemory();
       this.saveCurrentFormDraft();
+      // POINT 4: Tandai kebutuhan refresh data AI TARO analitik saat keluar dari form
+      this._needsTaroRefresh = true;
+      try { localStorage.removeItem('fmcu_taro_ai_cache_v5'); } catch (_) {}
     }
 
     if (viewName === 'schedules' && !this.hasAuthority('manage_schedule')) {
@@ -4780,7 +4779,9 @@ window.FMCUApp = {
 
     this.renderAnalyticsCharts();
     this.renderUserPerformanceTable();
-    this.checkAndRunSilentAiSummary();
+    const forceTaro = !!this._needsTaroRefresh;
+    this._needsTaroRefresh = false;
+    this.checkAndRunSilentAiSummary(forceTaro);
   },
 
   deleteReportById(reportId) {
@@ -6291,11 +6292,18 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     if (!formEl || this._formDraftListenersAttached) return;
     this._formDraftListenersAttached = true;
 
-    formEl.addEventListener('input', () => {
-      this.triggerAutoSaveDraft();
+    // POINT 3: Input debounce untuk menjamin pengetikan lancar & anti force-close pada smartphone
+    formEl.addEventListener('input', (e) => {
+      const tag = e.target?.tagName?.toLowerCase();
+      if (tag === 'textarea' || tag === 'input') {
+        this.triggerAutoSaveDraft(false, 2500); // Debounce 2.5 detik saat mengetik
+      } else {
+        this.triggerAutoSaveDraft(false, 1000);
+      }
     });
+
     formEl.addEventListener('change', () => {
-      this.triggerAutoSaveDraft();
+      this.triggerAutoSaveDraft(true); // Langsung simpan saat field kehilangan fokus / change
     });
   },
 
@@ -6445,7 +6453,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
 
   _formDirty: false,
   _lastLocalFormEditMs: 0,
-  triggerAutoSaveDraft(immediate = false) {
+  triggerAutoSaveDraft(immediate = false, delayMs = 1500) {
     if (this._isHydratingForm) return;
     this._formDirty = true;
     this._lastLocalFormEditMs = Date.now();
@@ -6462,11 +6470,11 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       if (typeof window.requestIdleCallback === 'function') {
         window.requestIdleCallback(() => {
           if (this._formDirty) this.saveCurrentFormDraft();
-        }, { timeout: 1000 });
+        }, { timeout: 1200 });
       } else {
         this.saveCurrentFormDraft();
       }
-    }, 1200);
+    }, delayMs);
   },
 
   populateStoreFields(st) {
@@ -7443,9 +7451,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
                   <i class="fa-solid fa-pen text-[10px]"></i>
                   <span>Sunting</span>
                 </button>
-                <button type="button" onclick="FMCUApp.clearBothQscPhotos()" class="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 flex items-center justify-center cursor-pointer shadow-2xs transition" title="Hapus foto lembar QSC (Keduanya)">
-                  <i class="fa-solid fa-trash-can text-xs"></i>
-                </button>
+                
               `
                   : ''
               }
@@ -7485,10 +7491,23 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     grid.innerHTML = headerBannerHtml + slotsHtml;
   },
 
-  // Hapus kedua potongan foto lembar QSC sekaligus dalam 1x klik
+  // POINT 15 & 17: Hapus foto lembar QSC dengan Web Modal Konfirmasi
   clearBothQscPhotos() {
     this.triggerHaptic('light');
     if (!this.formQscPhotos || this.formQscPhotos.length === 0) return;
+
+    this.showConfirmDialog({
+      title: 'Hapus Foto Lembar QSC',
+      message: 'Apakah Anda yakin ingin menghapus foto lembar QSC ini? Tindakan ini tidak dapat dibatalkan.',
+      confirmText: 'Iya, Hapus',
+      cancelText: 'Batal',
+      onConfirm: () => {
+        this._executeClearBothQscPhotos();
+      }
+    });
+  },
+
+  _executeClearBothQscPhotos() {
 
     // Bersihkan cache RAM & IndexedDB lokal untuk slot atas, slot bawah, dan foto full un-split jika ada
     (this.formQscPhotos || []).forEach((photo) => {
@@ -7597,19 +7616,21 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     });
   },
 
-  // Handler untuk mengunggah 1x foto penuh Form QSC dan otomatis membelah jadi 2 (atas & bawah) secara lokal
+  // POINT 18: Jepret/upload QSC langsung simpan tanpa modal crop (Crop hanya via tombol pensil)
   async handleQscSingleFullUpload(event) {
     const file = event.target.files?.[0];
     if (!file) return;
     event.target.value = '';
 
-    this.promptPhotoEdit(file, async (editedFullDataUrl) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const rawFullDataUrl = e.target.result;
       const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
       this.showToast('Memproses & membelah foto Form QSC menjadi 2 bagian...', 'info', 2000);
 
       try {
         // 1. Watermark & GPS pada foto penuh (utuh)
-        const fullStampedDataUrl = await window.FMCUPdf.processAndStampImage(editedFullDataUrl, {
+        const fullStampedDataUrl = await window.FMCUPdf.processAndStampImage(rawFullDataUrl, {
           storeName,
           gpsLat: this.liveGps.lat,
           gpsLng: this.liveGps.lng,
@@ -7643,7 +7664,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         };
 
         this.formQscPhotos = [p0, p1];
-        // Simpan potongan atas, potongan bawah, dan foto utuh penuh ke IndexedDB & Memory Cache Lokal
+        // Simpan potongan atas, potongan bawah, dan foto utuh penuh ke IndexedDB & Memory Cache Lokal (Bukan di localStorage)
         window.FMCUData.cachePhotoInMemory(p0.id, null, topDataUrl, true);
         window.FMCUData.cachePhotoInMemory(p1.id, null, bottomDataUrl, true);
         window.FMCUData.cachePhotoInMemory(fullPhotoId, null, fullStampedDataUrl, true);
@@ -7656,16 +7677,21 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
         console.error('Gagal memproses split foto QSC:', err);
         this.showToast('Gagal memproses split foto QSC: ' + err.message, 'error');
       }
-    });
+    };
+    reader.readAsDataURL(file);
   },
 
+  // POINT 18: Jepret/upload potongan lembar QSC langsung simpan tanpa modal crop (Crop hanya via tombol pensil)
   async handleQscPhotoUpload(event, idx) {
     const file = event.target.files?.[0];
     if (!file) return;
     event.target.value = '';
-    this.promptPhotoEdit(file, async (editedDataUrl) => {
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const rawDataUrl = e.target.result;
       const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
-      const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
+      const dataUrl = await window.FMCUPdf.processAndStampImage(rawDataUrl, {
         storeName,
         gpsLat: this.liveGps.lat,
         gpsLng: this.liveGps.lng,
@@ -7687,13 +7713,18 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
       this.saveCurrentFormDraft();
       this.updateFormProgress();
       this.showToast(`Foto lembar QSC #${idx + 1} berhasil diperbarui & tersimpan lokal!`, 'success');
-    });
+    };
+    reader.readAsDataURL(file);
   },
 
   // --- Section 2: OPI Project Observation Findings ---
   renderOpiObservationsList() {
     const container = document.getElementById('form-opi-observations-list');
     if (!container) return;
+
+    // POINT 7: Tampilkan jumlah temuan OPI di header tab
+    const opiBadge = document.getElementById('count-badge-obs-opi');
+    if (opiBadge) opiBadge.textContent = (this.formOpiObservations?.length || 0) + ' Temuan';
 
     // Update Quick Jump Bar for OPI
     this.renderJumpBar('opi');
@@ -7811,23 +7842,25 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
   // ==========================================================================
   // CONFIRM DELETE TEMUAN (OPI & QSC) - PERMINTAAN USER: KONFIRMASI IYA / TIDAK
   // ==========================================================================
+  // POINT 15: Konfirmasi Hapus Temuan dengan Web Modal (Batal / Iya)
   confirmRemoveObservation(idx, type = 'qsc') {
     this.triggerHaptic('medium');
     const isOpi = type === 'opi';
     const label = isOpi ? 'Temuan OPI' : 'Temuan QSC';
     const num = idx + 1;
-    const isConfirmed = window.confirm(
-      `Apakah Anda yakin ingin menghapus ${label} #${num}?\n\n` +
-      `Tindakan ini akan menghapus detail temuan ini dari laporan visit.\n\n` +
-      `Klik OK untuk IYA (Hapus), atau klik Batal untuk TIDAK.`
-    );
-    if (!isConfirmed) return;
-
-    if (isOpi) {
-      this.removeOpiObservationCard(idx);
-    } else {
-      this.removeObservationCard(idx);
-    }
+    this.showConfirmDialog({
+      title: 'Hapus ' + label,
+      message: 'Apakah Anda yakin ingin menghapus ' + label + ' #' + num + '? Detail temuan ini akan dihapus dari laporan visit.',
+      confirmText: 'Iya, Hapus',
+      cancelText: 'Batal',
+      onConfirm: () => {
+        if (isOpi) {
+          this.removeOpiObservationCard(idx);
+        } else {
+          this.removeObservationCard(idx);
+        }
+      }
+    });
   },
 
   // ==========================================================================
@@ -8005,14 +8038,31 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     };
   },
 
+  // POINT 6: Format bullet points agar selalu otomatis turun ke bawah per-point
+  formatBulletPoints(text) {
+    if (!text || typeof text !== 'string') return text || '';
+    return text
+      .replace(/([.;?!])\s*(\d+[\.\)])\s+/g, '$1\n$2 ')
+      .replace(/\s+(\d+[\.\)])\s+/g, '\n$1 ')
+      .replace(/([.;?!])\s*([•\-\*])\s+/g, '$1\n$2 ')
+      .replace(/\s+([•\-\*])\s+/g, '\n$1 ')
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0)
+      .join('\n');
+  },
+
+  // POINT 5: AI Prompts dengan kata kunci resmi FamilyMart & pemisahan bullet point \n
   async callAiJsonAnalysis(findingText, category = '') {
     const promptText = `Anda adalah asisten Quality & Service Control (QSC) dan Operational Performance Improvement (OPI) FamilyMart Indonesia.
 Tugas Anda menganalisa temuan observasi toko berikut:
 Kategori: ${category || 'Umum / QSC'}
 Temuan: "${findingText}"
 
-Instruksi:
+Instruksi Khusus & Terminologi FamilyMart:
+- Gunakan terminologi operasional resmi FamilyMart Indonesia: Shift Leader, Store Leader, Area Manager, Clean As You Go, Tabel Holding Time, Tabel Standar Holding Time, Waste jika relevan.
 - Berikan analisis operasional yang tajam, profesional, dan to the point sesuai standar retail convenience store (SOP & Food Safety FamilyMart Indonesia).
+- Jika jawaban dalam bentuk poin-poin (misal 1., 2., 3. atau bullet - ), WAJIB pisahkan setiap poin dengan karakter baris baru (\n) sehingga otomatis turun ke bawah per-point dan tidak bersambung.
 - Balas HANYA dalam format JSON valid persis tanpa tanda kutip markdown backticks, dengan 5 field berikut:
 {
   "kondisiIdeal": "Standar kondisi ideal yang seharusnya berlaku di toko...",
@@ -8161,6 +8211,150 @@ Instruksi:
     return this.generateInstantHeuristicFindingAnalysis(findingText, category);
   },
 
+    // POINT 7: Ganti mode observasi (Manual vs AI)
+  setObservationMode(mode = 'manual') {
+    const btnManual = document.getElementById('btn-mode-obs-manual');
+    const btnAi = document.getElementById('btn-mode-obs-ai');
+    if (mode === 'manual') {
+      if (btnManual) {
+        btnManual.className = 'w-full py-2.5 px-3.5 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 border-2 border-emerald-500 bg-emerald-50 text-emerald-900 shadow-xs transition cursor-pointer';
+      }
+      if (btnAi) {
+        btnAi.className = 'w-full py-2.5 px-3.5 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 border-2 border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-xs transition cursor-pointer';
+      }
+      this.showToast('Mode Observasi Manual aktif. Anda dapat mengisi kolom temuan secara manual.', 'info', 2000);
+    } else {
+      if (btnAi) {
+        btnAi.className = 'w-full py-2.5 px-3.5 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 border-2 border-teal-500 bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-md transition cursor-pointer';
+      }
+      if (btnManual) {
+        btnManual.className = 'w-full py-2.5 px-3.5 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 border-2 border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-xs transition cursor-pointer';
+      }
+    }
+  },
+
+  // POINT 7: Otomatis kompilasi temuan dari deskripsi foto lembar QSC & foto bukti (Tidak dipecah, dikategorikan)
+  async autoCompileObservationsFromPhotos() {
+    this.triggerHaptic('medium');
+    this.setObservationMode('ai');
+
+    // 1. Kumpulkan seluruh foto yang memiliki deskripsi / catatan dari Evidence & Lembar QSC
+    this.syncAllFormInputsToMemory();
+    const photoDescriptions = [];
+
+    (this.formEvidencePhotos || []).forEach((ev, idx) => {
+      const desc = (ev.description || '').trim();
+      if (desc) {
+        photoDescriptions.push({ source: 'Foto Bukti #' + (idx + 1), text: desc });
+      }
+    });
+
+    (this.formQscPhotos || []).forEach((q, idx) => {
+      const desc = (q.description || q.caption || '').trim();
+      if (desc && !desc.includes('Lembar Form QSC / FamiTrack')) {
+        photoDescriptions.push({ source: 'Lembar QSC #' + (idx + 1), text: desc });
+      }
+    });
+
+    if (photoDescriptions.length === 0) {
+      this.showToast('Belum ada deskripsi foto bukti atau QSC yang dimasukkan. Silakan tambahkan foto beserta deskripsi di Section 3 (Evidence) atau isi Observasi Manual.', 'warning', 4500);
+      return;
+    }
+
+    this.showToast('T.A.R.O AI sedang mengompilasi & mengelompokkan deskripsi foto menjadi daftar observasi...', 'info', 3000);
+
+    const promptText = `Anda adalah T.A.R.O AI FamilyMart Indonesia.
+Kompilasikan kumpulan deskripsi foto temuan visit berikut menjadi daftar observasi QSC terstruktur.
+Aturan Penting:
+1. JANGAN dipecah-pecah berlebihan. Temuan yang mirip/sejenis WAJIB dikompilasi menjadi satu item observasi solid.
+2. Kelompokkan ke dalam kategori resmi FamilyMart: Quality, Service, Cleanliness, Food Safety & Holding Time, atau Maintenance.
+3. Gunakan kata kunci: Shift Leader, Store Leader, Area Manager, Clean As You Go, Tabel Standar Holding Time, Waste.
+4. Jika berupa poin-poin, pisahkan baris baru (\n) per poin.
+
+DAFTAR DESKRIPSI FOTO:
+${photoDescriptions.map((p, i) => `${i + 1}. [${p.source}] ${p.text}`).join('\n')}
+
+Outputkan HANYA JSON array valid persis berikut:
+[
+  {
+    "category": "Food Safety & Holding Time",
+    "temuan": "Deskripsi temuan kompilasi...",
+    "kondisiIdeal": "Kondisi ideal sesuai SOP FamilyMart...",
+    "dampak": "Dampak terhadap kualitas / waste...",
+    "penyebab": "Akar masalah...",
+    "tindakanPerbaikan": "Tindakan perbaikan terarah..."
+  }
+]`;
+
+    try {
+      const groqKey = window.FMCUData?.GROQ_CONFIG?.getApiKey?.();
+      let compiledObservations = null;
+
+      if (groqKey) {
+        try {
+          const res = await fetch(window.FMCUData?.GROQ_CONFIG?.endpoint || 'https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
+            body: JSON.stringify({
+              model: 'qwen/qwen3.8-27b',
+              messages: [{ role: 'user', content: promptText }],
+              temperature: 0.2
+            })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const rawContent = data.choices?.[0]?.message?.content || '';
+            const jsonMatch = rawContent.match(/\[[\s\S]*\]/);
+            if (jsonMatch) {
+              compiledObservations = JSON.parse(jsonMatch[0]);
+            }
+          }
+        } catch (eGroq) {}
+      }
+
+      // Fallback heuristik jika API offline
+      if (!Array.isArray(compiledObservations) || compiledObservations.length === 0) {
+        compiledObservations = photoDescriptions.map((p) => {
+          let cat = 'Quality';
+          const lower = p.text.toLowerCase();
+          if (lower.includes('bersih') || lower.includes('kotor') || lower.includes('debu') || lower.includes('lantai')) cat = 'Cleanliness';
+          else if (lower.includes('holding') || lower.includes('suhu') || lower.includes('chiller') || lower.includes('kadaluarsa') || lower.includes('expired')) cat = 'Food Safety & Holding Time';
+          else if (lower.includes('rusak') || lower.includes('mati') || lower.includes('lampu') || lower.includes('ac')) cat = 'Maintenance';
+          else if (lower.includes('seragam') || lower.includes('sapa') || lower.includes('kasir') || lower.includes('ramah')) cat = 'Service';
+
+          return {
+            category: cat,
+            temuan: p.text,
+            kondisiIdeal: `SOP FamilyMart ${cat} dijalankan konsisten dengan prinsip Clean As You Go.`,
+            dampak: 'Dapat mempengaruhi standar kenyamanan pelanggan dan performa toko.',
+            penyebab: 'Monitoring berkala oleh Shift Leader & Store Leader perlu ditingkatkan.',
+            tindakanPerbaikan: 'Store Leader segera memberikan briefing dan tindak lanjut perbaikan.'
+          };
+        });
+      }
+
+      if (Array.isArray(compiledObservations) && compiledObservations.length > 0) {
+        this.formObservations = compiledObservations.map((obs) => ({
+          category: obs.category || 'Quality',
+          temuan: this.formatBulletPoints(obs.temuan || ''),
+          kondisiIdeal: this.formatBulletPoints(obs.kondisiIdeal || ''),
+          dampak: this.formatBulletPoints(obs.dampak || ''),
+          penyebab: this.formatBulletPoints(obs.penyebab || ''),
+          tindakanPerbaikan: this.formatBulletPoints(obs.tindakanPerbaikan || ''),
+          hasil: 'Akan dimonitoring pada visit berikutnya'
+        }));
+
+        this.renderObservationList();
+        this.updateFormProgress();
+        this.saveCurrentFormDraft();
+        this.showToast(`✓ Berhasil! ${this.formObservations.length} Observasi terkompilasi otomatis berdasarkan foto.`, 'success', 3500);
+      }
+    } catch (err) {
+      console.warn('Auto compile observations error:', err);
+      this.showToast('Gagal kompilasi otomatis observasi: ' + err.message, 'error');
+    }
+  },
+
   async autoAnalyzeFindingWithAi(idx, type = 'qsc') {
     this.triggerHaptic('light');
     const isOpi = type === 'opi';
@@ -8205,11 +8399,11 @@ Instruksi:
     try {
       const result = await this.callAiJsonAnalysis(findingText, obs.category || '');
       if (result) {
-        if (result.kondisiIdeal) obs.kondisiIdeal = result.kondisiIdeal;
-        if (result.dampak) obs.dampak = result.dampak;
-        if (result.penyebab) obs.penyebab = result.penyebab;
-        if (result.tindakanPerbaikan) obs.tindakanPerbaikan = result.tindakanPerbaikan;
-        if (result.hasil) obs.hasil = result.hasil;
+        if (result.kondisiIdeal) obs.kondisiIdeal = this.formatBulletPoints(result.kondisiIdeal);
+        if (result.dampak) obs.dampak = this.formatBulletPoints(result.dampak);
+        if (result.penyebab) obs.penyebab = this.formatBulletPoints(result.penyebab);
+        if (result.tindakanPerbaikan) obs.tindakanPerbaikan = this.formatBulletPoints(result.tindakanPerbaikan);
+        if (result.hasil) obs.hasil = this.formatBulletPoints(result.hasil);
 
         const fKondisi = document.getElementById(`obs-${type}-kondisi-${idx}`);
         const fDampak = document.getElementById(`obs-${type}-dampak-${idx}`);
@@ -8277,6 +8471,10 @@ Instruksi:
   renderObservationsList() {
     const container = document.getElementById('form-observations-list');
     if (!container) return;
+
+    // POINT 7: Tampilkan jumlah temuan QSC di header tab
+    const qscBadge = document.getElementById('count-badge-obs-qsc');
+    if (qscBadge) qscBadge.textContent = (this.formObservations?.length || 0) + ' Temuan';
 
     // Update Quick Jump Bar for QSC
     this.renderJumpBar('qsc');
@@ -8503,7 +8701,7 @@ Instruksi:
             ${
               displaySrc
                 ? `
-                <div onclick="FMCUApp.openPhotoPreviewModal('${displaySrc}', 'Foto Bukti #${idx + 1}')" class="w-full h-full cursor-zoom-in relative group/evimg flex items-center justify-center" title="Klik untuk perbesar gambar">
+                <div onclick="FMCUApp.openPhotoPreviewModal('${displaySrc}', 'Foto Bukti #${idx + 1}', 'evidence', ${idx})" class="w-full h-full cursor-zoom-in relative group/evimg flex items-center justify-center" title="Klik untuk perbesar gambar">
                   <img src="${displaySrc}" class="w-full h-full object-cover transition duration-200 group-hover/evimg:scale-105" alt="Evidence #${idx + 1}" />
                   <div class="absolute inset-0 bg-slate-950/30 opacity-0 group-hover/evimg:opacity-100 transition-opacity flex items-center justify-center pointer-events-none p-1">
                     <span class="bg-slate-900/85 backdrop-blur-xs text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full shadow-lg flex items-center gap-1.5 border border-white/20">
@@ -8549,7 +8747,7 @@ Instruksi:
                   </button>
                 </div>
               </div>
-              <textarea id="ev-desc-${idx}" rows="3" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formEvidencePhotos[${idx}].description = this.value; FMCUApp.updateFormProgress();" placeholder="Tuliskan deskripsi temuan foto ini..." class="fm-auto-textarea border border-slate-200 rounded-lg p-2 text-xs text-slate-800 focus:outline-none focus:border-teal-500 w-full">${ev.description || ''}</textarea>
+              <textarea id="ev-desc-${idx}" rows="3" oninput="FMCUApp.autoExpandTextarea(this); if (FMCUApp.formEvidencePhotos && FMCUApp.formEvidencePhotos[${idx}]) FMCUApp.formEvidencePhotos[${idx}].description = this.value;" placeholder="Tuliskan deskripsi temuan foto ini..." class="fm-auto-textarea border border-slate-200 rounded-lg p-2 text-xs text-slate-800 focus:outline-none focus:border-teal-500 w-full">${ev.description || ''}</textarea>
               ${driveBadge}
             </div>
           </div>
@@ -8574,22 +8772,36 @@ Instruksi:
     this.saveCurrentFormDraft();
   },
 
+  // POINT 15: Konfirmasi Hapus Foto Bukti Temuan
   removeEvidencePhotoCard(idx) {
-    if (!this.formEvidencePhotos) return;
-    this.syncAllFormInputsToMemory();
-    this.formEvidencePhotos.splice(idx, 1);
-    this.renderEvidenceGrid();
-    this.saveCurrentFormDraft();
+    if (!this.formEvidencePhotos || !this.formEvidencePhotos[idx]) return;
+    this.showConfirmDialog({
+      title: 'Hapus Foto Bukti #' + (idx + 1),
+      message: 'Apakah Anda yakin ingin menghapus foto bukti temuan #' + (idx + 1) + ' ini?',
+      confirmText: 'Iya, Hapus',
+      cancelText: 'Batal',
+      onConfirm: () => {
+        this.syncAllFormInputsToMemory();
+        this.formEvidencePhotos.splice(idx, 1);
+        this.renderEvidenceGrid();
+        this.saveCurrentFormDraft();
+        this.showToast('Foto bukti #' + (idx + 1) + ' berhasil dihapus.', 'info');
+      }
+    });
   },
 
+  // POINT 18: Jepret/upload foto bukti langsung simpan tanpa modal crop (Crop hanya via tombol pensil)
   async handleSingleEvidenceUpload(event, idx) {
     const file = event.target.files?.[0];
     if (!file) return;
     event.target.value = '';
-    this.promptPhotoEdit(file, async (editedDataUrl) => {
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const rawDataUrl = e.target.result;
       const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
       const applyWm = true;
-      const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
+      const dataUrl = await window.FMCUPdf.processAndStampImage(rawDataUrl, {
         storeName,
         gpsLat: this.liveGps.lat,
         gpsLng: this.liveGps.lng,
@@ -8605,7 +8817,8 @@ Instruksi:
       this.renderEvidenceGrid();
       this.saveCurrentFormDraft();
       this.uploadSectionPhotoLive(evObj, 'EVIDENCE');
-    });
+    };
+    reader.readAsDataURL(file);
   },
 
   editEvidencePhoto(idx) {
@@ -8707,7 +8920,7 @@ Instruksi:
             ${
               displaySrc
                 ? `
-                <div onclick="FMCUApp.openPhotoPreviewModal('${displaySrc}', 'Foto Tindakan Perbaikan #${idx + 1}')" class="w-full h-full cursor-zoom-in relative group/caimg flex items-center justify-center" title="Klik untuk perbesar gambar">
+                <div onclick="FMCUApp.openPhotoPreviewModal('${displaySrc}', 'Foto Tindakan Perbaikan #${idx + 1}', 'ca', ${idx})" class="w-full h-full cursor-zoom-in relative group/caimg flex items-center justify-center" title="Klik untuk perbesar gambar">
                   <img src="${displaySrc}" class="w-full h-full object-cover transition duration-200 group-hover/caimg:scale-105" alt="Corrective Action #${idx + 1}" />
                   <div class="absolute inset-0 bg-slate-950/30 opacity-0 group-hover/caimg:opacity-100 transition-opacity flex items-center justify-center pointer-events-none p-1">
                     <span class="bg-slate-900/85 backdrop-blur-xs text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full shadow-lg flex items-center gap-1.5 border border-white/20">
@@ -8753,7 +8966,7 @@ Instruksi:
                   </button>
                 </div>
               </div>
-              <textarea id="ca-desc-${idx}" rows="3" oninput="FMCUApp.autoExpandTextarea(this); FMCUApp.formCaPhotos[${idx}].description = this.value; FMCUApp.updateFormProgress();" placeholder="Tuliskan deskripsi tindakan perbaikan / hasil..." class="fm-auto-textarea border border-slate-200 rounded-lg p-2 text-xs text-slate-800 focus:outline-none focus:border-purple-500 w-full">${ca.description || ''}</textarea>
+              <textarea id="ca-desc-${idx}" rows="3" oninput="FMCUApp.autoExpandTextarea(this); if (FMCUApp.formCaPhotos && FMCUApp.formCaPhotos[${idx}]) FMCUApp.formCaPhotos[${idx}].description = this.value;" placeholder="Tuliskan deskripsi tindakan perbaikan / hasil..." class="fm-auto-textarea border border-slate-200 rounded-lg p-2 text-xs text-slate-800 focus:outline-none focus:border-purple-500 w-full">${ca.description || ''}</textarea>
               ${driveBadge}
             </div>
           </div>
@@ -8779,22 +8992,36 @@ Instruksi:
     this.saveCurrentFormDraft();
   },
 
+  // POINT 15: Konfirmasi Hapus Foto Tindakan Perbaikan
   removeCaPhotoCard(idx) {
-    if (!this.formCaPhotos) return;
-    this.syncAllFormInputsToMemory();
-    this.formCaPhotos.splice(idx, 1);
-    this.renderCaPhotosGrid();
-    this.saveCurrentFormDraft();
+    if (!this.formCaPhotos || !this.formCaPhotos[idx]) return;
+    this.showConfirmDialog({
+      title: 'Hapus Foto Perbaikan #' + (idx + 1),
+      message: 'Apakah Anda yakin ingin menghapus foto perbaikan #' + (idx + 1) + ' ini?',
+      confirmText: 'Iya, Hapus',
+      cancelText: 'Batal',
+      onConfirm: () => {
+        this.syncAllFormInputsToMemory();
+        this.formCaPhotos.splice(idx, 1);
+        this.renderCaPhotosGrid();
+        this.saveCurrentFormDraft();
+        this.showToast('Foto perbaikan #' + (idx + 1) + ' berhasil dihapus.', 'info');
+      }
+    });
   },
 
+  // POINT 18: Jepret/upload foto perbaikan langsung simpan tanpa modal crop (Crop hanya via tombol pensil)
   async handleSingleCaUpload(event, idx) {
     const file = event.target.files?.[0];
     if (!file) return;
     event.target.value = '';
-    this.promptPhotoEdit(file, async (editedDataUrl) => {
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const rawDataUrl = e.target.result;
       const storeName = document.getElementById('form-store-name')?.value.trim() || 'STORE';
       const applyWm = true;
-      const dataUrl = await window.FMCUPdf.processAndStampImage(editedDataUrl, {
+      const dataUrl = await window.FMCUPdf.processAndStampImage(rawDataUrl, {
         storeName,
         gpsLat: this.liveGps.lat,
         gpsLng: this.liveGps.lng,
@@ -8812,7 +9039,8 @@ Instruksi:
       this.renderCaPhotosGrid();
       this.saveCurrentFormDraft();
       this.uploadSectionPhotoLive(caObj, 'CORRECTIVE_ACTION');
-    });
+    };
+    reader.readAsDataURL(file);
   },
 
   editCaPhoto(idx) {
@@ -9614,6 +9842,18 @@ Instruksi:
     this._isRenderingPdf = false;
   },
 
+  // POINT 8: Kontrol visibilitas tombol Unduh PDF (hanya jika laporan sudah tersimpan / tersinkron ke Drive)
+  updatePreviewDownloadButtonVisibility(report) {
+    const btn = document.getElementById('btn-preview-download-pdf');
+    if (!btn) return;
+    const isSynced = Boolean(report && (report.gdriveSynced || report.driveFolderUrl || report._gdriveSynced));
+    if (isSynced) {
+      btn.classList.remove('hidden');
+    } else {
+      btn.classList.add('hidden');
+    }
+  },
+
   refreshPreviewPdf() {
     this.triggerHaptic('light');
     this.showToast('Memuat ulang dokumen PDF...', 'info');
@@ -9922,6 +10162,8 @@ Instruksi:
     const report = this.getActivePreviewReport();
     if (!report) return;
 
+    // POINT 8: Tampilkan tombol Unduh PDF hanya setelah disinkronkan ke Google Drive
+    this.updatePreviewDownloadButtonVisibility(report);
     this.renderActualPdfViewer(force);
   },
 
@@ -10653,6 +10895,12 @@ Instruksi:
 
     const dismissBtn = document.getElementById('btn-sync-dismiss-bg');
     if (dismissBtn) dismissBtn.classList.add('hidden');
+
+    // POINT 8: Buka & aktifkan tombol Unduh PDF di halaman Preview setelah laporan sukses disimpan
+    const dlPdfBtn = document.getElementById('btn-preview-download-pdf');
+    if (dlPdfBtn) {
+      dlPdfBtn.classList.remove('hidden');
+    }
 
     // Tampilkan Celebration Box dengan Tombol Akses Cepat Terstruktur (Bebas Tumpang Tindih)
     const celebrationBox = document.getElementById('sync-celebration-box');
@@ -16887,8 +17135,8 @@ function doPost(e) {
       ];
       sheet.getRange('A3:A7').setValues(labelVals);
       sheet.getRange('D3:D7').setValues(dataVals);
-      sheet.getRange('A3:C7').setBackground('#46BDC6').setFontColor('#FFFFFF').setFontWeight('bold').setFontSize(10).setVerticalAlignment('middle');
-      sheet.getRange('D3:E7').setFontWeight('bold').setFontSize(10).setVerticalAlignment('middle');
+      sheet.getRange('A3:C7').setBackground('#46BDC6').setFontColor('#FFFFFF').setFontWeight('bold').setFontSize(10).setHorizontalAlignment('left').setVerticalAlignment('middle');
+      sheet.getRange('D3:E7').setFontWeight('bold').setFontSize(10).setHorizontalAlignment('left').setVerticalAlignment('middle');
       sheet.getRange('A3:E7').setBorder(true, true, true, true, true, true, '#CBD5E1', SpreadsheetApp.BorderStyle.SOLID);
       sheet.setRowHeights(3, 5, 24);
 
@@ -18322,7 +18570,11 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
     window.open(url, '_blank');
   },
 
-  // Point 3: Voice-to-Text Speech Recognition (Indonesian ID-ID)
+  // POINT 2: ROBUST MULTI-USE SPEECH RECOGNITION (Dapat digunakan berulang kali di seluruh kolom)
+  _activeRecognition: null,
+  _activeVoiceBtn: null,
+  _activeVoiceBtnOriginalHtml: '',
+
   startVoiceInput(targetId, btn) {
     this.triggerHaptic('medium');
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -18333,11 +18585,20 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
     const targetEl = document.getElementById(targetId);
     if (!targetEl) return;
 
+    // Bersihkan sesi aktif lama secara instan dan aman
     if (this._activeRecognition) {
       try {
-        this._activeRecognition.stop();
+        this._activeRecognition.onend = null;
+        this._activeRecognition.onerror = null;
+        this._activeRecognition.onresult = null;
+        this._activeRecognition.abort();
       } catch (e) {}
       this._activeRecognition = null;
+    }
+    if (this._activeVoiceBtn && this._activeVoiceBtnOriginalHtml) {
+      this._activeVoiceBtn.classList.remove('mic-recording');
+      this._activeVoiceBtn.innerHTML = this._activeVoiceBtnOriginalHtml;
+      this._activeVoiceBtn = null;
     }
 
     try {
@@ -18348,25 +18609,35 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
 
       const originalHtml = btn ? btn.innerHTML : '';
       if (btn) {
+        this._activeVoiceBtn = btn;
+        this._activeVoiceBtnOriginalHtml = originalHtml;
         btn.classList.add('mic-recording');
-        btn.innerHTML = '<i class="fa-solid fa-microphone-lines animate-pulse"></i> Mendengarkan...';
+        btn.innerHTML = '<i class="fa-solid fa-microphone-lines animate-pulse text-rose-500"></i> <span class="text-rose-600 font-extrabold">Mendengarkan...</span>';
       }
-      this.showToast('Mendengarkan... Silakan berbicara sekarang.', 'info');
+      this.showToast('Mendengarkan... Silakan berbicara sekarang.', 'info', 3000);
 
       recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
+        const transcript = event.results?.[0]?.[0]?.transcript;
         if (transcript) {
           const prev = targetEl.value ? targetEl.value.trim() + ' ' : '';
           targetEl.value = prev + transcript;
           targetEl.dispatchEvent(new Event('input', { bubbles: true }));
           this.triggerHaptic('success');
-          this.showToast('Dikte suara berhasil dicatat!', 'success');
-          this.updateFormProgress();
+          this.showToast('Dikte suara berhasil dicatat!', 'success', 2000);
+          this.triggerAutoSaveDraft(1000);
         }
       };
 
       recognition.onerror = (e) => {
-        this.showToast('Selesai / tidak ada suara terdeteksi: ' + (e.error || ''), 'info');
+        if (btn) {
+          btn.classList.remove('mic-recording');
+          btn.innerHTML = originalHtml;
+        }
+        this._activeRecognition = null;
+        this._activeVoiceBtn = null;
+        if (e.error !== 'no-speech' && e.error !== 'aborted') {
+          this.showToast('Mikrofon: ' + (e.error || 'silakan coba lagi'), 'info', 2500);
+        }
       };
 
       recognition.onend = () => {
@@ -18375,12 +18646,19 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
           btn.innerHTML = originalHtml;
         }
         this._activeRecognition = null;
+        this._activeVoiceBtn = null;
       };
 
       this._activeRecognition = recognition;
       recognition.start();
     } catch (err) {
-      this.showToast('Tidak dapat mengaktifkan mikrofon.', 'error');
+      if (btn) {
+        btn.classList.remove('mic-recording');
+        if (this._activeVoiceBtnOriginalHtml) btn.innerHTML = this._activeVoiceBtnOriginalHtml;
+      }
+      this._activeRecognition = null;
+      this._activeVoiceBtn = null;
+      this.showToast('Gagal memulai mikrofon: ' + (err.message || ''), 'error');
     }
   },
 
@@ -19738,8 +20016,165 @@ ${extractedPdfText}`;
     if (el) el.classList.add('hidden');
   },
 
+  // POINT 11: Modal Informasi Pengembang Web (Aan Bagus Permana)
+  showDeveloperInfoModal() {
+    this.triggerHaptic('light');
+    const modal = document.getElementById('modal-developer-info');
+    if (modal) {
+      modal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+  },
+
+  closeDeveloperInfoModal() {
+    const modal = document.getElementById('modal-developer-info');
+    if (modal) {
+      modal.classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+  },
+
+  // POINT 15: Custom Web Confirmation Dialog (Batal atau Iya)
+  _confirmCallback: null,
+
+  showConfirmDialog({ title = 'Konfirmasi Hapus', message = 'Apakah Anda yakin ingin menghapus data ini?', confirmText = 'Iya, Hapus', cancelText = 'Batal', onConfirm = null }) {
+    this.triggerHaptic('warning');
+    const modal = document.getElementById('modal-confirm-action');
+    const titleEl = document.getElementById('modal-confirm-title');
+    const msgEl = document.getElementById('modal-confirm-message');
+    const yesBtn = document.getElementById('modal-confirm-btn-yes');
+
+    if (titleEl) titleEl.textContent = title;
+    if (msgEl) msgEl.textContent = message;
+    if (yesBtn) {
+      yesBtn.textContent = confirmText;
+      yesBtn.onclick = () => {
+        this.closeConfirmModal();
+        if (typeof onConfirm === 'function') {
+          onConfirm();
+        }
+      };
+    }
+
+    if (modal) {
+      modal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+  },
+
+  closeConfirmModal() {
+    const modal = document.getElementById('modal-confirm-action');
+    if (modal) {
+      modal.classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+  },
+
+  // POINT 14: Lightbox Gallery State & Navigation
+  _lightboxGallery: [],
+  _lightboxIndex: 0,
+
+  openPhotoPreviewModal(imgSrc, title = 'Perbesar Foto', galleryType = null, index = 0) {
+    if (!imgSrc) return;
+    const modal = document.getElementById('modal-photo-lightbox');
+    const img = document.getElementById('photo-lightbox-img');
+    const titleEl = document.getElementById('photo-lightbox-title');
+    const counterEl = document.getElementById('photo-lightbox-counter');
+    const prevBtn = document.getElementById('photo-lightbox-prev');
+    const nextBtn = document.getElementById('photo-lightbox-next');
+
+    // Kumpulkan foto galeri berdasarkan jenis
+    let gallery = [];
+    if (galleryType === 'evidence' && Array.isArray(this.formEvidencePhotos)) {
+      gallery = this.formEvidencePhotos.filter((p) => p && (p.dataUrl || p.driveUrl || p.driveFileId));
+    } else if (galleryType === 'ca' && Array.isArray(this.formCaPhotos)) {
+      gallery = this.formCaPhotos.filter((p) => p && (p.dataUrl || p.driveUrl || p.driveFileId));
+    } else if (galleryType === 'qsc' && Array.isArray(this.formQscPhotos)) {
+      gallery = this.formQscPhotos.filter((p) => p && (p.dataUrl || p.driveUrl || p.driveFileId));
+    }
+
+    this._lightboxGallery = gallery.length > 0 ? gallery : [{ dataUrl: imgSrc, caption: title }];
+    this._lightboxIndex = Math.max(0, Math.min(index, this._lightboxGallery.length - 1));
+
+    this.renderLightboxCurrentPhoto();
+
+    if (modal) {
+      modal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+      this.initLightboxSwipeGestures();
+    }
+  },
+
+  renderLightboxCurrentPhoto() {
+    const img = document.getElementById('photo-lightbox-img');
+    const titleEl = document.getElementById('photo-lightbox-title');
+    const counterEl = document.getElementById('photo-lightbox-counter');
+    const prevBtn = document.getElementById('photo-lightbox-prev');
+    const nextBtn = document.getElementById('photo-lightbox-next');
+
+    if (!this._lightboxGallery || this._lightboxGallery.length === 0) return;
+    const current = this._lightboxGallery[this._lightboxIndex];
+    if (!current) return;
+
+    const src = window.FMCUPdf ? window.FMCUPdf.getPhotoDisplaySrc(current) : (current.dataUrl || current.driveUrl || '');
+    if (img && src) img.src = src;
+    if (titleEl) titleEl.textContent = current.caption || current.description || ('Foto #' + (this._lightboxIndex + 1));
+    if (counterEl) {
+      counterEl.textContent = (this._lightboxIndex + 1) + ' / ' + this._lightboxGallery.length;
+      counterEl.classList.toggle('hidden', this._lightboxGallery.length <= 1);
+    }
+    if (prevBtn) prevBtn.classList.toggle('hidden', this._lightboxGallery.length <= 1);
+    if (nextBtn) nextBtn.classList.toggle('hidden', this._lightboxGallery.length <= 1);
+  },
+
+  lightboxNextPhoto(e) {
+    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+    if (!this._lightboxGallery || this._lightboxGallery.length <= 1) return;
+    this.triggerHaptic('light');
+    this._lightboxIndex = (this._lightboxIndex + 1) % this._lightboxGallery.length;
+    this.renderLightboxCurrentPhoto();
+  },
+
+  lightboxPrevPhoto(e) {
+    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+    if (!this._lightboxGallery || this._lightboxGallery.length <= 1) return;
+    this.triggerHaptic('light');
+    this._lightboxIndex = (this._lightboxIndex - 1 + this._lightboxGallery.length) % this._lightboxGallery.length;
+    this.renderLightboxCurrentPhoto();
+  },
+
+  initLightboxSwipeGestures() {
+    const container = document.getElementById('modal-photo-lightbox');
+    if (!container || container._swipeAttached) return;
+    container._swipeAttached = true;
+
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    container.addEventListener('touchstart', (e) => {
+      if (e.touches && e.touches.length === 1) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }
+    }, { passive: true });
+
+    container.addEventListener('touchend', (e) => {
+      if (e.changedTouches && e.changedTouches.length === 1) {
+        const deltaX = e.changedTouches[0].clientX - touchStartX;
+        const deltaY = e.changedTouches[0].clientY - touchStartY;
+        if (Math.abs(deltaX) > 45 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4) {
+          if (deltaX < 0) {
+            this.lightboxNextPhoto(); // Swipe kiri -> Next
+          } else {
+            this.lightboxPrevPhoto(); // Swipe kanan -> Prev
+          }
+        }
+      }
+    }, { passive: true });
+  },
+
   // --- Lightbox Modal (Perbesar Gambar) ---
-  openPhotoPreviewModal(imgSrc, title = 'Perbesar Foto') {
+  _legacyOpenPhotoPreviewModal(imgSrc, title = "Perbesar Foto") {
     if (!imgSrc) return;
     const modal = document.getElementById('modal-photo-lightbox');
     const img = document.getElementById('photo-lightbox-img');

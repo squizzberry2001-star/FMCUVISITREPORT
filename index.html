@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1793870000000" as="style" />
-  <link rel="preload" href="css/styles.css?v=1793870000000" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1793890000000" as="style" />
+  <link rel="preload" href="css/styles.css?v=1793890000000" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1793870000000" />
-  <link rel="stylesheet" href="css/styles.css?v=1793870000000" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1793890000000" />
+  <link rel="stylesheet" href="css/styles.css?v=1793890000000" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -1624,6 +1624,40 @@
                 </div>
               </div>
 
+              <!-- POINT 1: RUNNING TEXT WARNING BANNER (Background Hitam & Teks Kuning) -->
+              <div class="w-full bg-neutral-950 text-amber-300 py-2.5 px-3 rounded-2xl border border-amber-400/50 overflow-hidden shadow-sm flex items-center gap-2.5">
+                <span class="shrink-0 flex items-center gap-1 font-black text-[10px] sm:text-xs bg-amber-400 text-neutral-950 px-2 py-0.5 rounded-lg uppercase tracking-wider shadow-2xs">
+                  <i class="fa-solid fa-triangle-exclamation animate-pulse"></i> Perhatian
+                </span>
+                <div class="overflow-hidden whitespace-nowrap flex-1">
+                  <div class="animate-marquee font-bold text-xs sm:text-[13px] text-amber-300 tracking-wide">
+                    ⚠️ PERHATIAN: Jika menggunakan analisa AI, hasil analisa AI dapat membuat kesalahan. Periksa hasil jawaban kembali disetiap kolom temuan sebelum disimpan. &nbsp;&nbsp;&nbsp;&bull;&nbsp;&nbsp;&nbsp; ⚠️ PERHATIAN: Jika menggunakan analisa AI, hasil analisa AI dapat membuat kesalahan. Periksa hasil jawaban kembali disetiap kolom temuan sebelum disimpan.
+                  </div>
+                </div>
+              </div>
+
+              <!-- POINT 7: 2 TOMBOL PILIHAN MODE OBSERVASI (MANUAL VS T.A.R.O AI BANTU OBSERVASI) -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                <button
+                  type="button"
+                  id="btn-mode-obs-manual"
+                  onclick="FMCUApp.setObservationMode('manual')"
+                  class="w-full py-2.5 px-3.5 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 border-2 border-emerald-500 bg-emerald-50 text-emerald-900 shadow-xs transition cursor-pointer"
+                >
+                  <i class="fa-solid fa-pen-to-square text-emerald-600"></i>
+                  <span>Observasi Manual</span>
+                </button>
+                <button
+                  type="button"
+                  id="btn-mode-obs-ai"
+                  onclick="FMCUApp.autoCompileObservationsFromPhotos()"
+                  class="w-full py-2.5 px-3.5 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 border-2 border-teal-500 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white shadow-md transition cursor-pointer"
+                >
+                  <i class="fa-solid fa-wand-magic-sparkles text-amber-300 fa-bounce"></i>
+                  <span>T.A.R.O AI Bantu Observasi</span>
+                </button>
+              </div>
+
               <!-- Sub-section Switcher Tabs: QSC vs OPI (Horizontal Segment Button) -->
               <div class="grid grid-cols-2 gap-2 p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200">
                 <!-- Tab QSC -->
@@ -1631,6 +1665,7 @@
                   <div class="flex items-center gap-1.5 sm:gap-2 min-w-0 truncate">
                     <i class="fa-solid fa-chart-simple text-xs sm:text-sm shrink-0"></i>
                     <span class="text-xs sm:text-sm font-extrabold tracking-tight truncate">QSC<span class="hidden sm:inline"> Observation</span></span>
+                    <span id="count-badge-obs-qsc" class="text-[9.5px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 ml-1">0 Temuan</span>
                   </div>
                   <div class="flex items-center gap-1 sm:gap-2 ml-1.5 shrink-0" onclick="event.stopPropagation()">
                     <label class="fm-toggle-switch fm-toggle-sm" title="Aktifkan/Nonaktifkan QSC di PDF">
@@ -1646,6 +1681,7 @@
                   <div class="flex items-center gap-1.5 sm:gap-2 min-w-0 truncate">
                     <i class="fa-solid fa-lightbulb text-xs sm:text-sm shrink-0"></i>
                     <span class="text-xs sm:text-sm font-extrabold tracking-tight truncate">OPI<span class="hidden sm:inline"> Project</span></span>
+                    <span id="count-badge-obs-opi" class="text-[9.5px] font-black px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-800 ml-1">0 Temuan</span>
                   </div>
                   <div class="flex items-center gap-1 sm:gap-2 ml-1.5 shrink-0" onclick="event.stopPropagation()">
                     <label class="fm-toggle-switch fm-toggle-sm" title="Aktifkan/Nonaktifkan OPI di PDF">
@@ -1767,112 +1803,101 @@
       <section id="view-preview" aria-label="Pratinjau dan Unduh Laporan PDF" class="view-section p-3.5 sm:p-6 max-w-7xl w-full mx-auto space-y-4 sm:space-y-6 hidden">
 
         <!-- Top PDF Control Bar (Mobile-Optimized & Responsive) -->
-        <div class="fm-card p-3.5 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 sm:gap-4">
-          <div class="flex items-center gap-3">
-            <button
-              type="button"
-              onclick="FMCUApp.navigate('admin')"
-              class="px-2.5 sm:px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
-              title="Kembali ke Atur Jadwal & Riwayat Visit"
-            >
-              <i class="fa-solid fa-arrow-left text-slate-500"></i>
-              <span class="hidden sm:inline">Kembali</span>
-            </button>
-            <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-lg sm:text-xl shrink-0">
-              <i class="fa-solid fa-file-pdf"></i>
-            </div>
-            <div class="min-w-0 flex-1">
-              <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                <h2 class="font-extrabold text-sm sm:text-lg text-slate-900 truncate">Preview & Download PDF</h2>
-                <span class="text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-[#0099A6] shrink-0">16:9 Landscape</span>
+        <div class="fm-card p-3.5 sm:p-5 flex flex-col gap-3.5 sm:gap-4">
+          <!-- Row 1 (Mobile & Desktop): Info Dokumen & Dropdown Pemilih Laporan (Full Width, Bebas Kepotong) -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-lg sm:text-xl shrink-0 shadow-xs">
+                <i class="fa-solid fa-file-pdf"></i>
               </div>
-              <div class="flex items-center gap-2 mt-1 relative min-w-0 flex-1 max-w-[280px] sm:max-w-md">
-                <label class="text-[11px] sm:text-xs font-bold text-slate-500 shrink-0">Laporan:</label>
-                
-                <!-- Interactive Report Selector with Running Text / Marquee -->
-                <div class="relative min-w-0 flex-1">
-                  <button
-                    type="button"
-                    id="preview-report-custom-trigger"
-                    onclick="FMCUApp.togglePreviewReportDropdown()"
-                    class="preview-report-custom-btn w-full"
-                    title="Klik untuk memilih laporan visit"
-                  >
-                    <div class="running-text-container">
-                      <div id="preview-report-running-track" class="running-text-track">
-                        <span id="preview-report-label">Memuat Laporan...</span>
-                      </div>
-                    </div>
-                    <i class="fa-solid fa-chevron-down text-slate-400 text-[10px] shrink-0 ml-1"></i>
-                  </button>
+              <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                  <h2 class="font-black text-sm sm:text-lg text-slate-900 truncate">Preview & Download PDF</h2>
+                  <span class="text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-[#0099A6] shrink-0">16:9 Landscape</span>
+                </div>
+                <p class="text-[11px] text-slate-500 font-medium truncate">Simpan laporan ke Google Drive untuk mengaktifkan berkas unduhan PDF.</p>
+              </div>
+            </div>
 
-                  <!-- Custom Dropdown Menu for Report Selection -->
-                  <div
-                    id="preview-report-dropdown-menu"
-                    class="hidden absolute left-0 top-full mt-1.5 w-[290px] sm:w-[400px] bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden"
-                  >
-                    <div class="p-2.5 border-b border-slate-100 bg-slate-50">
-                      <div class="relative">
-                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
-                        <input
-                          type="text"
-                          id="preview-report-search-input"
-                          oninput="FMCUApp.onPreviewFilterInput(this.value)"
-                          placeholder="Cari toko, kode, atau tanggal..."
-                          class="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-[#0099A6]" aria-label="Cari toko, kode, atau tanggal..." />
-                      </div>
-                    </div>
-                    <div id="preview-report-options-list" class="max-h-60 overflow-y-auto divide-y divide-slate-100 p-1">
-                      <!-- List pilihan laporan dinamis -->
-                    </div>
+            <!-- Interactive Report Selector (Sejajar & Full Width di Mobile, Dropdown Anti-Kepotong) -->
+            <div class="relative w-full sm:w-80 shrink-0">
+              <button
+                type="button"
+                id="preview-report-custom-trigger"
+                onclick="FMCUApp.togglePreviewReportDropdown()"
+                class="preview-report-custom-btn w-full"
+                title="Klik untuk memilih laporan visit"
+              >
+                <div class="running-text-container">
+                  <div id="preview-report-running-track" class="running-text-track">
+                    <span id="preview-report-label">Memuat Laporan...</span>
                   </div>
                 </div>
+                <i class="fa-solid fa-chevron-down text-slate-400 text-[10px] shrink-0 ml-1"></i>
+              </button>
 
-                <select id="preview-report-selector" onchange="FMCUApp.onChangePreviewReport(this.value)" class="hidden" aria-label="Preview Report Selector">
-                </select>
+              <!-- Custom Dropdown Menu (Positioned safely inside viewport) -->
+              <div
+                id="preview-report-dropdown-menu"
+                class="hidden absolute left-0 right-0 sm:right-auto sm:w-[380px] top-full mt-1.5 bg-white rounded-2xl shadow-2xl border border-slate-200 z-[100] overflow-hidden"
+              >
+                <div class="p-2.5 border-b border-slate-100 bg-slate-50">
+                  <div class="relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                    <input
+                      type="text"
+                      id="preview-report-search-input"
+                      oninput="FMCUApp.onPreviewFilterInput(this.value)"
+                      placeholder="Cari toko, kode, atau tanggal..."
+                      class="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-[#0099A6]" aria-label="Cari toko, kode, atau tanggal..." />
+                  </div>
+                </div>
+                <div id="preview-report-options-list" class="max-h-60 overflow-y-auto divide-y divide-slate-100 p-1">
+                  <!-- List pilihan laporan dinamis -->
+                </div>
               </div>
             </div>
+
+            <select id="preview-report-selector" onchange="FMCUApp.onChangePreviewReport(this.value)" class="hidden" aria-label="Preview Report Selector"></select>
           </div>
 
-          <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-            <!-- Action Buttons: Muat Ulang, Buka di Tab Baru, Unduh PDF, Sinkronisasi GDrive -->
+          <!-- Row 2: Tombol Aksi - SIMPAN LAPORAN Utama Berukuran Besar & Opsi Muat Ulang / Unduh PDF -->
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-slate-100">
             <button
               type="button"
               onclick="FMCUApp.refreshPreviewPdf()"
-              class="px-3 sm:px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs active:scale-98"
+              class="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs active:scale-98"
               title="Segarkan / Render Ulang Dokumen PDF Terbaru"
             >
               <i class="fa-solid fa-arrows-rotate"></i>
               <span>Muat Ulang</span>
             </button>
-            <button
-              type="button"
-              onclick="FMCUApp.openActualPdfInNewTab()"
-              class="px-3.5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-extrabold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-98"
-              title="Buka Dokumen PDF di Tab Baru Browser"
-            >
-              <i class="fa-solid fa-arrow-up-right-from-square"></i>
-              <span>Buka di Tab Baru</span>
-            </button>
-            <button
-              type="button"
-              onclick="FMCUApp.downloadCurrentPreviewPdf()"
-              class="px-4 py-2.5 rounded-xl bg-[#009944] hover:bg-emerald-600 text-white font-extrabold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-98"
-              title="Unduh Berkas PDF Lengkap"
-            >
-              <i class="fa-solid fa-download"></i>
-              <span>Unduh PDF</span>
-            </button>
-            <button
-              type="button"
-              id="btn-preview-send-gdrive"
-              onclick="FMCUApp.handlePreviewGDriveSyncClick()"
-              class="px-5 py-2.5 rounded-xl fm-gradient hover:opacity-95 text-white font-extrabold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-md active:scale-98"
-              title="Sinkronisasikan Berkas ke Google Drive Toko"
-            >
-              <i class="fa-brands fa-google-drive text-sm"></i>
-              <span>SINKRONISASI GDRIVE</span>
-            </button>
+
+            <div class="flex items-center gap-2 flex-1 sm:flex-initial">
+              <!-- Unduh PDF: Terbuka & aktif setelah user klik SIMPAN LAPORAN -->
+              <button
+                type="button"
+                id="btn-preview-download-pdf"
+                onclick="FMCUApp.downloadCurrentPreviewPdf()"
+                class="hidden flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-[#009944] hover:bg-emerald-600 text-white font-black text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm active:scale-98"
+                title="Unduh Berkas PDF Lengkap"
+              >
+                <i class="fa-solid fa-download"></i>
+                <span>Unduh PDF</span>
+              </button>
+
+              <!-- Tombol Utama: SIMPAN LAPORAN (Berukuran Lebih Besar & Mengharuskan Sinkronisasi Terlebih Dahulu) -->
+              <button
+                type="button"
+                id="btn-preview-send-gdrive"
+                onclick="FMCUApp.handlePreviewGDriveSyncClick()"
+                class="flex-1 sm:flex-initial px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-[#009944] hover:opacity-95 text-white font-black text-xs sm:text-sm tracking-wide transition flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-98"
+                title="Simpan Laporan & Sinkronisasikan 3 Berkas ke Google Drive Toko"
+              >
+                <i class="fa-solid fa-cloud-arrow-up text-base"></i>
+                <span>SIMPAN LAPORAN</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -3563,31 +3588,15 @@ service cloud.firestore {
       </main>
 
       <!-- CORPORATE FOOTER (Semantic Contentinfo, Compliance Links, SVG Brand & Contact) -->
-      <footer role="contentinfo" class="max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 mt-4 border-t border-slate-200/80 text-xs text-slate-600 flex flex-col md:flex-row items-center justify-between gap-4">
-        <div class="flex items-center gap-3">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="28" height="28" role="img" aria-label="Logo Vektor FMCU" class="w-7 h-7 shrink-0 rounded-lg">
-            <rect width="128" height="128" rx="28" fill="#009944" />
-            <rect x="14" y="22" width="100" height="10" rx="5" fill="#ffffff" />
-            <text x="64" y="77" text-anchor="middle" font-family="sans-serif" font-weight="800" font-size="34" fill="#ffffff">FMCU</text>
-            <rect x="14" y="96" width="100" height="10" rx="5" fill="#0080C6" />
-          </svg>
-          <div>
-            <div class="font-bold text-slate-800">&copy; 2026 FamilyMart Corporate University (FMCU) — PT Fajar Mitra Indah</div>
-            <address class="not-italic text-[11px] text-slate-500">
-              Jakarta, Indonesia &bull; <a href="mailto:fmcu@familymartindonesia.com" class="text-[#009944] hover:underline">fmcu@familymartindonesia.com</a> &bull; <a href="tel:+622129539500" class="hover:underline">+62 21 2953 9500</a>
-            </address>
-          </div>
-        </div>
-        <div class="flex flex-wrap items-center justify-center gap-3 sm:gap-4 font-semibold text-[11px]">
-          <a href="#view-home" onclick="FMCUApp.navigate('home'); return false;" class="text-slate-600 hover:text-[#009944] transition">Beranda</a>
-          <a href="#view-analytics" onclick="FMCUApp.navigate('analytics'); return false;" class="text-slate-600 hover:text-[#009944] transition">Analitik QSC</a>
-          <a href="privacy.html" class="text-slate-600 hover:text-[#009944] transition">Kebijakan Privasi</a>
-          <a href="terms.html" class="text-slate-600 hover:text-[#009944] transition">Syarat &amp; Ketentuan</a>
-          <a href="security.txt" class="text-slate-600 hover:text-[#009944] transition">Keamanan (Security)</a>
-          <a href="humans.txt" class="text-slate-600 hover:text-[#009944] transition">Tim Pengembang</a>
-          <a href="sitemap.xml" class="text-slate-600 hover:text-[#009944] transition">Sitemap</a>
-          <a href="https://familymartindonesia.com" target="_blank" rel="noopener noreferrer" class="text-[#0099A6] hover:underline">FamilyMart Indonesia</a>
-        </div>
+      <footer role="contentinfo" class="max-w-7xl w-full mx-auto px-4 py-4 mt-6 border-t border-slate-200/80 text-xs text-slate-500 flex items-center justify-center">
+        <button
+          type="button"
+          onclick="FMCUApp.showDeveloperInfoModal()"
+          class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition flex items-center gap-2 cursor-pointer shadow-2xs hover:scale-102 active:scale-98"
+        >
+          <i class="fa-solid fa-laptop-code text-teal-600"></i>
+          <span>Pengembang Web</span>
+        </button>
       </footer>
 
     </div>
@@ -4027,13 +4036,13 @@ service cloud.firestore {
   <script defer src="js/holding-time-standards.js"></script>
   <script defer src="js/master-stores-seed.js"></script>
   <script defer src="js/bestie-in-charge-seed.js"></script>
-  <script defer src="js/data.js?v=1793870000000"></script>
-  <script defer src="js/pdf-generator.js?v=1793870000000"></script>
-  <script defer src="js/app.js?v=1793870000000"></script>
+  <script defer src="js/data.js?v=1793890000000"></script>
+  <script defer src="js/pdf-generator.js?v=1793890000000"></script>
+  <script defer src="js/app.js?v=1793890000000"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1793870000000"></script>
+  <script async src="js/pdf-assets.js?v=1793890000000"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================
@@ -4912,7 +4921,10 @@ service cloud.firestore {
             <i class="fa-solid fa-magnifying-glass-plus"></i>
           </div>
           <div>
-            <h3 id="photo-lightbox-title" class="font-extrabold text-sm sm:text-base leading-tight">Perbesar Foto</h3>
+            <div class="flex items-center gap-2">
+              <h3 id="photo-lightbox-title" class="font-extrabold text-sm sm:text-base leading-tight">Perbesar Foto</h3>
+              <span id="photo-lightbox-counter" class="text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-800 text-emerald-400 border border-slate-700">1 / 1</span>
+            </div>
             <p class="text-[10px] text-slate-400">Tampilan resolusi penuh foto laporan visit</p>
           </div>
         </div>
@@ -4928,10 +4940,31 @@ service cloud.firestore {
       </div>
 
       <!-- Central Image Preview Area -->
-      <div class="flex-1 w-full p-2 sm:p-5 flex items-center justify-center overflow-auto" onclick="if(event.target === this) FMCUApp.closePhotoPreviewModal()">
+      <div id="lightbox-swipe-container" class="relative flex-1 w-full p-2 sm:p-5 flex items-center justify-center overflow-hidden" onclick="if(event.target === this) FMCUApp.closePhotoPreviewModal()">
+        <!-- Lightbox Prev / Next Nav Buttons (Swipe & Click) -->
+        <button
+          type="button"
+          id="photo-lightbox-prev"
+          onclick="FMCUApp.lightboxPrevPhoto(event)"
+          class="lightbox-nav-btn absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-lg z-30 cursor-pointer shadow-2xl"
+          title="Foto Sebelumnya (Swipe Kanan)"
+        >
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+
         <div class="relative max-w-full max-h-full flex items-center justify-center">
-          <img id="photo-lightbox-img" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Preview Full" class="max-w-[95vw] max-h-[80vh] object-contain rounded-xl shadow-2xl border border-slate-700/80 bg-slate-900" width="800" height="600" decoding="async" />
+          <img id="photo-lightbox-img" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Preview Full" class="max-w-[95vw] max-h-[80vh] object-contain rounded-xl shadow-2xl border border-slate-700/80 bg-slate-900 transition duration-150" width="800" height="600" decoding="async" />
         </div>
+
+        <button
+          type="button"
+          id="photo-lightbox-next"
+          onclick="FMCUApp.lightboxNextPhoto(event)"
+          class="lightbox-nav-btn absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-lg z-30 cursor-pointer shadow-2xl"
+          title="Foto Berikutnya (Swipe Kiri)"
+        >
+          <i class="fa-solid fa-chevron-right"></i>
+        </button>
       </div>
 
       <!-- Footer / Helper -->
@@ -5167,5 +5200,73 @@ service cloud.firestore {
         </div>
       </div>
     </div>
-  </body>
+  
+  <!-- ============================================================
+       MODAL: INFORMASI PENGEMBANG WEB (POINT 11)
+       ============================================================ -->
+  <div id="modal-developer-info" class="hidden fixed inset-0 z-[10000006] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4" onclick="if(event.target === this) FMCUApp.closeDeveloperInfoModal()">
+    <div class="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4 animate-in fade-in zoom-in duration-150 relative">
+      <button type="button" onclick="FMCUApp.closeDeveloperInfoModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 p-1.5 rounded-xl hover:bg-slate-100 transition cursor-pointer">
+        <i class="fa-solid fa-xmark text-sm"></i>
+      </button>
+
+      <div class="flex flex-col items-center text-center space-y-3">
+        <div class="w-16 h-16 rounded-3xl fm-gradient text-white flex items-center justify-center text-2xl shadow-md">
+          <i class="fa-solid fa-code"></i>
+        </div>
+        <div>
+          <h3 class="font-black text-lg text-slate-900">Aan Bagus Permana</h3>
+          <p class="text-xs font-bold text-[#009944]">Web Application Developer & System Architect</p>
+        </div>
+      </div>
+
+      <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 text-xs text-slate-600 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-slate-400">Sistem:</span>
+          <span class="font-bold text-slate-800">FMCU Visit Store Report</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-400">Institusi:</span>
+          <span class="font-bold text-slate-800">FamilyMart Corporate University</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-400">Perusahaan:</span>
+          <span class="font-bold text-slate-800">PT Fajar Mitra Indah</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-400">Lokasi / Site:</span>
+          <span class="font-bold text-slate-800">Cihampelas, Bandung - Jakarta</span>
+        </div>
+      </div>
+
+      <button type="button" onclick="FMCUApp.closeDeveloperInfoModal()" class="w-full py-2.5 px-4 rounded-xl fm-gradient text-white font-extrabold text-xs shadow-sm cursor-pointer transition">
+        Tutup
+      </button>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       MODAL: KONFIRMASI HAPUS (CUSTOM WEB MODAL - BATAL ATAU IYA - POINT 15)
+       ============================================================ -->
+  <div id="modal-confirm-action" class="hidden fixed inset-0 z-[10000007] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-5 sm:p-6 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4 animate-in fade-in zoom-in duration-150">
+      <div class="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center text-xl mx-auto shadow-xs">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+      </div>
+      <div class="text-center space-y-1">
+        <h4 id="modal-confirm-title" class="font-black text-base text-slate-900">Konfirmasi Hapus</h4>
+        <p id="modal-confirm-message" class="text-xs text-slate-600 leading-relaxed">Apakah Anda yakin ingin menghapus data ini? Tindakan ini tidak dapat dibatalkan.</p>
+      </div>
+      <div class="grid grid-cols-2 gap-2.5 pt-1">
+        <button type="button" onclick="FMCUApp.closeConfirmModal()" class="w-full py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition cursor-pointer">
+          Batal
+        </button>
+        <button type="button" id="modal-confirm-btn-yes" class="w-full py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs transition cursor-pointer shadow-sm">
+          Iya, Hapus
+        </button>
+      </div>
+    </div>
+  </div>
+
+</body>
 </html>
