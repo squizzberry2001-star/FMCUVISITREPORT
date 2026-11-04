@@ -1330,9 +1330,26 @@ div#form-top-geofence-banner,
   border-bottom: 1px solid rgba(250, 204, 21, 0.45) !important;
   opacity: 1 !important;
   z-index: 41 !important;
+  display: flex !important;
+  align-items: center !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  box-sizing: border-box !important;
+}
+
+#obs-ai-running-banner > div {
+  display: flex !important;
+  align-items: center !important;
+  height: 100% !important;
+  line-height: 1 !important;
 }
 
 #obs-ai-running-banner .animate-marquee {
+  display: inline-flex !important;
+  align-items: center !important;
+  height: 100% !important;
+  line-height: 1 !important;
+  vertical-align: middle !important;
   color: #fde047 !important;
 }
 @keyframes marqueeScroll {
@@ -1340,7 +1357,8 @@ div#form-top-geofence-banner,
   100% { transform: translateX(-50%); }
 }
 .animate-marquee {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   white-space: nowrap;
   animation: marqueeScroll 25s linear infinite;
   will-change: transform;
