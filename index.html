@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1800220000000" as="style" />
-  <link rel="preload" href="css/styles.css?v=1800220000000" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1800230000000" as="style" />
+  <link rel="preload" href="css/styles.css?v=1800230000000" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1800220000000" />
-  <link rel="stylesheet" href="css/styles.css?v=1800220000000" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1800230000000" />
+  <link rel="stylesheet" href="css/styles.css?v=1800230000000" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -771,19 +771,6 @@
             </button>
           </div>
         </header>
-
-        <!-- POINT 1 & 3: Running Text Peringatan AI (Sticky, Pure Pitch-Black Solid Background, Glowing Yellow Text) -->
-        <div id="obs-ai-running-banner" class="hidden w-full text-amber-300 border-b border-amber-400/50 shadow-md flex items-center px-3 h-7 sm:h-8 overflow-hidden select-none" style="background-color: #000000 !important; background: #000000 !important;">
-          <span class="shrink-0 inline-flex items-center justify-center gap-1 font-black text-[9px] bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full mr-2.5 shadow-2xs leading-none select-none h-5">
-            <i class="fa-solid fa-triangle-exclamation text-[8.5px]"></i>
-            <span class="leading-none tracking-normal">AI</span>
-          </span>
-          <div class="overflow-hidden whitespace-nowrap flex-1 flex items-center h-full">
-            <div class="animate-marquee font-bold text-[11px] sm:text-xs text-amber-300 tracking-wide inline-flex items-center leading-none h-full">
-              ⚠️  PERHATIAN: Jika menggunakan analisa AI, hasil analisa AI dapat membuat kesalahan. Periksa hasil jawaban kembali disetiap kolom temuan sebelum disimpan. &nbsp;&nbsp;&bull;&nbsp;&nbsp; ⚠️  PERHATIAN: Jika menggunakan analisa AI, hasil analisa AI dapat membuat kesalahan. Periksa hasil jawaban kembali disetiap kolom temuan sebelum disimpan.
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- ==================================================================
@@ -1592,7 +1579,18 @@
                 </div>
               </div>
 
-              <!-- Running text kini menempel rapi di bar atas (#obs-ai-running-banner) -->
+              <!-- Running Text Peringatan AI (Khusus di Sub Section Form Visit Observasi) -->
+              <div id="obs-ai-running-banner" class="w-full text-amber-300 border border-amber-400/50 rounded-xl shadow-xs flex items-center px-3 h-8 overflow-hidden select-none" style="background-color: #000000 !important; background: #000000 !important;">
+                <span class="shrink-0 inline-flex items-center justify-center gap-1 font-black text-[9px] bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full mr-2.5 shadow-2xs leading-none select-none h-5">
+                  <i class="fa-solid fa-triangle-exclamation text-[8.5px]"></i>
+                  <span class="leading-none tracking-normal">AI</span>
+                </span>
+                <div class="overflow-hidden whitespace-nowrap flex-1 flex items-center h-full">
+                  <div class="animate-marquee font-bold text-[11px] sm:text-xs text-amber-300 tracking-wide inline-flex items-center leading-none h-full">
+                    ⚠️   PERHATIAN: Jika menggunakan analisa AI, hasil analisa AI dapat membuat kesalahan. Periksa hasil jawaban kembali disetiap kolom temuan sebelum disimpan. &nbsp;&nbsp;&bull;&nbsp;&nbsp; ⚠️   PERHATIAN: Jika menggunakan analisa AI, hasil analisa AI dapat membuat kesalahan. Periksa hasil jawaban kembali disetiap kolom temuan sebelum disimpan.
+                  </div>
+                </div>
+              </div>
 
               <!-- Tombol Cepat: T.A.R.O AI Bantu Observasi -->
               <div class="pt-1">
@@ -3898,16 +3896,16 @@ service cloud.firestore {
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js" crossorigin="anonymous"></script>
 
   <!-- Core Application Scripts (Fast Startup & Auth Priority) -->
-  <script defer src="js/holding-time-standards.js?v=1800220000000"></script>
-  <script defer src="js/master-stores-seed.js?v=1800220000000"></script>
-  <script defer src="js/bestie-in-charge-seed.js?v=1800220000000"></script>
-  <script defer src="js/data.js?v=1800220000000"></script>
-  <script defer src="js/pdf-generator.js?v=1800220000000"></script>
-  <script defer src="js/app.js?v=1800220000000"></script>
+  <script defer src="js/holding-time-standards.js?v=1800230000000"></script>
+  <script defer src="js/master-stores-seed.js?v=1800230000000"></script>
+  <script defer src="js/bestie-in-charge-seed.js?v=1800230000000"></script>
+  <script defer src="js/data.js?v=1800230000000"></script>
+  <script defer src="js/pdf-generator.js?v=1800230000000"></script>
+  <script defer src="js/app.js?v=1800230000000"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1800220000000"></script>
+  <script async src="js/pdf-assets.js?v=1800230000000"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================
@@ -4401,11 +4399,11 @@ service cloud.firestore {
     <!-- ============================================================
          MODAL BUAT / ATUR AGENDA & JADWAL KARYAWAN (MULTI-SELECT KATEGORI)
          ============================================================ -->
-    <div id="modal-manual-agenda" onclick="if(event.target === this) FMCUApp.closeManualAgendaModal()" class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 hidden">
-      <div class="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 max-h-[92vh]">
-        <!-- Header -->
-        <div class="p-4 sm:p-5 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 text-white flex items-center justify-between shrink-0">
-          <div class="flex items-center gap-2.5">
+    <div id="modal-manual-agenda" class="fixed inset-0 z-50 bg-white flex flex-col w-screen h-screen overflow-hidden hidden animate-in fade-in duration-200">
+      <div class="w-full h-full flex flex-col bg-white overflow-hidden">
+        <!-- Header Full-Screen -->
+        <div class="px-4 py-3 sm:px-6 sm:py-4 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 text-white flex items-center justify-between shrink-0 shadow-sm">
+          <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-lg shrink-0">
               <i class="fa-solid fa-calendar-check"></i>
             </div>
@@ -4414,13 +4412,14 @@ service cloud.firestore {
               <p class="text-xs text-emerald-100 font-medium">Visit Store, NSO, Kantor, Meeting, Cuti, & Agenda Lainnya</p>
             </div>
           </div>
-          <button type="button" onclick="FMCUApp.closeManualAgendaModal()" class="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition cursor-pointer" aria-label="Tutup dialog">
-            <i class="fa-solid fa-xmark text-sm"></i>
+          <button type="button" onclick="FMCUApp.closeManualAgendaModal()" class="w-9 h-9 rounded-xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition cursor-pointer" aria-label="Tutup dialog">
+            <i class="fa-solid fa-xmark text-base"></i>
           </button>
         </div>
 
-        <!-- Body Form -->
-        <form onsubmit="event.preventDefault(); FMCUApp.submitManualAgendaForm();" class="p-4 sm:p-5 space-y-3.5 bg-slate-50/50 overflow-y-auto flex-1">
+        <!-- Body Form Full-Screen -->
+        <form onsubmit="event.preventDefault(); FMCUApp.submitManualAgendaForm();" class="flex-1 overflow-y-auto bg-slate-50/60 p-4 sm:p-6 w-full flex flex-col">
+          <div class="max-w-3xl mx-auto w-full space-y-4 flex-1">
           <input type="hidden" id="agenda-target-auditor-id" value="" />
           <input type="hidden" id="agenda-target-day-index" value="" />
 
@@ -4530,7 +4529,7 @@ service cloud.firestore {
           </div>
 
           <!-- Section C: Input Box Jam Kerja 2 Kolom (IN & OUT) -->
-          <div class="p-3 rounded-2xl bg-slate-100/80 border border-slate-200 space-y-1.5">
+          <div id="agenda-time-container" class="p-3.5 rounded-2xl bg-slate-100/90 border border-slate-200 space-y-2">
             <div class="flex items-center justify-between">
               <label class="block text-[11px] font-extrabold text-slate-700 uppercase">
                 <i class="fa-regular fa-clock mr-1 text-slate-500"></i>Jam Kerja / Window Waktu
@@ -4594,18 +4593,20 @@ service cloud.firestore {
             ></textarea>
           </div>
 
-          <!-- Buttons -->
-          <div class="pt-3 border-t border-slate-200 flex items-center justify-end gap-2 shrink-0">
+          </div>
+
+          <!-- Sticky Bottom Action Footer -->
+          <div class="sticky bottom-0 bg-white border-t border-slate-200 px-4 py-3 sm:px-6 sm:py-3.5 flex items-center justify-end gap-2.5 shrink-0 -mx-4 -mb-4 sm:-mx-6 sm:-mb-6 mt-6 shadow-sm z-10">
             <button
               type="button"
               onclick="FMCUApp.closeManualAgendaModal()"
-              class="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-extrabold text-xs transition cursor-pointer"
+              class="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition cursor-pointer"
             >
               Batal
             </button>
             <button
               type="submit"
-              class="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-95 text-white font-extrabold text-xs shadow-md transition flex items-center gap-1.5 cursor-pointer"
+              class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-95 text-white font-extrabold text-xs shadow-md transition flex items-center gap-1.5 cursor-pointer"
             >
               <i class="fa-solid fa-check"></i>
               <span>Simpan Agenda</span>
@@ -4618,11 +4619,11 @@ service cloud.firestore {
     <!-- ============================================================
          MODAL: EDIT JADWAL KERJA & AGENDA TIM
          ============================================================ -->
-    <div id="modal-edit-schedule" onclick="if(event.target === this) FMCUApp.closeEditScheduleModal()" class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 hidden">
-      <div class="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
-        <!-- Header -->
-        <div class="p-4 sm:p-5 bg-gradient-to-r from-amber-500 via-[#009944] to-[#0099A6] text-white flex items-center justify-between shrink-0">
-          <div class="flex items-center gap-2.5">
+    <div id="modal-edit-schedule" class="fixed inset-0 z-50 bg-white flex flex-col w-screen h-screen overflow-hidden hidden animate-in fade-in duration-200">
+      <div class="w-full h-full flex flex-col bg-white overflow-hidden">
+        <!-- Header Full-Screen -->
+        <div class="px-4 py-3 sm:px-6 sm:py-4 bg-gradient-to-r from-amber-500 via-[#009944] to-[#0099A6] text-white flex items-center justify-between shrink-0 shadow-sm">
+          <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-lg shrink-0">
               <i class="fa-solid fa-pen-to-square"></i>
             </div>
@@ -4631,13 +4632,14 @@ service cloud.firestore {
               <p class="text-xs text-amber-100 font-medium">Ubah penugasan visit toko, agenda kantor, meeting, cuti, atau hari off</p>
             </div>
           </div>
-          <button type="button" onclick="FMCUApp.closeEditScheduleModal()" class="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition cursor-pointer" aria-label="Tutup dialog">
-            <i class="fa-solid fa-xmark text-sm"></i>
+          <button type="button" onclick="FMCUApp.closeEditScheduleModal()" class="w-9 h-9 rounded-xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition cursor-pointer" aria-label="Tutup dialog">
+            <i class="fa-solid fa-xmark text-base"></i>
           </button>
         </div>
 
-        <!-- Body -->
-        <div class="p-5 sm:p-6 space-y-4 bg-slate-50/50 max-h-[75vh] overflow-y-auto">
+        <!-- Body Full-Screen -->
+        <div class="p-4 sm:p-6 bg-slate-50/60 flex-1 overflow-y-auto">
+          <div class="max-w-3xl mx-auto w-full space-y-4">
           <input type="hidden" id="edit-sch-id" />
 
           <!-- Tipe Penugasan / Aktivitas -->

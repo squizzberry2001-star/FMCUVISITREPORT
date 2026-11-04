@@ -723,6 +723,21 @@ window.FMCUApp = {
   },
 
   requestMandatoryGps(silent = false) {
+    // Matikan GPS jika user bukan karyawan yang terjadwal Visit / NSO hari ini
+    if (this.currentUser && !this.isUserScheduledForVisitOrNsoToday(this.currentUser)) {
+      this.unlockWebWithGps(null, null, null);
+      this.stopContinuousGpsWatch();
+      const headEl = document.getElementById('header-gps-text');
+      if (headEl) headEl.textContent = 'GPS: Standby';
+      const sideEl = document.getElementById('sidebar-gps-coords');
+      if (sideEl) sideEl.textContent = 'Nonaktif (Khusus Visit/NSO)';
+      const sideDot = document.getElementById('sidebar-gps-dot');
+      if (sideDot) {
+        sideDot.className = 'w-2.5 h-2.5 rounded-full bg-slate-400';
+      }
+      return;
+    }
+
     const btn = document.getElementById('btn-request-gps');
     const errBox = document.getElementById('gps-gate-error-box');
     if (btn) {
@@ -851,7 +866,19 @@ window.FMCUApp = {
   // Helper: GPS hanya bekerja jika user di agendakan VISIT atau NSO hari ini (Admin Jadwal, Super Admin, dan user lain dimatikan)
   isUserScheduledForVisitOrNsoToday(user = this.currentUser) {
     if (!user) return false;
-    if (user.username === 'admin' || user.id === 'usr-admin' || user.name === 'Admin FMCU') {
+    const role = String(user.role || '').toUpperCase();
+    const username = String(user.username || '').toLowerCase();
+    // Matikan GPS secara permanen untuk Admin Jadwal, Super Admin, dan akun non-visitor
+    if (
+      role === 'SUPER_ADMIN' ||
+      role === 'ADMIN_SCHEDULE' ||
+      role === 'SCHEDULE_ADMIN' ||
+      role === 'AREA_MANAGER' ||
+      role === 'REGIONAL_MANAGER' ||
+      username === 'admin' ||
+      user.id === 'usr-admin' ||
+      user.name === 'Admin FMCU'
+    ) {
       return false;
     }
     const todayStr = this.getLocalDateISO();
@@ -1405,12 +1432,24 @@ window.FMCUApp = {
       return true;
     }
 
-    // 3. Otoritas Granular Eksplisit (Patuhi array authorities jika sudah ditentukan oleh Admin)
+    // 3. Proteksi Mutlak: Akun Visitor / Regional Bestie TIDAK BOLEH mengakses fitur admin apapun
+    if (role === 'AUDITOR' || role === 'VISITOR' || name.includes('aan bagus')) {
+      const allowedVisitor = ['view_home', 'view_analytics', 'create_visit', 'export_pdf'];
+      if (!allowedVisitor.includes(authKey)) {
+        return false;
+      }
+      if (Array.isArray(user.authorities)) {
+        return user.authorities.includes(authKey);
+      }
+      return true;
+    }
+
+    // 4. Otoritas Granular Eksplisit (Patuhi array authorities jika sudah ditentukan oleh Admin)
     if (Array.isArray(user.authorities)) {
       return user.authorities.includes(authKey);
     }
 
-    // 4. Fallback jika user lama belum memiliki array authorities:
+    // 5. Fallback jika user lama belum memiliki array authorities:
     if (
       role === 'ADMIN_SCHEDULE' ||
       role === 'SCHEDULE_ADMIN' ||
@@ -1427,7 +1466,7 @@ window.FMCUApp = {
       ].includes(authKey);
     }
 
-    // 5. Fallback hak akses dasar bagi seluruh Visitor / Regional Bestie lama
+    // 6. Fallback hak akses dasar bagi seluruh Visitor / Regional Bestie lama
     return ['view_home', 'create_visit', 'export_pdf', 'view_analytics'].includes(authKey);
   },
 
@@ -1455,22 +1494,28 @@ window.FMCUApp = {
 
   isCheckInOwnedByUser(checkIn, user = this.currentUser) {
     if (!checkIn || !user) return false;
+    // Admin tidak pernah memiliki status sedang check-in di toko
+    if (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN_SCHEDULE' || user.role === 'SCHEDULE_ADMIN' || user.username === 'admin') {
+      return false;
+    }
     const uId = String(user.id || '').trim();
     const cId = String(checkIn.auditorId || '').trim();
     if (cId && uId && (cId === uId || cId === `usr-${uId}` || `usr-${cId}` === uId)) return true;
-
-    const cUser = String(checkIn.auditorUsername || '').trim().toLowerCase();
-    const uUser = String(user.username || '').trim().toLowerCase();
-    if (cUser && uUser && cUser === uUser) return true;
 
     const cNik = String(checkIn.auditorNik || '').trim().toLowerCase();
     const uNik = String(user.nik || '').trim().toLowerCase();
     if (cNik && uNik && cNik === uNik) return true;
 
+    const cUser = String(checkIn.auditorUsername || '').trim().toLowerCase();
+    const uUser = String(user.username || '').trim().toLowerCase();
+    if (cUser && uUser && cUser === uUser) return true;
+
     const clean = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const cName = clean(checkIn.auditorName);
     const uName = clean(user.name);
-    if (cName && uName && (cName === uName || cName.includes(uName) || uName.includes(cName))) return true;
+    if (cName && uName && (cName === uName || (cName.length > 5 && uName.length > 5 && (cName.includes(uName) || uName.includes(cName))))) {
+      return true;
+    }
 
     // Fallback jika scheduleId ada, cocokkan dengan kepemilikan jadwal di database
     if (checkIn.scheduleId && window.FMCUData) {
@@ -1760,16 +1805,16 @@ window.FMCUApp = {
     if (!user) return false;
     const role = String(user.role || '').toUpperCase();
     const username = String(user.username || '').toLowerCase();
+    if (role === 'AUDITOR' || role === 'VISITOR' || String(user.name || '').toLowerCase().includes('aan bagus')) {
+      return false;
+    }
     return Boolean(
       role === 'SUPER_ADMIN' ||
       role === 'ADMIN_SCHEDULE' ||
       role === 'SCHEDULE_ADMIN' ||
       role === 'AREA_MANAGER' ||
       role === 'REGIONAL_MANAGER' ||
-      username === 'admin' ||
-      this.hasAuthority('manage_schedule', user) ||
-      this.hasAuthority('manage_users', user) ||
-      this.hasAuthority('view_live_maps', user)
+      username === 'admin'
     );
   },
 
@@ -4308,7 +4353,9 @@ window.FMCUApp = {
   updateActiveCheckInUI() {
     this.checkAndExpireOldCheckIns();
     const rawActive = window.FMCUData.getActiveCheckIn();
+    const isVisitor = this.isAuditorUser(this.currentUser);
     const isMine = Boolean(
+      isVisitor &&
       rawActive &&
       rawActive.storeCode &&
       this.currentUser &&
@@ -4350,8 +4397,9 @@ window.FMCUApp = {
 
   isAuditorUser(user = this.currentUser) {
     if (!user) return false;
-    // Kecualikan hanya akun sistem root admin murni
+    // Kecualikan akun sistem root admin & admin jadwal murni
     if (user.id === 'usr-admin' || user.username === 'admin' || user.name === 'Admin FMCU') return false;
+    if (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN_SCHEDULE' || user.role === 'SCHEDULE_ADMIN') return false;
     const nameLower = String(user.name || '').toLowerCase();
     if (nameLower.includes('aan bagus')) return true;
     if (user.role === 'AUDITOR' || user.role === 'VISITOR') return true;
@@ -4363,9 +4411,7 @@ window.FMCUApp = {
       badge.includes('bestie') ||
       badge.includes('trainer') ||
       jab.includes('trainer') ||
-      jab.includes('bestie') ||
-      user.role === 'ADMIN_SCHEDULE' ||
-      user.role === 'SUPER_ADMIN'
+      jab.includes('bestie')
     );
   },
 
@@ -9809,7 +9855,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     const labelEl = document.getElementById('preview-report-label');
     const trackEl = document.getElementById('preview-report-running-track');
 
-    const isVisitor = !this.isPrivilegedAdmin(this.currentUser);
+    const isVisitor = this.isAuditorUser(this.currentUser) || !this.hasAuthority('manage_schedule', this.currentUser);
     let reports = window.FMCUData.getReports().filter((r) => r && r.id && r.storeCode);
     if (isVisitor) {
       reports = reports.filter((r) => this.isReportOwnedByUser(r, this.currentUser));
@@ -13371,6 +13417,82 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     { id: 'LAINNYA', label: 'Lainnya', icon: 'fa-solid fa-ellipsis', isVisit: false }
   ],
 
+  _agendaClipboard: null,
+
+  copyWeeklyDayAgenda(auditorId, dayIndex) {
+    this.ensureWeeklyPlannerInitialized();
+    const items = this.getWeeklySlotItems(auditorId, dayIndex);
+    const fiveDays = this.getFiveWorkDays(this.weeklyMondayDate);
+    const dayObj = fiveDays[dayIndex] || { dayName: `Hari ${dayIndex + 1}` };
+    const user = this.getSchedulableAuditors().find((x) => x.id === auditorId);
+    const userName = user ? user.name : 'Karyawan';
+
+    let itemsToCopy = [];
+    if (Array.isArray(items) && items.length > 0) {
+      itemsToCopy = JSON.parse(JSON.stringify(items));
+    } else {
+      const targetDateStr = dayObj.dateStr;
+      const schedules = window.FMCUData ? window.FMCUData.getSchedules() : [];
+      const existing = schedules.filter((s) => s.scheduledDate === targetDateStr && this.isScheduleOwnedByUser(s, user));
+      if (existing.length > 0) {
+        itemsToCopy = existing.map((s) => {
+          const isCuti = s.isCuti || s.storeCode === 'CUTI';
+          const isOff = s.isOff || s.storeCode === 'OFF';
+          const isAgenda = s.isAgenda || s.storeCode === 'AGENDA';
+          return {
+            storeCode: s.storeCode,
+            storeName: s.storeName,
+            shiftWindow: s.shiftWindow || s.window || '08:30 - 17:30',
+            priority: s.priority || 'NORMAL',
+            agendaCategory: s.agendaCategory || (isCuti ? 'CUTI' : isOff ? 'OFF' : isAgenda ? 'AGENDA' : 'VISIT STORE'),
+            notes: s.notes || '',
+            isCuti: isCuti,
+            isOff: isOff,
+            isAgenda: isAgenda,
+            isNso: s.isNso || String(s.agendaCategory || '').includes('NSO'),
+            agendaLocation: s.agendaLocation || ''
+          };
+        });
+      }
+    }
+
+    if (itemsToCopy.length === 0) {
+      this.showToast(`Tidak ada agenda di ${dayObj.dayName} (${userName}) untuk disalin.`, 'warning');
+      return;
+    }
+
+    this._agendaClipboard = {
+      sourceUser: userName,
+      sourceDay: dayObj.dayName,
+      sourceDate: dayObj.shortDate,
+      items: itemsToCopy
+    };
+
+    this.renderWeeklySchedulePlanner();
+    this.showToast(`Agenda ${dayObj.dayName} (${itemsToCopy.length} agenda) berhasil disalin! Klik tombol 'Tempel' di hari tujuan.`, 'success');
+  },
+
+  pasteWeeklyDayAgenda(targetAuditorId, targetDayIndex) {
+    this.ensureWeeklyPlannerInitialized();
+    if (!this._agendaClipboard || !Array.isArray(this._agendaClipboard.items) || this._agendaClipboard.items.length === 0) {
+      this.showToast('Belum ada agenda yang disalin. Klik tombol Salin (Copy) terlebih dahulu pada hari yang memiliki agenda.', 'warning');
+      return;
+    }
+
+    const fiveDays = this.getFiveWorkDays(this.weeklyMondayDate);
+    const targetDayObj = fiveDays[targetDayIndex] || { dayName: `Hari ${targetDayIndex + 1}` };
+    const targetUser = this.getSchedulableAuditors().find((x) => x.id === targetAuditorId);
+    const targetUserName = targetUser ? targetUser.name : 'Karyawan';
+
+    const slotKey = this.getWeeklySlotKey(targetAuditorId, targetDayIndex);
+    const copiedItems = JSON.parse(JSON.stringify(this._agendaClipboard.items));
+
+    this.weeklyDraftMatrix[slotKey] = copiedItems;
+
+    this.renderWeeklySchedulePlanner();
+    this.showToast(`Berhasil menempel ${copiedItems.length} agenda dari ${this._agendaClipboard.sourceDay} ke ${targetDayObj.dayName} (${targetUserName})!`, 'success');
+  },
+
   openManualAgendaModal(auditorId, dayIndex) {
     this.ensureWeeklyPlannerInitialized();
     const modal = document.getElementById('modal-manual-agenda');
@@ -13383,7 +13505,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     this.agendaModalState = {
       auditorId,
       dayIndex: Number(dayIndex),
-      selectedCategories: ['VISIT_STORE'],
+      selectedCategories: [], // Default unselected sesuai permintaan user
       selectedStores: []
     };
 
@@ -13430,9 +13552,12 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     const badge = document.getElementById('agenda-category-selected-badge');
     if (!container) return;
 
-    const selected = this.agendaModalState.selectedCategories || ['VISIT_STORE'];
+    const selected = this.agendaModalState.selectedCategories || [];
     if (badge) {
-      badge.textContent = `${selected.length} Terpilih`;
+      badge.textContent = selected.length === 0 ? 'Belum Dipilih' : `${selected.length} Terpilih`;
+      badge.className = selected.length === 0
+        ? 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500'
+        : 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800';
     }
 
     container.innerHTML = this.agendaCategoryDefinitions
@@ -13458,50 +13583,95 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       })
       .join('');
 
-    // Toggle container toko dan container lokasi sesuai kategori aktif
-    const hasVisit = selected.includes('VISIT_STORE') || selected.includes('NSO');
-    const hasNonVisit = selected.some((c) => !['VISIT_STORE', 'NSO'].includes(c));
+    const hasVisitStore = selected.includes('VISIT_STORE');
+    const isCuti = selected.includes('CUTI');
+    const isOff = selected.includes('OFF');
+    const isCutiOrOff = isCuti || isOff;
+    const hasNso = selected.includes('NSO');
+    const hasOtherWork = selected.some((c) => !['VISIT_STORE', 'CUTI', 'OFF'].includes(c));
 
     const storeContainer = document.getElementById('agenda-store-picker-container');
     const locContainer = document.getElementById('agenda-location-container');
+    const timeContainer = document.getElementById('agenda-time-container');
 
+    // 1. Data Master Toko HANYA muncul jika VISIT_STORE dipilih.
+    // Jika admin memilih NSO, data master toko TIDAK MUNCUL sesuai permintaan user!
     if (storeContainer) {
-      if (hasVisit) {
+      if (hasVisitStore) {
         storeContainer.classList.remove('hidden');
       } else {
         storeContainer.classList.add('hidden');
       }
     }
 
+    // 2. Lokasi Kegiatan: Sembunyi jika CUTI atau OFF atau belum ada kategori yang dipilih,
+    // atau jika hanya Visit Store murni. Tampil jika NSO atau kegiatan kantor/meeting lainnya dipilih.
     if (locContainer) {
-      if (hasNonVisit || !hasVisit) {
-        locContainer.classList.remove('hidden');
-      } else {
+      if (isCutiOrOff || selected.length === 0 || (hasVisitStore && !hasOtherWork && !hasNso)) {
         locContainer.classList.add('hidden');
+      } else {
+        locContainer.classList.remove('hidden');
       }
     }
 
+    // 3. Jam Kerja (IN & OUT): Sembunyi jika CUTI atau OFF, atau jika belum ada kategori yang dipilih.
+    // Tampil untuk semua aktivitas kerja (Visit Store, NSO, Office Duty, Meeting, dll).
+    if (timeContainer) {
+      if (isCutiOrOff || selected.length === 0) {
+        timeContainer.classList.add('hidden');
+      } else {
+        timeContainer.classList.remove('hidden');
+      }
+    }
+
+    // 4. Update judul otomatis
     const titleInput = document.getElementById('agenda-title-input');
     if (titleInput && (!titleInput.value || titleInput.dataset.autoGenerated === 'true')) {
-      const catLabels = selected
-        .map((id) => this.agendaCategoryDefinitions.find((x) => x.id === id)?.label || id)
-        .join(', ');
-      titleInput.placeholder = catLabels || 'Agenda Kegiatan';
-      titleInput.dataset.autoGenerated = 'true';
+      if (isCuti) {
+        titleInput.value = 'Cuti Tahunan';
+        titleInput.dataset.autoGenerated = 'true';
+      } else if (isOff) {
+        titleInput.value = 'Hari OFF';
+        titleInput.dataset.autoGenerated = 'true';
+      } else if (hasNso && selected.length === 1) {
+        titleInput.value = 'Agenda NSO (New Store Opening)';
+        titleInput.dataset.autoGenerated = 'true';
+      } else if (selected.length > 0) {
+        const catLabels = selected
+          .map((id) => this.agendaCategoryDefinitions.find((x) => x.id === id)?.label || id)
+          .join(', ');
+        titleInput.placeholder = catLabels || 'Agenda Kegiatan';
+        titleInput.value = '';
+        titleInput.dataset.autoGenerated = 'true';
+      } else {
+        titleInput.placeholder = 'Pilih kategori kegiatan di atas...';
+        titleInput.value = '';
+        titleInput.dataset.autoGenerated = 'true';
+      }
     }
   },
 
   toggleAgendaCategory(catId) {
     let selected = [...(this.agendaModalState.selectedCategories || [])];
-    if (selected.includes(catId)) {
-      if (selected.length > 1) {
-        selected = selected.filter((c) => c !== catId);
+    if (catId === 'CUTI') {
+      if (selected.includes('CUTI')) {
+        selected = [];
       } else {
-        this.showToast('Minimal satu kategori harus dipilih.', 'warning');
-        return;
+        selected = ['CUTI'];
+      }
+    } else if (catId === 'OFF') {
+      if (selected.includes('OFF')) {
+        selected = [];
+      } else {
+        selected = ['OFF'];
       }
     } else {
-      selected.push(catId);
+      selected = selected.filter((c) => c !== 'CUTI' && c !== 'OFF');
+      if (selected.includes(catId)) {
+        selected = selected.filter((c) => c !== catId);
+      } else {
+        selected.push(catId);
+      }
     }
     this.agendaModalState.selectedCategories = selected;
     this.renderAgendaCategoryChips();
@@ -13671,56 +13841,92 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     const notes = (document.getElementById('agenda-notes-input')?.value || '').trim();
     const rawTitle = (document.getElementById('agenda-title-input')?.value || '').trim();
 
-    const selectedCategories = this.agendaModalState.selectedCategories || ['VISIT_STORE'];
-    const hasVisit = selectedCategories.includes('VISIT_STORE') || selectedCategories.includes('NSO');
+    const selectedCategories = this.agendaModalState.selectedCategories || [];
+    if (selectedCategories.length === 0) {
+      this.showToast('Silakan pilih minimal 1 Kategori Kegiatan terlebih dahulu.', 'warning');
+      return;
+    }
+
+    const hasVisitStore = selectedCategories.includes('VISIT_STORE');
+    const isCuti = selectedCategories.includes('CUTI');
+    const isOff = selectedCategories.includes('OFF');
+    const hasNso = selectedCategories.includes('NSO');
     const selectedStores = this.agendaModalState.selectedStores || [];
 
-    if (hasVisit && selectedStores.length === 0) {
-      this.showToast('Pilih minimal 1 Toko dari Master Toko untuk kategori Visit / NSO.', 'warning');
+    if (hasVisitStore && selectedStores.length === 0) {
+      this.showToast('Pilih minimal 1 Toko dari Master Toko untuk kategori Visit Store.', 'warning');
       return;
     }
 
     const slotKey = this.getWeeklySlotKey(auditorId, dayIndex);
     const newItems = [];
 
-    // Tambahkan toko-toko terpilih
-    if (hasVisit && selectedStores.length > 0) {
-      selectedStores.forEach((st) => {
-        newItems.push({
-          storeCode: st.code,
-          storeName: st.name,
-          shiftWindow: windowTime,
-          priority: 'NORMAL',
-          agendaCategory: selectedCategories.includes('NSO') ? 'NSO' : 'VISIT STORE',
-          notes: notes,
-          isNso: selectedCategories.includes('NSO'),
-          agendaLocation: st.name
-        });
-      });
-    }
-
-    // Tambahkan agenda non-visit jika dipilih
-    const nonVisitCats = selectedCategories.filter((c) => !['VISIT_STORE', 'NSO'].includes(c));
-    if (nonVisitCats.length > 0 || !hasVisit) {
-      const isCuti = nonVisitCats.includes('CUTI');
-      const isOff = nonVisitCats.includes('OFF');
-      const catNames = nonVisitCats.join(', ') || 'AGENDA';
-      const defaultTitle = isCuti ? 'Cuti Tahunan' : isOff ? 'Hari OFF' : catNames;
-      const title = rawTitle || defaultTitle;
-
+    // 1. Jika CUTI atau OFF: lokasi kegiatan dan jam kerja tidak muncul/tidak dipakai
+    if (isCuti || isOff) {
       newItems.push({
-        storeCode: isCuti ? 'CUTI' : isOff ? 'OFF' : 'AGENDA',
-        storeName: this.sanitizeMojibake(title),
-        agendaCategory: isCuti ? 'CUTI' : isOff ? 'OFF' : catNames,
-        shiftWindow: windowTime,
-        agendaLocation: loc,
+        storeCode: isCuti ? 'CUTI' : 'OFF',
+        storeName: this.sanitizeMojibake(rawTitle || (isCuti ? 'Cuti Tahunan' : 'Hari OFF')),
+        agendaCategory: isCuti ? 'CUTI' : 'OFF',
+        shiftWindow: '-',
+        agendaLocation: '-',
         notes: notes,
         isCuti: isCuti,
         isOff: isOff,
         isAgenda: true,
-        isStatusBadge: isCuti || isOff,
+        isStatusBadge: true,
         priority: 'NORMAL'
       });
+    } else {
+      // 2. Tambahkan Visit Store dari Master Toko jika dipilih
+      if (hasVisitStore && selectedStores.length > 0) {
+        selectedStores.forEach((st) => {
+          newItems.push({
+            storeCode: st.code,
+            storeName: st.name,
+            shiftWindow: windowTime,
+            priority: 'NORMAL',
+            agendaCategory: 'VISIT STORE',
+            notes: notes,
+            agendaLocation: st.name
+          });
+        });
+      }
+
+      // 3. Tambahkan NSO (tanpa master toko) jika dipilih
+      if (hasNso) {
+        newItems.push({
+          storeCode: 'NSO',
+          storeName: this.sanitizeMojibake(rawTitle || 'Agenda NSO (New Store Opening)'),
+          agendaCategory: 'NSO',
+          shiftWindow: windowTime,
+          agendaLocation: loc,
+          notes: notes,
+          isNso: true,
+          isAgenda: true,
+          priority: 'NORMAL'
+        });
+      }
+
+      // 4. Tambahkan agenda non-visit lainnya jika dipilih (Office Duty, Meeting, Training, dll)
+      const otherNonVisits = selectedCategories.filter((c) => !['VISIT_STORE', 'NSO', 'CUTI', 'OFF'].includes(c));
+      if (otherNonVisits.length > 0) {
+        const catLabels = otherNonVisits
+          .map((id) => this.agendaCategoryDefinitions.find((x) => x.id === id)?.label || id)
+          .join(', ');
+        const defaultTitle = catLabels || 'Agenda Kegiatan';
+        const title = (hasVisitStore || hasNso) ? catLabels : (rawTitle || defaultTitle);
+
+        newItems.push({
+          storeCode: 'AGENDA',
+          storeName: this.sanitizeMojibake(title),
+          agendaCategory: catLabels,
+          shiftWindow: windowTime,
+          agendaLocation: loc,
+          notes: notes,
+          isAgenda: true,
+          priority: 'NORMAL'
+        });
+      }
     }
 
     // Set draft items ke slot
@@ -14578,23 +14784,50 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                   }"
                 >
                   <div class="space-y-2">
-                    <!-- Day Header -->
-                    <div class="flex items-center justify-between border-b border-slate-200/80 pb-1.5">
-                      <div>
+                    <!-- Day Header with Copy & Paste Controls -->
+                    <div class="flex items-center justify-between border-b border-slate-200/80 pb-1.5 gap-1">
+                      <div class="min-w-0">
                         <span class="text-[11px] font-extrabold tracking-wider ${
                           isSlotActive ? 'text-[#009944]' : 'text-slate-800'
                         }">${dayObj.dayName}</span>
                         <div class="text-[10px] font-semibold text-slate-500">${dayObj.shortDate}</div>
                       </div>
-                      <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold ${
-                        isSlotActive
-                          ? 'bg-[#009944] text-white'
-                          : draftItems.length > 0
-                          ? 'bg-teal-100 text-teal-800'
-                          : 'bg-slate-200/70 text-slate-600'
-                      }">
-                        ${isSlotActive ? '🎯 Aktif' : `${draftItems.length} Toko`}
-                      </span>
+                      <div class="flex items-center gap-1 shrink-0">
+                        <!-- Tombol Copy Agenda -->
+                        <button
+                          type="button"
+                          onclick="event.stopPropagation(); FMCUApp.copyWeeklyDayAgenda('${u.id}', ${dayObj.dayIndex})"
+                          class="w-6 h-6 rounded-lg bg-white hover:bg-slate-100 text-slate-600 hover:text-emerald-700 border border-slate-200 flex items-center justify-center transition cursor-pointer shadow-2xs text-[10px] active:scale-95"
+                          title="Salin agenda hari ${dayObj.dayName}"
+                          aria-label="Salin agenda ${dayObj.dayName}"
+                        >
+                          <i class="fa-solid fa-copy"></i>
+                        </button>
+                        <!-- Tombol Paste Agenda -->
+                        <button
+                          type="button"
+                          onclick="event.stopPropagation(); FMCUApp.pasteWeeklyDayAgenda('${u.id}', ${dayObj.dayIndex})"
+                          class="w-6 h-6 rounded-lg flex items-center justify-center transition cursor-pointer shadow-2xs text-[10px] active:scale-95 ${
+                            Boolean(this._agendaClipboard && Array.isArray(this._agendaClipboard.items) && this._agendaClipboard.items.length > 0)
+                              ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 ring-1 ring-emerald-400/50'
+                              : 'bg-white hover:bg-slate-100 text-slate-400 border border-slate-200'
+                          }"
+                          title="${Boolean(this._agendaClipboard && Array.isArray(this._agendaClipboard.items) && this._agendaClipboard.items.length > 0) ? `Tempel agenda dari ${this._agendaClipboard.sourceDay} (${this._agendaClipboard.items.length} agenda)` : 'Tempel agenda (salin terlebih dahulu)'}"
+                          aria-label="Tempel agenda ${dayObj.dayName}"
+                        >
+                          <i class="fa-solid fa-paste"></i>
+                        </button>
+                        <!-- Badge Jumlah Toko / Status Aktif -->
+                        <span class="px-1.5 py-0.5 rounded-full text-[9px] font-extrabold ${
+                          isSlotActive
+                            ? 'bg-[#009944] text-white'
+                            : draftItems.length > 0
+                            ? 'bg-teal-100 text-teal-800'
+                            : 'bg-slate-200/70 text-slate-600'
+                        }">
+                          ${isSlotActive ? '🎯' : `${draftItems.length}`}
+                        </span>
+                      </div>
                     </div>
 
                     <!-- Already Saved Schedules on this date -->

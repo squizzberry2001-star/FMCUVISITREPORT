@@ -2115,23 +2115,30 @@ window.FMCUData = {
       const isSuper = u.role === 'SUPER_ADMIN' || u.username === 'admin' || normName.includes('admin fmcu');
       const isScheduleAdmin = !isSuper && (u.role === 'ADMIN_SCHEDULE' || (u.jabatan && /admin jadwal|regional manager|area manager/i.test(u.jabatan)));
 
-      let finalAuths = Array.isArray(u.authorities) ? [...u.authorities] : null;
+      let finalAuths = null;
       if (isSuper) {
         finalAuths = [
           'view_home', 'view_analytics', 'create_visit', 'export_pdf',
           'live_checkin', 'manage_schedule', 'manage_stores', 'manage_users', 'manage_integrations', 'view_live_maps'
         ];
-      } else if (!finalAuths) {
-        if (isScheduleAdmin) {
-          finalAuths = [
-            'view_home', 'view_analytics', 'create_visit', 'export_pdf',
-            'manage_schedule', 'manage_stores', 'view_live_maps'
-          ];
-        } else {
-          finalAuths = [
-            'view_home', 'view_analytics', 'create_visit', 'export_pdf'
-          ];
-        }
+      } else if (isScheduleAdmin) {
+        const allowedScheduleAdmin = new Set([
+          'view_home', 'view_analytics', 'create_visit', 'export_pdf',
+          'manage_schedule', 'manage_stores', 'view_live_maps'
+        ]);
+        finalAuths = Array.isArray(u.authorities)
+          ? u.authorities.filter((a) => allowedScheduleAdmin.has(a))
+          : Array.from(allowedScheduleAdmin);
+        if (finalAuths.length === 0) finalAuths = Array.from(allowedScheduleAdmin);
+      } else {
+        // VISITOR / REGIONAL BESTIE: HANYA BOLEH AKSES VISITOR (TIDAK BOLEH MEMILIKI AKSES ADMIN APAPUN)
+        const allowedVisitor = new Set([
+          'view_home', 'view_analytics', 'create_visit', 'export_pdf'
+        ]);
+        finalAuths = Array.isArray(u.authorities)
+          ? u.authorities.filter((a) => allowedVisitor.has(a))
+          : Array.from(allowedVisitor);
+        if (finalAuths.length === 0) finalAuths = Array.from(allowedVisitor);
       }
 
       return {
