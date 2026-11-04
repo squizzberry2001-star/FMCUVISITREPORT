@@ -26,7 +26,7 @@ window.FMCUApp = {
       .replace(/\u00e2\u0161\u00a1|âš¡/g, '⚡')
       .replace(/\u00e2\u0153\u00a8|âœ¨/g, '✨')
       .replace(/\u00e2\u0153\u2026|âœ…/g, '✅')
-      .replace(/\u00e2\u0152\u02dc|â Œ/g, '❌')
+      .replace(/\u00e2\u0152\u02dc|❌/g, '❌')
       .replace(/\u00e2\u0153\u2014|âœ—/g, '✗')
       .replace(/\u00e2\u0153\u2022|âœ•/g, '✕')
       .replace(/\u00e2\u0153\u00a6|âœ¦/g, '✦')
@@ -3467,7 +3467,7 @@ window.FMCUApp = {
             <div class="flex items-center justify-between">
               <span class="text-slate-400">Status GPS:</span>
               <span class="font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[10px]">
-                â— Live GPS Aktif
+                ● Live GPS Aktif
               </span>
             </div>
             ${
@@ -3922,7 +3922,7 @@ window.FMCUApp = {
       radarPill.style.background = 'rgba(136, 19, 55, 0.6)';
       radarPill.style.borderColor = 'rgba(251, 113, 133, 0.5)';
       if (titleEl) {
-        titleEl.textContent = 'â›” Di Luar Radius Toko (> 50m)';
+        titleEl.textContent = '⛔ Di Luar Radius Toko (> 50m)';
         titleEl.style.color = '#fecdd3';
       }
       if (descEl) {
@@ -3936,7 +3936,7 @@ window.FMCUApp = {
       radarPill.style.background = 'rgba(120, 53, 15, 0.65)';
       radarPill.style.borderColor = 'rgba(251, 191, 36, 0.5)';
       if (titleEl) {
-        titleEl.textContent = 'â›” Di Luar Radius Toko (> 50m)';
+        titleEl.textContent = '⛔ Di Luar Radius Toko (> 50m)';
         titleEl.style.color = '#fde68a';
       }
       if (descEl) {
@@ -4235,8 +4235,8 @@ window.FMCUApp = {
     this.triggerHaptic('warning');
     const isVisitor = this.isAuditorUser(this.currentUser) || !this.hasAuthority('manage_schedule');
     const warningMsg = isVisitor
-      ? `â›” Akses Ditolak: Anda tidak memiliki jadwal visit yang ditugaskan untuk hari ini (${todayFormatted}). Form visit tidak dapat dibuka karena tidak ada jadwal kunjungan aktif di hari aktual.`
-      : `â›” Tidak Ada Jadwal Hari Ini: Tidak ada jadwal visit untuk tanggal aktual (${todayFormatted}). Silakan atur atau tambahkan jadwal terlebih dahulu di menu Jadwal Visit.`;
+      ? `⛔ Akses Ditolak: Anda tidak memiliki jadwal visit yang ditugaskan untuk hari ini (${todayFormatted}). Form visit tidak dapat dibuka karena tidak ada jadwal kunjungan aktif di hari aktual.`
+      : `⛔ Tidak Ada Jadwal Hari Ini: Tidak ada jadwal visit untuk tanggal aktual (${todayFormatted}). Silakan atur atau tambahkan jadwal terlebih dahulu di menu Jadwal Visit.`;
     this.showToast(warningMsg, 'warning', 6000);
     this.switchHomeSubSection('schedule');
   },
@@ -4372,7 +4372,7 @@ window.FMCUApp = {
       const schDateFormatted = window.FMCUPdf.formatIndonesianDate(sch.scheduledDate, true);
       const todayFormatted = window.FMCUPdf.formatIndonesianDate(todayStr, true);
       this.showToast(
-        `â›” Akses Ditolak: Jadwal visit ke FamilyMart ${sch.storeName || ''} terjadwal untuk ${schDateFormatted}. Form visit hanya dapat dibuka pada hari aktual kunjungan (Hari ini: ${todayFormatted}).`,
+        `⛔ Akses Ditolak: Jadwal visit ke FamilyMart ${sch.storeName || ''} terjadwal untuk ${schDateFormatted}. Form visit hanya dapat dibuka pada hari aktual kunjungan (Hari ini: ${todayFormatted}).`,
         'warning',
         6000
       );
@@ -4670,7 +4670,7 @@ window.FMCUApp = {
     const todayFormatted = window.FMCUPdf.formatIndonesianDate(todayStr, true);
     const schFormatted = window.FMCUPdf.formatIndonesianDate(scheduledDate, true);
     this.showToast(
-      `â›” Jadwal Terkunci: Jadwal visit ke FamilyMart ${storeName} adalah ${schFormatted}. Anda hanya dapat membuka form visit pada hari aktual (hari ini: ${todayFormatted}).`,
+      `⛔ Jadwal Terkunci: Jadwal visit ke FamilyMart ${storeName} adalah ${schFormatted}. Anda hanya dapat membuka form visit pada hari aktual (hari ini: ${todayFormatted}).`,
       'warning',
       6000
     );
@@ -4826,7 +4826,7 @@ window.FMCUApp = {
                     ? 'bg-slate-200 text-slate-700'
                     : 'bg-amber-100 text-amber-800'
                 }">
-                  ${isDone ? '📁  Arsip • Selesai Visit' : isPast ? '📁  Arsip • Lewat Hari' : 'â³ Menunggu Visit'}
+                  ${isDone ? '📁  Arsip • Selesai Visit' : isPast ? '📁  Arsip • Lewat Hari' : '<i class="fa-regular fa-clock text-amber-600 mr-1"></i>Menunggu Visit'}
                 </span>
                 <span class="text-[11px] font-mono font-bold text-slate-500">Kode: ${s.storeCode} (${s.storeType})</span>
               </div>
@@ -4862,8 +4862,8 @@ window.FMCUApp = {
                   ${
                     repId
                       ? `<button onclick="FMCUApp.editReportById('${repId}')" class="px-2.5 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition cursor-pointer"><i class="fa-solid fa-pen mr-1"></i>Buka Form</button>
-                         <button onclick="FMCUApp.openReportPreview('${repId}')" class="px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition cursor-pointer">Lihat PDF â†’</button>`
-                      : `<button onclick="FMCUApp.openStoreVisitForm('${s.storeCode}', '${s.id}')" class="px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition cursor-pointer">Buka Form â†’</button>`
+                         <button onclick="FMCUApp.openReportPreview('${repId}')" class="px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition cursor-pointer">Lihat PDF →</button>`
+                      : `<button onclick="FMCUApp.openStoreVisitForm('${s.storeCode}', '${s.id}')" class="px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition cursor-pointer">Buka Form →</button>`
                   }
                 </div>
               `
@@ -7862,10 +7862,10 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     // 2. Suhu Chiller / Freezer / Alat Pendingin
     if (text.includes('suhu') || text.includes('chiller') || text.includes('freezer') || text.includes('derajat') || text.includes('dingin') || text.includes('bocor') || cat.includes('suhu')) {
       return {
-        kondisiIdeal: 'Suhu penyimpanan unit pendingin wajib stabil pada standar FamilyMart (Chiller: 2Â°C - 8Â°C, Freezer: -18Â°C s/d -20Â°C) dan tercatat rutin di logbook kontrol.',
+        kondisiIdeal: 'Suhu penyimpanan unit pendingin wajib stabil pada standar FamilyMart (Chiller: 2°C - 8°C, Freezer: -18°C s/d -20°C) dan tercatat rutin di logbook kontrol.',
         dampak: 'Kenaikan suhu menyebabkan kualitas produk chilled/frozen menurun cepat (bakteri berkembang), produk cepat rusak, serta potensi komplain pelanggan.',
         penyebab: 'Pintu chiller sering terbuka lama, kotoran menumpuk di kondensor/evaporator, atau penurunan performa kompresor/termostat pendingin.',
-        tindakanPerbaikan: '1. Bersihkan sirip kondensor dan periksa seal pintu unit dalam 30 menit ke depan.\n2. Pindahkan produk rentan ke unit cadangan jika suhu di luar 2Â°C-8Â°C dalam 1 jam.\n3. Lapor dan buat tiket servis ke tim Maintenance/Teknisi maksimal 1x24 jam.',
+        tindakanPerbaikan: '1. Bersihkan sirip kondensor dan periksa seal pintu unit dalam 30 menit ke depan.\n2. Pindahkan produk rentan ke unit cadangan jika suhu di luar 2°C-8°C dalam 1 jam.\n3. Lapor dan buat tiket servis ke tim Maintenance/Teknisi maksimal 1x24 jam.',
         hasil: 'Akan dimonitoring pada visit berikutnya'
       };
     }
@@ -11850,7 +11850,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       console.error('Excel upload parse error:', err);
       if (statusBox) {
         statusBox.className = 'text-xs font-semibold p-3 rounded-xl bg-rose-50 text-rose-900 border border-rose-200 block';
-        statusBox.innerHTML = `âŒ Gagal membaca file Excel: ${err.message || 'Format kolom tidak sesuai'}`;
+        statusBox.innerHTML = `❌ Gagal membaca file Excel: ${err.message || 'Format kolom tidak sesuai'}`;
       }
       this.showToast('Gagal mengekstrak file Excel: ' + (err.message || ''), 'error');
     } finally {
@@ -16148,7 +16148,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
             ${daySchedules.length > 0 ? `
               <div class="flex items-center gap-0.5">
                 ${completedCount > 0 ? `<span class="text-[9px] font-extrabold px-1 rounded-full bg-emerald-100 text-emerald-800" title="${completedCount} Selesai">✓${completedCount}</span>` : ''}
-                ${pendingCount > 0 ? `<span class="text-[9px] font-extrabold px-1 rounded-full bg-amber-100 text-amber-800" title="${pendingCount} Pending">â³${pendingCount}</span>` : ''}
+                ${pendingCount > 0 ? `<span class="text-[9px] font-extrabold px-1 rounded-full bg-amber-100 text-amber-800" title="${pendingCount} Pending"><i class="fa-regular fa-clock text-[8px] mr-0.5"></i>${pendingCount}</span>` : ''}
               </div>
             ` : ''}
           </div>
@@ -16278,7 +16278,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
               <div>
                 <div class="flex items-center gap-2 flex-wrap">
                   <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${isDone ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
-                    ${isDone ? '✓ Selesai' : 'â³ Terjadwal'}
+                    ${isDone ? '<i class="fa-solid fa-circle-check text-emerald-700 mr-1"></i>Selesai' : '<i class="fa-regular fa-clock text-amber-700 mr-1"></i>Terjadwal'}
                   </span>
                   <span class="text-xs font-black text-slate-900">${s.storeName} (${s.storeCode})</span>
                   ${this.renderStoreVisitBadgeHtml(s.storeCode)}
@@ -16587,7 +16587,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       console.error('User Excel upload parse error:', err);
       if (statusBox) {
         statusBox.className = 'text-xs font-semibold p-3 rounded-xl bg-rose-50 text-rose-900 border border-rose-200 block';
-        statusBox.innerHTML = `âŒ Gagal membaca file Excel: ${err.message || 'Pastikan terdapat kolom Nama, NIK, JABATAN'}`;
+        statusBox.innerHTML = `❌ Gagal membaca file Excel: ${err.message || 'Pastikan terdapat kolom Nama, NIK, JABATAN'}`;
       }
       this.showToast('Gagal mengekstrak file Excel User: ' + (err.message || ''), 'error');
     } finally {
@@ -16812,7 +16812,7 @@ var DEFAULT_PHOTO_GDRIVE_ID = "1_gbA_kJnUFMHWeXQyYKR7GS7m5gqqE0B"; // Folder Bar
 
 /**
  * UJI KONEKTIVITAS & OTORISASI DRIVEAPP
- * Jalankan fungsi ini langsung di editor Apps Script (pilih fungsi 'testConnection' lalu klik 'â–· Jalankan')
+ * Jalankan fungsi ini langsung di editor Apps Script (pilih fungsi 'testConnection' lalu klik '▷ Jalankan')
  * untuk memicu pop-up Otorisasi Izin Google Drive dan memeriksa apakah akun Anda sudah diberi hak akses ke folder.
  */
 function testConnection() {
@@ -17380,7 +17380,7 @@ function getOrCreateSubFolder_(parentFolder, subFolderName) {
 
 /**
  * FUNGSI PEMBERSIH SPAM FOLDER TOKO DI ROOT GOOGLE DRIVE
- * Jalankan fungsi ini langsung di editor Apps Script (pilih fungsi 'bersihkanFolderSpamDiRoot' lalu klik 'â–· Jalankan')
+ * Jalankan fungsi ini langsung di editor Apps Script (pilih fungsi 'bersihkanFolderSpamDiRoot' lalu klik '▷ Jalankan')
  * untuk langsung menyapu dan memindahkan folder toko (seperti "0064 - MENTENG SQUARE...") yang tercecer di root "05. VISIT STORE".
  */
 function bersihkanFolderSpamDiRoot() {
@@ -19592,14 +19592,14 @@ SKEMA JSON WAJIB:
     {
       "id": "fryer",
       "name": "Dimasak di Fryer",
-      "machineTemp": "165Â°C",
+      "machineTemp": "165°C",
       "icon": "fa-fire-burner",
       "items": [
         {
           "name": "Chicken Parting",
           "thawing": "1 hari (Chiller)",
           "shelfLife": "36 jam (Chiller)",
-          "cooking": "12 menit (165Â°C)",
+          "cooking": "12 menit (165°C)",
           "holding": "4 jam atau closing dibuang (mana yang tercapai lebih dulu)",
           "storage": "Showcase Warmer"
         }

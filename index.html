@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1800110000000" as="style" />
-  <link rel="preload" href="css/styles.css?v=1800110000000" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1800120000000" as="style" />
+  <link rel="preload" href="css/styles.css?v=1800120000000" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1800110000000" />
-  <link rel="stylesheet" href="css/styles.css?v=1800110000000" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1800120000000" />
+  <link rel="stylesheet" href="css/styles.css?v=1800120000000" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -529,7 +529,7 @@
         </div>
         <div id="sidebar-checkin-store" class="font-extrabold text-xs text-slate-900 mt-1 truncate">-</div>
         <button type="button" onclick="FMCUApp.navigate('form')" class="mt-2 w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-lg transition cursor-pointer">
-          Buka Form Toko Ini â†’
+          Buka Form Toko Ini →
         </button>
       </div>
 
@@ -3131,7 +3131,7 @@ service cloud.firestore {
                     <span>Bagaimana AI T.A.R.O Menggunakan Standar Ini?</span>
                   </div>
                   <p class="leading-relaxed text-[11px] text-slate-600">
-                    Setiap kali visitor mengisi temuan pada kategori <strong>Food Safety</strong>, <strong>Suhu Chiller</strong>, <strong>Hot Snack</strong>, atau <strong>FEFO</strong>, AI T.A.R.O secara otomatis membandingkan temuan dengan batas holding time resmi di bawah ini (contoh: Chicken Parting maksimal 4 jam di Showcase Warmer, Oden 10 jam di 60Â°C, Biang Teh wajib dibuang saat closing, sisa Fresh Milk closing maks 24 jam di chiller).
+                    Setiap kali visitor mengisi temuan pada kategori <strong>Food Safety</strong>, <strong>Suhu Chiller</strong>, <strong>Hot Snack</strong>, atau <strong>FEFO</strong>, AI T.A.R.O secara otomatis membandingkan temuan dengan batas holding time resmi di bawah ini (contoh: Chicken Parting maksimal 4 jam di Showcase Warmer, Oden 10 jam di 60°C, Biang Teh wajib dibuang saat closing, sisa Fresh Milk closing maks 24 jam di chiller).
                   </p>
                 </div>
 
@@ -3196,11 +3196,11 @@ service cloud.firestore {
                   <label class="text-xs font-bold text-slate-600 shrink-0">Kategori:</label>
                   <select id="adm-holding-category-filter" onchange="FMCUApp.renderAdminHoldingProductsTable()" class="fm-select text-xs py-1.5" aria-label="Adm Holding Category Filter">
                     <option value="ALL">Semua Kategori (9)</option>
-                    <option value="fryer">Dimasak di Fryer (165Â°C)</option>
-                    <option value="steamer">Dimasak di Steamer (60Â°C)</option>
-                    <option value="sosis">Dimasak di Mesin Sosis (200Â°C)</option>
+                    <option value="fryer">Dimasak di Fryer (165°C)</option>
+                    <option value="steamer">Dimasak di Steamer (60°C)</option>
+                    <option value="sosis">Dimasak di Mesin Sosis (200°C)</option>
                     <option value="rice_com">Dimasak di Rice Com</option>
-                    <option value="oden">Dimasak di Mesin Oden (60Â°C)</option>
+                    <option value="oden">Dimasak di Mesin Oden (60°C)</option>
                     <option value="microwave_rte">Ready to Eat (Microwave)</option>
                     <option value="lainnya_cake">Item Lainnya & Cake</option>
                     <option value="dry_condiments">Dry Items & Condiments</option>
@@ -3879,16 +3879,16 @@ service cloud.firestore {
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js" crossorigin="anonymous"></script>
 
   <!-- Core Application Scripts (Fast Startup & Auth Priority) -->
-  <script defer src="js/holding-time-standards.js?v=1800110000000"></script>
-  <script defer src="js/master-stores-seed.js?v=1800110000000"></script>
-  <script defer src="js/bestie-in-charge-seed.js?v=1800110000000"></script>
-  <script defer src="js/data.js?v=1800110000000"></script>
-  <script defer src="js/pdf-generator.js?v=1800110000000"></script>
-  <script defer src="js/app.js?v=1800110000000"></script>
+  <script defer src="js/holding-time-standards.js?v=1800120000000"></script>
+  <script defer src="js/master-stores-seed.js?v=1800120000000"></script>
+  <script defer src="js/bestie-in-charge-seed.js?v=1800120000000"></script>
+  <script defer src="js/data.js?v=1800120000000"></script>
+  <script defer src="js/pdf-generator.js?v=1800120000000"></script>
+  <script defer src="js/app.js?v=1800120000000"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1800110000000"></script>
+  <script async src="js/pdf-assets.js?v=1800120000000"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================
@@ -3978,11 +3978,11 @@ service cloud.firestore {
         <div>
           <label class="block font-bold text-slate-700 mb-1">Kategori Mesin / Produk *</label>
           <select id="edit-holding-category" class="fm-select text-xs w-full" required aria-label="Edit Holding Category">
-            <option value="fryer">Dimasak di Fryer (165Â°C)</option>
-            <option value="steamer">Dimasak di Steamer (60Â°C)</option>
-            <option value="sosis">Dimasak di Mesin Sosis (200Â°C)</option>
+            <option value="fryer">Dimasak di Fryer (165°C)</option>
+            <option value="steamer">Dimasak di Steamer (60°C)</option>
+            <option value="sosis">Dimasak di Mesin Sosis (200°C)</option>
             <option value="rice_com">Dimasak di Rice Com</option>
-            <option value="oden">Dimasak di Mesin Oden (60Â°C)</option>
+            <option value="oden">Dimasak di Mesin Oden (60°C)</option>
             <option value="microwave_rte">Ready to Eat (Microwave)</option>
             <option value="lainnya_cake">Item Lainnya & Cake</option>
             <option value="dry_condiments">Dry Items & Condiments</option>
@@ -4009,7 +4009,7 @@ service cloud.firestore {
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block font-bold text-slate-700 mb-1">Suhu & Pemanasan</label>
-            <input type="text" id="edit-holding-cooking" placeholder="Contoh: 12 menit (165Â°C)" class="fm-input text-xs" aria-label="Contoh: 12 menit (165Â°C)" />
+            <input type="text" id="edit-holding-cooking" placeholder="Contoh: 12 menit (165°C)" class="fm-input text-xs" aria-label="Contoh: 12 menit (165°C)" />
           </div>
           <div>
             <label class="block font-bold text-slate-700 mb-1">Holding Time (Batas) *</label>
@@ -4737,7 +4737,7 @@ service cloud.firestore {
           <!-- Rotation & Reset Tools (Text Visible on Mobile) -->
           <div class="flex items-center gap-1.5">
             <button type="button" onclick="FMCUApp.rotatePhotoEditor(90)" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="Putar 90 Derajat">
-              <i class="fa-solid fa-rotate-right text-emerald-400"></i><span class="text-[11px] sm:text-xs font-bold">Putar 90Â°</span>
+              <i class="fa-solid fa-rotate-right text-emerald-400"></i><span class="text-[11px] sm:text-xs font-bold">Putar 90°</span>
             </button>
             <button type="button" onclick="FMCUApp.undoPhotoEditorMarker()" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="Undo Marker">
               <i class="fa-solid fa-rotate-left text-amber-400"></i><span class="text-[11px] sm:text-xs font-bold">Undo</span>
