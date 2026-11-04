@@ -10,32 +10,34 @@ window.FMCUApp = {
   sanitizeMojibake(str) {
     if (!str || typeof str !== 'string') return str || '';
     return str
-      .replace(/\u00f0\u0178\u201c\u0152/g, '')
-      .replace(/\u00f0\u0178\u0152\u00b4/g, '')
-      .replace(/\u00f0\u0178\u2019\u00a4/g, '')
-      .replace(/\u00f0\u0178\u008f\u00ac/g, '')
-      .replace(/\u00f0\u0178\u008f\u00a2/g, '')
-      .replace(/ðŸ“Œ|ðŸŒ´|ðŸ’¤|ðŸ ¬|ðŸ ¢/g, '')
-      .replace(/\u00f0\u0178[\u0080-\u024f]{1,3}/g, '')
-      .replace(/\u00f0\u0178/g, '')
-      .replace(/ðŸ/g, '')
-      .replace(/\u00e2\u0153\u201c|âœ“/g, '✓')
-      .replace(/\u00e2\s*\u00b3|\u00e2\u008f\u00b3|â ³/g, '⏳')
-      .replace(/\u00e2\u0161\u00a0\u00ef\u00b8\u008f\s*|âš ï¸\s*/g, '⚠️ ')
-      .replace(/\u00e2\u0161\u00a0|âš /g, '⚠️')
-      .replace(/\u00e2\u0161\u00a1|âš¡/g, '⚡')
-      .replace(/\u00e2\u0153\u00a8|âœ¨/g, '✨')
-      .replace(/\u00e2\u0153\u2026|âœ…/g, '✅')
-      .replace(/\u00e2\u0152\u02dc|❌/g, '❌')
-      .replace(/\u00e2\u0153\u2014|âœ—/g, '✗')
-      .replace(/\u00e2\u0153\u2022|âœ•/g, '✕')
-      .replace(/\u00e2\u0153\u00a6|âœ¦/g, '✦')
-      .replace(/\u00e2\u017d\u2039|âŽ‹/g, '')
-      .replace(/\u00e2\u20ac\u00a2|â€¢/g, '•')
-      .replace(/\u00e2\u20ac\u2013|â€“/g, '-')
-      .replace(/\u00e2\u20ac\u2014|â€”/g, '-')
-      .replace(/\u00e2\u2030\u00a5|â‰¥/g, '≥')
-      .replace(/\u00e2\u00ad\u0090|\u00e2\u00ad|â­/g, '⭐')
+      // Strip 4-byte UTF-8 emoji mojibake (e.g. \u00F0\u009F... or \u00F0\u0178... like 📌, 🌴, 👤, 🏪, 🏢)
+      .replace(/\u00F0[\u0080-\uFFFF]{1,4}/g, '')
+      .replace(/ð[\u0080-\uFFFF]{1,4}/g, '')
+      .replace(/ð[^\x00-\x7F]{1,4}/g, '')
+      // Specific legacy mojibake replacements
+      .replace(/Â³/g, '')
+      .replace(/Â²/g, '')
+      .replace(/Â°C/g, '°C')
+      .replace(/\u00C2\u00B0C/g, '°C')
+      .replace(/Â/g, '')
+      .replace(/\u00C2/g, '')
+      .replace(/â ³/g, '')
+      .replace(/âœ“/g, '✓')
+      .replace(/âš ï¸/g, '⚠️')
+      .replace(/âš /g, '⚠️')
+      .replace(/âš¡/g, '⚡')
+      .replace(/âœ¨/g, '✨')
+      .replace(/âœ…/g, '✅')
+      .replace(/â Œ/g, '❌')
+      .replace(/âœ—/g, '✗')
+      .replace(/âœ•/g, '✕')
+      .replace(/âœ¦/g, '✦')
+      .replace(/âŽ‹/g, '')
+      .replace(/â€¢/g, '•')
+      .replace(/â€“/g, '-')
+      .replace(/â€”/g, '-')
+      .replace(/â‰¥/g, '≥')
+      .replace(/â­/g, '⭐')
       .trim();
   },
 
@@ -2533,20 +2535,20 @@ window.FMCUApp = {
     const headerIcon = document.getElementById('admin-schedule-header-icon');
 
     if (mode === 'create') {
-      if (headerTitle) headerTitle.textContent = 'Setting Jadwal Visit (Planner 1 Week)';
-      if (headerDesc) headerDesc.textContent = 'Susun penugasan toko 1 Minggu (Senin s/d Minggu) untuk Regional Bestie / Visitor';
+      if (headerTitle) headerTitle.textContent = 'Planner 1 Week (Jadwal Kerja & Agenda Tim)';
+      if (headerDesc) headerDesc.textContent = 'Susun penugasan mingguan: visit toko FamilyMart, tugas kantor (office duty), meeting, training, cuti, atau hari libur (off)';
       if (headerIcon) headerIcon.className = 'fa-solid fa-calendar-plus text-[#009944]';
     } else if (mode === 'calendar') {
-      if (headerTitle) headerTitle.textContent = 'Kalender Jadwal Visit';
-      if (headerDesc) headerDesc.textContent = 'Tinjau visualisasi kalender jadwal kunjungan bulanan seluruh tim';
+      if (headerTitle) headerTitle.textContent = 'Kalender Jadwal Kerja & Agenda Operasional';
+      if (headerDesc) headerDesc.textContent = 'Visualisasi kalender terpadu: jadwal visit toko, agenda kantor, cuti, dan hari off seluruh tim';
       if (headerIcon) headerIcon.className = 'fa-solid fa-calendar-days text-amber-600';
     } else if (mode === 'list') {
-      if (headerTitle) headerTitle.textContent = 'Daftar Jadwal Visit';
-      if (headerDesc) headerDesc.textContent = 'Kelola, cari, filter, dan monitoring status jadwal kunjungan toko';
+      if (headerTitle) headerTitle.textContent = 'Daftar Jadwal Kerja & Agenda Tim';
+      if (headerDesc) headerDesc.textContent = 'Kelola, cari, filter, monitoring status, dan ekspor seluruh jadwal visit toko serta agenda kegiatan internal';
       if (headerIcon) headerIcon.className = 'fa-solid fa-list-check text-[#0099A6]';
     } else if (mode === 'history') {
-      if (headerTitle) headerTitle.textContent = 'History Laporan Visit';
-      if (headerDesc) headerDesc.textContent = 'Daftar arsip laporan visit toko yang telah selesai dilaksanakan (diurutkan berdasarkan tanggal terbaru)';
+      if (headerTitle) headerTitle.textContent = 'History Riwayat Kunjungan & Laporan';
+      if (headerDesc) headerDesc.textContent = 'Daftar arsip riwayat visit toko yang telah selesai (diurutkan berdasarkan tanggal terbaru)';
       if (headerIcon) headerIcon.className = 'fa-solid fa-clock-rotate-left text-[#0099A6]';
     }
 
@@ -12039,8 +12041,71 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
           .map(
             (s) => {
               const isChecked = this.selectedScheduleIds.has(String(s.id));
+              const isCuti = s.isCuti || s.storeCode === 'CUTI' || s.status === 'CUTI';
+              const isOff = s.isOff || s.storeCode === 'OFF' || s.status === 'OFF';
+              const isAgenda = s.isAgenda || s.storeCode === 'AGENDA' || s.status === 'AGENDA' || s.storeType === 'NON_STORE';
+              const cleanStoreName = this.sanitizeMojibake(s.storeName || (isCuti ? 'CUTI TAHUNAN' : isOff ? 'HARI LIBUR / OFF' : 'JADWAL'));
+              const cleanAuditorName = this.sanitizeMojibake(s.auditorName || '-');
+              const cleanFocus = this.sanitizeMojibake(s.auditFocus || s.focus || s.notes || '-');
+              const cleanLoc = this.sanitizeMojibake(s.agendaLocation || '');
+
+              let activityHtml = '';
+              if (isCuti) {
+                activityHtml = `
+                  <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
+                    <i class="fa-solid fa-umbrella-beach text-amber-600 text-xs"></i>
+                    <span>CUTI TAHUNAN / KHUSUS</span>
+                  </div>
+                  <div class="text-[10px] text-slate-400 mt-0.5">Non-Visit • Cuti Resmi Terdaftar</div>
+                `;
+              } else if (isOff) {
+                activityHtml = `
+                  <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold bg-indigo-100 text-indigo-900 border border-indigo-300 shadow-2xs">
+                    <i class="fa-solid fa-bed text-indigo-600 text-xs"></i>
+                    <span>HARI LIBUR / OFF</span>
+                  </div>
+                  <div class="text-[10px] text-slate-400 mt-0.5">Non-Visit • Bebas Kunjungan</div>
+                `;
+              } else if (isAgenda) {
+                activityHtml = `
+                  <div class="font-extrabold text-xs text-purple-950 flex items-center gap-1.5 flex-wrap">
+                    <i class="fa-solid fa-thumbtack text-purple-600 text-xs"></i>
+                    <span>${cleanStoreName}</span>
+                    <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-purple-100 text-purple-800 border border-purple-200 uppercase">${s.agendaCategory || 'AGENDA'}</span>
+                  </div>
+                  <div class="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1">
+                    <i class="fa-solid fa-location-dot text-[9px] text-slate-400"></i>
+                    <span>${cleanLoc || 'Head Office / Online'}</span>
+                  </div>
+                `;
+              } else {
+                activityHtml = `
+                  <div class="font-extrabold text-xs text-slate-900 flex items-center gap-1.5 flex-wrap">
+                    <span>FamilyMart ${cleanStoreName}</span>
+                    ${this.renderStoreVisitBadgeHtml(s.storeCode)}
+                  </div>
+                  <div class="text-[10px] font-mono text-slate-400 mt-0.5">Site ${s.storeCode} • ${s.storeType || 'CVS'}</div>
+                `;
+              }
+
+              let statusBadgeClass = 'bg-amber-100 text-amber-800 border-amber-200';
+              let statusLabel = s.status || 'PENDING';
+              if (s.status === 'COMPLETED') {
+                statusBadgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-200';
+                statusLabel = 'SELESAI';
+              } else if (isCuti) {
+                statusBadgeClass = 'bg-amber-100 text-amber-900 border-amber-300';
+                statusLabel = 'CUTI';
+              } else if (isOff) {
+                statusBadgeClass = 'bg-indigo-100 text-indigo-900 border-indigo-300';
+                statusLabel = 'OFF';
+              } else if (isAgenda) {
+                statusBadgeClass = 'bg-purple-100 text-purple-900 border-purple-300';
+                statusLabel = 'AGENDA';
+              }
+
               return `
-              <tr class="hover:bg-slate-50 transition ${isChecked ? 'bg-emerald-50/60' : ''}">
+              <tr class="hover:bg-slate-50/80 transition ${isChecked ? 'bg-emerald-50/60' : ''}">
                 <td class="py-2.5 px-3 text-center">
                   <input
                     type="checkbox"
@@ -12051,53 +12116,47 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                   />
                 </td>
                 <td class="py-2.5 px-3">
-                  <div class="font-bold text-slate-900 leading-tight">${window.FMCUPdf.formatIndonesianDate(s.scheduledDate, true)}</div>
-                  <div class="text-[10px] font-mono text-slate-400 mt-0.5">${s.shiftWindow || s.window || '08:30 - 17:30'}</div>
+                  <div class="font-extrabold text-xs text-slate-900 leading-tight">${window.FMCUPdf.formatIndonesianDate(s.scheduledDate, true)}</div>
+                  <div class="text-[10px] font-mono text-slate-400 mt-0.5">${s.shiftWindow && s.shiftWindow !== '-' ? s.shiftWindow : (isCuti || isOff ? 'Bebas Shift' : '08:30 - 17:30')}</div>
                 </td>
                 <td class="py-2.5 px-3">
-                  <div class="font-bold text-slate-900 flex items-center gap-1.5 flex-wrap">
-                    <span>${s.storeName}</span>
-                    ${this.renderStoreVisitBadgeHtml(s.storeCode)}
-                  </div>
-                  <div class="text-[10px] font-mono text-slate-400 mt-0.5">Site: ${s.storeCode} (${s.storeType || 'CVS'})</div>
+                  ${activityHtml}
                 </td>
                 <td class="py-2.5 px-3">
-                  <div class="font-bold text-slate-800 leading-tight">${s.auditorName}</div>
-                  <div class="text-[10px] text-slate-400 mt-0.5">${s.auditorNik ? '@' + s.auditorNik : ''}</div>
+                  <div class="font-extrabold text-xs text-slate-800 leading-tight">${cleanAuditorName}</div>
+                  <div class="text-[10px] text-slate-400 mt-0.5 font-medium">${s.auditorNik ? '@' + s.auditorNik : ''}</div>
                 </td>
                 <td class="py-2.5 px-3">
-                  <span class="px-2 py-0.5 rounded text-[10px] font-extrabold ${
-                    s.priority === 'HIGH' ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'
+                  <span class="px-2 py-0.2 rounded text-[9.5px] font-extrabold ${
+                    s.priority === 'HIGH' ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-slate-100 text-slate-600'
                   }">${s.priority || 'NORMAL'}</span>
-                  <div class="text-[10px] text-slate-500 mt-0.5 max-w-[150px] truncate" title="${s.auditFocus || s.focus || '-'}">${s.auditFocus || s.focus || '-'}</div>
+                  <div class="text-[10px] text-slate-500 mt-0.5 max-w-[170px] truncate" title="${cleanFocus}">${cleanFocus}</div>
                 </td>
                 <td class="py-2.5 px-3">
-                  <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                    s.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                  }">${s.status}</span>
+                  <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black border uppercase ${statusBadgeClass}">${statusLabel}</span>
                   ${s.actualIn ? `<div class="text-[9.5px] font-mono text-emerald-700 mt-0.5 font-bold">${s.actualIn}${s.actualOut ? ' - ' + s.actualOut : ''}</div>` : ''}
                 </td>
                 <td class="py-2.5 px-3 text-right whitespace-nowrap space-x-1">
                   ${
                     s.status === 'COMPLETED' || s.reportId
-                      ? `<button type="button" onclick="FMCUApp.openReportPreview('${s.reportId || ''}')" class="px-2 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-[10.5px] transition cursor-pointer">Lihat PDF</button>`
-                      : this.isScheduleOwnedByUser(s, this.currentUser)
-                      ? `<button type="button" onclick="FMCUApp.checkInAndOpenForm('${s.storeCode}', '${s.id}')" class="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#009944] border border-emerald-200 font-extrabold text-[10.5px] transition cursor-pointer">Mulai Visit</button>`
+                      ? `<button type="button" onclick="FMCUApp.openReportPreview('${s.reportId || ''}')" class="px-2.5 py-1 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-[10.5px] transition cursor-pointer shadow-2xs">Lihat PDF</button>`
+                      : (!isCuti && !isOff && !isAgenda && this.isScheduleOwnedByUser(s, this.currentUser))
+                      ? `<button type="button" onclick="FMCUApp.checkInAndOpenForm('${s.storeCode}', '${s.id}')" class="px-2.5 py-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#009944] border border-emerald-200 font-extrabold text-[10.5px] transition cursor-pointer shadow-2xs">Mulai Visit</button>`
                       : ''
                   }
                   <button
                     type="button"
                     onclick="FMCUApp.openEditScheduleModal('${s.id}')"
-                    class="px-2 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-extrabold text-[10.5px] transition cursor-pointer inline-flex items-center gap-1 shadow-2xs"
+                    class="px-2.5 py-1 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-extrabold text-[10.5px] transition cursor-pointer inline-flex items-center gap-1 shadow-2xs"
                     title="Sunting Jadwal Ini"
                   >
                     <i class="fa-solid fa-pencil text-[9.5px]"></i>
-                    <span>Edit</span>
+                    <span>Sunting</span>
                   </button>
                   <button
                     type="button"
                     onclick="FMCUApp.promptDeleteSchedule('${s.id}')"
-                    class="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-extrabold text-[10.5px] transition cursor-pointer inline-flex items-center gap-1 shadow-2xs"
+                    class="px-2.5 py-1 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-extrabold text-[10.5px] transition cursor-pointer inline-flex items-center gap-1 shadow-2xs"
                     title="Hapus Jadwal Ini"
                   >
                     <i class="fa-solid fa-trash-can text-[9.5px]"></i>
@@ -12915,6 +12974,118 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     this.showToast(`Status hari berhasil disetel ke ${cleanStatus}.`, 'info');
   },
 
+  assignQuickPresetToWeeklySlot(auditorId, dayIndex, presetType) {
+    this.ensureWeeklyPlannerInitialized();
+    const key = this.getWeeklySlotKey(auditorId, dayIndex);
+    if (presetType === 'OFFICE_DUTY') {
+      this.weeklyDraftMatrix[key] = [
+        {
+          storeCode: 'AGENDA',
+          storeName: 'OFFICE DUTY',
+          agendaCategory: 'OFFICE_DUTY',
+          shiftWindow: '08:30 - 17:30',
+          agendaLocation: 'Head Office / WFH',
+          notes: 'Tugas Kantor & Administrasi Internal',
+          isAgenda: true,
+          isStatusBadge: true,
+          priority: 'NORMAL'
+        }
+      ];
+      this.renderWeeklySchedulePlanner();
+      this.showToast('Jadwal hari berhasil disetel ke Office Duty.', 'success');
+    } else if (presetType === 'TRAINING') {
+      this.weeklyDraftMatrix[key] = [
+        {
+          storeCode: 'AGENDA',
+          storeName: 'TRAINING & WORKSHOP',
+          agendaCategory: 'TRAINING',
+          shiftWindow: '09:00 - 15:00 WIB',
+          agendaLocation: 'Training Center',
+          notes: 'Pelatihan & Pembekalan Tim',
+          isAgenda: true,
+          isStatusBadge: true,
+          priority: 'NORMAL'
+        }
+      ];
+      this.renderWeeklySchedulePlanner();
+      this.showToast('Jadwal hari berhasil disetel ke Training.', 'success');
+    } else if (presetType === 'CUTI' || presetType === 'OFF') {
+      this.setWeeklySlotStatus(auditorId, dayIndex, presetType);
+    }
+  },
+
+  setWeekendOffForAll() {
+    this.ensureWeeklyPlannerInitialized();
+    const auditors = this.getSchedulableAuditors();
+    if (auditors.length === 0) {
+      this.showToast('Tidak ada akun visitor yang aktif.', 'warning');
+      return;
+    }
+    let count = 0;
+    auditors.forEach((u) => {
+      // Hari 5 = Sabtu, Hari 6 = Minggu
+      [5, 6].forEach((d) => {
+        const key = this.getWeeklySlotKey(u.id, d);
+        this.weeklyDraftMatrix[key] = [
+          {
+            storeCode: 'OFF',
+            storeName: 'HARI LIBUR / OFF',
+            agendaCategory: 'OFF',
+            shiftWindow: '-',
+            isOff: true,
+            isStatusBadge: true
+          }
+        ];
+        count++;
+      });
+    });
+    this.renderWeeklySchedulePlanner();
+    this.showToast(`Berhasil menyetel ${count} slot akhir pekan (Sabtu & Minggu) sebagai OFF untuk seluruh visitor!`, 'success');
+  },
+
+  setOfficeDutyForEmptySlots() {
+    this.ensureWeeklyPlannerInitialized();
+    const auditors = this.getSchedulableAuditors();
+    const schedules = window.FMCUData.getSchedules() || [];
+    const fiveDays = this.getFiveWorkDays(this.weeklyMondayDate);
+    if (auditors.length === 0) return;
+
+    let count = 0;
+    auditors.forEach((u) => {
+      // Workdays: Senin - Jumat (d = 0 to 4)
+      for (let d = 0; d < 5; d++) {
+        const dayObj = fiveDays[d];
+        const key = this.getWeeklySlotKey(u.id, d);
+        const currentItems = this.getWeeklySlotItems(u.id, d);
+        const hasExisting = dayObj && schedules.some((s) => s.auditorId === u.id && s.scheduledDate === dayObj.dateStr);
+
+        if (currentItems.length === 0 && !hasExisting) {
+          this.weeklyDraftMatrix[key] = [
+            {
+              storeCode: 'AGENDA',
+              storeName: 'OFFICE DUTY',
+              agendaCategory: 'OFFICE_DUTY',
+              shiftWindow: '08:30 - 17:30',
+              agendaLocation: 'Head Office / WFH',
+              notes: 'Tugas Kantor & Administrasi Internal',
+              isAgenda: true,
+              isStatusBadge: true,
+              priority: 'NORMAL'
+            }
+          ];
+          count++;
+        }
+      }
+    });
+
+    this.renderWeeklySchedulePlanner();
+    if (count > 0) {
+      this.showToast(`Berhasil mengisi ${count} slot hari kerja kosong dengan Office Duty!`, 'success');
+    } else {
+      this.showToast('Semua slot hari kerja (Senin–Jumat) sudah memiliki jadwal atau riwayat.', 'info');
+    }
+  },
+
   openManualAgendaModal(auditorId, dayIndex) {
     this.ensureWeeklyPlannerInitialized();
     const modal = document.getElementById('modal-manual-agenda');
@@ -12970,15 +13141,20 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       return;
     }
 
+    const cleanTitle = this.sanitizeMojibake(title);
+    const cleanCategory = this.sanitizeMojibake(category);
+    const cleanLoc = this.sanitizeMojibake(loc);
+    const cleanNotes = this.sanitizeMojibake(notes);
+
     const slotKey = this.getWeeklySlotKey(auditorId, dayIndex);
     this.weeklyDraftMatrix[slotKey] = [
       {
         storeCode: 'AGENDA',
-        storeName: title,
-        agendaCategory: category,
+        storeName: cleanTitle,
+        agendaCategory: cleanCategory,
         shiftWindow: time,
-        agendaLocation: loc,
-        notes: notes,
+        agendaLocation: cleanLoc,
+        notes: cleanNotes,
         isAgenda: true,
         isStatusBadge: true,
         priority: 'NORMAL'
@@ -12987,7 +13163,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
 
     this.closeManualAgendaModal();
     this.renderWeeklySchedulePlanner();
-    this.showToast(`Agenda manual "${title}" berhasil ditambahkan ke jadwal!`, 'success');
+    this.showToast(`Agenda "${cleanTitle}" berhasil ditambahkan ke jadwal!`, 'success');
   },
 
   toggleWeeklyStorePriority(auditorId, dayIndex, storeCode) {
@@ -13684,207 +13860,250 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                         : ''
                     }
 
-                    <!-- Draft Stores List -->
-                    <div class="space-y-1.5 min-h-[54px]">
+                    <!-- Draft Items List & Quick Action Controls -->
+                    <div class="space-y-1.5 min-h-[50px]">
                       ${
                         draftItems.length === 0
-                          ? `<div class="rounded-xl border border-dashed border-slate-300 p-2 text-center space-y-2">
-                              <span class="text-[10px] text-slate-400 block leading-tight">Tidak ada toko dipilih</span>
-                              <div class="grid grid-cols-2 gap-1.5 pt-0.5">
+                          ? `<div class="rounded-xl border border-dashed border-slate-200 p-2 text-center space-y-1.5 bg-white/70">
+                              <span class="text-[10px] text-slate-400 font-semibold block leading-tight">Belum ada agenda</span>
+                              <div class="grid grid-cols-2 gap-1 pt-0.5">
+                                <button
+                                  type="button"
+                                  onclick="event.stopPropagation(); FMCUApp.openWeeklyStorePickerModal('${u.id}', ${dayObj.dayIndex})"
+                                  class="py-1 px-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-extrabold text-[10px] transition flex items-center justify-center gap-1 shadow-2xs cursor-pointer active:scale-95"
+                                  title="Pilih toko FamilyMart untuk ${dayObj.dayName}"
+                                >
+                                  <i class="fa-solid fa-store text-emerald-600 text-[10px]"></i>
+                                  <span>+ Toko</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onclick="event.stopPropagation(); FMCUApp.assignQuickPresetToWeeklySlot('${u.id}', ${dayObj.dayIndex}, 'OFFICE_DUTY')"
+                                  class="py-1 px-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-300 font-extrabold text-[10px] transition flex items-center justify-center gap-1 shadow-2xs cursor-pointer active:scale-95"
+                                  title="1-Klik: Setel hari ini ke Office Duty"
+                                >
+                                  <i class="fa-solid fa-building text-purple-600 text-[10px]"></i>
+                                  <span>+ Kantor</span>
+                                </button>
+                              </div>
+                              <div class="grid grid-cols-3 gap-1 pt-0.5">
+                                <button
+                                  type="button"
+                                  onclick="event.stopPropagation(); FMCUApp.openManualAgendaModal('${u.id}', ${dayObj.dayIndex})"
+                                  class="py-1 px-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-[9px] transition flex items-center justify-center gap-0.5 cursor-pointer active:scale-95"
+                                  title="Buat agenda meeting, briefing, atau event internal"
+                                >
+                                  <i class="fa-solid fa-calendar-plus text-purple-600 text-[9px]"></i>
+                                  <span>Agenda</span>
+                                </button>
                                 <button
                                   type="button"
                                   onclick="event.stopPropagation(); FMCUApp.setWeeklySlotStatus('${u.id}', ${dayObj.dayIndex}, 'CUTI')"
-                                  class="py-1.5 px-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 font-extrabold text-[10px] transition flex items-center justify-center gap-1 shadow-2xs cursor-pointer active:scale-95"
-                                  title="Tandai hari ${dayObj.dayName} sebagai CUTI untuk ${u.name}"
+                                  class="py-1 px-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 font-bold text-[9px] transition flex items-center justify-center gap-0.5 cursor-pointer active:scale-95"
+                                  title="Tandai Cuti Resmi"
                                 >
-                                  <span class="flex items-center gap-1"><i class="fa-solid fa-umbrella-beach text-amber-600"></i> CUTI</span>
+                                  <i class="fa-solid fa-umbrella-beach text-amber-600 text-[9px]"></i>
+                                  <span>Cuti</span>
                                 </button>
                                 <button
                                   type="button"
                                   onclick="event.stopPropagation(); FMCUApp.setWeeklySlotStatus('${u.id}', ${dayObj.dayIndex}, 'OFF')"
-                                  class="py-1.5 px-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-300 font-extrabold text-[10px] transition flex items-center justify-center gap-1 shadow-2xs cursor-pointer active:scale-95"
-                                  title="Tandai hari ${dayObj.dayName} sebagai OFF / LIBUR untuk ${u.name}"
+                                  class="py-1 px-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-300 font-bold text-[9px] transition flex items-center justify-center gap-0.5 cursor-pointer active:scale-95"
+                                  title="Tandai Hari OFF / Libur"
                                 >
-                                  <span class="flex items-center gap-1"><i class="fa-solid fa-bed text-indigo-600"></i> OFF</span>
+                                  <i class="fa-solid fa-bed text-indigo-600 text-[9px]"></i>
+                                  <span>Off</span>
                                 </button>
                               </div>
                             </div>`
-                          : draftItems
-                              .map((item, itemIdx) => {
-                                const isCuti = item.isCuti || item.storeCode === 'CUTI';
-                                const isOff = item.isOff || item.storeCode === 'OFF';
-                                const isAgenda = item.isAgenda || item.storeCode === 'AGENDA';
+                          : `
+                            <div class="space-y-1.5">
+                              ${draftItems
+                                .map((item, itemIdx) => {
+                                  const isCuti = item.isCuti || item.storeCode === 'CUTI';
+                                  const isOff = item.isOff || item.storeCode === 'OFF';
+                                  const isAgenda = item.isAgenda || item.storeCode === 'AGENDA';
 
-                                if (isCuti || isOff) {
-                                  const isC = isCuti;
-                                  const badgeBg = isC ? 'bg-amber-50 border-amber-300' : 'bg-indigo-50 border-indigo-300';
-                                  const icon = isC ? '<i class="fa-solid fa-umbrella-beach text-amber-600"></i>' : '<i class="fa-solid fa-bed text-indigo-600"></i>';
-                                  const title = isC ? 'CUTI TAHUNAN / KHUSUS' : 'HARI LIBUR / OFF';
-                                  const txtColor = isC ? 'text-amber-900' : 'text-indigo-900';
-                                  const subTxt = isC ? 'Jadwal Cuti Terkonfirmasi' : 'Hari Off / Istirahat';
-                                  const pillBg = isC ? 'bg-amber-200 text-amber-900' : 'bg-indigo-200 text-indigo-900';
+                                  if (isCuti || isOff) {
+                                    const isC = isCuti;
+                                    const badgeBg = isC ? 'bg-amber-50 border-amber-300' : 'bg-indigo-50 border-indigo-300';
+                                    const icon = isC ? '<i class="fa-solid fa-umbrella-beach text-amber-600"></i>' : '<i class="fa-solid fa-bed text-indigo-600"></i>';
+                                    const title = isC ? 'CUTI TAHUNAN' : 'HARI OFF';
+                                    const txtColor = isC ? 'text-amber-900' : 'text-indigo-900';
+                                    const subTxt = isC ? 'Cuti Resmi' : 'Hari Off';
+                                    const pillBg = isC ? 'bg-amber-200 text-amber-900' : 'bg-indigo-200 text-indigo-900';
 
-                                  return `
-                                    <div onclick="event.stopPropagation()" class="p-2.5 rounded-xl border ${badgeBg} shadow-2xs space-y-1.5 transition">
-                                      <div class="flex items-start justify-between gap-1">
-                                        <div class="min-w-0">
-                                          <div class="font-extrabold text-[11px] ${txtColor} flex items-center gap-1">
-                                            <span>${icon}</span>
-                                            <span class="truncate">${title}</span>
+                                    return `
+                                      <div onclick="event.stopPropagation()" class="p-2 rounded-xl border ${badgeBg} shadow-2xs space-y-1 transition">
+                                        <div class="flex items-start justify-between gap-1">
+                                          <div class="min-w-0">
+                                            <div class="font-extrabold text-[11px] ${txtColor} flex items-center gap-1">
+                                              <span>${icon}</span>
+                                              <span class="truncate">${title}</span>
+                                            </div>
+                                            <div class="text-[9px] text-slate-500">${subTxt}</div>
                                           </div>
-                                          <div class="text-[9px] text-slate-500">${subTxt}</div>
+                                          <button
+                                            type="button"
+                                            onclick="FMCUApp.removeStoreFromWeeklySlot('${u.id}', ${dayObj.dayIndex}, '${item.storeCode}')"
+                                            class="text-slate-400 hover:text-rose-600 px-1 text-xs cursor-pointer"
+                                            title="Batalkan status ini"
+                                          >
+                                            <i class="fa-solid fa-xmark"></i>
+                                          </button>
                                         </div>
-                                        <button
-                                          type="button"
-                                          onclick="FMCUApp.removeStoreFromWeeklySlot('${u.id}', ${dayObj.dayIndex}, '${item.storeCode}')"
-                                          class="text-slate-400 hover:text-rose-600 px-1 text-xs cursor-pointer"
-                                          title="Batalkan status ini"
-                                        >
-                                          <i class="fa-solid fa-xmark"></i>
-                                        </button>
+                                        <div class="flex items-center justify-between pt-0.5">
+                                          <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold ${pillBg}">${isC ? 'CUTI' : 'OFF'}</span>
+                                          <span class="text-[9px] text-slate-400 font-medium">Bebas Visit</span>
+                                        </div>
                                       </div>
-                                      <div class="flex items-center justify-between pt-0.5">
-                                        <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold ${pillBg}">${isC ? 'CUTI' : 'OFF'}</span>
-                                        <span class="text-[9px] text-slate-400 font-medium">Bebas Visit</span>
-                                      </div>
-                                    </div>
-                                  `;
-                                }
+                                    `;
+                                  }
 
-                                if (isAgenda) {
-                                  const title = item.storeName || 'Agenda Kegiatan';
-                                  const cat = item.agendaCategory || 'MEETING';
-                                  const time = item.shiftWindow || '09:00 - 12:00 WIB';
-                                  const loc = item.agendaLocation || '';
-                                  const notes = item.notes || '';
+                                  if (isAgenda) {
+                                    const title = this.sanitizeMojibake(item.storeName || 'Agenda Kegiatan');
+                                    const cat = this.sanitizeMojibake(item.agendaCategory || 'MEETING');
+                                    const time = item.shiftWindow || '09:00 - 12:00 WIB';
+                                    const loc = this.sanitizeMojibake(item.agendaLocation || '');
 
-                                  return `
-                                    <div onclick="event.stopPropagation()" class="p-2.5 rounded-xl border bg-purple-50/80 border-purple-300 shadow-2xs space-y-1.5 transition">
-                                      <div class="flex items-start justify-between gap-1">
-                                        <div class="min-w-0">
-                                          <div class="font-extrabold text-[11px] text-purple-950 flex items-center gap-1.5">
-                                            <i class="fa-solid fa-thumbtack text-purple-600 text-xs"></i>
-                                            <span class="truncate font-black" title="${title}">${title}</span>
+                                    return `
+                                      <div onclick="event.stopPropagation()" class="p-2 rounded-xl border bg-purple-50/80 border-purple-300 shadow-2xs space-y-1 transition">
+                                        <div class="flex items-start justify-between gap-1">
+                                          <div class="min-w-0">
+                                            <div class="font-extrabold text-[11px] text-purple-950 flex items-center gap-1">
+                                              <i class="fa-solid fa-thumbtack text-purple-600 text-[10px]"></i>
+                                              <span class="truncate font-black" title="${title}">${title}</span>
+                                            </div>
+                                            <div class="text-[9px] text-purple-700 font-semibold flex items-center gap-1">
+                                              <i class="fa-regular fa-clock text-[8.5px]"></i>
+                                              <span>${time}</span>
+                                            </div>
+                                            ${loc ? `<div class="text-[9px] text-slate-500 truncate"><i class="fa-solid fa-location-dot text-[8px] mr-1 text-slate-400"></i>${loc}</div>` : ''}
                                           </div>
-                                          <div class="text-[9px] text-purple-700 font-semibold mt-0.5 flex items-center gap-1">
-                                            <i class="fa-regular fa-clock text-[9px]"></i>
-                                            <span>${time}</span>
+                                          <button
+                                            type="button"
+                                            onclick="FMCUApp.removeStoreFromWeeklySlot('${u.id}', ${dayObj.dayIndex}, '${item.storeCode}')"
+                                            class="text-slate-400 hover:text-rose-600 px-1 text-xs cursor-pointer"
+                                            title="Batalkan agenda ini"
+                                          >
+                                            <i class="fa-solid fa-xmark"></i>
+                                          </button>
+                                        </div>
+                                        <div class="flex items-center justify-between pt-0.5">
+                                          <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-purple-200 text-purple-900">${cat}</span>
+                                          <span class="text-[9px] text-purple-700 font-bold">Non-Visit</span>
+                                        </div>
+                                      </div>
+                                    `;
+                                  }
+
+                                  const st = storeMap.get(String(item.storeCode));
+                                  const stName = st ? st.name : item.storeCode;
+                                  const stCity = st ? st.city || st.type || 'CVS' : 'CVS';
+
+                                  // Deteksi Bentrok & Jarak Antar-Toko
+                                  const conflict = this.checkStoreConflictOnDay(item.storeCode, u.id, dayObj.dayIndex, dayObj.dateStr);
+                                  let distWarningHtml = '';
+                                  if (itemIdx > 0) {
+                                    const prevItem = draftItems[itemIdx - 1];
+                                    const prevSt = storeMap.get(String(prevItem.storeCode));
+                                    if (st && prevSt && st.lat && prevSt.lat && st.lng && prevSt.lng) {
+                                      const distKm = this.calculateDistanceKm(prevSt.lat, prevSt.lng, st.lat, st.lng);
+                                      if (distKm && distKm > 25) {
+                                        distWarningHtml = `
+                                          <div class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 text-[9px] font-bold flex items-center gap-1 border border-amber-200 mt-0.5" title="Jarak dari toko sebelumnya (${prevSt.name}) adalah ${distKm.toFixed(1)} km">
+                                            <i class="fa-solid fa-route text-amber-600"></i>
+                                            <span>Jarak ${distKm.toFixed(1)} km</span>
                                           </div>
-                                          ${loc ? `<div class="text-[9px] text-slate-500 truncate mt-0.5"><i class="fa-solid fa-location-dot text-[8px] mr-1 text-slate-400"></i>${loc}</div>` : ''}
-                                          ${notes ? `<div class="text-[9px] text-slate-600 line-clamp-1 italic bg-white/70 p-1 rounded mt-0.5 border border-purple-100">"${notes}"</div>` : ''}
-                                        </div>
-                                        <button
-                                          type="button"
-                                          onclick="FMCUApp.removeStoreFromWeeklySlot('${u.id}', ${dayObj.dayIndex}, '${item.storeCode}')"
-                                          class="text-slate-400 hover:text-rose-600 px-1 text-xs cursor-pointer"
-                                          title="Batalkan agenda ini"
-                                        >
-                                          <i class="fa-solid fa-xmark"></i>
-                                        </button>
-                                      </div>
-                                      <div class="flex items-center justify-between pt-0.5">
-                                        <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-purple-200 text-purple-900">${cat}</span>
-                                        <span class="text-[9px] text-purple-700 font-bold">Non-Visit</span>
-                                      </div>
-                                    </div>
-                                  `;
-                                }
-
-                                const st = storeMap.get(String(item.storeCode));
-                                const stName = st ? st.name : item.storeCode;
-                                const stCity = st ? st.city || st.type || 'CVS' : 'CVS';
-
-                                // Deteksi Bentrok & Jarak Antar-Toko
-                                const conflict = this.checkStoreConflictOnDay(item.storeCode, u.id, dayObj.dayIndex, dayObj.dateStr);
-                                let distWarningHtml = '';
-                                if (itemIdx > 0) {
-                                  const prevItem = draftItems[itemIdx - 1];
-                                  const prevSt = storeMap.get(String(prevItem.storeCode));
-                                  if (st && prevSt && st.lat && prevSt.lat && st.lng && prevSt.lng) {
-                                    const distKm = this.calculateDistanceKm(prevSt.lat, prevSt.lng, st.lat, st.lng);
-                                    if (distKm && distKm > 25) {
-                                      distWarningHtml = `
-                                        <div class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 text-[9px] font-bold flex items-center gap-1 border border-amber-200 mt-1" title="Jarak dari toko sebelumnya (${prevSt.name}) adalah ${distKm.toFixed(1)} km">
-                                          <i class="fa-solid fa-route text-amber-600"></i>
-                                          <span>Jarak ${distKm.toFixed(1)} km (>25km)</span>
-                                        </div>
-                                      `;
+                                        `;
+                                      }
                                     }
                                   }
-                                }
 
-                                return `
-                                  <div onclick="event.stopPropagation()" class="p-2 rounded-xl bg-white border ${conflict ? 'border-rose-400 ring-1 ring-rose-400/40' : 'border-emerald-200'} shadow-2xs space-y-1">
-                                    ${conflict ? `
-                                      <div class="px-1.5 py-0.5 rounded bg-rose-50 text-rose-800 text-[9px] font-extrabold flex items-center gap-1 border border-rose-200 mb-1" title="Toko ini juga dijadwalkan untuk ${conflict.auditorName} pada hari yang sama!">
-                                        <i class="fa-solid fa-triangle-exclamation text-rose-600"></i>
-                                        <span>Bentrok: ${conflict.auditorName}</span>
+                                  return `
+                                    <div onclick="event.stopPropagation()" class="p-2 rounded-xl bg-white border ${conflict ? 'border-rose-400 ring-1 ring-rose-400/40' : 'border-emerald-200'} shadow-2xs space-y-1">
+                                      ${conflict ? `
+                                        <div class="px-1.5 py-0.5 rounded bg-rose-50 text-rose-800 text-[9px] font-extrabold flex items-center gap-1 border border-rose-200 mb-0.5" title="Bentrok jadwal!">
+                                          <i class="fa-solid fa-triangle-exclamation text-rose-600"></i>
+                                          <span>Bentrok: ${conflict.auditorName}</span>
+                                        </div>
+                                      ` : ''}
+                                      ${distWarningHtml}
+                                      <div class="flex items-start justify-between gap-1">
+                                        <div class="min-w-0">
+                                          <div class="font-mono font-extrabold text-[10px] text-[#0099A6]">Site ${item.storeCode}</div>
+                                          <div class="font-extrabold text-[11px] text-slate-900 leading-tight truncate" title="${stName}">${stName}</div>
+                                          <div class="text-[9px] text-slate-500 truncate">${stCity}</div>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onclick="FMCUApp.removeStoreFromWeeklySlot('${u.id}', ${dayObj.dayIndex}, '${item.storeCode}')"
+                                          class="text-slate-400 hover:text-rose-600 px-1 text-xs cursor-pointer"
+                                          title="Hapus toko dari hari ini"
+                                        >
+                                          <i class="fa-solid fa-xmark"></i>
+                                        </button>
                                       </div>
-                                    ` : ''}
-                                    ${distWarningHtml}
-                                    <div class="flex items-start justify-between gap-1">
-                                      <div class="min-w-0">
-                                        <div class="font-mono font-extrabold text-[10px] text-[#0099A6]">Site ${item.storeCode}</div>
-                                        <div class="font-extrabold text-[11px] text-slate-900 leading-tight truncate" title="${stName}">${stName}</div>
-                                        <div class="text-[9px] text-slate-500 truncate">${stCity}</div>
+                                      <div class="flex items-center justify-between pt-0.5">
+                                        <button
+                                          type="button"
+                                          onclick="FMCUApp.toggleWeeklyStorePriority('${u.id}', ${dayObj.dayIndex}, '${item.storeCode}')"
+                                          class="px-1.5 py-0.2 rounded text-[9px] font-extrabold cursor-pointer ${
+                                            item.priority === 'HIGH'
+                                              ? 'bg-rose-100 text-rose-700 border border-rose-200'
+                                              : 'bg-slate-100 text-slate-600'
+                                          }"
+                                          title="Klik untuk ubah prioritas NORMAL / HIGH"
+                                        >
+                                          ${item.priority}
+                                        </button>
+                                        <span class="text-[9px] text-emerald-700 font-bold">Siap Assign</span>
                                       </div>
-                                      <button
-                                        type="button"
-                                        onclick="FMCUApp.removeStoreFromWeeklySlot('${u.id}', ${dayObj.dayIndex}, '${item.storeCode}')"
-                                        class="text-slate-400 hover:text-rose-600 px-1 text-xs cursor-pointer"
-                                        title="Hapus toko dari hari ini"
-                                      >
-                                        <i class="fa-solid fa-xmark"></i>
-                                      </button>
                                     </div>
-                                    <div class="flex items-center justify-between pt-0.5">
-                                      <button
-                                        type="button"
-                                        onclick="FMCUApp.toggleWeeklyStorePriority('${u.id}', ${dayObj.dayIndex}, '${item.storeCode}')"
-                                        class="px-1.5 py-0.2 rounded text-[9px] font-extrabold cursor-pointer ${
-                                          item.priority === 'HIGH'
-                                            ? 'bg-rose-100 text-rose-700 border border-rose-200'
-                                            : 'bg-slate-100 text-slate-600'
-                                        }"
-                                        title="Klik untuk ubah prioritas NORMAL / HIGH"
-                                      >
-                                        ${item.priority}
-                                      </button>
-                                      <span class="text-[9px] text-emerald-700 font-bold">Siap Assign</span>
-                                    </div>
-                                  </div>
-                                `;
-                              })
-                              .join('')
+                                  `;
+                                })
+                                .join('')}
+                              
+                              <!-- Compact Add Bar for Populated Day -->
+                              <div onclick="event.stopPropagation()" class="flex items-center gap-1 pt-1 border-t border-slate-200/60">
+                                <button
+                                  type="button"
+                                  onclick="FMCUApp.openWeeklyStorePickerModal('${u.id}', ${dayObj.dayIndex})"
+                                  class="flex-1 py-1 px-1.5 rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[10px] font-extrabold flex items-center justify-center gap-1 transition cursor-pointer"
+                                  title="Tambah toko visit lagi"
+                                >
+                                  <i class="fa-solid fa-plus text-[9px]"></i>
+                                  <span>Toko</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onclick="FMCUApp.assignQuickPresetToWeeklySlot('${u.id}', ${dayObj.dayIndex}, 'OFFICE_DUTY')"
+                                  class="py-1 px-2 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-800 text-[10px] font-bold transition cursor-pointer"
+                                  title="Setel Office Duty"
+                                >
+                                  <i class="fa-solid fa-building text-[9px]"></i>
+                                </button>
+                                <button
+                                  type="button"
+                                  onclick="FMCUApp.openManualAgendaModal('${u.id}', ${dayObj.dayIndex})"
+                                  class="py-1 px-2 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-800 text-[10px] font-bold transition cursor-pointer"
+                                  title="Tambah agenda kegiatan"
+                                >
+                                  <i class="fa-solid fa-calendar-plus text-[9px]"></i>
+                                </button>
+                                <button
+                                  type="button"
+                                  onclick="FMCUApp.setWeeklySlotStatus('${u.id}', ${dayObj.dayIndex}, 'OFF')"
+                                  class="py-1 px-2 rounded-lg border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-[10px] font-bold transition cursor-pointer"
+                                  title="Ubah status hari jadi OFF"
+                                >
+                                  <i class="fa-solid fa-bed text-[9px]"></i>
+                                </button>
+                              </div>
+                            </div>
+                          `
                       }
                     </div>
-                  </div>
-
-                  <!-- Custom Store Picker Action Button (Tanpa Native Dropdown System) -->
-                  <div onclick="event.stopPropagation()" class="space-y-1.5 pt-1">
-                    <button
-                      type="button"
-                      onclick="FMCUApp.openWeeklyStorePickerModal('${u.id}', ${dayObj.dayIndex})"
-                      class="w-full py-2 px-2.5 rounded-xl border border-emerald-300 hover:border-[#009944] bg-emerald-50/70 hover:bg-emerald-100/90 text-emerald-900 text-[11px] font-extrabold flex items-center justify-between shadow-2xs transition group cursor-pointer"
-                      title="Buka pemilih toko khusus untuk ${dayObj.dayName}"
-                    >
-                      <span class="flex items-center gap-1.5 truncate">
-                        <i class="fa-solid fa-store text-emerald-600 text-xs"></i>
-                        <span>Pilih Toko...</span>
-                      </span>
-                      <span class="w-5 h-5 rounded-lg bg-white text-[#009944] group-hover:bg-[#009944] group-hover:text-white flex items-center justify-center text-[10px] shadow-2xs transition shrink-0">
-                        <i class="fa-solid fa-plus"></i>
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onclick="FMCUApp.openManualAgendaModal('${u.id}', ${dayObj.dayIndex})"
-                      class="w-full py-1 px-2 rounded-lg bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200 text-[10px] font-bold transition flex items-center justify-center gap-1 cursor-pointer"
-                      title="Buat agenda atau kegiatan internal secara manual (Non-Visit)"
-                    >
-                      <i class="fa-solid fa-calendar-plus text-[9px] text-purple-600"></i>
-                      <span>Buat Agenda Manual</span>
-                    </button>
                   </div>
                 </div>
               `;
@@ -13959,7 +14178,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     if (totalDraftBadge) {
       totalDraftBadge.innerHTML = `
         <span class="sm:hidden">${totalDraftSchedules} Jadwal Siap</span>
-        <span class="hidden sm:inline">${totalDraftSchedules} Jadwal Visit Siap Ditugaskan (Senin–Minggu)</span>
+        <span class="hidden sm:inline">${totalDraftSchedules} Jadwal & Agenda Siap Ditugaskan (Senin–Minggu)</span>
       `;
     }
     const totalAudBadge = document.getElementById('weekly-total-auditor-badge');
@@ -14029,10 +14248,14 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
 
           if (isAgenda) {
             involvedAuditors.add(au.name);
+            const cleanAgendaTitle = this.sanitizeMojibake(item.storeName || 'AGENDA KEGIATAN');
+            const cleanCat = this.sanitizeMojibake(item.agendaCategory || 'MEETING');
+            const cleanLoc = this.sanitizeMojibake(item.agendaLocation || '');
+            const cleanNotes = this.sanitizeMojibake(item.notes || '');
             newSchedules.push({
               id: `sch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${idx}`,
               storeCode: 'AGENDA',
-              storeName: item.storeName || 'AGENDA KEGIATAN',
+              storeName: cleanAgendaTitle,
               storeType: 'NON_STORE',
               auditorId: au.id,
               auditorName: au.name,
@@ -14041,10 +14264,10 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
               scheduledDate: dayObj.dateStr,
               shiftWindow: item.shiftWindow || '09:00 - 12:00 WIB',
               priority: 'NORMAL',
-              auditFocus: item.agendaCategory ? `Agenda: ${item.agendaCategory}` : 'Agenda Kegiatan Internal',
-              agendaCategory: item.agendaCategory || 'MEETING',
-              agendaLocation: item.agendaLocation || '',
-              notes: item.notes || '',
+              auditFocus: cleanCat ? `Agenda: ${cleanCat}` : 'Agenda Kegiatan Internal',
+              agendaCategory: cleanCat,
+              agendaLocation: cleanLoc,
+              notes: cleanNotes,
               status: 'AGENDA',
               isAgenda: true,
               actualIn: null,
@@ -14697,15 +14920,21 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
         reports.find((r) => r.scheduleId === s.id || (r.storeCode === s.storeCode && r.visitDate === s.scheduledDate)) ||
         null;
 
+      const isCuti = s.isCuti || s.storeCode === 'CUTI' || s.status === 'CUTI';
+      const isOff = s.isOff || s.storeCode === 'OFF' || s.status === 'OFF';
+      const isAgenda = s.isAgenda || s.storeCode === 'AGENDA' || s.status === 'AGENDA' || s.storeType === 'NON_STORE';
+      const activityType = isCuti ? 'CUTI' : isOff ? 'OFF' : isAgenda ? 'AGENDA' : 'VISIT TOKO';
+
       return {
         No: idx + 1,
         'ID Jadwal': s.id,
+        'Tipe Aktivitas': activityType,
         'Hari & Tanggal Target': window.FMCUPdf.formatIndonesianDate(s.scheduledDate, true),
         'Tanggal (YYYY-MM-DD)': s.scheduledDate || '-',
-        'Nama Visitor / Bestie': s.auditorName || au.name || '-',
+        'Nama Visitor / Bestie': this.sanitizeMojibake(s.auditorName || au.name || '-'),
         'Region Visitor': au.region || '-',
-        'Site Code Toko': s.storeCode || '-',
-        'Nama Toko': s.storeName || st.name || '-',
+        'Kode Toko / Status': s.storeCode || '-',
+        'Nama Aktivitas / Toko': this.sanitizeMojibake(s.storeName || st.name || '-'),
         'Tipe Toko': s.storeType || st.type || 'CVS',
         'Kota / Wilayah': st.city || '-',
         'Alamat Toko': st.address || '-',
@@ -14716,10 +14945,10 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
         'Email Regional Manager': st.regionalManagerEmail || '-',
         'Email Toko': st.email || linkedRep?.storeEmail || '-',
         'No. Telepon Toko': st.storePhone || '-',
-        'Prioritas Kunjungan': s.priority || 'NORMAL',
-        'Jam Operasional Target': s.shiftWindow || '-',
-        'Fokus Audit / Catatan Admin': s.auditFocus || '-',
-        'Status Kunjungan': s.status || 'PENDING',
+        'Prioritas': s.priority || 'NORMAL',
+        'Jam Operasional / Window': s.shiftWindow || '-',
+        'Fokus Audit / Catatan': this.sanitizeMojibake(s.auditFocus || s.notes || '-'),
+        'Status': s.status || 'PENDING',
         'Actual Check-In': s.actualIn || linkedRep?.actualIn || '-',
         'Actual Check-Out': s.actualOut || linkedRep?.actualOut || '-',
         'Koordinat GPS Visit':
@@ -15298,6 +15527,51 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
   // ==========================================================================
   // EDIT JADWAL VISIT (MODAL & UPDATE HANDLER)
   // ==========================================================================
+  // ==========================================================================
+  // SUNTING JADWAL KERJA & AGENDA TIM (VISIT, AGENDA, CUTI, OFF)
+  // ==========================================================================
+  onEditScheduleTypeChange(type) {
+    const storeBox = document.getElementById('edit-sch-store-box');
+    const agendaBox = document.getElementById('edit-sch-agenda-box');
+    const statusSel = document.getElementById('edit-sch-status');
+    const focusLabel = document.getElementById('edit-sch-focus-label');
+    const windowInput = document.getElementById('edit-sch-window');
+
+    if (type === 'VISIT') {
+      if (storeBox) storeBox.classList.remove('hidden');
+      if (agendaBox) agendaBox.classList.add('hidden');
+      if (focusLabel) focusLabel.textContent = 'Fokus Audit / Catatan Tambahan';
+      if (statusSel && (statusSel.value === 'AGENDA' || statusSel.value === 'CUTI' || statusSel.value === 'OFF')) {
+        statusSel.value = 'PENDING';
+      }
+      if (windowInput && (windowInput.value === '-' || !windowInput.value)) {
+        windowInput.value = '08:30 - 17:30';
+      }
+    } else if (type === 'AGENDA') {
+      if (storeBox) storeBox.classList.add('hidden');
+      if (agendaBox) agendaBox.classList.remove('hidden');
+      if (focusLabel) focusLabel.textContent = 'Catatan / Instruksi Kegiatan Internal';
+      if (statusSel && (statusSel.value === 'PENDING' || statusSel.value === 'CUTI' || statusSel.value === 'OFF')) {
+        statusSel.value = 'AGENDA';
+      }
+      if (windowInput && (windowInput.value === '-' || !windowInput.value)) {
+        windowInput.value = '09:00 - 12:00 WIB';
+      }
+    } else if (type === 'CUTI') {
+      if (storeBox) storeBox.classList.add('hidden');
+      if (agendaBox) agendaBox.classList.add('hidden');
+      if (focusLabel) focusLabel.textContent = 'Keterangan Cuti (Opsional)';
+      if (statusSel) statusSel.value = 'CUTI';
+      if (windowInput) windowInput.value = '-';
+    } else if (type === 'OFF') {
+      if (storeBox) storeBox.classList.add('hidden');
+      if (agendaBox) agendaBox.classList.add('hidden');
+      if (focusLabel) focusLabel.textContent = 'Keterangan Hari Off (Opsional)';
+      if (statusSel) statusSel.value = 'OFF';
+      if (windowInput) windowInput.value = '-';
+    }
+  },
+
   openEditScheduleModal(scheduleId) {
     if (!this.isPrivilegedAdmin()) {
       this.showToast('Hanya Admin Jadwal dan Super Admin yang memiliki otoritas untuk menyunting jadwal.', 'warning');
@@ -15306,7 +15580,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     const schedules = window.FMCUData.getSchedules() || [];
     const sch = schedules.find((s) => String(s.id) === String(scheduleId));
     if (!sch) {
-      this.showToast('Jadwal visit tidak ditemukan.', 'error');
+      this.showToast('Jadwal kerja tidak ditemukan.', 'error');
       return;
     }
 
@@ -15317,6 +15591,20 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     const idInput = document.getElementById('edit-sch-id');
     if (idInput) idInput.value = sch.id;
 
+    // Tentukan Tipe Aktivitas
+    let type = 'VISIT';
+    if (sch.isCuti || sch.storeCode === 'CUTI' || sch.status === 'CUTI') {
+      type = 'CUTI';
+    } else if (sch.isOff || sch.storeCode === 'OFF' || sch.status === 'OFF') {
+      type = 'OFF';
+    } else if (sch.isAgenda || sch.storeCode === 'AGENDA' || sch.status === 'AGENDA' || sch.storeType === 'NON_STORE') {
+      type = 'AGENDA';
+    }
+
+    const radio = document.querySelector(`input[name="edit-sch-type"][value="${type}"]`);
+    if (radio) radio.checked = true;
+    this.onEditScheduleTypeChange(type);
+
     // Populate stores dropdown
     const storeSel = document.getElementById('edit-sch-store');
     if (storeSel) {
@@ -15326,12 +15614,20 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
         .join('');
     }
 
+    // Populate Agenda Inputs
+    const agendaTitleInput = document.getElementById('edit-sch-agenda-title');
+    const agendaCatSel = document.getElementById('edit-sch-agenda-cat');
+    const agendaLocInput = document.getElementById('edit-sch-agenda-loc');
+    if (agendaTitleInput) agendaTitleInput.value = this.sanitizeMojibake(sch.storeName || '');
+    if (agendaCatSel) agendaCatSel.value = sch.agendaCategory || 'OFFICE_DUTY';
+    if (agendaLocInput) agendaLocInput.value = this.sanitizeMojibake(sch.agendaLocation || '');
+
     // Populate Date & Shift Window
     const dateInput = document.getElementById('edit-sch-date');
     if (dateInput) dateInput.value = sch.scheduledDate || '';
 
     const windowInput = document.getElementById('edit-sch-window');
-    if (windowInput) windowInput.value = sch.shiftWindow || sch.window || '08:30 - 17:30';
+    if (windowInput) windowInput.value = sch.shiftWindow || sch.window || (type === 'CUTI' || type === 'OFF' ? '-' : '08:30 - 17:30');
 
     // Populate Auditor dropdown
     const audSel = document.getElementById('edit-sch-auditor');
@@ -15347,11 +15643,11 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     if (prioSel) prioSel.value = sch.priority || 'NORMAL';
 
     const statSel = document.getElementById('edit-sch-status');
-    if (statSel) statSel.value = sch.status || 'PENDING';
+    if (statSel) statSel.value = sch.status || (type === 'CUTI' ? 'CUTI' : type === 'OFF' ? 'OFF' : type === 'AGENDA' ? 'AGENDA' : 'PENDING');
 
     // Populate Focus
     const focusInput = document.getElementById('edit-sch-focus');
-    if (focusInput) focusInput.value = sch.auditFocus || sch.focus || '';
+    if (focusInput) focusInput.value = this.sanitizeMojibake(sch.auditFocus || sch.focus || sch.notes || '');
 
     modal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
@@ -15374,21 +15670,21 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       return;
     }
 
-    const storeCode = document.getElementById('edit-sch-store')?.value;
+    const typeRadio = document.querySelector('input[name="edit-sch-type"]:checked');
+    const type = typeRadio ? typeRadio.value : 'VISIT';
+
     const scheduledDate = document.getElementById('edit-sch-date')?.value;
-    const shiftWindow = document.getElementById('edit-sch-window')?.value.trim() || '08:30 - 17:30';
+    const shiftWindow = (document.getElementById('edit-sch-window')?.value || '').trim() || (type === 'CUTI' || type === 'OFF' ? '-' : '08:30 - 17:30');
     const auditorId = document.getElementById('edit-sch-auditor')?.value;
     const priority = document.getElementById('edit-sch-priority')?.value || 'NORMAL';
-    const status = document.getElementById('edit-sch-status')?.value || 'PENDING';
-    const auditFocus = document.getElementById('edit-sch-focus')?.value.trim() || '-';
+    const status = document.getElementById('edit-sch-status')?.value || (type === 'CUTI' ? 'CUTI' : type === 'OFF' ? 'OFF' : type === 'AGENDA' ? 'AGENDA' : 'PENDING');
+    const auditFocus = this.sanitizeMojibake(document.getElementById('edit-sch-focus')?.value.trim() || '-');
 
     if (!scheduledDate) {
-      this.showToast('Tanggal kunjungan tidak boleh kosong.', 'warning');
+      this.showToast('Tanggal jadwal tidak boleh kosong.', 'warning');
       return;
     }
 
-    const stores = window.FMCUData.getStores() || [];
-    const st = stores.find((x) => String(x.code) === String(storeCode));
     const auditors = this.getSchedulableAuditors() || [];
     const au = auditors.find((x) => String(x.id) === String(auditorId));
 
@@ -15397,14 +15693,6 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     const oldAuditorName = sch.auditorName;
     const oldDate = sch.scheduledDate;
 
-    if (st) {
-      sch.storeCode = st.code;
-      sch.storeName = st.name;
-      sch.storeType = st.type || 'CVS';
-      sch.storeAddress = st.address || '';
-      sch.areaManager = st.areaManager || '';
-      sch.regionalManager = st.regionalManager || '';
-    }
     if (au) {
       sch.auditorId = au.id;
       sch.auditorName = au.name;
@@ -15418,15 +15706,64 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     sch.status = status;
     sch.auditFocus = auditFocus;
     sch.focus = auditFocus;
+    sch.notes = auditFocus;
     sch.updatedAt = new Date().toISOString();
+
+    if (type === 'VISIT') {
+      const storeCode = document.getElementById('edit-sch-store')?.value;
+      const stores = window.FMCUData.getStores() || [];
+      const st = stores.find((x) => String(x.code) === String(storeCode));
+      if (!st) {
+        this.showToast('Pilih toko FamilyMart yang valid.', 'warning');
+        return;
+      }
+      sch.storeCode = st.code;
+      sch.storeName = st.name;
+      sch.storeType = st.type || 'CVS';
+      sch.storeAddress = st.address || '';
+      sch.areaManager = st.areaManager || '';
+      sch.regionalManager = st.regionalManager || '';
+      sch.isAgenda = false;
+      sch.isCuti = false;
+      sch.isOff = false;
+    } else if (type === 'AGENDA') {
+      const agendaTitle = (document.getElementById('edit-sch-agenda-title')?.value || '').trim() || 'AGENDA KEGIATAN';
+      const agendaCat = document.getElementById('edit-sch-agenda-cat')?.value || 'OFFICE_DUTY';
+      const agendaLoc = (document.getElementById('edit-sch-agenda-loc')?.value || '').trim() || 'Head Office / Online';
+
+      sch.storeCode = 'AGENDA';
+      sch.storeName = this.sanitizeMojibake(agendaTitle);
+      sch.storeType = 'NON_STORE';
+      sch.agendaCategory = agendaCat;
+      sch.agendaLocation = this.sanitizeMojibake(agendaLoc);
+      sch.isAgenda = true;
+      sch.isCuti = false;
+      sch.isOff = false;
+    } else if (type === 'CUTI') {
+      sch.storeCode = 'CUTI';
+      sch.storeName = 'CUTI TAHUNAN / KHUSUS';
+      sch.storeType = 'NON_STORE';
+      sch.agendaCategory = 'CUTI';
+      sch.isCuti = true;
+      sch.isOff = false;
+      sch.isAgenda = false;
+    } else if (type === 'OFF') {
+      sch.storeCode = 'OFF';
+      sch.storeName = 'HARI LIBUR / OFF';
+      sch.storeType = 'NON_STORE';
+      sch.agendaCategory = 'OFF';
+      sch.isOff = true;
+      sch.isCuti = false;
+      sch.isAgenda = false;
+    }
 
     window.FMCUData.saveSingleSchedule(sch);
     this.closeEditScheduleModal();
     this.renderAdminView();
-    this.showToast(`Jadwal visit ${sch.storeName} berhasil diperbarui!`, 'success');
+    this.showToast(`Jadwal & agenda "${sch.storeName}" berhasil diperbarui!`, 'success');
     this.logScheduleAction(
       'UPDATE',
-      `Mengubah jadwal visit toko ${sch.storeName} (${sch.storeCode}) untuk ${sch.auditorName} tanggal ${sch.scheduledDate} (Sebelumnya: ${oldStoreName} / ${oldAuditorName} / ${oldDate})`,
+      `Mengubah jadwal [${type}] ${sch.storeName} (${sch.storeCode}) untuk ${sch.auditorName} tanggal ${sch.scheduledDate} (Sebelumnya: ${oldStoreName} / ${oldAuditorName} / ${oldDate})`,
       'Daftar Jadwal'
     );
   },

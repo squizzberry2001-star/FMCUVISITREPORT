@@ -538,32 +538,34 @@ window.FMCUData = {
   sanitizeMojibake(str) {
     if (!str || typeof str !== 'string') return str || '';
     return str
-      .replace(/\u00f0\u0178\u201c\u0152/g, '')
-      .replace(/\u00f0\u0178\u0152\u00b4/g, '')
-      .replace(/\u00f0\u0178\u2019\u00a4/g, '')
-      .replace(/\u00f0\u0178\u008f\u00ac/g, '')
-      .replace(/\u00f0\u0178\u008f\u00a2/g, '')
-      .replace(/ðŸ“Œ|ðŸŒ´|ðŸ’¤|ðŸ ¬|ðŸ ¢/g, '')
-      .replace(/\u00f0\u0178[\u0080-\u024f]{1,3}/g, '')
-      .replace(/\u00f0\u0178/g, '')
-      .replace(/ðŸ/g, '')
-      .replace(/\u00e2\u0153\u201c|âœ“/g, '✓')
-      .replace(/\u00e2\s*\u00b3|\u00e2\u008f\u00b3|â ³/g, '⏳')
-      .replace(/\u00e2\u0161\u00a0\u00ef\u00b8\u008f\s*|âš ï¸\s*/g, '⚠️ ')
-      .replace(/\u00e2\u0161\u00a0|âš /g, '⚠️')
-      .replace(/\u00e2\u0161\u00a1|âš¡/g, '⚡')
-      .replace(/\u00e2\u0153\u00a8|âœ¨/g, '✨')
-      .replace(/\u00e2\u0153\u2026|âœ…/g, '✅')
-      .replace(/\u00e2\u0152\u02dc|â Œ/g, '❌')
-      .replace(/\u00e2\u0153\u2014|âœ—/g, '✗')
-      .replace(/\u00e2\u0153\u2022|âœ•/g, '✕')
-      .replace(/\u00e2\u0153\u00a6|âœ¦/g, '✦')
-      .replace(/\u00e2\u017d\u2039|âŽ‹/g, '')
-      .replace(/\u00e2\u20ac\u00a2|â€¢/g, '•')
-      .replace(/\u00e2\u20ac\u2013|â€“/g, '-')
-      .replace(/\u00e2\u20ac\u2014|â€”/g, '-')
-      .replace(/\u00e2\u2030\u00a5|â‰¥/g, '≥')
-      .replace(/\u00e2\u00ad\u0090|\u00e2\u00ad|â­/g, '⭐')
+      // Strip 4-byte UTF-8 emoji mojibake (e.g. \u00F0\u009F... or \u00F0\u0178... like 📌, 🌴, 👤, 🏪, 🏢)
+      .replace(/\u00F0[\u0080-\uFFFF]{1,4}/g, '')
+      .replace(/ð[\u0080-\uFFFF]{1,4}/g, '')
+      .replace(/ð[^\x00-\x7F]{1,4}/g, '')
+      // Specific legacy mojibake replacements
+      .replace(/Â³/g, '')
+      .replace(/Â²/g, '')
+      .replace(/Â°C/g, '°C')
+      .replace(/\u00C2\u00B0C/g, '°C')
+      .replace(/Â/g, '')
+      .replace(/\u00C2/g, '')
+      .replace(/â ³/g, '')
+      .replace(/âœ“/g, '✓')
+      .replace(/âš ï¸/g, '⚠️')
+      .replace(/âš /g, '⚠️')
+      .replace(/âš¡/g, '⚡')
+      .replace(/âœ¨/g, '✨')
+      .replace(/âœ…/g, '✅')
+      .replace(/â Œ/g, '❌')
+      .replace(/âœ—/g, '✗')
+      .replace(/âœ•/g, '✕')
+      .replace(/âœ¦/g, '✦')
+      .replace(/âŽ‹/g, '')
+      .replace(/â€¢/g, '•')
+      .replace(/â€“/g, '-')
+      .replace(/â€”/g, '-')
+      .replace(/â‰¥/g, '≥')
+      .replace(/â­/g, '⭐')
       .trim();
   },
 
@@ -2334,25 +2336,19 @@ window.FMCUData = {
     } catch (e) {
       list = [];
     }
-    // Auto-sanitasi jika data di storage sempat terinfeksi mojibake UTF-8 (misal )
+    // Auto-sanitasi jika data di storage sempat terinfeksi mojibake UTF-8 (misal ðŸ“Œ, Â³, â ³)
     let hasMojibake = false;
+    const checkFields = ['storeCode', 'storeName', 'agendaCategory', 'notes', 'auditFocus', 'auditorName', 'shiftWindow', 'agendaLocation'];
     for (const s of list) {
       if (!s) continue;
-      if (s.storeName && (s.storeName.includes('ð') || s.storeName.includes('â'))) {
-        s.storeName = this.sanitizeMojibake(s.storeName);
-        hasMojibake = true;
-      }
-      if (s.agendaCategory && (s.agendaCategory.includes('ð') || s.agendaCategory.includes('â'))) {
-        s.agendaCategory = this.sanitizeMojibake(s.agendaCategory);
-        hasMojibake = true;
-      }
-      if (s.notes && (s.notes.includes('ð') || s.notes.includes('â'))) {
-        s.notes = this.sanitizeMojibake(s.notes);
-        hasMojibake = true;
-      }
-      if (s.auditFocus && (s.auditFocus.includes('ð') || s.auditFocus.includes('â'))) {
-        s.auditFocus = this.sanitizeMojibake(s.auditFocus);
-        hasMojibake = true;
+      for (const f of checkFields) {
+        if (s[f] && typeof s[f] === 'string') {
+          const cleaned = this.sanitizeMojibake(s[f]);
+          if (cleaned !== s[f]) {
+            s[f] = cleaned;
+            hasMojibake = true;
+          }
+        }
       }
     }
     // Filter ketat terhadap _deletedScheduleIds agar jadwal terhapus tidak pernah hidup lagi
@@ -2420,6 +2416,12 @@ window.FMCUData = {
     const schedules = this.getSchedules() || [];
     const idx = schedules.findIndex((s) => String(s.id) === docId);
     const enrichedSch = { ...sch, updatedAt: new Date().toISOString() };
+    const checkFields = ['storeCode', 'storeName', 'agendaCategory', 'notes', 'auditFocus', 'auditorName', 'shiftWindow', 'agendaLocation'];
+    checkFields.forEach((f) => {
+      if (enrichedSch[f] && typeof enrichedSch[f] === 'string') {
+        enrichedSch[f] = this.sanitizeMojibake(enrichedSch[f]);
+      }
+    });
     if (idx !== -1) {
       schedules[idx] = { ...schedules[idx], ...enrichedSch };
     } else {
