@@ -1352,10 +1352,9 @@ window.FMCUData = {
               const curNorm = String(cur.name || '').toLowerCase();
               const isSuper = cur.role === 'SUPER_ADMIN' || cur.username === 'admin' || curNorm.includes('aan bagus') || curNorm.includes('admin fmcu');
               const isScheduleAdmin = !isSuper && (cur.role === 'ADMIN_SCHEDULE' || (cur.jabatan && /admin jadwal|regional manager|area manager/i.test(cur.jabatan)));
-              const mergedAuths = Array.from(new Set([
-                ...(cur.authorities || []),
-                ...(u.authorities || [])
-              ]));
+              const targetAuths = Array.isArray(u.authorities)
+                ? u.authorities
+                : (Array.isArray(cur.authorities) ? cur.authorities : (isScheduleAdmin ? ['view_home', 'view_analytics', 'create_visit', 'export_pdf', 'manage_schedule', 'manage_stores', 'view_live_maps'] : ['view_home', 'view_analytics', 'create_visit', 'export_pdf']));
               userMap.set(key, {
                 ...cur,
                 ...u,
@@ -1363,7 +1362,7 @@ window.FMCUData = {
                 roleBadge: isSuper && curNorm.includes('aan bagus')
                   ? 'Web Application Developer & System Architect'
                   : (cur.roleBadge || u.roleBadge),
-                authorities: mergedAuths,
+                authorities: targetAuths,
                 _v2AuthSchema: true
               });
             }
@@ -2111,23 +2110,23 @@ window.FMCUData = {
       const isSuper = u.role === 'SUPER_ADMIN' || u.username === 'admin' || normName.includes('aan bagus') || normName.includes('admin fmcu');
       const isScheduleAdmin = !isSuper && (u.role === 'ADMIN_SCHEDULE' || (u.jabatan && /admin jadwal|regional manager|area manager/i.test(u.jabatan)));
 
-      let finalAuths = Array.isArray(u.authorities) ? [...u.authorities] : [];
+      let finalAuths = Array.isArray(u.authorities) ? [...u.authorities] : null;
       if (isSuper) {
         finalAuths = [
           'view_home', 'view_analytics', 'create_visit', 'export_pdf',
           'live_checkin', 'manage_schedule', 'manage_stores', 'manage_users', 'manage_integrations', 'view_live_maps'
         ];
-      } else if (isScheduleAdmin) {
-        finalAuths = Array.from(new Set([
-          ...finalAuths,
-          'view_home', 'view_analytics', 'create_visit', 'export_pdf',
-          'manage_schedule', 'manage_stores', 'view_live_maps'
-        ]));
-      } else {
-        finalAuths = Array.from(new Set([
-          ...finalAuths,
-          'view_home', 'view_analytics', 'create_visit', 'export_pdf'
-        ]));
+      } else if (!finalAuths) {
+        if (isScheduleAdmin) {
+          finalAuths = [
+            'view_home', 'view_analytics', 'create_visit', 'export_pdf',
+            'manage_schedule', 'manage_stores', 'view_live_maps'
+          ];
+        } else {
+          finalAuths = [
+            'view_home', 'view_analytics', 'create_visit', 'export_pdf'
+          ];
+        }
       }
 
       return {

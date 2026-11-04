@@ -1303,15 +1303,18 @@ window.FMCUApp = {
       return true;
     }
 
-    // 3. Admin Jadwal & Manager operasional selalu berwenang kelola jadwal, master toko, analitik, dan live maps
+    // 3. Otoritas Granular Eksplisit (Patuhi array authorities jika sudah ditentukan oleh Admin)
+    if (Array.isArray(user.authorities)) {
+      return user.authorities.includes(authKey);
+    }
+
+    // 4. Fallback jika user lama belum memiliki array authorities:
     if (
       role === 'ADMIN_SCHEDULE' ||
       role === 'SCHEDULE_ADMIN' ||
-      role === 'REGIONAL_MANAGER' ||
-      role === 'AREA_MANAGER' ||
-      (user.jabatan && /admin jadwal|regional manager|area manager/i.test(user.jabatan))
+      (user.jabatan && /admin jadwal/i.test(user.jabatan))
     ) {
-      if ([
+      return [
         'view_home',
         'view_analytics',
         'create_visit',
@@ -1319,23 +1322,11 @@ window.FMCUApp = {
         'manage_schedule',
         'manage_stores',
         'view_live_maps'
-      ].includes(authKey)) {
-        return true;
-      }
+      ].includes(authKey);
     }
 
-    // 4. Periksa array otoritas eksplisit (dari adm-auth checklist jika dicentang)
-    const auths = Array.isArray(user.authorities) ? user.authorities : [];
-    if (auths.includes(authKey)) {
-      return true;
-    }
-
-    // 5. Fallback hak akses dasar bagi seluruh Visitor / Regional Bestie
-    if (['create_visit', 'export_pdf', 'view_analytics'].includes(authKey)) {
-      return true;
-    }
-
-    return false;
+    // 5. Fallback hak akses dasar bagi seluruh Visitor / Regional Bestie lama
+    return ['view_home', 'create_visit', 'export_pdf', 'view_analytics'].includes(authKey);
   },
 
   isReportOwnedByUser(report, user = this.currentUser) {
@@ -1646,6 +1637,7 @@ window.FMCUApp = {
     if (viewName === 'preview') return this.hasAuthority('export_pdf', user);
     if (viewName === 'schedules') return this.hasAuthority('manage_schedule', user);
     if (viewName === 'stores') return this.hasAuthority('manage_stores', user);
+    if (viewName === 'live-maps') return this.canAccessLiveMaps(user);
     if (viewName === 'admin') return this.hasPortalAdminAuthority(user);
     return false;
   },
@@ -1656,6 +1648,7 @@ window.FMCUApp = {
     if (user.role === 'ADMIN_SCHEDULE' || user.role === 'SUPER_ADMIN') {
       if (this.hasAuthority('manage_schedule', user)) return 'schedules';
       if (this.hasAuthority('manage_stores', user)) return 'stores';
+      if (this.canAccessLiveMaps(user)) return 'live-maps';
       if (this.hasPortalAdminAuthority(user)) return 'admin';
     }
     if (this.hasAuthority('view_home', user)) return 'home';
@@ -1663,6 +1656,7 @@ window.FMCUApp = {
     if (this.hasAuthority('export_pdf', user)) return 'preview';
     if (this.hasAuthority('manage_schedule', user)) return 'schedules';
     if (this.hasAuthority('manage_stores', user)) return 'stores';
+    if (this.canAccessLiveMaps(user)) return 'live-maps';
     if (this.hasPortalAdminAuthority(user)) return 'admin';
     return 'home';
   },
@@ -1734,6 +1728,8 @@ window.FMCUApp = {
 
     const modalMapBtnAllBesties = document.getElementById('modal-map-btn-all-besties');
     if (modalMapBtnAllBesties) modalMapBtnAllBesties.classList.toggle('hidden', !isPrivilegedAdmin);
+
+    setTimeout(() => this.updateMobileNavLiquidPill(), 25);
   },
 
   toggleAdminWatermarkGps(isChecked) {
@@ -17335,7 +17331,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
   onChangeUserRolePreset(role) {
     const presets = {
       AUDITOR: ['view_home', 'view_analytics', 'create_visit', 'export_pdf'],
-      ADMIN_SCHEDULE: ['view_home', 'view_analytics', 'create_visit', 'export_pdf', 'manage_schedule'],
+      ADMIN_SCHEDULE: ['view_home', 'view_analytics', 'create_visit', 'export_pdf', 'manage_schedule', 'manage_stores', 'view_live_maps'],
       SUPER_ADMIN: [
         'view_home',
         'view_analytics',
@@ -17344,7 +17340,8 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
         'manage_schedule',
         'manage_stores',
         'manage_users',
-        'manage_integrations'
+        'manage_integrations',
+        'view_live_maps'
       ]
     };
     const set = new Set(presets[role] || presets.AUDITOR);
@@ -18446,9 +18443,8 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
 
   canAccessLiveMaps(user = this.currentUser) {
     if (!user) return false;
-    if (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN_SCHEDULE') return true;
-    if (this.hasAuthority('manage_schedule', user) || this.hasAuthority('manage_users', user) || this.hasAuthority('view_live_maps', user)) return true;
-    return false;
+    if (user.role === 'SUPER_ADMIN' || user.username === 'admin') return true;
+    return this.hasAuthority('view_live_maps', user);
   },
 
   async refreshLiveLocMap() {

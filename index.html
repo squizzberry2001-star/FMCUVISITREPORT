@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1800170000000" as="style" />
-  <link rel="preload" href="css/styles.css?v=1800170000000" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1800180000000" as="style" />
+  <link rel="preload" href="css/styles.css?v=1800180000000" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1800170000000" />
-  <link rel="stylesheet" href="css/styles.css?v=1800170000000" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1800180000000" />
+  <link rel="stylesheet" href="css/styles.css?v=1800180000000" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -2836,6 +2836,7 @@ service cloud.firestore {
                     <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="create_visit" checked aria-label="Input input" /> <span><strong>Menu Form Visit Store</strong> (Check-In & Input)</span></label>
                     <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="export_pdf" checked aria-label="Input input" /> <span><strong>Menu Preview & Unduh PDF</strong> (+ Email/GDrive)</span></label>
                     <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="manage_schedule" aria-label="Input input" /> <span><strong>Menu Atur Jadwal Visit</strong> (Side Navbar)</span></label>
+                    <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="view_live_maps" aria-label="Input input" /> <span><strong>Menu Live Maps GPS</strong> (Monitoring Bestie & Toko)</span></label>
                     <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="manage_stores" aria-label="Input input" /> <span><strong>Menu Master Toko</strong> (Side Navbar)</span></label>
                     <div class="border-t border-slate-200 my-1.5 pt-1.5 text-[10px] font-extrabold text-amber-700 uppercase">Hak Akses Portal Admin:</div>
                     <label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" name="adm-auth" value="manage_users" aria-label="Input input" /> <span><strong>Portal Admin:</strong> Kelola User & Otoritas</span></label>
@@ -3897,16 +3898,16 @@ service cloud.firestore {
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js" crossorigin="anonymous"></script>
 
   <!-- Core Application Scripts (Fast Startup & Auth Priority) -->
-  <script defer src="js/holding-time-standards.js?v=1800170000000"></script>
-  <script defer src="js/master-stores-seed.js?v=1800170000000"></script>
-  <script defer src="js/bestie-in-charge-seed.js?v=1800170000000"></script>
-  <script defer src="js/data.js?v=1800170000000"></script>
-  <script defer src="js/pdf-generator.js?v=1800170000000"></script>
-  <script defer src="js/app.js?v=1800170000000"></script>
+  <script defer src="js/holding-time-standards.js?v=1800180000000"></script>
+  <script defer src="js/master-stores-seed.js?v=1800180000000"></script>
+  <script defer src="js/bestie-in-charge-seed.js?v=1800180000000"></script>
+  <script defer src="js/data.js?v=1800180000000"></script>
+  <script defer src="js/pdf-generator.js?v=1800180000000"></script>
+  <script defer src="js/app.js?v=1800180000000"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1800170000000"></script>
+  <script async src="js/pdf-assets.js?v=1800180000000"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================

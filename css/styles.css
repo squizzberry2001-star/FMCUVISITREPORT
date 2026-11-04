@@ -56,7 +56,12 @@ html, body, .overflow-y-auto, .overflow-x-auto, .scrollable, [class*="overflow-"
 
 .view-section.hidden,
 .view-pane.hidden,
-[id^="view-"].hidden {
+[id^="view-"].hidden,
+.hidden,
+[hidden],
+.nav-item.hidden,
+.mobile-nav-item.hidden,
+button.hidden {
   display: none !important;
   content-visibility: hidden;
   contain: strict;
@@ -1429,7 +1434,6 @@ div#form-top-geofence-banner,
     width: 100% !important;
     text-align: center !important;
     height: 100% !important;
-    display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
@@ -1437,6 +1441,14 @@ div#form-top-geofence-banner,
     transition: color 0.25s ease !important;
     z-index: 2 !important;
     background: transparent !important;
+  }
+
+  .mobile-nav-item:not(.hidden) {
+    display: flex !important;
+  }
+
+  .mobile-nav-item.hidden {
+    display: none !important;
   }
 
   /* Micro-interactions: scale bounce halus saat diklik */
