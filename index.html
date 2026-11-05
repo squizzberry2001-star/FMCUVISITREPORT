@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1800345000000" as="style" />
-  <link rel="preload" href="css/styles.css?v=1800345000000" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1800350000000" as="style" />
+  <link rel="preload" href="css/styles.css?v=1800350000000" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1800345000000" />
-  <link rel="stylesheet" href="css/styles.css?v=1800345000000" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1800350000000" />
+  <link rel="stylesheet" href="css/styles.css?v=1800350000000" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -3667,7 +3667,7 @@ service cloud.firestore {
           </div>
         </div>
 
-        <!-- File 3: Spreadsheet CA Toko (Tindakan Perbaikan) -->
+        <!-- File 3: File Excel CA Toko (.xlsx) (Tindakan Perbaikan) -->
         <div id="sync-card-ca" class="p-3 rounded-2xl border border-slate-200 bg-slate-50/80 transition-all duration-300">
           <div class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-2.5 min-w-0">
@@ -3675,8 +3675,8 @@ service cloud.firestore {
                 <i class="fa-solid fa-file-excel"></i>
               </div>
               <div class="min-w-0">
-                <div class="font-extrabold text-xs text-slate-900 truncate">3. Spreadsheet CA Toko (Action Plan)</div>
-                <div id="sync-desc-ca" class="text-[10px] text-slate-500 font-medium truncate">Menata data temuan & PIC toko...</div>
+                <div class="font-extrabold text-xs text-slate-900 truncate">3. Excel CA Toko (.xlsx) (Action Plan)</div>
+                <div id="sync-desc-ca" class="text-[10px] text-slate-500 font-medium truncate">Menata data temuan & Action Plan Store...</div>
               </div>
             </div>
             <div id="sync-status-ca" class="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 flex items-center gap-1">
@@ -3810,7 +3810,7 @@ service cloud.firestore {
           <ul class="list-disc list-inside space-y-1 text-emerald-900/90 pl-1">
             <li><strong>1. PDF Laporan Visit:</strong> Format slide presentasi 16:9 ("Hasil Kunjungan-...")</li>
             <li><strong>2. Kolase Lembar QSC:</strong> Format PDF vertikal ("Lembar QSC-FAMITRACK-...")</li>
-            <li><strong>3. Spreadsheet CA Toko:</strong> Google Sheets khusus toko yang divisit</li>
+            <li><strong>3. Excel CA Store Assignment:</strong> Berkas .xlsx berisi temuan & Action Plan Store</li>
           </ul>
         </div>
       </div>
@@ -3941,16 +3941,16 @@ service cloud.firestore {
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js" crossorigin="anonymous"></script>
 
   <!-- Core Application Scripts (Fast Startup & Auth Priority) -->
-  <script defer src="js/holding-time-standards.js?v=1800345000000"></script>
-  <script defer src="js/master-stores-seed.js?v=1800345000000"></script>
-  <script defer src="js/bestie-in-charge-seed.js?v=1800345000000"></script>
-  <script defer src="js/data.js?v=1800345000000"></script>
-  <script defer src="js/pdf-generator.js?v=1800345000000"></script>
-  <script defer src="js/app.js?v=1800345000000"></script>
+  <script defer src="js/holding-time-standards.js?v=1800350000000"></script>
+  <script defer src="js/master-stores-seed.js?v=1800350000000"></script>
+  <script defer src="js/bestie-in-charge-seed.js?v=1800350000000"></script>
+  <script defer src="js/data.js?v=1800350000000"></script>
+  <script defer src="js/pdf-generator.js?v=1800350000000"></script>
+  <script defer src="js/app.js?v=1800350000000"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1800345000000"></script>
+  <script async src="js/pdf-assets.js?v=1800350000000"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================

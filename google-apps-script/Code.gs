@@ -614,183 +614,222 @@ function doPost(e) {
     }
 
     // ------------------------------------------------------------------------
-    // LAMPIRAN 3: Spreadsheet CA Store Assignment (Auto generate & LOCK Kolom A-D)
     // ------------------------------------------------------------------------
-    var caSpreadsheetUrl = '';
-    try {
-      var ssTitle = 'CA Store Assignment - ' + storeName;
-      var existingSs = storeFolder.getFilesByName(ssTitle);
-      var ss = null;
+    // LAMPIRAN 3: File Excel CA Store Assignment (.xlsx)
+    // - Format disimpan murni sebagai file XLSX (bukan Google Spreadsheet)
+    // - Kode Toko & Tanggal rata kanan
+    // - Kolom A-E dikunci (Locked) agar tidak bisa diedit
+    // - Tabel baru di kanan: ACTION PLAN STORE
+    // - Kolom dan row yang tidak digunakan di-hide/dihapus agar fokus ke 1 lembar laporan
+    // ------------------------------------------------------------------------
+    var caSpreadsheetUrl = "";
+    var xlsxFileName = "CA Store Assignment - " + storeName + ".xlsx";
 
-      if (existingSs.hasNext()) {
-        var exFile = existingSs.next();
-        ss = SpreadsheetApp.openById(exFile.getId());
-      } else {
-        ss = SpreadsheetApp.create(ssTitle);
-        var ssFile = DriveApp.getFileById(ss.getId());
-        try {
-          ssFile.moveTo(storeFolder);
-        } catch (eMove) {
-          try {
-            storeFolder.addFile(ssFile);
-            DriveApp.getRootFolder().removeFile(ssFile);
-          } catch (eFallback) {}
-        }
-        try {
-          ssFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.EDIT);
-        } catch (eShare) {}
-      }
-
-      var sheet = ss.getActiveSheet();
-      sheet.setName('ISI LANGSUNG PADA SPREADSHEET');
-      sheet.clear();
-
-      // Atur lebar kolom persis template CA_Store_Assignment.xlsx
-      sheet.setColumnWidth(1, 45);   // A: NO
-      sheet.setColumnWidth(2, 35);   // B: DAFTAR TEMUAN part 1
-      sheet.setColumnWidth(3, 110);  // C: part 2
-      sheet.setColumnWidth(4, 180);  // D: part 3
-      sheet.setColumnWidth(5, 160);  // E: TANGGAL PERBAIKAN
-      sheet.setColumnWidth(6, 480);  // F: BUKTI PERBAIKAN
-
-      // Row 1: Header Banner (Background #46BDC6 / Cyan FM, Teks Putih Bold)
-      var r1 = sheet.getRange('A1:F1');
-      r1.merge();
-      r1.setValue('FORM DIISI OLEH TIM OPERASIONAL TOKO');
-      r1.setBackground('#46BDC6');
-      r1.setFontColor('#FFFFFF');
-      r1.setFontWeight('bold');
-      r1.setFontSize(12);
-      r1.setHorizontalAlignment('center');
-      r1.setVerticalAlignment('middle');
-      sheet.setRowHeight(1, 46);
-
-      // Rows 3-7: Info Metadata Kunjungan
-      var metaRows = [
-        { label: 'Kode Toko', val: storeCode || '-' },
-        { label: 'Nama Store', val: storeName || '-' },
-        { label: 'Nama Visitor', val: visitorName || '-' },
-        { label: 'Tanggal Visit', val: report.visitDateFormatted || ddMmYyyy || '-' },
-        { label: 'PIC Store', val: report.storeHead || '-' }
-      ];
-
-      // BATCH WRITE METADATA UNTUK KECEPATAN TINGGI (~10x lebih cepat daripada loop individual)
-      sheet.getRange('A3:C7').mergeAcross();
-      sheet.getRange('D3:E7').mergeAcross();
-      var labelVals = [['Kode Toko'], ['Nama Store'], ['Nama Visitor'], ['Tanggal Visit'], ['PIC Store']];
-      var dataVals = [
-        [storeCode || '-'],
-        [storeName || '-'],
-        [visitorName || '-'],
-        [report.visitDateFormatted || ddMmYyyy || '-'],
-        [report.storeHead || '-']
-      ];
-      sheet.getRange('A3:A7').setValues(labelVals);
-      sheet.getRange('D3:D7').setValues(dataVals);
-      sheet.getRange('A3:C7').setBackground('#46BDC6').setFontColor('#FFFFFF').setFontWeight('bold').setFontSize(10).setVerticalAlignment('middle');
-      sheet.getRange('D3:E7').setFontWeight('bold').setFontSize(10).setVerticalAlignment('middle');
-      sheet.getRange('A3:E7').setBorder(true, true, true, true, true, true, '#CBD5E1', SpreadsheetApp.BorderStyle.SOLID);
-      sheet.setRowHeights(3, 5, 24);
-
-      // Row 9: Header Kolom Temuan
-      var r9No = sheet.getRange('A9');
-      r9No.setValue('NO');
-      r9No.setBackground('#46BDC6');
-      r9No.setFontColor('#FFFFFF');
-      r9No.setFontWeight('bold');
-      r9No.setFontSize(10);
-      r9No.setHorizontalAlignment('center');
-      r9No.setVerticalAlignment('middle');
-
-      var r9Daftar = sheet.getRange('B9:D9');
-      r9Daftar.merge();
-      r9Daftar.setValue('DAFTAR TEMUAN\n(berdasarkan list pada visit report)');
-      r9Daftar.setBackground('#46BDC6');
-      r9Daftar.setFontColor('#FFFFFF');
-      r9Daftar.setFontWeight('bold');
-      r9Daftar.setFontSize(10);
-      r9Daftar.setHorizontalAlignment('center');
-      r9Daftar.setVerticalAlignment('middle');
-      r9Daftar.setWrap(true);
-
-      var r9Tgl = sheet.getRange('E9');
-      r9Tgl.setValue('TANGGAL PERBAIKAN');
-      r9Tgl.setBackground('#46BDC6');
-      r9Tgl.setFontColor('#FFFFFF');
-      r9Tgl.setFontWeight('bold');
-      r9Tgl.setFontSize(10);
-      r9Tgl.setHorizontalAlignment('center');
-      r9Tgl.setVerticalAlignment('middle');
-      r9Tgl.setWrap(true);
-
-      var r9Bukti = sheet.getRange('F9');
-      r9Bukti.setValue('BUKTI PERBAIKAN\n(isi dengan foto perbaikan)');
-      r9Bukti.setBackground('#46BDC6');
-      r9Bukti.setFontColor('#FFFFFF');
-      r9Bukti.setFontWeight('bold');
-      r9Bukti.setFontSize(10);
-      r9Bukti.setHorizontalAlignment('center');
-      r9Bukti.setVerticalAlignment('middle');
-      r9Bukti.setWrap(true);
-
-      sheet.getRange('A9:F9').setBorder(true, true, true, true, true, true, '#94A3B8', SpreadsheetApp.BorderStyle.SOLID);
-      sheet.setRowHeight(9, 50);
-
-      // Rows 10+: Temuan Observasi (Batch Write & Style for Ultra-Fast Execution)
-      var observations = [];
-      if (Array.isArray(report.opiObservations) && report.opiObservations.length > 0) {
-        observations = observations.concat(report.opiObservations.filter(function(o) { return o && (o.temuan || o.deskripsi); }));
-      }
-      var qscObs = report.qscObservations || report.observations || [];
-      if (Array.isArray(qscObs) && qscObs.length > 0) {
-        observations = observations.concat(qscObs.filter(function(o) { return o && (o.temuan || o.deskripsi); }));
-      }
-      if (observations.length === 0 && Array.isArray(report.observations)) {
-        observations = report.observations;
-      }
-      var totalDataRows = Math.max(observations.length, 5);
-      var tableValues = [];
-
-      for (var oi = 0; oi < totalDataRows; oi++) {
-        var obsItem = (oi < observations.length) ? observations[oi] : null;
-        var descText = obsItem ? (obsItem.temuan || obsItem.deskripsi || '') : '';
-        if (obsItem && obsItem.tindakanPerbaikan) {
-          descText += '\n(Action: ' + obsItem.tindakanPerbaikan + ')';
-        }
-        var deadlineText = obsItem ? (obsItem.deadlineFormatted || obsItem.deadline || '') : '';
-        tableValues.push([
-          oi + 1,
-          descText,
-          '',
-          '',
-          deadlineText,
-          ''
-        ]);
-      }
-
-      sheet.getRange(10, 1, totalDataRows, 6).setValues(tableValues);
-      sheet.getRange(10, 1, totalDataRows, 6).setBorder(true, true, true, true, true, true, '#E2E8F0', SpreadsheetApp.BorderStyle.SOLID);
-      sheet.getRange(10, 1, totalDataRows, 1).setHorizontalAlignment('center').setVerticalAlignment('middle').setFontSize(10);
-      sheet.getRange(10, 2, totalDataRows, 3).setWrap(true).setVerticalAlignment('top').setFontSize(10);
-      sheet.getRange(10, 5, totalDataRows, 1).setHorizontalAlignment('center').setVerticalAlignment('middle').setFontSize(10);
-      sheet.getRange(10, 6, totalDataRows, 1).setVerticalAlignment('middle');
-
-      // BATCH MERGE & RESIZE ROW TEMUAN (~10x lebih cepat)
-      sheet.getRange(10, 2, totalDataRows, 3).mergeAcross();
-      sheet.setRowHeights(10, totalDataRows, 40);
-
-      // KUNCI / LOCK KOLOM A-D (Toko hanya bisa mengisi Kolom E & F pada data temuan)
+    // Prioritas 1: Jika client mengirimkan base64 XLSX ter-generate langsung dari FMCUPdf
+    if (data.caXlsxBase64) {
       try {
-        var protection = sheet.protect().setDescription('Kunci Kolom A-D (Form Store CA)');
-        var unprotectedRange = sheet.getRange(10, 5, totalDataRows, 2); // Kolom E & F
-        protection.setUnprotectedRanges([unprotectedRange]);
-      } catch (eProt) {
-        Logger.log('Protection setup notice: ' + eProt.toString());
+        var directBlob = Utilities.newBlob(
+          Utilities.base64Decode(data.caXlsxBase64),
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          xlsxFileName
+        );
+        var existingXlsx = storeFolder.getFilesByName(xlsxFileName);
+        while (existingXlsx.hasNext()) {
+          try { existingXlsx.next().setTrashed(true); } catch (eTr) {}
+        }
+        var directXlsxFile = storeFolder.createFile(directBlob);
+        try {
+          directXlsxFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.EDIT);
+        } catch (eShare) {}
+        caSpreadsheetUrl = directXlsxFile.getUrl();
+      } catch (eDirect) {
+        Logger.log("Direct XLSX save error, fallback to GAS builder: " + eDirect.toString());
       }
+    }
 
-      caSpreadsheetUrl = ss.getUrl();
-    } catch (eSs) {
-      Logger.log('CA Spreadsheet creation error: ' + eSs.toString());
+    // Prioritas 2 / Fallback GAS Native Builder: Bangun spreadsheet, format lengkap, export ke .xlsx
+    if (!caSpreadsheetUrl) {
+      try {
+        var tempSsTitle = "TEMP_CA_" + Date.now() + "_" + storeName;
+        var ss = SpreadsheetApp.create(tempSsTitle);
+        var sheet = ss.getActiveSheet();
+        sheet.setName("ISI LANGSUNG PADA SPREADSHEET");
+        sheet.clear();
+
+        // Atur lebar kolom persis template CA_Store_Assignment.xlsx + Kolom G Action Plan Store
+        sheet.setColumnWidth(1, 45);   // A: NO
+        sheet.setColumnWidth(2, 35);   // B: DAFTAR TEMUAN part 1
+        sheet.setColumnWidth(3, 110);  // C: part 2
+        sheet.setColumnWidth(4, 180);  // D: part 3
+        sheet.setColumnWidth(5, 160);  // E: TANGGAL PERBAIKAN
+        sheet.setColumnWidth(6, 420);  // F: BUKTI PERBAIKAN
+        sheet.setColumnWidth(7, 360);  // G: ACTION PLAN STORE
+
+        // Row 1: Header Banner (Background #46BDC6 / Cyan FM, Teks Putih Bold)
+        var r1 = sheet.getRange("A1:G1");
+        r1.merge();
+        r1.setValue("FORM DIISI OLEH TIM OPERASIONAL TOKO");
+        r1.setBackground("#46BDC6");
+        r1.setFontColor("#FFFFFF");
+        r1.setFontWeight("bold");
+        r1.setFontSize(12);
+        r1.setHorizontalAlignment("center");
+        r1.setVerticalAlignment("middle");
+        sheet.setRowHeight(1, 46);
+
+        // Rows 3-7: Info Metadata Kunjungan
+        sheet.getRange("A3:C7").mergeAcross();
+        sheet.getRange("D3:E7").mergeAcross();
+        var labelVals = [["Kode Toko"], ["Nama Store"], ["Nama Visitor"], ["Tanggal Visit"], ["PIC Store"]];
+        var dataVals = [
+          [storeCode || "-"],
+          [storeName || "-"],
+          [visitorName || "-"],
+          [report.visitDateFormatted || ddMmYyyy || "-"],
+          [report.storeHead || "-"]
+        ];
+        sheet.getRange("A3:A7").setValues(labelVals);
+        sheet.getRange("D3:D7").setValues(dataVals);
+        sheet.getRange("A3:C7").setBackground("#46BDC6").setFontColor("#FFFFFF").setFontWeight("bold").setFontSize(10).setVerticalAlignment("middle");
+        sheet.getRange("D3:E7").setFontWeight("bold").setFontSize(10).setVerticalAlignment("middle");
+        sheet.getRange("A3:E7").setBorder(true, true, true, true, true, true, "#CBD5E1", SpreadsheetApp.BorderStyle.SOLID);
+        sheet.setRowHeights(3, 5, 24);
+
+        // PERMINTAAN USER: RAPIHKAN KODE TOKO DAN TANGGAL JADI RATA KANAN
+        sheet.getRange("D3").setHorizontalAlignment("right"); // Kode Toko rata kanan
+        sheet.getRange("D6").setHorizontalAlignment("right"); // Tanggal Visit rata kanan
+
+        // Row 9: Header Kolom Temuan + ACTION PLAN STORE
+        var r9No = sheet.getRange("A9");
+        r9No.setValue("NO");
+        r9No.setBackground("#46BDC6").setFontColor("#FFFFFF").setFontWeight("bold").setFontSize(10).setHorizontalAlignment("center").setVerticalAlignment("middle");
+
+        var r9Daftar = sheet.getRange("B9:D9");
+        r9Daftar.merge();
+        r9Daftar.setValue("DAFTAR TEMUAN\n(berdasarkan list pada visit report)");
+        r9Daftar.setBackground("#46BDC6").setFontColor("#FFFFFF").setFontWeight("bold").setFontSize(10).setHorizontalAlignment("center").setVerticalAlignment("middle").setWrap(true);
+
+        var r9Tgl = sheet.getRange("E9");
+        r9Tgl.setValue("TANGGAL PERBAIKAN");
+        r9Tgl.setBackground("#46BDC6").setFontColor("#FFFFFF").setFontWeight("bold").setFontSize(10).setHorizontalAlignment("center").setVerticalAlignment("middle").setWrap(true);
+
+        var r9Bukti = sheet.getRange("F9");
+        r9Bukti.setValue("BUKTI PERBAIKAN\n(isi dengan foto perbaikan)");
+        r9Bukti.setBackground("#46BDC6").setFontColor("#FFFFFF").setFontWeight("bold").setFontSize(10).setHorizontalAlignment("center").setVerticalAlignment("middle").setWrap(true);
+
+        // PERMINTAAN USER: SETELAH TABLE BUKTI PERBAIKAN TAMBAHKAN TABLE BARU DI KANAN: ACTION PLAN STORE
+        var r9Action = sheet.getRange("G9");
+        r9Action.setValue("ACTION PLAN STORE\n(rencana tindakan perbaikan toko)");
+        r9Action.setBackground("#46BDC6").setFontColor("#FFFFFF").setFontWeight("bold").setFontSize(10).setHorizontalAlignment("center").setVerticalAlignment("middle").setWrap(true);
+
+        sheet.getRange("A9:G9").setBorder(true, true, true, true, true, true, "#94A3B8", SpreadsheetApp.BorderStyle.SOLID);
+        sheet.setRowHeight(9, 50);
+
+        // Rows 10+: Temuan Observasi
+        var observations = [];
+        if (Array.isArray(report.opiObservations) && report.opiObservations.length > 0) {
+          observations = observations.concat(report.opiObservations.filter(function(o) { return o && (o.temuan || o.deskripsi); }));
+        }
+        var qscObs = report.qscObservations || report.observations || [];
+        if (Array.isArray(qscObs) && qscObs.length > 0) {
+          observations = observations.concat(qscObs.filter(function(o) { return o && (o.temuan || o.deskripsi); }));
+        }
+        if (observations.length === 0 && Array.isArray(report.observations)) {
+          observations = report.observations;
+        }
+        var totalDataRows = Math.max(observations.length, 5);
+        var tableValues = [];
+
+        for (var oi = 0; oi < totalDataRows; oi++) {
+          var obsItem = (oi < observations.length) ? observations[oi] : null;
+          var descText = obsItem ? (obsItem.temuan || obsItem.deskripsi || "") : "";
+          if (obsItem && obsItem.tindakanPerbaikan) {
+            descText += "\n(Action: " + obsItem.tindakanPerbaikan + ")";
+          }
+          var deadlineText = obsItem ? (obsItem.deadlineFormatted || obsItem.deadline || "") : "";
+          tableValues.push([
+            oi + 1,
+            descText,
+            "",
+            "",
+            deadlineText,
+            "",
+            ""
+          ]);
+        }
+
+        sheet.getRange(10, 1, totalDataRows, 7).setValues(tableValues);
+        sheet.getRange(10, 1, totalDataRows, 7).setBorder(true, true, true, true, true, true, "#E2E8F0", SpreadsheetApp.BorderStyle.SOLID);
+        sheet.getRange(10, 1, totalDataRows, 1).setHorizontalAlignment("center").setVerticalAlignment("middle").setFontSize(10);
+        sheet.getRange(10, 2, totalDataRows, 3).setWrap(true).setVerticalAlignment("top").setFontSize(10);
+        
+        // PERMINTAAN USER: TANGGAL JADI RATA KANAN
+        sheet.getRange(10, 5, totalDataRows, 1).setHorizontalAlignment("right").setVerticalAlignment("middle").setFontSize(10);
+        sheet.getRange(10, 6, totalDataRows, 1).setVerticalAlignment("middle"); // Bukti Perbaikan
+        sheet.getRange(10, 7, totalDataRows, 1).setWrap(true).setVerticalAlignment("top").setFontSize(10); // Action Plan Store
+
+        sheet.getRange(10, 2, totalDataRows, 3).mergeAcross();
+        sheet.setRowHeights(10, totalDataRows, 40);
+
+        // PERMINTAAN USER: KUNCI KOLOM A-E AGAR TIDAK BISA DI-EDIT (Hanya Kolom F & G yang bisa diedit toko)
+        try {
+          var protection = sheet.protect().setDescription("Kunci Kolom A-E (Form Store CA)");
+          var unprotectedRange = sheet.getRange(10, 6, totalDataRows, 2); // Kolom 6 (F) & 7 (G)
+          protection.setUnprotectedRanges([unprotectedRange]);
+        } catch (eProt) {
+          Logger.log("Protection setup notice: " + eProt.toString());
+        }
+
+        // PERMINTAAN USER: HIDE/HAPUS KOLOM DAN ROW EXCEL YANG TIDAK DIGUNAKAN AGAR FOKUS KE 1 LEMBAR LAPORAN
+        var lastCol = 7;
+        var lastRow = 9 + totalDataRows;
+        var maxCols = sheet.getMaxColumns();
+        if (maxCols > lastCol) {
+          sheet.deleteColumns(lastCol + 1, maxCols - lastCol);
+        }
+        var maxRows = sheet.getMaxRows();
+        if (maxRows > lastRow) {
+          sheet.deleteRows(lastRow + 1, maxRows - lastRow);
+        }
+
+        // Flush seluruh perubahan ke spreadsheet
+        SpreadsheetApp.flush();
+
+        // PERMINTAAN USER: UBAH FORMAT SIMPAN DARI SPREADSHEET KE FILE .XLSX
+        try {
+          var exportUrl = "https://docs.google.com/spreadsheets/d/" + ss.getId() + "/export?format=xlsx";
+          var exportRes = UrlFetchApp.fetch(exportUrl, {
+            headers: { Authorization: "Bearer " + ScriptApp.getOAuthToken() },
+            muteHttpExceptions: true
+          });
+          var xlsxBlob = exportRes.getBlob().setName(xlsxFileName);
+          
+          var existingFiles = storeFolder.getFilesByName(xlsxFileName);
+          while (existingFiles.hasNext()) {
+            try { existingFiles.next().setTrashed(true); } catch (eTr) {}
+          }
+
+          var finalXlsxFile = storeFolder.createFile(xlsxBlob);
+          try {
+            finalXlsxFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.EDIT);
+          } catch (eShareXlsx) {}
+
+          caSpreadsheetUrl = finalXlsxFile.getUrl();
+
+          // Hapus temporary spreadsheet agar yang tersimpan murni file XLSX
+          try {
+            DriveApp.getFileById(ss.getId()).setTrashed(true);
+          } catch (eTrashSs) {}
+        } catch (eExport) {
+          Logger.log("Export to XLSX failed, keeping spreadsheet: " + eExport.toString());
+          var ssFile = DriveApp.getFileById(ss.getId());
+          ssFile.setName("CA Store Assignment - " + storeName);
+          try { ssFile.moveTo(storeFolder); } catch (eM) {}
+          caSpreadsheetUrl = ss.getUrl();
+        }
+      } catch (eSs) {
+        Logger.log("CA XLSX creation error: " + eSs.toString());
+      }
     }
 
     // ------------------------------------------------------------------------

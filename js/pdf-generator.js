@@ -1496,29 +1496,37 @@ window.FMCUPdf = {
     return dataUri.split(',')[1] || '';
   },
 
-  // Generate CA Store Assignment Workbook (.xlsx) matching CA_Store_Assignment.xlsx with locked columns A-E
+  // Generate CA Store Assignment Workbook (.xlsx) matching CA_Store_Assignment.xlsx with locked columns A-E & Action Plan Store
   generateCaStoreAssignmentWorkbook(report) {
-    if (typeof XLSX === 'undefined') return null;
+    if (typeof XLSX === "undefined") return null;
 
-    const cleanStore = String(report.storeName || 'STORE').replace(/[/\\:*?"<>|]/g, ' ').trim();
-    const storeCode = String(report.storeCode || '').trim();
-    const visitorName = String(report.auditorName || 'Visitor').trim();
+    const cleanStore = String(report.storeName || "STORE").replace(/[/\\:*?"<>|]/g, " ").trim();
+    const storeCode = String(report.storeCode || "").trim();
+    const visitorName = String(report.auditorName || "Visitor").trim();
     const visitDate = report.visitDateFormatted || this.formatDateDdMmYyyy(report.visitDate);
-    const picStore = String(report.storeHead || 'PIC Store').trim();
+    const picStore = String(report.storeHead || "PIC Store").trim();
 
     const wb = XLSX.utils.book_new();
 
-    // Build raw cell matrix
+    // Build raw cell matrix with 7 columns (A to G)
     const data = [
-      ['FORM DIISI OLEH TIM OPERASIONAL TOKO', '', '', '', '', ''], // Row 1 (index 0)
-      ['', '', '', '', '', ''], // Row 2
-      ['Kode Toko', '', '', storeCode, '', ''], // Row 3
-      ['Nama Store', '', '', cleanStore, '', ''], // Row 4
-      ['Nama Visitor', '', '', visitorName, '', ''], // Row 5
-      ['Tanggal Visit', '', '', visitDate, '', ''], // Row 6
-      ['PIC Store', '', '', picStore, '', ''], // Row 7
-      ['', '', '', '', '', ''], // Row 8
-      ['NO', 'DAFTAR TEMUAN\n(berdasarkan list pada visit report)', '', '', 'TANGGAL PERBAIKAN', 'BUKTI PERBAIKAN\n(isi dengan foto perbaikan)'] // Row 9
+      ["FORM DIISI OLEH TIM OPERASIONAL TOKO", "", "", "", "", "", ""], // Row 1 (index 0) - Banner A1:G1
+      ["", "", "", "", "", "", ""], // Row 2
+      ["Kode Toko", "", "", storeCode, "", "", ""], // Row 3
+      ["Nama Store", "", "", cleanStore, "", "", ""], // Row 4
+      ["Nama Visitor", "", "", visitorName, "", "", ""], // Row 5
+      ["Tanggal Visit", "", "", visitDate, "", "", ""], // Row 6
+      ["PIC Store", "", "", picStore, "", "", ""], // Row 7
+      ["", "", "", "", "", "", ""], // Row 8
+      [
+        "NO",
+        "DAFTAR TEMUAN\n(berdasarkan list pada visit report)",
+        "",
+        "",
+        "TANGGAL PERBAIKAN",
+        "BUKTI PERBAIKAN\n(isi dengan foto perbaikan)",
+        "ACTION PLAN STORE\n(rencana tindakan perbaikan toko)"
+      ] // Row 9
     ];
 
     let observations = [];
@@ -1535,70 +1543,136 @@ window.FMCUPdf = {
     const totalDataRows = Math.max(observations.length, 5);
 
     for (let i = 0; i < totalDataRows; i++) {
-      let findingText = '';
+      let findingText = "";
+      let deadlineText = "";
       if (i < observations.length) {
         const obs = observations[i];
-        findingText = obs.temuan || obs.deskripsi || '';
+        findingText = obs.temuan || obs.deskripsi || "";
         if (obs.tindakanPerbaikan) {
-          findingText += ' \n(Action: ' + obs.tindakanPerbaikan + ')';
+          findingText += " \n(Action: " + obs.tindakanPerbaikan + ")";
         }
+        deadlineText = obs.deadlineFormatted || obs.deadline || "";
       }
-      data.push([i + 1, findingText, '', '', '', '']);
+      data.push([i + 1, findingText, "", "", deadlineText, "", ""]);
     }
 
     const ws = XLSX.utils.aoa_to_sheet(data);
 
-    // POINT 10: Format sel metadata (Kode Toko, Nama Store, dll) agar sejajar rapi ke kiri
-    ['D3', 'D4', 'D5', 'D6', 'D7'].forEach((cellRef) => {
+    // PERMINTAAN USER: RAPIHKAN KODE TOKO (D3) DAN TANGGAL (D6) JADI RATA KANAN
+    if (ws["D3"]) {
+      ws["D3"].t = "s";
+      ws["D3"].s = {
+        alignment: { horizontal: "right", vertical: "middle" },
+        font: { bold: true }
+      };
+    }
+    ["D4", "D5", "D7"].forEach((cellRef) => {
       if (ws[cellRef]) {
-        ws[cellRef].t = 's'; // Force string type agar Excel tidak me-rata-kanan kode toko / tanggal
+        ws[cellRef].t = "s";
         ws[cellRef].s = {
-          alignment: { horizontal: 'left', vertical: 'center' },
+          alignment: { horizontal: "left", vertical: "middle" },
           font: { bold: true }
         };
       }
     });
+    if (ws["D6"]) {
+      ws["D6"].t = "s";
+      ws["D6"].s = {
+        alignment: { horizontal: "right", vertical: "middle" },
+        font: { bold: true }
+      };
+    }
 
-    // Apply exact Merges from CA_Store_Assignment.xlsx
-    ws['!merges'] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }, // A1:F1
-      { s: { r: 2, c: 0 }, e: { r: 2, c: 2 } }, // A3:C3
-      { s: { r: 2, c: 3 }, e: { r: 2, c: 4 } }, // D3:E3
-      { s: { r: 3, c: 0 }, e: { r: 3, c: 2 } }, // A4:C4
-      { s: { r: 3, c: 3 }, e: { r: 3, c: 4 } }, // D4:E4
-      { s: { r: 4, c: 0 }, e: { r: 4, c: 2 } }, // A5:C5
-      { s: { r: 4, c: 3 }, e: { r: 4, c: 4 } }, // D5:E5
-      { s: { r: 5, c: 0 }, e: { r: 5, c: 2 } }, // A6:C6
-      { s: { r: 5, c: 3 }, e: { r: 5, c: 4 } }, // D6:E6
-      { s: { r: 6, c: 0 }, e: { r: 6, c: 2 } }, // A7:C7
-      { s: { r: 6, c: 3 }, e: { r: 6, c: 4 } }, // D7:E7
-      { s: { r: 8, c: 1 }, e: { r: 8, c: 3 } }  // B9:D9
+    // Apply exact Merges
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, // A1:G1 (Header Banner)
+      { s: { r: 2, c: 0 }, e: { r: 2, c: 2 } }, // A3:C3 (Kode Toko label)
+      { s: { r: 2, c: 3 }, e: { r: 2, c: 4 } }, // D3:E3 (Kode Toko value)
+      { s: { r: 3, c: 0 }, e: { r: 3, c: 2 } }, // A4:C4 (Nama Store label)
+      { s: { r: 3, c: 3 }, e: { r: 3, c: 4 } }, // D4:E4 (Nama Store value)
+      { s: { r: 4, c: 0 }, e: { r: 4, c: 2 } }, // A5:C5 (Nama Visitor label)
+      { s: { r: 4, c: 3 }, e: { r: 4, c: 4 } }, // D5:E5 (Nama Visitor value)
+      { s: { r: 5, c: 0 }, e: { r: 5, c: 2 } }, // A6:C6 (Tanggal Visit label)
+      { s: { r: 5, c: 3 }, e: { r: 5, c: 4 } }, // D6:E6 (Tanggal Visit value)
+      { s: { r: 6, c: 0 }, e: { r: 6, c: 2 } }, // A7:C7 (PIC Store label)
+      { s: { r: 6, c: 3 }, e: { r: 6, c: 4 } }, // D7:E7 (PIC Store value)
+      { s: { r: 8, c: 1 }, e: { r: 8, c: 3 } }  // B9:D9 (DAFTAR TEMUAN header)
     ];
 
     for (let i = 0; i < totalDataRows; i++) {
       const rowIdx = 9 + i;
-      ws['!merges'].push({ s: { r: rowIdx, c: 1 }, e: { r: rowIdx, c: 3 } }); // B:D
+      ws["!merges"].push({ s: { r: rowIdx, c: 1 }, e: { r: rowIdx, c: 3 } }); // B:D
+
+      // PERMINTAAN USER: TANGGAL PERBAIKAN DI TABEL JADI RATA KANAN
+      const cellE = "E" + (rowIdx + 1);
+      if (ws[cellE]) {
+        ws[cellE].s = {
+          alignment: { horizontal: "right", vertical: "middle" },
+          font: { bold: false }
+        };
+      }
     }
 
-    // Set Column Widths (matching CA_Store_Assignment.xlsx)
-    ws['!cols'] = [
+    // Set Column Widths (matching template + Kolom G Action Plan Store)
+    ws["!cols"] = [
       { wch: 6 },   // A: NO
       { wch: 5 },   // B: DAFTAR TEMUAN (part 1)
       { wch: 14 },  // C: (part 2)
       { wch: 24 },  // D: (part 3)
-      { wch: 22 },  // E: TANGGAL PERBAIKAN
-      { wch: 65 }   // F: BUKTI PERBAIKAN
+      { wch: 20 },  // E: TANGGAL PERBAIKAN
+      { wch: 52 },  // F: BUKTI PERBAIKAN
+      { wch: 45 }   // G: ACTION PLAN STORE
     ];
 
-    // Sheet Protection: Lock columns A-E, keep Column F & E for input
-    ws['!protect'] = {
-      password: 'fmcu',
+    // PERMINTAAN USER: HIDE KOLOM & ROW YANG TIDAK DIGUNAKAN AGAR FOKUS KE 1 LEMBAR LAPORAN
+    // Kolom setelah G (H sampai Z / col 7 sampai 30) di-hide
+    for (let c = 7; c <= 30; c++) {
+      ws["!cols"].push({ hidden: true });
+    }
+
+    const lastRowIndex = 8 + totalDataRows; // 0-based
+    ws["!ref"] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: lastRowIndex, c: 6 } });
+
+    // Set Row Heights & Sembunyikan baris setelah data terakhir
+    if (!ws["!rows"]) ws["!rows"] = [];
+    ws["!rows"][0] = { hpt: 35 }; // Row 1 banner
+    for (let r = 2; r <= 6; r++) {
+      ws["!rows"][r] = { hpt: 20 }; // Metadata
+    }
+    ws["!rows"][8] = { hpt: 38 }; // Header table
+    for (let i = 0; i < totalDataRows; i++) {
+      ws["!rows"][9 + i] = { hpt: 32 }; // Data rows
+    }
+    // Baris tidak digunakan (setelah data) di-hide
+    for (let r = lastRowIndex + 1; r <= lastRowIndex + 150; r++) {
+      ws["!rows"][r] = { hidden: true };
+    }
+
+    // PERMINTAAN USER: KUNCI KOLOM A-E AGAR TIDAK BISA DI-EDIT (Buka F & G untuk Store)
+    for (let R = 0; R <= lastRowIndex; R++) {
+      for (let C = 0; C <= 6; C++) {
+        const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+        if (!ws[cellRef]) ws[cellRef] = { t: "s", v: "" };
+        if (!ws[cellRef].s) ws[cellRef].s = {};
+
+        // Baris data (R >= 9): Kolom F (C=5) dan G (C=6) UNLOCKED (bisa diisi store)
+        // Seluruh kolom A-E (C <= 4) dan Header LOCKED (dikunci)
+        if (R >= 9 && (C === 5 || C === 6)) {
+          ws[cellRef].s.locked = false;
+        } else {
+          ws[cellRef].s.locked = true;
+        }
+      }
+    }
+
+    ws["!protect"] = {
+      password: "fmcu",
       sheet: true,
       selectLockedCells: true,
       selectUnlockedCells: true
     };
 
-    XLSX.utils.book_append_sheet(wb, ws, 'ISI LANGSUNG PADA SPREADSHEET');
+    XLSX.utils.book_append_sheet(wb, ws, "ISI LANGSUNG PADA SPREADSHEET");
     return wb;
   },
 
