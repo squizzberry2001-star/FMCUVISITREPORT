@@ -3862,6 +3862,114 @@ window.FMCUApp = {
     this.renderAdminQuixoticAnalytic();
   },
 
+  adminBarSemester: null,
+
+  setAdminBarSemester(sem = 0) {
+    this.adminBarSemester = sem === 1 ? 1 : 0;
+    this.selectedAdminBarMonthIdx = null;
+    this.renderAdminQuixoticAnalytic();
+  },
+
+  renderAdminEngagementBarChart(monthlyStats = []) {
+    const container = document.getElementById('qx-monthly-bars-container');
+    if (!container || !monthlyStats.length) return;
+
+    const curMonth = new Date().getMonth();
+    if (this.adminBarSemester !== 0 && this.adminBarSemester !== 1) {
+      this.adminBarSemester = curMonth >= 6 ? 1 : 0;
+    }
+    const sem = this.adminBarSemester;
+    const startIdx = sem * 6;
+    const months = monthlyStats.slice(startIdx, startIdx + 6);
+
+    // Toggle tab state
+    const tab1 = document.getElementById('qx-er-tab-h1');
+    const tab2 = document.getElementById('qx-er-tab-h2');
+    if (tab1) tab1.classList.toggle('active', sem === 0);
+    if (tab2) tab2.classList.toggle('active', sem === 1);
+
+    const totalOf = (m) => (m ? (m.effectiveVisit || 0) + (m.nso || 0) : 0);
+    const values = months.map(totalOf);
+    const rawMax = Math.max(0, ...values);
+
+    // Nice Y-axis scale (5 steps like reference: 0,1k,2k,3k,4k,5k)
+    const niceStep = (v) => {
+      if (v <= 0) return 1;
+      const exp = Math.pow(10, Math.floor(Math.log10(v)));
+      const f = v / exp;
+      const nf = f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10;
+      return nf * exp;
+    };
+    const step = Math.max(1, niceStep(Math.ceil((rawMax * 1.1) / 5)));
+    const scaleMax = step * 5;
+    const fmt = (v) => (v >= 1000 ? `${+(v / 1000).toFixed(1)}k` : String(Math.round(v)));
+
+    // Active bar: selected > current month (if in window) > peak in window
+    let activeIdx = null;
+    const sel = this.selectedAdminBarMonthIdx;
+    if (typeof sel === 'number' && sel >= startIdx && sel < startIdx + 6) activeIdx = sel;
+    else if (curMonth >= startIdx && curMonth < startIdx + 6) activeIdx = curMonth;
+    else {
+      let best = -1;
+      months.forEach((m, i) => {
+        if (values[i] > best) { best = values[i]; activeIdx = m.monthIdx; }
+      });
+    }
+
+    const subEl = document.getElementById('qx-er-subtitle');
+    if (subEl) {
+      const sum = values.reduce((a, b) => a + b, 0);
+      subEl.textContent = `${sem === 0 ? 'Januari – Juni' : 'Juli – Desember'} • ${sum.toLocaleString('id-ID')} total`;
+    }
+
+    const gridHtml = [5, 4, 3, 2, 1, 0]
+      .map((i) => `
+        <div class="qx-er-gridrow" style="bottom:${(i / 5) * 100}%">
+          <span class="qx-er-ylabel">${fmt(step * i)}</span>
+          <span class="qx-er-gridline"></span>
+        </div>`)
+      .join('');
+
+    const barsHtml = months
+      .map((m, i) => {
+        const val = values[i];
+        const isActive = m.monthIdx === activeIdx;
+        const pct = val > 0 ? Math.max(12, Math.min(100, (val / scaleMax) * 100)) : 8;
+        const prev = m.monthIdx > 0 ? totalOf(monthlyStats[m.monthIdx - 1]) : 0;
+        let callout = `${val} Total`;
+        if (prev > 0) {
+          const g = ((val - prev) / prev) * 100;
+          callout = `${g >= 0 ? '+' : ''}${g.toFixed(1)}%`;
+        }
+        return `
+          <div class="qx-er-col" onclick="FMCUApp.selectAdminBarMonth(${m.monthIdx})" title="${m.fullLabel}: ${m.effectiveVisit} Visit • ${m.nso} NSO">
+            <div class="qx-er-bar ${isActive ? 'is-active' : ''}" style="height:${pct}%; animation-delay:${i * 60}ms">
+              ${isActive ? `
+                <span class="qx-er-callout">${callout}</span>
+                <span class="qx-er-dot"></span>` : ''}
+              <span class="qx-er-tip">
+                <strong>${m.fullLabel}</strong>
+                <span>${m.effectiveVisit} Visit • ${m.nso} NSO</span>
+              </span>
+            </div>
+          </div>`;
+      })
+      .join('');
+
+    const labelsHtml = months
+      .map((m) => `<span class="qx-er-xlabel ${m.monthIdx === activeIdx ? 'is-active' : ''}">${String(m.label || '').toUpperCase()}</span>`)
+      .join('');
+
+    container.innerHTML = `
+      <div class="qx-er-chart">
+        <div class="qx-er-plot">
+          ${gridHtml}
+          <div class="qx-er-bars">${barsHtml}</div>
+        </div>
+        <div class="qx-er-xaxis">${labelsHtml}</div>
+      </div>`;
+  },
+
   renderAdminQuixoticAnalytic() {
     const schedules = window.FMCUData ? window.FMCUData.getSchedules() || [] : [];
     const reports = (window.FMCUData ? window.FMCUData.getReports() || [] : []).filter((r) => r && r.id && r.storeCode);
@@ -4109,151 +4217,7 @@ window.FMCUApp = {
       `Puncak: ${peakBucket.fullLabel} (${peakBucket.effectiveVisit}V / ${peakBucket.nso}N)`
     );
 
-    // 4-Month Sliding Window (Actual & Nearest 4 Months, Slidable across 12 Months)
-    const curActualMonthIdx = new Date().getMonth();
-    if (typeof this.adminMonthlyBarStartIdx !== 'number' || isNaN(this.adminMonthlyBarStartIdx)) {
-      this.adminMonthlyBarStartIdx = Math.max(0, Math.min(8, curActualMonthIdx - 2));
-    }
-    const startIdx = Math.max(0, Math.min(8, this.adminMonthlyBarStartIdx));
-    const visibleMonths = monthlyStats.slice(startIdx, startIdx + 4);
-
-    const rangeLabelEl = document.getElementById('qx-bar-window-range-label');
-    if (rangeLabelEl && visibleMonths.length > 0) {
-      rangeLabelEl.textContent = `${visibleMonths[0].label} – ${visibleMonths[visibleMonths.length - 1].label} ${yearFilter === 'ALL' ? '2026' : yearFilter}`;
-    }
-    const prevBtn = document.getElementById('qx-bar-slide-prev');
-    const nextBtn = document.getElementById('qx-bar-slide-next');
-    if (prevBtn) prevBtn.classList.toggle('opacity-40', startIdx <= 0);
-    if (nextBtn) nextBtn.classList.toggle('opacity-40', startIdx >= 8);
-
-    const barsContainer = document.getElementById('qx-monthly-bars-container');
-    if (barsContainer) {
-      const scaleMax = Math.max(8, Math.ceil(maxMonthTotal * 1.15 / 4) * 4);
-      const ySteps = [scaleMax, Math.round(scaleMax * 0.75), Math.round(scaleMax * 0.5), Math.round(scaleMax * 0.25), 0];
-      const activeFocusIdx = typeof this.selectedAdminBarMonthIdx === 'number' ? this.selectedAdminBarMonthIdx : curActualMonthIdx;
-
-      const yAxisHtml = ySteps
-        .map(
-          (val) => `
-            <div class="flex items-center gap-2.5 w-full">
-              <span class="w-8 text-right text-[10px] font-bold text-slate-400 font-mono shrink-0">${val}</span>
-              <div class="flex-1 border-b border-dashed border-slate-200/80"></div>
-            </div>
-          `
-        )
-        .join('');
-
-      const columnsHtml = visibleMonths
-        .map((m, colIdx) => {
-          const vVal = this.adminQuixoticBarMode === 'NSO' ? 0 : m.effectiveVisit;
-          const nVal = this.adminQuixoticBarMode === 'VISIT' ? 0 : m.nso;
-          const isCurrentActualMonth = m.monthIdx === curActualMonthIdx;
-          const isSelectedMonth = m.monthIdx === activeFocusIdx;
-          const isPeak = m.monthIdx === peakMonthIdx || isSelectedMonth;
-
-          const primaryVal = this.adminQuixoticBarMode === 'NSO' ? nVal : vVal;
-          const primaryHeightPct = primaryVal === 0 ? 18 : Math.max(28, Math.min(94, Math.round((primaryVal / scaleMax) * 100)));
-          const secondaryHeightPct = (this.adminQuixoticBarMode === 'BOTH' && nVal > 0)
-            ? Math.max(22, Math.min(90, Math.round((nVal / scaleMax) * 100)))
-            : 0;
-
-          const capsuleClass = this.adminQuixoticBarMode === 'NSO'
-            ? 'qx-capsule-bar-nso'
-            : (isPeak ? 'qx-capsule-bar-active' : 'qx-capsule-bar-striped');
-
-          const monthActionable = m.visitScheduled + m.nso;
-          const monthRatePct = monthActionable > 0
-            ? Math.min(100, Math.round(((m.visitDone + (m.nso - Math.max(0, m.pending - (m.visitScheduled - m.visitDone)))) / monthActionable) * 100))
-            : (m.effectiveVisit > 0 ? 100 : 0);
-
-          const calloutText = this.adminQuixoticBarMode === 'NSO'
-            ? `${nVal} NSO`
-            : `${vVal} Visit (${monthRatePct}%)`;
-
-          return `
-            <div
-              onclick="FMCUApp.selectAdminBarMonth(${m.monthIdx})"
-              class="qx-bar-col-group group relative h-full flex flex-col items-center justify-end cursor-pointer select-none px-1.5 sm:px-3 pt-10 pb-1 rounded-2xl transition"
-            >
-              <!-- Interactive Hover Breakdown Tooltip -->
-              <div class="qx-bar-tooltip-card absolute -top-1 left-1/2 -translate-x-1/2 z-30 w-44 p-2.5 rounded-2xl bg-slate-900/95 text-white shadow-xl border border-slate-700/80 text-[10px] space-y-1">
-                <div class="flex items-center justify-between font-black border-b border-slate-700/80 pb-1">
-                  <span>${m.fullLabel}</span>
-                  <span class="px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300">${monthRatePct}%</span>
-                </div>
-                <div class="flex items-center justify-between text-slate-300">
-                  <span>Total Visit:</span>
-                  <strong class="text-white">${m.effectiveVisit} Toko</strong>
-                </div>
-                <div class="flex items-center justify-between text-slate-300">
-                  <span>Total NSO:</span>
-                  <strong class="text-teal-300">${m.nso} NSO</strong>
-                </div>
-                <div class="flex items-center justify-between text-slate-300">
-                  <span>Training / Agenda:</span>
-                  <strong class="text-indigo-300">${m.training} / ${m.agenda}</strong>
-                </div>
-              </div>
-
-              <!-- Capsule Bars Stage (Quixotic Reference Image Style) -->
-              <div class="w-full flex items-end justify-center gap-2 h-[156px] px-1 relative z-10">
-                <div
-                  class="${capsuleClass} relative w-full max-w-[58px] sm:max-w-[66px] flex items-start justify-center"
-                  style="height: ${primaryHeightPct}%; animation-delay: ${colIdx * 70}ms;"
-                >
-                  ${
-                    isPeak
-                      ? `
-                        <!-- Floating Quixotic Callout Pill + Downward Pointer Above White-Ringed Green Dot -->
-                        <div class="absolute -top-11 left-1/2 -translate-x-1/2 flex flex-col items-center z-20 pointer-events-none">
-                          <div class="qx-callout-bubble">${calloutText}</div>
-                        </div>
-                        <span class="w-4 h-4 rounded-full bg-[#0d8247] border-[3px] border-white shadow-md -mt-2 z-10"></span>
-                      `
-                      : `
-                        <div class="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition pointer-events-none z-20">
-                          <span class="px-2.5 py-0.5 rounded-full bg-[#0d8247] text-white text-[9.5px] font-extrabold shadow-xs whitespace-nowrap">${vVal}V${nVal > 0 ? ` • +${nVal}N` : ''}</span>
-                        </div>
-                        <span class="w-3.5 h-3.5 rounded-full bg-[#0d8247] border-2 border-white opacity-0 group-hover:opacity-100 transition -mt-1.5"></span>
-                      `
-                  }
-                </div>
-                ${
-                  secondaryHeightPct > 0
-                    ? `<div
-                        class="qx-capsule-bar-nso w-5 sm:w-6"
-                        style="height: ${secondaryHeightPct}%; animation-delay: ${colIdx * 70 + 60}ms;"
-                        title="${nVal} NSO"
-                      ></div>`
-                    : ''
-                }
-              </div>
-
-              <!-- Month X-Axis Label -->
-              <div class="mt-2.5 flex items-center gap-1.5">
-                <span class="text-[11px] font-extrabold tracking-wider uppercase ${
-                  isPeak ? 'text-[#0d8247]' : 'text-slate-400 group-hover:text-slate-800'
-                }">${m.label}</span>
-                ${isCurrentActualMonth ? `<span class="px-1.5 py-0.2 rounded-full bg-emerald-100 text-[#0d8247] text-[8.5px] font-extrabold">Aktual</span>` : ''}
-              </div>
-            </div>
-          `;
-        })
-        .join('');
-
-      barsContainer.innerHTML = `
-        <div class="relative w-full h-[230px] pt-2">
-          <!-- Y-Axis Scale & Dashed Grid Lines Background -->
-          <div class="absolute inset-x-0 top-8 bottom-8 flex flex-col justify-between pointer-events-none z-0 pr-2">
-            ${yAxisHtml}
-          </div>
-          <!-- 4-Month Interactive Capsule Columns -->
-          <div class="relative z-10 pl-10 pr-1 h-full grid grid-cols-4 gap-2 sm:gap-5 items-end">
-            ${columnsHtml}
-          </div>
-        </div>
-      `;
-    }
+    this.renderAdminEngagementBarChart(monthlyStats);
 
     // 4. Render GRAFIK PERFORMA PER ANGGOTA (#qx-member-perf-chart-body) — Compact Row 2 Card
     const memberPerfContainer = document.getElementById('qx-member-perf-chart-body');

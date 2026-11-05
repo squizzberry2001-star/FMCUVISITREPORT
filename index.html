@@ -2341,77 +2341,30 @@
 
                 </div>
 
-                <!-- ROW 2: PROPER QUIXOTIC INTERACTIVE BAR CHART (4 BULAN AKTUAL & TERDEKAT + TOMBOL SLIDE 1 TAHUN) -->
-                <div id="adm-analytic-part-chart" class="qx-card p-4 sm:p-5 space-y-3.5 scroll-mt-20">
-                  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                    <div class="flex items-center gap-2.5">
-                      <span class="w-8 h-8 rounded-full bg-[#F4F6F5] flex items-center justify-center shrink-0">
-                        <i class="fa-solid fa-chart-column text-[#0d8247] text-xs"></i>
-                      </span>
-                      <div>
-                        <h3 class="font-extrabold text-xs sm:text-sm text-slate-900">Grafik Batang Total Visit &amp; NSO Per Bulan</h3>
-                        <p class="text-[10.5px] text-slate-400">
-                          Interaktif 4 bulan aktual &amp; terdekat (<span class="text-[#0d8247] font-bold">Total Visit: <strong id="qx-bar-legend-visit-total">0</strong></span> • <span class="text-teal-600 font-bold">Total NSO: <strong id="qx-bar-legend-nso-total">0</strong></span>)
-                        </p>
+                <!-- ROW 2: GRAFIK BATANG (REBUILD — REFERENSI "ENGAGEMENT RATE" CAPSULE CHART) -->
+                <div id="adm-analytic-part-chart" class="qx-card qx-er-card p-4 sm:p-5 scroll-mt-20">
+                  <!-- Header: Icon + Title | Segmented Toggle + Arrow -->
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                      <span class="qx-er-icon"><i class="fa-regular fa-credit-card"></i></span>
+                      <div class="min-w-0">
+                        <h3 class="text-[13px] sm:text-sm font-semibold text-slate-800 truncate">Total Visit &amp; NSO</h3>
+                        <p id="qx-er-subtitle" class="text-[10.5px] text-slate-400 truncate">Per bulan</p>
                       </div>
                     </div>
-
-                    <!-- Right Controls: Mode Switcher + 4-Month Slide Prev/Next Buttons -->
-                    <div class="flex flex-wrap items-center gap-2">
-                      <!-- Mode Switcher (Visit & NSO / Visit / NSO) -->
-                      <div class="bg-[#F1F3F2] p-1 rounded-full inline-flex items-center text-[10.5px] font-bold">
-                        <button type="button" id="qx-bar-mode-both" onclick="FMCUApp.setAdminQuixoticMonthlyBarMode('BOTH')" class="px-3 py-1 rounded-full bg-[#0d8247] text-white font-extrabold shadow-2xs transition cursor-pointer">
-                          Visit &amp; NSO
-                        </button>
-                        <button type="button" id="qx-bar-mode-visit" onclick="FMCUApp.setAdminQuixoticMonthlyBarMode('VISIT')" class="px-3 py-1 rounded-full text-slate-600 hover:text-slate-900 transition cursor-pointer">
-                          Visit
-                        </button>
-                        <button type="button" id="qx-bar-mode-nso" onclick="FMCUApp.setAdminQuixoticMonthlyBarMode('NSO')" class="px-3 py-1 rounded-full text-slate-600 hover:text-slate-900 transition cursor-pointer">
-                          NSO
-                        </button>
+                    <div class="flex items-center gap-2 shrink-0">
+                      <div class="qx-er-toggle" role="tablist" aria-label="Periode Grafik">
+                        <button type="button" id="qx-er-tab-h1" onclick="FMCUApp.setAdminBarSemester(0)" class="qx-er-tab">Jan – Jun</button>
+                        <button type="button" id="qx-er-tab-h2" onclick="FMCUApp.setAdminBarSemester(1)" class="qx-er-tab">Jul – Des</button>
                       </div>
-
-                      <!-- Slide 4-Month Window Controls (Geser Bulan dalam 1 Tahun) -->
-                      <div class="inline-flex items-center gap-1 bg-[#F1F3F2] p-1 rounded-full border border-slate-200/70">
-                        <button
-                          type="button"
-                          id="qx-bar-slide-prev"
-                          onclick="FMCUApp.slideAdminMonthlyBarWindow(-1)"
-                          class="w-7 h-7 rounded-full bg-white hover:bg-[#0d8247] text-slate-700 hover:text-white flex items-center justify-center text-xs shadow-2xs transition cursor-pointer"
-                          title="Geser ke Bulan Sebelumnya"
-                        >
-                          <i class="fa-solid fa-chevron-left text-[10px]"></i>
-                        </button>
-                        <span id="qx-bar-window-range-label" class="px-2.5 text-[11px] font-extrabold text-slate-800 whitespace-nowrap">
-                          Agu – Nov
-                        </span>
-                        <button
-                          type="button"
-                          id="qx-bar-slide-next"
-                          onclick="FMCUApp.slideAdminMonthlyBarWindow(1)"
-                          class="w-7 h-7 rounded-full bg-white hover:bg-[#0d8247] text-slate-700 hover:text-white flex items-center justify-center text-xs shadow-2xs transition cursor-pointer"
-                          title="Geser ke Bulan Berikutnya"
-                        >
-                          <i class="fa-solid fa-chevron-right text-[10px]"></i>
-                        </button>
-                      </div>
+                      <button type="button" onclick="FMCUApp.scrollToAdminAnalyticPart('table')" class="qx-er-arrow" title="Lihat Tabel Ringkasan" aria-label="Lihat Tabel Ringkasan">
+                        <i class="fa-solid fa-arrow-up-right"></i>
+                      </button>
                     </div>
                   </div>
 
-                  <!-- Proper Quixotic Interactive Bar Chart Stage (Y-Axis + Dashed Gridlines + Animated Striped Capsule Bars) -->
-                  <div class="relative pt-2 pb-1">
-                    <div id="qx-monthly-bars-container" class="w-full">
-                      <!-- Populated dynamically by FMCUApp.renderAdminQuixoticAnalytic() -->
-                    </div>
-                    <div class="flex flex-wrap items-center justify-between gap-2 text-[10.5px] text-slate-400 pt-2.5 px-1 border-t border-slate-100 mt-1">
-                      <span class="flex items-center gap-3">
-                        <span class="inline-flex items-center gap-1.5 font-bold text-slate-600"><i class="w-2.5 h-2.5 rounded-full bg-[#0d8247] inline-block"></i>Bulan Aktual / Puncak</span>
-                        <span class="inline-flex items-center gap-1.5 font-bold text-slate-600"><i class="w-2.5 h-2.5 rounded-full bg-[#8ab8a0] inline-block"></i>Visit Store</span>
-                        <span class="inline-flex items-center gap-1.5 font-bold text-slate-600"><i class="w-2.5 h-2.5 rounded-full bg-[#38b2ac] inline-block"></i>NSO</span>
-                      </span>
-                      <span id="qx-bar-peak-month-label" class="font-extrabold text-[#0d8247]">Puncak: -</span>
-                    </div>
-                  </div>
+                  <!-- Chart Stage -->
+                  <div id="qx-monthly-bars-container" class="mt-5 w-full"></div>
                 </div>
 
                 <!-- ROW 3: CARD TABLE RINGKASAN BULANAN PER INDIKATOR (JANUARI - DESEMBER) -->
