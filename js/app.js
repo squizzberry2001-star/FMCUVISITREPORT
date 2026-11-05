@@ -42,6 +42,8 @@ window.FMCUApp = {
   },
 
   currentView: 'home',
+  scheduleListViewMode: 'list',
+  scheduleListSidebarOpen: false,
   _debouncedSearchTimers: {},
   debounceAction(key, fn, delay = 250) {
     if (this._debouncedSearchTimers[key]) clearTimeout(this._debouncedSearchTimers[key]);
@@ -3003,6 +3005,9 @@ window.FMCUApp = {
       this.renderAdminCalendarView();
     } else if (mode === 'history') {
       this.renderAdminScheduleHistory();
+    } else if (mode === 'list') {
+      this.setScheduleListViewMode(this.scheduleListViewMode || 'list');
+      this.renderAdminView();
     }
 
     if (btnCreate) {
@@ -4122,9 +4127,9 @@ window.FMCUApp = {
   renderStoreVisitBadgeHtml(storeCode) {
     const count = this.getStoreVisitCount(storeCode);
     if (count > 0) {
-      return `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs" title="Total kunjungan toko ini"><i class="fa-solid fa-clock-rotate-left text-[9px] text-blue-600"></i>Pernah divisit ${count}x</span>`;
+      return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9.5px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs whitespace-nowrap shrink-0" title="Total kunjungan toko ini"><i class="fa-solid fa-clock-rotate-left text-[8.5px] text-blue-600"></i>Pernah (${count}x)</span>`;
     }
-    return `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200" title="Belum pernah ada riwayat kunjungan"><i class="fa-regular fa-clock text-[9px]"></i>Belum pernah divisit</span>`;
+    return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-slate-100 text-slate-500 border border-slate-200 whitespace-nowrap shrink-0" title="Belum pernah ada riwayat kunjungan"><i class="fa-regular fa-clock text-[8.5px]"></i>Belum divisit</span>`;
   },
 
   getActiveTargetStore() {
@@ -12207,6 +12212,321 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
         : `<option value="">-- Tidak ada toko yang cocok dengan pencarian --</option>`;
   },
 
+
+  setScheduleListViewMode(mode = 'list') {
+    this.scheduleListViewMode = mode;
+    const cardsContainer = document.getElementById('sch-list-cards-container');
+    const tableContainer = document.getElementById('sch-list-table-container');
+    const listBtn = document.getElementById('sch-view-mode-list-btn');
+    const tableBtn = document.getElementById('sch-view-mode-table-btn');
+
+    if (cardsContainer && tableContainer) {
+      if (mode === 'table') {
+        cardsContainer.classList.add('hidden');
+        tableContainer.classList.remove('hidden');
+        if (listBtn) {
+          listBtn.className = 'px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-900 font-bold';
+        }
+        if (tableBtn) {
+          tableBtn.className = 'px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer bg-white text-slate-900 shadow-xs font-black';
+        }
+      } else {
+        cardsContainer.classList.remove('hidden');
+        tableContainer.classList.add('hidden');
+        if (listBtn) {
+          listBtn.className = 'px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer bg-white text-slate-900 shadow-xs font-black';
+        }
+        if (tableBtn) {
+          tableBtn.className = 'px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-900 font-bold';
+        }
+      }
+    }
+  },
+
+  toggleScheduleSidebar() {
+    this.scheduleListSidebarOpen = !this.scheduleListSidebarOpen;
+    const mainCol = document.getElementById('schedule-list-main-col');
+    const sideCol = document.getElementById('schedule-list-sidebar-col');
+    const btn = document.getElementById('btn-sch-toggle-sidebar');
+
+    if (mainCol && sideCol) {
+      if (this.scheduleListSidebarOpen) {
+        mainCol.classList.remove('col-span-12');
+        mainCol.classList.add('lg:col-span-8');
+        sideCol.classList.remove('hidden');
+        sideCol.classList.add('block');
+        if (btn) {
+          btn.classList.add('bg-teal-50', 'border-[#0099A6]', 'text-[#0099A6]');
+          btn.classList.remove('bg-white', 'text-slate-700');
+        }
+      } else {
+        mainCol.classList.add('col-span-12');
+        mainCol.classList.remove('lg:col-span-8');
+        sideCol.classList.add('hidden');
+        sideCol.classList.remove('block');
+        if (btn) {
+          btn.classList.remove('bg-teal-50', 'border-[#0099A6]', 'text-[#0099A6]');
+          btn.classList.add('bg-white', 'text-slate-700');
+        }
+      }
+    }
+  },
+
+  resetScheduleFilters() {
+    const sInput = document.getElementById('adm-sch-list-search');
+    const audSel = document.getElementById('adm-sch-list-auditor');
+    const catSel = document.getElementById('adm-sch-list-category');
+    const statSel = document.getElementById('adm-sch-list-status');
+    if (sInput) sInput.value = '';
+    if (audSel) audSel.value = 'ALL';
+    if (catSel) catSel.value = 'ALL';
+    if (statSel) statSel.value = 'ALL';
+    this.renderAdminView();
+  },
+
+  renderScheduleListCards(filteredSchedules) {
+    const container = document.getElementById('sch-list-cards-container');
+    if (!container) return;
+
+    if (!filteredSchedules || filteredSchedules.length === 0) {
+      container.innerHTML = `
+        <div class="py-12 px-4 text-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 space-y-2.5">
+          <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center text-xl mx-auto">
+            <i class="fa-regular fa-calendar-xmark"></i>
+          </div>
+          <div class="font-extrabold text-sm text-slate-700">Tidak ada agenda atau jadwal yang cocok</div>
+          <p class="text-xs text-slate-500 max-w-sm mx-auto">Coba ubah kata kunci pencarian, filter visitor, kategori kegiatan, atau status.</p>
+          <button type="button" onclick="FMCUApp.resetScheduleFilters()" class="mt-2 px-3.5 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-extrabold text-xs transition cursor-pointer">
+            Reset Filter
+          </button>
+        </div>
+      `;
+      return;
+    }
+
+    // Group schedules by scheduledDate
+    const groupsByDate = new Map();
+    filteredSchedules.forEach((s) => {
+      const d = s.scheduledDate || 'Belum Ditentukan';
+      if (!groupsByDate.has(d)) {
+        groupsByDate.set(d, []);
+      }
+      groupsByDate.get(d).push(s);
+    });
+
+    const todayStr = this.getTodayDateString();
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = this.formatDateIso ? this.formatDateIso(tomorrow) : '';
+
+    const html = Array.from(groupsByDate.entries()).map(([dateStr, items]) => {
+      const isToday = dateStr === todayStr;
+      const isTomorrow = dateStr === tomorrowStr;
+      const formattedDate = dateStr !== 'Belum Ditentukan' && window.FMCUPdf
+        ? window.FMCUPdf.formatIndonesianDate(dateStr, true)
+        : dateStr;
+
+      const cardsHtml = items.map((s) => {
+        const isChecked = this.selectedScheduleIds.has(String(s.id));
+        const isCuti = s.isCuti || s.storeCode === 'CUTI' || s.status === 'CUTI' || s.agendaCategory === 'CUTI';
+        const isOff = s.isOff || s.storeCode === 'OFF' || s.status === 'OFF' || s.agendaCategory === 'OFF';
+        const isNso = s.isNso || String(s.agendaCategory || '').toUpperCase().includes('NSO') || String(s.storeName || '').toUpperCase().includes('NSO');
+        const isAgenda = !isCuti && !isOff && (s.isAgenda || s.storeCode === 'AGENDA' || s.status === 'AGENDA' || s.storeType === 'NON_STORE');
+
+        const cleanStoreName = this.sanitizeMojibake(s.storeName || (isCuti ? 'CUTI TAHUNAN' : isOff ? 'HARI LIBUR / OFF' : 'JADWAL'));
+        const cleanAuditorName = this.sanitizeMojibake(s.auditorName || '-');
+        const cleanFocus = this.sanitizeMojibake(s.auditFocus || s.focus || s.notes || '-');
+        const cleanLoc = this.sanitizeMojibake(s.agendaLocation || '');
+
+        let iconClass = 'fa-solid fa-store text-emerald-600';
+        let iconBgClass = 'bg-emerald-50 border border-emerald-200';
+        let leftAccentColor = 'border-l-4 border-l-[#009944]';
+        let categoryPillHtml = '';
+        let visitBadgeHtml = '';
+        let titleHtml = '';
+
+        if (isCuti) {
+          iconClass = 'fa-solid fa-umbrella-beach text-amber-600';
+          iconBgClass = 'bg-amber-50 border border-amber-200';
+          leftAccentColor = 'border-l-4 border-l-amber-500';
+          categoryPillHtml = `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-black bg-amber-100 text-amber-900 border border-amber-200 whitespace-nowrap">CUTI</span>`;
+          titleHtml = `<span class="text-amber-950 font-black">Cuti Tahunan / Khusus</span>`;
+        } else if (isOff) {
+          iconClass = 'fa-solid fa-bed text-indigo-600';
+          iconBgClass = 'bg-indigo-50 border border-indigo-200';
+          leftAccentColor = 'border-l-4 border-l-indigo-500';
+          categoryPillHtml = `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-black bg-indigo-100 text-indigo-900 border border-indigo-200 whitespace-nowrap">LIBUR / OFF</span>`;
+          titleHtml = `<span class="text-indigo-950 font-black">Hari Libur / OFF</span>`;
+        } else if (isNso) {
+          iconClass = 'fa-solid fa-sparkles text-teal-600';
+          iconBgClass = 'bg-teal-50 border border-teal-200';
+          leftAccentColor = 'border-l-4 border-l-teal-500';
+          categoryPillHtml = `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-black bg-teal-100 text-teal-900 border border-teal-200 whitespace-nowrap">NSO</span>`;
+          titleHtml = `<span>FamilyMart ${cleanStoreName}</span>`;
+          if (s.storeCode && s.storeCode !== 'AGENDA') {
+            titleHtml += `<span class="text-[11px] font-mono text-slate-400 font-normal ml-1">(Site ${s.storeCode})</span>`;
+          }
+        } else if (isAgenda) {
+          const cat = String(s.agendaCategory || 'AGENDA').toUpperCase();
+          const isMeeting = cat.includes('MEETING');
+          const isOffice = cat.includes('OFFICE') || cat.includes('HO');
+          iconClass = isMeeting ? 'fa-solid fa-users text-blue-600' : isOffice ? 'fa-solid fa-building text-purple-600' : 'fa-solid fa-thumbtack text-purple-600';
+          iconBgClass = isMeeting ? 'bg-blue-50 border border-blue-200' : 'bg-purple-50 border border-purple-200';
+          leftAccentColor = isMeeting ? 'border-l-4 border-l-blue-500' : 'border-l-4 border-l-purple-500';
+          categoryPillHtml = `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-black bg-purple-100 text-purple-900 border border-purple-200 uppercase whitespace-nowrap">${s.agendaCategory || 'AGENDA'}</span>`;
+          titleHtml = `<span>${cleanStoreName}</span>`;
+        } else {
+          // Standard Store Visit
+          iconClass = 'fa-solid fa-store text-emerald-600';
+          iconBgClass = 'bg-emerald-50 border border-emerald-200';
+          leftAccentColor = 'border-l-4 border-l-[#009944]';
+          categoryPillHtml = `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-black bg-emerald-100 text-emerald-900 border border-emerald-200 whitespace-nowrap">VISIT</span>`;
+          visitBadgeHtml = this.renderStoreVisitBadgeHtml(s.storeCode);
+          titleHtml = `<span>FamilyMart ${cleanStoreName}</span>`;
+          if (s.storeCode) {
+            titleHtml += `<span class="text-[11px] font-mono text-slate-400 font-normal ml-1">#${s.storeCode}</span>`;
+          }
+        }
+
+        let statusBadgeClass = 'bg-amber-100 text-amber-800 border-amber-200';
+        let statusLabel = s.status || 'PENDING';
+        if (s.status === 'COMPLETED') {
+          statusBadgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-200';
+          statusLabel = 'SELESAI';
+        } else if (isCuti) {
+          statusBadgeClass = 'bg-amber-100 text-amber-900 border-amber-300';
+          statusLabel = 'CUTI';
+        } else if (isOff) {
+          statusBadgeClass = 'bg-indigo-100 text-indigo-900 border-indigo-300';
+          statusLabel = 'OFF';
+        } else if (isAgenda) {
+          statusBadgeClass = 'bg-purple-100 text-purple-900 border-purple-300';
+          statusLabel = 'AGENDA';
+        }
+
+        const timeText = s.shiftWindow && s.shiftWindow !== '-' ? s.shiftWindow : (isCuti || isOff ? 'Bebas Shift' : '08:30 - 17:30');
+        const locText = cleanLoc || (isAgenda ? 'Head Office / Online' : s.storeType ? `Tipe: ${s.storeType}` : '');
+
+        return `
+          <div id="sch-card-${s.id}" class="rounded-xl border ${isChecked ? 'ring-2 ring-emerald-500 bg-emerald-50/40 border-emerald-300' : 'bg-white hover:bg-slate-50/90 border-slate-200/90'} ${leftAccentColor} p-3 sm:p-3.5 transition-all duration-150 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-2xs">
+            <!-- Left: Checkbox + Icon + Title + Visitor & Shift -->
+            <div class="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+              <div class="pt-0.5 sm:pt-0 shrink-0">
+                <input
+                  type="checkbox"
+                  class="sch-bulk-item-cb w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                  value="${s.id}"
+                  ${isChecked ? 'checked' : ''}
+                  onchange="FMCUApp.toggleSelectSchedule('${s.id}', this.checked)"
+                />
+              </div>
+              <div class="w-10 h-10 rounded-xl ${iconBgClass} flex items-center justify-center text-sm font-bold shrink-0 shadow-2xs">
+                <i class="${iconClass}"></i>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <div class="font-extrabold text-xs sm:text-sm text-slate-900 leading-tight">
+                    ${titleHtml}
+                  </div>
+                  ${categoryPillHtml}
+                  ${visitBadgeHtml}
+                </div>
+
+                <div class="flex items-center gap-2.5 sm:gap-4 flex-wrap text-[11px] text-slate-500 mt-1">
+                  <span class="inline-flex items-center gap-1 font-bold text-slate-700">
+                    <i class="fa-regular fa-user text-slate-400"></i>
+                    <span>${cleanAuditorName}</span>
+                    ${s.auditorNik ? `<span class="text-slate-400 font-normal">(@${s.auditorNik})</span>` : ''}
+                  </span>
+
+                  <span class="inline-flex items-center gap-1 text-slate-500 font-mono text-[10.5px]">
+                    <i class="fa-regular fa-clock text-slate-400"></i>
+                    <span>${timeText}</span>
+                  </span>
+
+                  ${locText ? `
+                    <span class="inline-flex items-center gap-1 text-slate-500 truncate max-w-[220px]" title="${locText}">
+                      <i class="fa-solid fa-location-dot text-[10px] text-slate-400"></i>
+                      <span>${locText}</span>
+                    </span>
+                  ` : ''}
+                </div>
+
+                ${cleanFocus && cleanFocus !== '-' ? `
+                  <div class="mt-1 text-[11px] text-slate-600 flex items-center gap-1.5 flex-wrap">
+                    <span class="px-1.5 py-0.2 rounded text-[9px] font-black uppercase ${s.priority === 'HIGH' ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-slate-100 text-slate-600'}">${s.priority || 'NORMAL'}</span>
+                    <span class="truncate max-w-[420px] text-slate-500" title="${cleanFocus}">${cleanFocus}</span>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+
+            <!-- Right: Status + Actions -->
+            <div class="flex items-center justify-between md:justify-end gap-2.5 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+              <div class="text-left md:text-right">
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black border uppercase tracking-wide ${statusBadgeClass}">
+                  ${statusLabel}
+                </span>
+                ${s.actualIn ? `<div class="text-[9.5px] font-mono text-emerald-700 font-bold mt-0.5">${s.actualIn}${s.actualOut ? ' - ' + s.actualOut : ''}</div>` : ''}
+              </div>
+
+              <div class="flex items-center gap-1 shrink-0">
+                ${
+                  s.status === 'COMPLETED' || s.reportId
+                    ? `<button type="button" onclick="FMCUApp.openReportPreview('${s.reportId || ''}')" class="px-2.5 py-1 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-[10.5px] transition cursor-pointer shadow-2xs whitespace-nowrap">Lihat PDF</button>`
+                    : (!isCuti && !isOff && !isAgenda && this.isScheduleOwnedByUser(s, this.currentUser))
+                    ? `<button type="button" onclick="FMCUApp.checkInAndOpenForm('${s.storeCode}', '${s.id}')" class="px-2.5 py-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#009944] border border-emerald-200 font-extrabold text-[10.5px] transition cursor-pointer shadow-2xs whitespace-nowrap">Mulai Visit</button>`
+                    : ''
+                }
+                <button
+                  type="button"
+                  onclick="FMCUApp.openEditScheduleModal('${s.id}')"
+                  class="px-2.5 py-1 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-extrabold text-[10.5px] transition cursor-pointer inline-flex items-center gap-1 shadow-2xs whitespace-nowrap"
+                  title="Sunting Jadwal Ini"
+                >
+                  <i class="fa-solid fa-pencil text-[9.5px]"></i>
+                  <span class="hidden sm:inline">Sunting</span>
+                </button>
+                <button
+                  type="button"
+                  onclick="FMCUApp.promptDeleteSchedule('${s.id}')"
+                  class="px-2.5 py-1 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-extrabold text-[10.5px] transition cursor-pointer inline-flex items-center gap-1 shadow-2xs whitespace-nowrap"
+                  title="Hapus Jadwal Ini"
+                >
+                  <i class="fa-solid fa-trash-can text-[9.5px]"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden transition-all duration-150">
+          <div class="px-4 py-2.5 bg-slate-50/90 border-b border-slate-100 flex items-center justify-between gap-2 flex-wrap">
+            <div class="flex items-center gap-2">
+              <div class="w-7 h-7 rounded-lg bg-emerald-50 text-[#009944] flex items-center justify-center text-xs font-black shadow-2xs">
+                <i class="fa-regular fa-calendar-days"></i>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="font-black text-xs sm:text-sm text-slate-900">${formattedDate}</span>
+                ${isToday ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">Hari Ini</span>` : isTomorrow ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200">Besok</span>` : ''}
+              </div>
+            </div>
+            <div class="text-[11px] font-bold text-slate-500">
+              <span class="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-700 font-extrabold">${items.length} Agenda</span>
+            </div>
+          </div>
+          <div class="p-3 sm:p-4 space-y-2.5">
+            ${cardsHtml}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    container.innerHTML = html;
+  },
+
   renderAdminStoresTable() {
     const stores = window.FMCUData.getStores();
     const countEl = document.getElementById('admin-store-count');
@@ -12409,18 +12729,37 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     if (!schedules) schedules = window.FMCUData.getSchedules() || [];
     const listSearchQ = (document.getElementById('adm-sch-list-search')?.value || '').trim().toLowerCase();
     const listAuditorFilter = document.getElementById('adm-sch-list-auditor')?.value || 'ALL';
+    const listCategoryFilter = document.getElementById('adm-sch-list-category')?.value || 'ALL';
     const listStatusFilter = document.getElementById('adm-sch-list-status')?.value || 'ALL';
 
     const filtered = schedules.filter((s) => {
       if (listAuditorFilter !== 'ALL' && s.auditorId !== listAuditorFilter) return false;
       if (listStatusFilter !== 'ALL' && s.status !== listStatusFilter) return false;
+
+      if (listCategoryFilter !== 'ALL') {
+        const isCuti = s.isCuti || s.storeCode === 'CUTI' || s.status === 'CUTI' || s.agendaCategory === 'CUTI';
+        const isOff = s.isOff || s.storeCode === 'OFF' || s.status === 'OFF' || s.agendaCategory === 'OFF';
+        const isNso = s.isNso || String(s.agendaCategory || '').toUpperCase().includes('NSO') || String(s.storeName || '').toUpperCase().includes('NSO');
+        const isAgenda = !isCuti && !isOff && (s.isAgenda || s.storeCode === 'AGENDA' || s.status === 'AGENDA' || s.storeType === 'NON_STORE');
+        const cat = String(s.agendaCategory || '').toUpperCase();
+
+        if (listCategoryFilter === 'VISIT_STORE' && (isCuti || isOff || isNso || isAgenda)) return false;
+        if (listCategoryFilter === 'NSO' && !isNso) return false;
+        if (listCategoryFilter === 'OFFICE' && (!isAgenda || (!cat.includes('OFFICE') && !cat.includes('HO')))) return false;
+        if (listCategoryFilter === 'MEETING' && (!isAgenda || !cat.includes('MEETING'))) return false;
+        if (listCategoryFilter === 'CUTI' && !isCuti) return false;
+        if (listCategoryFilter === 'OFF' && !isOff) return false;
+      }
+
       if (!listSearchQ) return true;
       return (
         String(s.storeName || '').toLowerCase().includes(listSearchQ) ||
         String(s.storeCode || '').toLowerCase().includes(listSearchQ) ||
         String(s.auditorName || '').toLowerCase().includes(listSearchQ) ||
         String(s.scheduledDate || '').toLowerCase().includes(listSearchQ) ||
-        String(s.auditFocus || '').toLowerCase().includes(listSearchQ)
+        String(s.auditFocus || '').toLowerCase().includes(listSearchQ) ||
+        String(s.agendaCategory || '').toLowerCase().includes(listSearchQ) ||
+        String(s.agendaLocation || '').toLowerCase().includes(listSearchQ)
       );
     });
 
@@ -12493,32 +12832,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
         auditorsOnly.map((u) => `<option value="${u.id}" ${u.id === prevAud ? 'selected' : ''}>${u.name}</option>`).join('');
     }
 
-    const listSearchQ = (document.getElementById('adm-sch-list-search')?.value || '').trim().toLowerCase();
-    const listAuditorFilter = document.getElementById('adm-sch-list-auditor')?.value || 'ALL';
-    const listStatusFilter = document.getElementById('adm-sch-list-status')?.value || 'ALL';
-
-    const filteredSchedules = schedules.filter((s) => {
-      if (listAuditorFilter !== 'ALL' && s.auditorId !== listAuditorFilter) return false;
-      if (listStatusFilter !== 'ALL' && s.status !== listStatusFilter) return false;
-      if (!listSearchQ) return true;
-      return (
-        String(s.storeName || '').toLowerCase().includes(listSearchQ) ||
-        String(s.storeCode || '').toLowerCase().includes(listSearchQ) ||
-        String(s.auditorName || '').toLowerCase().includes(listSearchQ) ||
-        String(s.scheduledDate || '').toLowerCase().includes(listSearchQ) ||
-        String(s.auditFocus || '').toLowerCase().includes(listSearchQ)
-      );
-    });
-
-    // Urutkan jadwal toko dimulai dari tanggal terdekat
-    filteredSchedules.sort((a, b) => {
-      const dateA = String(a.scheduledDate || '');
-      const dateB = String(b.scheduledDate || '');
-      if (dateA !== dateB) {
-        return dateA.localeCompare(dateB);
-      }
-      return String(a.storeCode || '').localeCompare(String(b.storeCode || ''));
-    });
+    const filteredSchedules = this.getFilteredAdminSchedules(schedules);
 
     const schCountEl = document.getElementById('admin-schedule-count');
     if (schCountEl) {
@@ -12528,18 +12842,23 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
           : `${filteredSchedules.length} / ${schedules.length} Jadwal`;
     }
 
+    // Render Tampilan 1: List Agenda Cards (Rapi, Bersih, Dikelompokkan per Hari)
+    this.renderScheduleListCards(filteredSchedules);
+
+    // Render Tampilan 2: Table View
     const schTbody = document.getElementById('admin-schedules-tbody');
     if (schTbody) {
       if (filteredSchedules.length === 0) {
-        schTbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400 font-semibold">Tidak ada jadwal visit toko yang sesuai filter pencarian.</td></tr>`;
+        schTbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400 font-semibold">Tidak ada jadwal visit toko atau agenda yang sesuai filter pencarian.</td></tr>`;
       } else {
         schTbody.innerHTML = filteredSchedules
           .map(
             (s) => {
               const isChecked = this.selectedScheduleIds.has(String(s.id));
-              const isCuti = s.isCuti || s.storeCode === 'CUTI' || s.status === 'CUTI';
-              const isOff = s.isOff || s.storeCode === 'OFF' || s.status === 'OFF';
-              const isAgenda = s.isAgenda || s.storeCode === 'AGENDA' || s.status === 'AGENDA' || s.storeType === 'NON_STORE';
+              const isCuti = s.isCuti || s.storeCode === 'CUTI' || s.status === 'CUTI' || s.agendaCategory === 'CUTI';
+              const isOff = s.isOff || s.storeCode === 'OFF' || s.status === 'OFF' || s.agendaCategory === 'OFF';
+              const isNso = s.isNso || String(s.agendaCategory || '').toUpperCase().includes('NSO') || String(s.storeName || '').toUpperCase().includes('NSO');
+              const isAgenda = !isCuti && !isOff && (s.isAgenda || s.storeCode === 'AGENDA' || s.status === 'AGENDA' || s.storeType === 'NON_STORE');
               const cleanStoreName = this.sanitizeMojibake(s.storeName || (isCuti ? 'CUTI TAHUNAN' : isOff ? 'HARI LIBUR / OFF' : 'JADWAL'));
               const cleanAuditorName = this.sanitizeMojibake(s.auditorName || '-');
               const cleanFocus = this.sanitizeMojibake(s.auditFocus || s.focus || s.notes || '-');
@@ -12548,7 +12867,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
               let activityHtml = '';
               if (isCuti) {
                 activityHtml = `
-                  <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
+                  <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs whitespace-nowrap">
                     <i class="fa-solid fa-umbrella-beach text-amber-600 text-xs"></i>
                     <span>CUTI TAHUNAN / KHUSUS</span>
                   </div>
@@ -12556,18 +12875,27 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                 `;
               } else if (isOff) {
                 activityHtml = `
-                  <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold bg-indigo-100 text-indigo-900 border border-indigo-300 shadow-2xs">
+                  <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold bg-indigo-100 text-indigo-900 border border-indigo-300 shadow-2xs whitespace-nowrap">
                     <i class="fa-solid fa-bed text-indigo-600 text-xs"></i>
                     <span>HARI LIBUR / OFF</span>
                   </div>
                   <div class="text-[10px] text-slate-400 mt-0.5">Non-Visit • Bebas Kunjungan</div>
+                `;
+              } else if (isNso) {
+                activityHtml = `
+                  <div class="font-extrabold text-xs text-teal-950 flex items-center gap-1.5 flex-wrap">
+                    <i class="fa-solid fa-sparkles text-teal-600 text-xs"></i>
+                    <span>FamilyMart ${cleanStoreName}</span>
+                    <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-teal-100 text-teal-800 border border-teal-200 uppercase whitespace-nowrap">NSO</span>
+                  </div>
+                  <div class="text-[10px] text-slate-400 mt-0.5 font-mono">${s.storeCode && s.storeCode !== 'AGENDA' ? 'Site ' + s.storeCode + ' • ' : ''}New Store Opening</div>
                 `;
               } else if (isAgenda) {
                 activityHtml = `
                   <div class="font-extrabold text-xs text-purple-950 flex items-center gap-1.5 flex-wrap">
                     <i class="fa-solid fa-thumbtack text-purple-600 text-xs"></i>
                     <span>${cleanStoreName}</span>
-                    <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-purple-100 text-purple-800 border border-purple-200 uppercase">${s.agendaCategory || 'AGENDA'}</span>
+                    <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-purple-100 text-purple-800 border border-purple-200 uppercase whitespace-nowrap">${s.agendaCategory || 'AGENDA'}</span>
                   </div>
                   <div class="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1">
                     <i class="fa-solid fa-location-dot text-[9px] text-slate-400"></i>
@@ -12611,14 +12939,14 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                     onchange="FMCUApp.toggleSelectSchedule('${s.id}', this.checked)"
                   />
                 </td>
-                <td class="py-2.5 px-3">
+                <td class="py-2.5 px-3 whitespace-nowrap">
                   <div class="font-extrabold text-xs text-slate-900 leading-tight">${window.FMCUPdf.formatIndonesianDate(s.scheduledDate, true)}</div>
                   <div class="text-[10px] font-mono text-slate-400 mt-0.5">${s.shiftWindow && s.shiftWindow !== '-' ? s.shiftWindow : (isCuti || isOff ? 'Bebas Shift' : '08:30 - 17:30')}</div>
                 </td>
                 <td class="py-2.5 px-3">
                   ${activityHtml}
                 </td>
-                <td class="py-2.5 px-3">
+                <td class="py-2.5 px-3 whitespace-nowrap">
                   <div class="font-extrabold text-xs text-slate-800 leading-tight">${cleanAuditorName}</div>
                   <div class="text-[10px] text-slate-400 mt-0.5 font-medium">${s.auditorNik ? '@' + s.auditorNik : ''}</div>
                 </td>
@@ -12628,22 +12956,22 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                   }">${s.priority || 'NORMAL'}</span>
                   <div class="text-[10px] text-slate-500 mt-0.5 max-w-[170px] truncate" title="${cleanFocus}">${cleanFocus}</div>
                 </td>
-                <td class="py-2.5 px-3">
+                <td class="py-2.5 px-3 text-center whitespace-nowrap">
                   <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black border uppercase ${statusBadgeClass}">${statusLabel}</span>
                   ${s.actualIn ? `<div class="text-[9.5px] font-mono text-emerald-700 mt-0.5 font-bold">${s.actualIn}${s.actualOut ? ' - ' + s.actualOut : ''}</div>` : ''}
                 </td>
                 <td class="py-2.5 px-3 text-right whitespace-nowrap space-x-1">
                   ${
                     s.status === 'COMPLETED' || s.reportId
-                      ? `<button type="button" onclick="FMCUApp.openReportPreview('${s.reportId || ''}')" class="px-2.5 py-1 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-[10.5px] transition cursor-pointer shadow-2xs">Lihat PDF</button>`
+                      ? `<button type="button" onclick="FMCUApp.openReportPreview('${s.reportId || ''}')" class="px-2.5 py-1 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-[10.5px] transition cursor-pointer shadow-2xs whitespace-nowrap">Lihat PDF</button>`
                       : (!isCuti && !isOff && !isAgenda && this.isScheduleOwnedByUser(s, this.currentUser))
-                      ? `<button type="button" onclick="FMCUApp.checkInAndOpenForm('${s.storeCode}', '${s.id}')" class="px-2.5 py-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#009944] border border-emerald-200 font-extrabold text-[10.5px] transition cursor-pointer shadow-2xs">Mulai Visit</button>`
+                      ? `<button type="button" onclick="FMCUApp.checkInAndOpenForm('${s.storeCode}', '${s.id}')" class="px-2.5 py-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#009944] border border-emerald-200 font-extrabold text-[10.5px] transition cursor-pointer shadow-2xs whitespace-nowrap">Mulai Visit</button>`
                       : ''
                   }
                   <button
                     type="button"
                     onclick="FMCUApp.openEditScheduleModal('${s.id}')"
-                    class="px-2.5 py-1 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-extrabold text-[10.5px] transition cursor-pointer inline-flex items-center gap-1 shadow-2xs"
+                    class="px-2.5 py-1 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-extrabold text-[10.5px] transition cursor-pointer inline-flex items-center gap-1 shadow-2xs whitespace-nowrap"
                     title="Sunting Jadwal Ini"
                   >
                     <i class="fa-solid fa-pencil text-[9.5px]"></i>
@@ -12652,7 +12980,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                   <button
                     type="button"
                     onclick="FMCUApp.promptDeleteSchedule('${s.id}')"
-                    class="px-2.5 py-1 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-extrabold text-[10.5px] transition cursor-pointer inline-flex items-center gap-1 shadow-2xs"
+                    class="px-2.5 py-1 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-extrabold text-[10.5px] transition cursor-pointer inline-flex items-center gap-1 shadow-2xs whitespace-nowrap"
                     title="Hapus Jadwal Ini"
                   >
                     <i class="fa-solid fa-trash-can text-[9.5px]"></i>
@@ -15630,8 +15958,10 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
 
   renderAdminAuditorRecapStrip() {
     const stripEl = document.getElementById('admin-auditor-recap-strip');
-    if (!stripEl) return;
     const users = this.getSchedulableAuditors();
+    const countBadge = document.getElementById('sch-auditor-count-badge');
+    if (countBadge) countBadge.textContent = String(users.length);
+    if (!stripEl) return;
     const schedules = window.FMCUData.getSchedules() || [];
     const currentFilter = document.getElementById('adm-sch-list-auditor')?.value || 'ALL';
 
@@ -16712,6 +17042,15 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       this.selectedScheduleIds.delete(String(id));
     }
     this.updateBulkScheduleUI();
+    document.querySelectorAll(`input.sch-bulk-item-cb[value="${id}"]`).forEach((cb) => {
+      cb.checked = checked;
+    });
+    const cardEl = document.getElementById(`sch-card-${id}`);
+    if (cardEl) {
+      cardEl.classList.toggle('ring-2', checked);
+      cardEl.classList.toggle('ring-emerald-500', checked);
+      cardEl.classList.toggle('bg-emerald-50/40', checked);
+    }
     const rowEl = document.querySelector(`input[type="checkbox"][value="${id}"]`)?.closest('tr');
     if (rowEl) {
       rowEl.classList.toggle('bg-emerald-50/60', checked);
@@ -21820,28 +22159,84 @@ ${extractedPdfText}`;
   // POINT 15: Custom Web Confirmation Dialog (Batal atau Iya)
   _confirmCallback: null,
 
+  ensureConfirmModalInDom() {
+    let modal = document.getElementById('modal-confirm-action');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'modal-confirm-action';
+      modal.className = 'fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4';
+      modal.style.cssText = 'display: none; z-index: 99999999 !important;';
+      modal.onclick = (e) => {
+        if (e.target === modal) FMCUApp.closeConfirmModal();
+      };
+      modal.innerHTML = `
+        <div class="bg-white rounded-3xl p-5 sm:p-6 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4 animate-in fade-in zoom-in duration-150 relative">
+          <button type="button" onclick="FMCUApp.closeConfirmModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1 cursor-pointer" aria-label="Tutup dialog konfirmasi">
+            <i class="fa-solid fa-xmark text-sm"></i>
+          </button>
+          <div class="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center text-xl mx-auto shadow-xs">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <div class="text-center space-y-1">
+            <h4 id="modal-confirm-title" class="font-black text-base text-slate-900">Konfirmasi Hapus</h4>
+            <p id="modal-confirm-message" class="text-xs text-slate-600 leading-relaxed">Apakah Anda yakin ingin menghapus data ini? Tindakan ini tidak dapat dibatalkan.</p>
+          </div>
+          <div class="grid grid-cols-2 gap-2.5 pt-1">
+            <button type="button" id="modal-confirm-btn-cancel" onclick="FMCUApp.closeConfirmModal()" class="w-full py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition cursor-pointer">
+              Batal
+            </button>
+            <button type="button" id="modal-confirm-btn-yes" class="w-full py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs transition cursor-pointer shadow-sm">
+              Iya, Hapus
+            </button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+    return modal;
+  },
+
   showConfirmDialog({ title = 'Konfirmasi Hapus', message = 'Apakah Anda yakin ingin menghapus data ini?', confirmText = 'Iya, Hapus', cancelText = 'Batal', onConfirm = null }) {
     this.triggerHaptic('warning');
-    const modal = document.getElementById('modal-confirm-action');
+    let modal = this.ensureConfirmModalInDom();
     const titleEl = document.getElementById('modal-confirm-title');
     const msgEl = document.getElementById('modal-confirm-message');
     const yesBtn = document.getElementById('modal-confirm-btn-yes');
+    const cancelBtn = document.getElementById('modal-confirm-btn-cancel');
 
     if (titleEl) titleEl.textContent = title;
     if (msgEl) msgEl.textContent = message;
+    if (cancelBtn) cancelBtn.textContent = cancelText;
+
     if (yesBtn) {
       yesBtn.textContent = confirmText;
-      yesBtn.onclick = () => {
+      yesBtn.onclick = (e) => {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
         this.closeConfirmModal();
         if (typeof onConfirm === 'function') {
-          onConfirm();
+          try {
+            onConfirm();
+          } catch (err) {
+            console.error('[showConfirmDialog onConfirm error]:', err);
+          }
         }
       };
     }
 
     if (modal) {
       modal.classList.remove('hidden');
+      modal.style.setProperty('display', 'flex', 'important');
+      modal.style.setProperty('z-index', '99999999', 'important');
+      modal.style.visibility = 'visible';
+      modal.style.opacity = '1';
       document.body.style.overflow = 'hidden';
+    } else {
+      if (window.confirm(message)) {
+        if (typeof onConfirm === 'function') onConfirm();
+      }
     }
   },
 
@@ -21849,6 +22244,7 @@ ${extractedPdfText}`;
     const modal = document.getElementById('modal-confirm-action');
     if (modal) {
       modal.classList.add('hidden');
+      modal.style.setProperty('display', 'none', 'important');
       document.body.style.overflow = '';
     }
   },
