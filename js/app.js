@@ -8626,10 +8626,10 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     // 1. Food Safety & Expired
     if (text.includes('expir') || text.includes('kadaluarsa') || text.includes('basi') || text.includes('fefo') || text.includes('fifo') || cat.includes('expired') || cat.includes('food safety')) {
       return {
-        kondisiIdeal: `Seluruh produk dan bahan baku (${findingText.slice(0, 45).trim()}) wajib memiliki tanggal kedaluwarsa yang valid dan terdisplay mematuhi prinsip FEFO (First Expired, First Out).`,
-        dampak: 'Berisiko fatal terhadap standar keamanan pangan (Food Safety), membahayakan kesehatan konsumen jika terbeli, dan menurunkan reputasi toko.',
-        penyebab: 'Kelalaian crew dalam pengecekan rutin tanggal kedaluwarsa saat pergantian shift dan minimnya verifikasi silang (double check) FEFO saat restocking produk.',
-        tindakanPerbaikan: '1. Segera tarik dan musnahkan (waste) produk kadaluarsa dalam waktu 15 menit dari sekarang.\n2. Lakukan audit rotasi FEFO menyeluruh pada rak/chiller sebelum pergantian shift hari ini.\n3. Shift Leader wajib memverifikasi dan menandatangani Checklist Expired harian maksimal H+1.',
+        kondisiIdeal: 'Produk dan bahan baku wajib memiliki masa ED valid dan tertata rapi sesuai rotasi FEFO.',
+        dampak: 'Berisiko bahaya Food Safety dan dapat menurunkan kepercayaan pelanggan.',
+        penyebab: 'Pengecekan tanggal kedaluwarsa saat restocking dan pergantian shift belum teliti.',
+        tindakanPerbaikan: '1. Tarik dan catat waste produk kedaluwarsa dalam 15 menit.\n2. Lakukan audit FEFO menyeluruh pada rak dan chiller.',
         hasil: 'Akan dimonitoring pada visit berikutnya'
       };
     }
@@ -8637,10 +8637,10 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     // 2. Suhu Chiller / Freezer / Alat Pendingin
     if (text.includes('suhu') || text.includes('chiller') || text.includes('freezer') || text.includes('derajat') || text.includes('dingin') || text.includes('bocor') || cat.includes('suhu')) {
       return {
-        kondisiIdeal: 'Suhu penyimpanan unit pendingin wajib stabil pada standar FamilyMart (Chiller: 2°C - 8°C, Freezer: -18°C s/d -20°C) dan tercatat rutin di logbook kontrol.',
-        dampak: 'Kenaikan suhu menyebabkan kualitas produk chilled/frozen menurun cepat (bakteri berkembang), produk cepat rusak, serta potensi komplain pelanggan.',
-        penyebab: 'Pintu chiller sering terbuka lama, kotoran menumpuk di kondensor/evaporator, atau penurunan performa kompresor/termostat pendingin.',
-        tindakanPerbaikan: '1. Bersihkan sirip kondensor dan periksa seal pintu unit dalam 30 menit ke depan.\n2. Pindahkan produk rentan ke unit cadangan jika suhu di luar 2°C-8°C dalam 1 jam.\n3. Lapor dan buat tiket servis ke tim Maintenance/Teknisi maksimal 1x24 jam.',
+        kondisiIdeal: 'Suhu pendingin wajib stabil sesuai standar (Chiller: 2°C - 8°C, Freezer: -18°C s/d -20°C).',
+        dampak: 'Kualitas produk chilled/frozen menurun dan berpotensi memicu komplain pelanggan.',
+        penyebab: 'Pintu sering terbuka lama atau kotoran menumpuk pada kondensor pendingin.',
+        tindakanPerbaikan: '1. Bersihkan sirip kondensor dan pastikan seal pintu rapat.\n2. Lapor tiket perbaikan teknisi jika suhu belum stabil.',
         hasil: 'Akan dimonitoring pada visit berikutnya'
       };
     }
@@ -8648,10 +8648,10 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     // 3. Kebersihan, Sanitasi, Debu, Sampah, Noda, Bau
     if (text.includes('kotor') || text.includes('debu') || text.includes('sampah') || text.includes('bau') || text.includes('noda') || text.includes('pel') || text.includes('berminyak') || cat.includes('kebersihan')) {
       return {
-        kondisiIdeal: 'Seluruh area operasional, display rak, meja dining, dan fasilitas toko dalam kondisi bersih, higienis, kering, dan bebas dari debu maupun bau.',
-        dampak: 'Mengurangi kenyamanan belanja konsumen, menciptakan kesan toko kumuh/tidak terawat, serta berpotensi menjadi sarang kontaminasi hama/serangga.',
-        penyebab: 'Pembersihan harian tidak dijalankan secara disiplin sesuai jadwal checklist kebersihan toko, terutama saat jam sibuk (rush hour).',
-        tindakanPerbaikan: '1. Lakukan pembersihan dan sanitasi menyeluruh dengan chemical standar dalam 15 menit dari sekarang.\n2. Terapkan Clean As You Go dengan menyeka meja dining maksimal 3 menit setelah pelanggan selesai.\n3. Shift Leader mengontrol verifikasi checklist kebersihan sebelum closing shift.',
+        kondisiIdeal: 'Seluruh area operasional, display rak, dan meja dining selalu bersih dan higienis.',
+        dampak: 'Mengurangi kenyamanan belanja dan menimbulkan kesan toko tidak terawat.',
+        penyebab: 'Penerapan Clean As You Go belum konsisten dijalankan saat jam sibuk toko.',
+        tindakanPerbaikan: '1. Bersihkan dan sanitasi menyeluruh area temuan saat ini juga.\n2. Shift Leader verifikasi kebersihan sebelum closing shift.',
         hasil: 'Akan dimonitoring pada visit berikutnya'
       };
     }
@@ -8659,10 +8659,10 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     // 4. Alat Takar & SOP Takaran
     if (text.includes('takar') || text.includes('jigger') || text.includes('scoop') || text.includes('gramasi') || text.includes('resep') || cat.includes('takar')) {
       return {
-        kondisiIdeal: 'Seluruh peracikan produk beverage dan makanan wajib menggunakan alat takar resmi (jigger/scoop/timbangan) sesuai SOP Recipe Guide FamilyMart.',
-        dampak: 'Rasa dan kualitas produk menjadi tidak konsisten (terlalu manis/hambar), berpotensi menyebabkan selisih bahan baku (HPP membengkak).',
-        penyebab: 'Crew meracik dengan perkiraan tanpa alat takar demi mempercepat pelayanan saat antrean atau ketiadaan alat takar standar di station.',
-        tindakanPerbaikan: '1. Sediakan alat takar standar lengkap di station barista/dapur. 2. Berikan teguran dan coaching praktik pembuatan resep sesuai takaran standar kepada seluruh crew.',
+        kondisiIdeal: 'Peracikan produk F&B wajib memakai alat takar resmi (jigger/scoop) sesuai SOP resep.',
+        dampak: 'Rasa produk tidak konsisten dan berpotensi menyebabkan selisih bahan baku (HPP).',
+        penyebab: 'Crew meracik dengan perkiraan tanpa alat takar resmi saat antrean ramai.',
+        tindakanPerbaikan: '1. Sediakan alat takar lengkap di station barista/dapur.\n2. Briefing crew agar selalu menakar sesuai Recipe Guide FamilyMart.',
         hasil: 'Akan dimonitoring pada visit berikutnya'
       };
     }
@@ -8670,10 +8670,10 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     // 5. Holding Time & Hot Snack
     if (text.includes('holding') || text.includes('warmer') || text.includes('thawing') || text.includes('ayam') || text.includes('sosis') || text.includes('oden')) {
       return {
-        kondisiIdeal: 'Seluruh produk hot snack dan makanan siap saji wajib dipajang dengan timer holding time aktif dan ditarik tepat waktu sesuai Standar Holding Time R23 resmi.',
-        dampak: 'Tekstur dan cita rasa produk menurun (kering/alot/dingin), serta melanggar standar food safety FamilyMart jika melewati batas waktu holding.',
-        penyebab: 'Timer digital holding time tidak dinyalakan saat produk dimasukkan ke showcase warmer, atau crew lupa membuang produk yang lewat batas jam holding.',
-        tindakanPerbaikan: '1. Segera tarik dan timbang produk melewati holding time untuk dicatat waste dalam 15 menit.\n2. Pasang label stiker ROX baru dengan tanggal dan jam akurat sekarang juga (Topping: 14 hari container bulat / 1 bulan box 2,4L).\n3. Shift Leader wajib menginspeksi timer warmer dan topping bar setiap 2 jam sekali.',
+        kondisiIdeal: 'Produk ready-to-eat dipajang dengan timer aktif sesuai Tabel Standar Holding Time.',
+        dampak: 'Kualitas dan cita rasa produk menurun jika melewati batas waktu holding.',
+        penyebab: 'Timer holding time tidak dinyalakan saat produk dimasukkan ke showcase warmer.',
+        tindakanPerbaikan: '1. Segera tarik dan catat waste produk yang lewat batas holding time.\n2. Pasang timer dan label waktu display yang akurat.',
         hasil: 'Akan dimonitoring pada visit berikutnya'
       };
     }
@@ -8681,10 +8681,10 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     // 6. Merchandising, Price Card, Label Harga
     if (text.includes('price') || text.includes('harga') || text.includes('label') || text.includes('tag') || text.includes('display') || cat.includes('price')) {
       return {
-        kondisiIdeal: 'Setiap item produk yang terdisplay di rak dan chiller wajib memiliki price card / POP harga yang jelas, rapi, dan sesuai dengan master harga di POS.',
-        dampak: 'Menimbulkan kebingungan pelanggan, memicu selisih paham di kasir saat pembayaran, serta melanggar regulasi kepatuhan pencantuman harga barang.',
-        penyebab: 'Price card terlepas/hilang saat penataan barang atau keterlambatan pencetakan update harga promosi terbaru.',
-        tindakanPerbaikan: '1. Segera cetak dan pasang price card yang sesuai. 2. Lakukan pengecekan kelengkapan label harga di seluruh lorong rak saat facing barang.',
+        kondisiIdeal: 'Setiap produk display wajib memiliki price card harga yang jelas dan sesuai POS.',
+        dampak: 'Membingungkan pelanggan dan memicu selisih harga saat transaksi kasir.',
+        penyebab: 'Price card terlepas atau belum diperbarui saat update harga promosi.',
+        tindakanPerbaikan: '1. Cetak dan pasang price card yang sesuai saat ini juga.\n2. Cek kelengkapan label harga di seluruh lorong rak saat facing.',
         hasil: 'Akan dimonitoring pada visit berikutnya'
       };
     }
@@ -8692,22 +8692,62 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
     // 7. Administrasi, Logbook, Checklist
     if (text.includes('logbook') || text.includes('catat') || text.includes('checklist') || text.includes('form') || cat.includes('administrasi')) {
       return {
-        kondisiIdeal: 'Seluruh dokumen checklist kontrol operasional (logbook suhu, kebersihan, oil test, waste) wajib terisi lengkap, akurat, dan tepat waktu setiap shift.',
-        dampak: 'Hilangnya kontrol kualitas operasional toko, risiko kegagalan audit internal, dan kesulitan melacak riwayat insiden toko.',
-        penyebab: 'Crew menunda-nunda pencatatan hingga akhir shift atau menganggap remeh pengisian logbook kontrol harian.',
-        tindakanPerbaikan: '1. Lengkapi pencatatan aktual hari ini. 2. Jadikan pengisian logbook sebagai syarat serah terima tugas saat pergantian shift (handover checklist).',
+        kondisiIdeal: 'Dokumen kontrol operasional (logbook suhu, kebersihan, waste) terisi lengkap per shift.',
+        dampak: 'Hilangnya kontrol riwayat kualitas dan risiko temuan audit internal.',
+        penyebab: 'Pencatatan ditunda hingga akhir shift sehingga terlewat.',
+        tindakanPerbaikan: '1. Lengkapi pencatatan aktual logbook hari ini.\n2. Jadikan pengisian logbook syarat serah terima pergantian shift.',
         hasil: 'Akan dimonitoring pada visit berikutnya'
       };
     }
 
     // Default Smart Contextual
     return {
-      kondisiIdeal: `Kondisi operasional terkait "${findingText.slice(0, 50).trim()}" wajib sesuai dengan Standar Operasional Prosedur (SOP) FamilyMart Indonesia.`,
-      dampak: 'Berpotensi mengganggu kelancaran operasional toko, menurunkan standar layanan prima, dan mempengaruhi kepuasan pelanggan.',
-      penyebab: 'Kurangnya pengawasan rutin dari Shift Leader / Store Head serta kurangnya pemahaman crew terhadap kepatuhan standar kerja harian.',
-      tindakanPerbaikan: '1. Lakukan tindakan perbaikan langsung pada temuan terkait hari ini. 2. Berikan arahan dan evaluasi saat briefing shift toko agar temuan tidak berulang.',
+      kondisiIdeal: 'Kondisi operasional toko wajib mematuhi standar SOP FamilyMart Indonesia.',
+      dampak: 'Berpotensi mengganggu kelancaran operasional dan kepuasan pelanggan.',
+      penyebab: 'Kurangnya kontrol rutin pengawasan dan pemahaman standar kerja harian.',
+      tindakanPerbaikan: '1. Lakukan perbaikan langsung pada area temuan hari ini.\n2. Evaluasi saat briefing shift agar temuan serupa tidak berulang.',
       hasil: 'Akan dimonitoring pada visit berikutnya'
     };
+  },
+
+  // Helper memangkas hasil analisa AI agar tidak terlalu panjang, tetap padat dan to the point
+  trimAiObservationText(text, isAction = false, maxChars = 135) {
+    if (!text || typeof text !== 'string') return text || '';
+    let val = this.sanitizeMojibake(text).trim();
+    if (!val) return '';
+
+    if (isAction) {
+      // Split into lines/bullets
+      const lines = val
+        .split('\n')
+        .map(l => l.trim())
+        .filter(l => l.length > 0);
+
+      // Keep at most 2 action points
+      const trimmedLines = lines.slice(0, 2).map((line, idx) => {
+        let clean = line.replace(/^\d+[\.\)]\s*/, '').replace(/^[•\-\*]\s*/, '').trim();
+        if (clean.length > 95) {
+          clean = clean.slice(0, 92).trim() + '...';
+        }
+        return `${idx + 1}. ${clean}`;
+      });
+
+      return trimmedLines.join('\n');
+    }
+
+    // For single sentence fields (kondisiIdeal, dampak, penyebab, hasil)
+    // Remove unwanted introductory boilerplate
+    val = val.replace(/^(kondisi\s*ideal|dampak|penyebab|akar\s*masalah|hasil|tindakan\s*perbaikan)\s*[:\-]\s*/i, '');
+    val = val.replace(/^berdasarkan\s+(standar\s+sop|sop|aturan)\s+familymart[^,.:;]*[,.:;]\s*/i, '');
+
+    // Take only the first sentence if multiple sentences exist and first is complete
+    const firstSentence = val.split(/(?<=[.?!])\s+/)[0] || val;
+    if (firstSentence.length >= 20 && firstSentence.length <= maxChars) {
+      val = firstSentence;
+    } else if (val.length > maxChars) {
+      val = val.slice(0, maxChars - 3).trim() + '...';
+    }
+    return val.trim();
   },
 
   // POINT 6: Format bullet points agar selalu otomatis turun ke bawah per-point
@@ -8731,16 +8771,20 @@ Tugas Anda menganalisa temuan observasi toko berikut:
 Kategori: ${category || 'Umum / QSC'}
 Temuan: "${findingText}"
 
-Instruksi Khusus & Terminologi FamilyMart:
-- Gunakan terminologi operasional resmi FamilyMart Indonesia: Shift Leader, Store Leader, Area Manager, Clean As You Go, Tabel Holding Time, Tabel Standar Holding Time, Waste jika relevan.
-- Berikan analisis operasional yang tajam, profesional, dan to the point sesuai standar retail convenience store (SOP & Food Safety FamilyMart Indonesia).
-- Jika jawaban dalam bentuk poin-poin (misal 1., 2., 3. atau bullet - ), WAJIB pisahkan setiap poin dengan karakter baris baru (\n) sehingga otomatis turun ke bawah per-point dan tidak bersambung.
-- Balas HANYA dalam format JSON valid persis tanpa tanda kutip markdown backticks, dengan 5 field berikut:
+ATURAN UTAMA (SANGAT PENTING - JANGAN TERLALU PANJANG, WAJIB SINGKAT & PADAT):
+- HASIL ANALISA HARUS SANGAT RINGKAS, LUGAS, DAN TO THE POINT! DILARANG membuat kalimat panjang bertele-tele.
+- "kondisiIdeal": Maksimal 1 kalimat singkat & padat (maks 15 kata), langsung ke inti standar SOP.
+- "dampak": Maksimal 1 kalimat singkat (maks 12 kata), risiko utama saja.
+- "penyebab": Maksimal 1 kalimat singkat (maks 12 kata), akar masalah langsung tanpa pengantar.
+- "tindakanPerbaikan": Maksimal 2 poin aksi konkret cepat (maks 12 kata per poin, format: 1. ...\\n2. ...).
+- "hasil": Cukup frasa singkat "Akan dimonitoring pada visit berikutnya".
+- Gunakan terminologi operasional resmi FamilyMart jika relevan (Shift Leader, Store Leader, Clean As You Go, Tabel Holding Time, FEFO).
+- Balas HANYA format JSON valid persis tanpa markdown:
 {
-  "kondisiIdeal": "Standar kondisi ideal yang seharusnya berlaku di toko...",
-  "dampak": "Dampak risiko terhadap kualitas produk, kenyamanan pelanggan, atau operasional toko...",
-  "penyebab": "Akar masalah utama mengapa temuan ini bisa terjadi...",
-  "tindakanPerbaikan": "Tindakan perbaikan (corrective action) konkret dan cepat yang harus diambil crew...",
+  "kondisiIdeal": "Standar kondisi ideal ringkas maks 1 kalimat...",
+  "dampak": "Dampak utama ringkas maks 1 kalimat...",
+  "penyebab": "Akar masalah utama ringkas maks 1 kalimat...",
+  "tindakanPerbaikan": "1. Tindakan cepat 1.\\n2. Tindakan cepat 2.",
   "hasil": "Akan dimonitoring pada visit berikutnya"
 }`;
 
@@ -8766,11 +8810,12 @@ Instruksi Khusus & Terminologi FamilyMart:
             body: JSON.stringify({
               model: model,
               messages: [
-                { role: 'system', content: 'Anda adalah asisten QSC & OPI FamilyMart Indonesia. Outputkan analisis dalam format JSON murni tanpa markdown.' },
+                { role: 'system', content: 'Anda adalah asisten QSC & OPI FamilyMart Indonesia. Outputkan analisis ringkas padat dalam format JSON murni tanpa markdown.' },
                 { role: 'user', content: promptText }
               ],
               response_format: { type: 'json_object' },
-              temperature: 0.2
+              temperature: 0.2,
+              max_tokens: 220
             }),
             signal: controller.signal
           });
@@ -8814,7 +8859,10 @@ Instruksi Khusus & Terminologi FamilyMart:
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               contents: [{ parts: [{ text: promptText }] }],
-              generationConfig: { temperature: 0.2 }
+              generationConfig: {
+                temperature: 0.2,
+                maxOutputTokens: 220
+              }
             }),
             signal: controller.signal
           });
@@ -8855,11 +8903,12 @@ Instruksi Khusus & Terminologi FamilyMart:
           body: JSON.stringify({
             model: 'gpt-4o-mini',
             messages: [
-              { role: 'system', content: 'Anda adalah asisten QSC & OPI FamilyMart Indonesia. Outputkan analisis dalam format JSON murni.' },
+              { role: 'system', content: 'Anda adalah asisten QSC & OPI FamilyMart Indonesia. Outputkan analisis ringkas padat dalam format JSON murni.' },
               { role: 'user', content: promptText }
             ],
             response_format: { type: 'json_object' },
-            temperature: 0.2
+            temperature: 0.2,
+            max_tokens: 220
           }),
           signal: controller.signal
         });
@@ -8969,12 +9018,12 @@ Tugas Anda: Kompilasi dan ringkas kumpulan deskripsi foto visit menjadi daftar t
 - Lingkungan Store (Kebersihan area toko: sales floor, langit-langit, kaca, tempat sampah, penerangan)
 - Grooming (Standar kerapian kru: seragam lengkap, apron, topi/hairnet, nametag, kebersihan personal)
 
-ATURAN PERINGKASAN TEMUAN (SANGAT PENTING):
-1. JANGAN menyalin persis deskripsi foto yang panjang!
-2. OLAH KEMBALI dan RINGKAS temuan menjadi kalimat profesional, lugas, dan padat (maksimal 1-2 kalimat to the point).
-3. Gabungkan foto-foto yang membahas masalah serupa menjadi satu temuan kompilasi solid.
-4. Gunakan kata kunci operasional resmi FamilyMart: Shift Leader, Store Leader, Area Manager, Clean As You Go, Tabel Standar Holding Time, Waste jika relevan.
-5. Jika tindakan perbaikan berupa poin-poin, pisahkan baris baru (\n) per poin.
+ATURAN PERINGKASAN TEMUAN (SANGAT PENTING - JANGAN PANJANG, WAJIB SINGKAT & PADAT):
+1. WAJIB SANGAT RINGKAS, PADAT, DAN TO THE POINT! Dilarang membuat kalimat panjang bertele-tele.
+2. Setiap kolom (temuan, kondisiIdeal, dampak, penyebab) maksimal 1 kalimat pendek (maks 15 kata).
+3. Tindakan perbaikan maksimal 2 poin aksi konkret & cepat (format: 1. ...\n2. ...).
+4. Gabungkan foto-foto yang membahas masalah serupa menjadi satu temuan kompilasi ringkas.
+5. Gunakan kata kunci operasional resmi FamilyMart: Shift Leader, Store Leader, Clean As You Go, Tabel Standar Holding Time, FEFO jika relevan.
 
 DAFTAR DESKRIPSI FOTO VISIT:
 ${photoDescriptions.map((p, i) => `${i + 1}. [${p.source}] ${p.text}`).join('\n')}
@@ -8983,11 +9032,11 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
 [
   {
     "category": "FnB",
-    "temuan": "Ringkasan temuan operasional yang padat dan jelas...",
-    "kondisiIdeal": "Standar kondisi ideal sesuai SOP FamilyMart...",
-    "dampak": "Dampak terhadap kualitas, waste, atau kepuasan konsumen...",
-    "penyebab": "Akar masalah utama...",
-    "tindakanPerbaikan": "1. Tindakan cepat perbaikan saat ini juga.\n2. Kontrol berkala oleh Shift Leader."
+    "temuan": "Ringkasan temuan operasional padat maks 1 kalimat...",
+    "kondisiIdeal": "Standar kondisi ideal ringkas maks 1 kalimat...",
+    "dampak": "Dampak utama ringkas maks 1 kalimat...",
+    "penyebab": "Akar masalah utama ringkas maks 1 kalimat...",
+    "tindakanPerbaikan": "1. Tindakan cepat 1.\n2. Tindakan cepat 2."
   }
 ]`;
 
@@ -9131,11 +9180,11 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
         const todayStr = new Date().toISOString().split('T')[0];
         this.formObservations = compiledObservations.map((obs) => ({
           category: obs.category || 'Quality',
-          temuan: this.formatBulletPoints(obs.temuan || ''),
-          kondisiIdeal: this.formatBulletPoints(obs.kondisiIdeal || ''),
-          dampak: this.formatBulletPoints(obs.dampak || ''),
-          penyebab: this.formatBulletPoints(obs.penyebab || ''),
-          tindakanPerbaikan: this.formatBulletPoints(obs.tindakanPerbaikan || ''),
+          temuan: this.trimAiObservationText(obs.temuan || '', false, 110),
+          kondisiIdeal: this.trimAiObservationText(obs.kondisiIdeal || '', false, 130),
+          dampak: this.trimAiObservationText(obs.dampak || '', false, 120),
+          penyebab: this.trimAiObservationText(obs.penyebab || '', false, 120),
+          tindakanPerbaikan: this.trimAiObservationText(obs.tindakanPerbaikan || '', true),
           hasil: 'Akan dimonitoring pada visit berikutnya',
           deadline: obs.deadline || todayStr,
           deadlineFormatted: window.FMCUPdf ? window.FMCUPdf.formatIndonesianDate(obs.deadline || todayStr, false) : todayStr,
@@ -9197,11 +9246,11 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     try {
       const result = await this.callAiJsonAnalysis(findingText, obs.category || '');
       if (result) {
-        if (result.kondisiIdeal) obs.kondisiIdeal = this.formatBulletPoints(result.kondisiIdeal);
-        if (result.dampak) obs.dampak = this.formatBulletPoints(result.dampak);
-        if (result.penyebab) obs.penyebab = this.formatBulletPoints(result.penyebab);
-        if (result.tindakanPerbaikan) obs.tindakanPerbaikan = this.formatBulletPoints(result.tindakanPerbaikan);
-        if (result.hasil) obs.hasil = this.formatBulletPoints(result.hasil);
+        if (result.kondisiIdeal) obs.kondisiIdeal = this.trimAiObservationText(result.kondisiIdeal, false, 130);
+        if (result.dampak) obs.dampak = this.trimAiObservationText(result.dampak, false, 120);
+        if (result.penyebab) obs.penyebab = this.trimAiObservationText(result.penyebab, false, 120);
+        if (result.tindakanPerbaikan) obs.tindakanPerbaikan = this.trimAiObservationText(result.tindakanPerbaikan, true);
+        if (result.hasil) obs.hasil = this.trimAiObservationText(result.hasil, false, 80) || 'Akan dimonitoring pada visit berikutnya';
 
         const fKondisi = document.getElementById(`obs-${type}-kondisi-${idx}`);
         const fDampak = document.getElementById(`obs-${type}-dampak-${idx}`);
