@@ -3587,6 +3587,7 @@ window.FMCUApp = {
       if (ctrlHeader) ctrlHeader.classList.add('hidden');
       if (syncBanner) syncBanner.classList.add('hidden');
       this.showAdminSectionPanel('__none__');
+      this._setLiveSubPillActive('adm-sub-live-map');
       const liveMapsEl = document.getElementById('view-live-maps');
       const mountEl = document.getElementById('adm-qx-livemaps-mount');
       if (liveMapsEl && mountEl && liveMapsEl.parentElement !== mountEl) {
@@ -3600,9 +3601,19 @@ window.FMCUApp = {
         window.FMCUData.syncAllFromGasDatabase().catch(() => {});
       }
       this.renderLiveLocView();
-      setTimeout(() => {
-        if (this.liveLocMap) this.liveLocMap.invalidateSize();
-      }, 220);
+      // Pastikan Leaflet container segera terupdate ukurannya dan auto-center
+      [50, 150, 300].forEach((delay) => {
+        setTimeout(() => {
+          if (this.liveLocMap) {
+            this.liveLocMap.invalidateSize();
+            if (delay === 150) {
+              const centerLat = this.liveGps.lat !== null ? this.liveGps.lat : -6.2088;
+              const centerLng = this.liveGps.lng !== null ? this.liveGps.lng : 106.8456;
+              this.liveLocMap.setView([centerLat, centerLng], 12);
+            }
+          }
+        }, delay);
+      });
     } else if (targetSec === 'settings') {
       if (ctrlHeader) ctrlHeader.classList.remove('hidden');
       if (syncBanner) syncBanner.classList.remove('hidden');

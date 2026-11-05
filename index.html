@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1793922395338" as="style" />
-  <link rel="preload" href="css/styles.css?v=1793922395338" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1793923026297" as="style" />
+  <link rel="preload" href="css/styles.css?v=1793923026297" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1793922395338" />
-  <link rel="stylesheet" href="css/styles.css?v=1793922395338" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1793923026297" />
+  <link rel="stylesheet" href="css/styles.css?v=1793923026297" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -2066,7 +2066,7 @@
                 </button>
               </nav>
 
-              <!-- Sub-Nav Group B: AGENDA SUB-SECTIONS (Kalender - Semua Agenda - History Agenda - Arsip Laporan - + Create Schedule) -->
+              <!-- Sub-Nav Group B: AGENDA SUB-SECTIONS (Kalender - Semua Agenda - Arsip Laporan) -->
               <nav id="adm-qx-subnav-history" aria-label="Sub Navigasi Agenda" class="qx-top-nav-track hidden">
                 <button type="button" id="adm-top-sub-calendar" onclick="FMCUApp.switchScheduleSubSection('calendar')" class="qx-top-nav-pill active">
                   Kalender
@@ -2074,10 +2074,6 @@
                 <button type="button" id="adm-top-sub-list" onclick="FMCUApp.switchScheduleSubSection('list')" class="qx-top-nav-pill">
                   <span>Semua Agenda</span>
                   <span id="admin-schedule-count-pill" class="ml-1 px-1.5 py-0.2 rounded-full text-[9px] bg-emerald-100 text-emerald-800 font-extrabold">0</span>
-                </button>
-                <button type="button" id="adm-top-sub-history-agenda" onclick="FMCUApp.switchScheduleSubSection('history-agenda')" class="qx-top-nav-pill">
-                  <span>History Agenda</span>
-                  <span id="admin-schedule-completed-count-pill" class="ml-1 px-1.5 py-0.2 rounded-full text-[9px] bg-amber-100 text-amber-800 font-extrabold">0</span>
                 </button>
                 <button type="button" id="adm-top-sub-history" onclick="FMCUApp.switchScheduleSubSection('history')" class="qx-top-nav-pill">
                   <span>Arsip Laporan</span>
@@ -4521,16 +4517,16 @@ service cloud.firestore {
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js" crossorigin="anonymous"></script>
 
   <!-- Core Application Scripts (Fast Startup & Auth Priority) -->
-  <script defer src="js/holding-time-standards.js?v=1793922395338"></script>
-  <script defer src="js/master-stores-seed.js?v=1793922395338"></script>
-  <script defer src="js/bestie-in-charge-seed.js?v=1793922395338"></script>
-  <script defer src="js/data.js?v=1793922395338"></script>
-  <script defer src="js/pdf-generator.js?v=1793922395338"></script>
-  <script defer src="js/app.js?v=1793922395338"></script>
+  <script defer src="js/holding-time-standards.js?v=1793923026297"></script>
+  <script defer src="js/master-stores-seed.js?v=1793923026297"></script>
+  <script defer src="js/bestie-in-charge-seed.js?v=1793923026297"></script>
+  <script defer src="js/data.js?v=1793923026297"></script>
+  <script defer src="js/pdf-generator.js?v=1793923026297"></script>
+  <script defer src="js/app.js?v=1793923026297"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1793922395338"></script>
+  <script async src="js/pdf-assets.js?v=1793923026297"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================
