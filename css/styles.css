@@ -1818,6 +1818,17 @@ body.admin-quixotic-active #main-layout-content-col {
   padding-bottom: 4px !important;
 }
 
+/* FIX: .view-section memakai transform + contain:layout yang membuat position:fixed
+   pada side rail ikut ter-scroll. Nonaktifkan khusus admin agar side navbar benar-benar sticky. */
+body.admin-quixotic-active #view-admin,
+body.admin-quixotic-active #main-content,
+body.admin-quixotic-active #main-layout-content-col {
+  transform: none !important;
+  contain: none !important;
+  animation: none !important;
+  filter: none !important;
+}
+
 .qx-canvas-shell {
   background: transparent !important;
   border-radius: 0 !important;

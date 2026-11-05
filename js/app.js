@@ -3693,10 +3693,65 @@ window.FMCUApp = {
     if (this.currentAdminQuixoticSection !== 'livemaps') {
       this.switchAdminQuixoticSection('livemaps');
     }
+    this._setLiveSubPillActive('adm-sub-live-map');
     const mapEl = document.getElementById('live-loc-dedicated-map');
     if (mapEl) {
       mapEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => {
+        if (this.liveLocMap) this.liveLocMap.invalidateSize();
+      }, 300);
     }
+  },
+
+  _setLiveSubPillActive(activeId) {
+    ['adm-sub-live-map', 'adm-sub-live-pinpoint', 'adm-sub-live-filter', 'adm-sub-live-refresh'].forEach((id) => {
+      const btn = document.getElementById(id);
+      if (btn) btn.classList.toggle('active', id === activeId);
+    });
+  },
+
+  toggleLiveLocPinpointDrawer() {
+    if (this.currentAdminQuixoticSection !== 'livemaps') {
+      this.switchAdminQuixoticSection('livemaps');
+    }
+    this._setLiveSubPillActive('adm-sub-live-pinpoint');
+    const listEl = document.getElementById('live-loc-bestie-list-container');
+    if (listEl) {
+      const card = listEl.closest('.qx-card') || listEl;
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      card.classList.add('ring-2', 'ring-emerald-300');
+      setTimeout(() => card.classList.remove('ring-2', 'ring-emerald-300'), 1400);
+    }
+  },
+
+  toggleLiveLocControlsDrawer() {
+    if (this.currentAdminQuixoticSection !== 'livemaps') {
+      this.switchAdminQuixoticSection('livemaps');
+    }
+    this._setLiveSubPillActive('adm-sub-live-filter');
+    const searchEl = document.getElementById('live-loc-search-input');
+    if (searchEl) {
+      const card = searchEl.closest('.qx-card') || searchEl;
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setTimeout(() => searchEl.focus({ preventScroll: true }), 450);
+    }
+  },
+
+  manualRefreshLiveLocations() {
+    if (this.currentAdminQuixoticSection !== 'livemaps') {
+      this.switchAdminQuixoticSection('livemaps');
+    }
+    this._setLiveSubPillActive('adm-sub-live-refresh');
+    if (typeof this.refreshLiveLocMap === 'function') {
+      this.refreshLiveLocMap();
+    } else {
+      if (window.FMCUData && typeof window.FMCUData.syncAllFromGasDatabase === 'function') {
+        window.FMCUData.syncAllFromGasDatabase().catch(() => {});
+      }
+      this.renderLiveLocView();
+      this.showToast('Lokasi tim diperbarui.', 'success');
+    }
+    setTimeout(() => this._setLiveSubPillActive('adm-sub-live-map'), 1600);
   },
 
   selectedAdminBarMonthIdx: null,
