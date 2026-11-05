@@ -3480,20 +3480,25 @@ window.FMCUApp = {
       if (btn) btn.classList.toggle('active', key === targetSec);
     });
 
-    // Update Left Floating Icon Rail
-    const railMap = {
-      analytic: 'adm-qx-rail-analytic',
-      history: 'adm-qx-rail-history',
-      profiles: 'adm-qx-rail-profiles',
-      livemaps: 'adm-qx-rail-livemaps',
-      create: 'adm-qx-rail-create',
-      stores: 'adm-qx-rail-stores',
-      settings: 'adm-qx-rail-settings'
-    };
-    Object.entries(railMap).forEach(([key, id]) => {
-      const btn = document.getElementById(id);
-      if (btn) btn.classList.toggle('active', key === targetSec);
-    });
+    // Update Top Right Store / Settings / Create Jadwal active states
+    const storesBtn = document.getElementById('adm-qx-top-stores-btn');
+    if (storesBtn) {
+      storesBtn.className = targetSec === 'stores'
+        ? 'inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-[#0d8247] text-white text-[11px] font-extrabold transition cursor-pointer shadow-2xs'
+        : 'inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-[#F4F6F5] hover:bg-slate-200/70 text-slate-700 text-[11px] font-bold transition cursor-pointer';
+    }
+    const settingsBtn = document.getElementById('adm-qx-top-settings-btn');
+    if (settingsBtn) {
+      settingsBtn.className = targetSec === 'settings'
+        ? 'inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-purple-700 text-white border border-purple-700 text-[11px] font-extrabold transition cursor-pointer shadow-2xs'
+        : 'inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 text-[11px] font-bold transition cursor-pointer';
+    }
+    const createBtn = document.getElementById('adm-qx-btn-create-jadwal');
+    if (createBtn) {
+      createBtn.className = targetSec === 'create'
+        ? 'inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-900 text-white ring-2 ring-emerald-300 font-extrabold text-xs shadow-sm transition-all duration-200 cursor-pointer'
+        : 'inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[#0d8247] hover:bg-emerald-800 text-white font-extrabold text-xs shadow-xs transition-all duration-200 cursor-pointer active:scale-95';
+    }
 
     // Sembunyikan/tampilkan kontainer section
     const secAnalytic = document.getElementById('adm-qx-sec-analytic');
@@ -3579,6 +3584,45 @@ window.FMCUApp = {
     }
   },
 
+  onAdminQuixoticPeriodChange() {
+    this.renderAdminQuixoticAnalytic();
+    if (this.currentAdminQuixoticSection === 'profiles') {
+      if (this.selectedMemberProfileId) {
+        this.renderMemberDetailAgendaList();
+      } else {
+        this.renderAdminQuixoticMetricProfiles();
+      }
+    } else if (this.currentAdminQuixoticSection === 'history') {
+      this.renderAdminView();
+    }
+  },
+
+  openHistoryWithCategoryFilter(category = 'ALL') {
+    this.switchAdminQuixoticSection('history', { subTab: 'list' });
+    const sInput = document.getElementById('adm-sch-list-search');
+    const audSel = document.getElementById('adm-sch-list-auditor');
+    const catSel = document.getElementById('adm-sch-list-category');
+    const statSel = document.getElementById('adm-sch-list-status');
+    if (sInput) sInput.value = '';
+    if (audSel) audSel.value = 'ALL';
+    if (catSel) catSel.value = category || 'ALL';
+    if (statSel) statSel.value = 'ALL';
+    this.renderAdminView();
+  },
+
+  openHistoryWithStatusFilter(status = 'ALL') {
+    this.switchAdminQuixoticSection('history', { subTab: 'list' });
+    const sInput = document.getElementById('adm-sch-list-search');
+    const audSel = document.getElementById('adm-sch-list-auditor');
+    const catSel = document.getElementById('adm-sch-list-category');
+    const statSel = document.getElementById('adm-sch-list-status');
+    if (sInput) sInput.value = '';
+    if (audSel) audSel.value = 'ALL';
+    if (catSel) catSel.value = 'ALL';
+    if (statSel) statSel.value = status || 'ALL';
+    this.renderAdminView();
+  },
+
   classifyScheduleCategory(s) {
     if (!s) return 'VISIT_STORE';
     const cat = String(s.agendaCategory || '').toUpperCase();
@@ -3608,20 +3652,21 @@ window.FMCUApp = {
     return false;
   },
 
+  setAdminQuixoticMonthlyBarMode(mode = 'BOTH') {
+    this.setAdminQuixoticBarMode(mode);
+  },
+
   setAdminQuixoticBarMode(mode = 'BOTH') {
-    this.adminQuixoticBarMode = mode === 'VISIT' ? 'VISIT' : 'BOTH';
+    const valid = ['BOTH', 'VISIT', 'NSO'];
+    this.adminQuixoticBarMode = valid.includes(mode) ? mode : 'BOTH';
     const btnBoth = document.getElementById('qx-bar-mode-both');
     const btnVisit = document.getElementById('qx-bar-mode-visit');
-    if (btnBoth) {
-      btnBoth.className = this.adminQuixoticBarMode === 'BOTH'
-        ? 'px-3 py-1 rounded-full text-[11px] font-extrabold bg-[#009944] text-white shadow-2xs transition cursor-pointer'
-        : 'px-3 py-1 rounded-full text-[11px] font-bold text-slate-600 hover:text-slate-900 transition cursor-pointer';
-    }
-    if (btnVisit) {
-      btnVisit.className = this.adminQuixoticBarMode === 'VISIT'
-        ? 'px-3 py-1 rounded-full text-[11px] font-extrabold bg-[#009944] text-white shadow-2xs transition cursor-pointer'
-        : 'px-3 py-1 rounded-full text-[11px] font-bold text-slate-600 hover:text-slate-900 transition cursor-pointer';
-    }
+    const btnNso = document.getElementById('qx-bar-mode-nso');
+    const activeCls = 'px-2.5 py-1 rounded-full bg-[#0d8247] text-white font-extrabold shadow-2xs transition cursor-pointer';
+    const inactiveCls = 'px-2.5 py-1 rounded-full text-slate-600 hover:text-slate-900 transition cursor-pointer';
+    if (btnBoth) btnBoth.className = this.adminQuixoticBarMode === 'BOTH' ? activeCls : inactiveCls;
+    if (btnVisit) btnVisit.className = this.adminQuixoticBarMode === 'VISIT' ? activeCls : inactiveCls;
+    if (btnNso) btnNso.className = this.adminQuixoticBarMode === 'NSO' ? activeCls : inactiveCls;
     this.renderAdminQuixoticAnalytic();
   },
 
@@ -3675,7 +3720,6 @@ window.FMCUApp = {
     const visitedStoreCodesSet = new Set();
     const validMasterCodes = new Set(stores.map((st) => String(st.code || '').trim().toUpperCase()).filter(Boolean));
 
-    // Add stores from completed reports in period
     filteredReports.forEach((r) => {
       const c = String(r.storeCode || '').trim().toUpperCase();
       if (c && c !== 'AGENDA' && c !== 'CUTI' && c !== 'OFF' && c !== 'NSO') {
@@ -3712,7 +3756,6 @@ window.FMCUApp = {
       }
     });
 
-    // If there are standalone reports not in schedules, ensure totalVisit reflects at least filteredReports.length
     const effectiveTotalVisit = Math.max(totalVisitScheduled, filteredReports.length);
     const effectiveVisitDone = Math.max(visitDoneCount, filteredReports.length);
 
@@ -3723,21 +3766,21 @@ window.FMCUApp = {
     };
 
     setElText('qx-kpi-val-agenda', totalAgenda.toLocaleString('id-ID'));
-    setElText('qx-kpi-sub-agenda', `${totalVisitScheduled} Visit • ${totalNso} NSO • ${totalTraining} Training • ${totalOffice + totalCutiOff} Non-Visit`);
+    setElText('qx-kpi-sub-agenda', `${totalVisitScheduled} Visit • ${totalNso} NSO • ${totalTraining} Trn`);
 
     setElText('qx-kpi-val-training', totalTraining.toLocaleString('id-ID'));
     setElText('qx-kpi-sub-training', `${trainingDone} Terlaksana • ${Math.max(0, totalTraining - trainingDone)} Terjadwal`);
 
     setElText('qx-kpi-val-visit', effectiveTotalVisit.toLocaleString('id-ID'));
-    setElText('qx-kpi-sub-visit', `${effectiveVisitDone} Selesai • ${filteredReports.length} Arsip Laporan`);
+    setElText('qx-kpi-sub-visit', `${effectiveVisitDone} Selesai • ${filteredReports.length} Laporan`);
 
     setElText('qx-kpi-val-nso', totalNso.toLocaleString('id-ID'));
-    setElText('qx-kpi-sub-nso', `${nsoDoneCount} Selesai • ${Math.max(0, totalNso - nsoDoneCount)} Persiapan NSO`);
+    setElText('qx-kpi-sub-nso', `${nsoDoneCount} Selesai • ${Math.max(0, totalNso - nsoDoneCount)} Persiapan`);
 
     setElText('qx-kpi-val-pending', totalPending.toLocaleString('id-ID'));
-    setElText('qx-kpi-sub-pending', totalPending === 0 ? '100% Tuntas Tanpa Pending' : `${totalPending} Agenda Belum Selesai`);
+    setElText('qx-kpi-sub-pending', totalPending === 0 ? '100% Tuntas' : `${totalPending} Belum Laporan`);
 
-    // 2. Update PRESENTASE TOTAL VISIT DARI SEMUA STORE (Quixotic Emerald VISA Card)
+    // 2. Update PRESENTASE TOTAL VISIT DARI SEMUA STORE
     const totalMasterStores = stores.length || 610;
     let uniqueVisitedMasterCount = 0;
     visitedStoreCodesSet.forEach((code) => {
@@ -3752,7 +3795,7 @@ window.FMCUApp = {
     setElText('qx-cov-visited-fraction', `${uniqueVisitedMasterCount} / ${totalMasterStores} Toko`);
     const covBar = document.getElementById('qx-cov-progress-bar');
     if (covBar) covBar.style.width = `${Math.min(100, Math.max(coveragePct > 0 ? 3 : 0, coveragePct)).toFixed(1)}%`;
-    setElText('qx-cov-unvisited-text', `Belum dikunjungi: ${unvisitedCount} Toko`);
+    setElText('qx-cov-unvisited-text', `Belum: ${unvisitedCount} Toko`);
 
     const periodLabel = monthFilter === 'ALL'
       ? (yearFilter === 'ALL' ? 'SEMUA PERIODE' : `TAHUN ${yearFilter}`)
@@ -3767,56 +3810,17 @@ window.FMCUApp = {
       : (filteredReports.length > 0 ? 100 : 0);
 
     setElText('qx-cov-completion-pill', `${realizationPct}% Realisasi`);
-    setElText('qx-overall-realization-pct', `${realizationPct}%`);
-    setElText('qx-wave-done-count', totalActionableDone.toLocaleString('id-ID'));
-    setElText('qx-wave-pend-count', totalPending.toLocaleString('id-ID'));
 
-    // Average QSC Score & Avatar Stack
     const scoredReports = filteredReports.filter((r) => Number(r.qscScore) > 0);
     const avgQsc = scoredReports.length > 0
       ? (scoredReports.reduce((acc, r) => acc + Number(r.qscScore || 0), 0) / scoredReports.length).toFixed(1)
       : '0.0';
-    setElText('qx-analytic-top-score', `${avgQsc}%`);
+    setElText('qx-analytic-top-score', `QSC: ${avgQsc}%`);
 
     const teamMembers = users.filter((u) => {
       const ac = this.getActorClass(u);
       return ac === 'REGIONAL_BESTIE' || ac === 'TRAINER';
     });
-    setElText('qx-analytic-active-members-badge', `${teamMembers.length} Anggota`);
-
-    const avatarStackEl = document.getElementById('qx-analytic-avatar-stack');
-    if (avatarStackEl) {
-      const palette = ['#009944', '#0099A6', '#0ea5e9', '#8b5cf6', '#f59e0b', '#ec4899'];
-      const visibleAvatars = teamMembers.slice(0, 5);
-      const extraCount = Math.max(0, teamMembers.length - visibleAvatars.length);
-      avatarStackEl.innerHTML =
-        visibleAvatars
-          .map((u, idx) => {
-            const init = String(u.name || 'FM')
-              .split(' ')
-              .filter(Boolean)
-              .map((w) => w[0])
-              .join('')
-              .slice(0, 2)
-              .toUpperCase();
-            const bg = u.avatarColor || palette[idx % palette.length];
-            return `
-              <button
-                type="button"
-                onclick="FMCUApp.openMemberDetailAgenda('${u.id}')"
-                title="Lihat Detail Agenda: ${u.name}"
-                style="background:${bg}"
-                class="w-9 h-9 rounded-full text-white font-extrabold text-[11px] flex items-center justify-center border-2 border-white -ml-2 first:ml-0 shadow-xs hover:scale-110 hover:z-10 transition cursor-pointer"
-              >
-                ${init}
-              </button>
-            `;
-          })
-          .join('') +
-        (extraCount > 0
-          ? `<button type="button" onclick="FMCUApp.switchAdminQuixoticSection('profiles')" class="w-9 h-9 rounded-full bg-[#009944] text-white font-black text-[11px] flex items-center justify-center border-2 border-white -ml-2 shadow-xs hover:scale-105 transition cursor-pointer" title="Lihat Semua ${teamMembers.length} Anggota">+${extraCount}</button>`
-          : '');
-    }
 
     // 3. Render GRAFIK BATANG TOTAL VISIT DAN NSO PERBULAN (12 Months Jan-Des Capsule Chart)
     const monthlyStats = Array.from({ length: 12 }, (_, idx) => ({
@@ -3832,12 +3836,9 @@ window.FMCUApp = {
       office: 0,
       cutiOff: 0,
       pending: 0,
-      qscSum: 0,
-      qscCount: 0,
       visitedStores: new Set()
     }));
 
-    // Populate monthlyStats for the selected year (default 2026)
     schedules.forEach((s) => {
       if (!matchPeriod(s.scheduledDate, true)) return;
       const mStr = String(s.scheduledDate || '').slice(5, 7);
@@ -3880,13 +3881,8 @@ window.FMCUApp = {
       if (c && c !== 'AGENDA' && c !== 'CUTI' && c !== 'OFF' && c !== 'NSO') {
         bucket.visitedStores.add(c);
       }
-      if (Number(r.qscScore) > 0) {
-        bucket.qscSum += Number(r.qscScore);
-        bucket.qscCount++;
-      }
     });
 
-    // Find peak month for Quixotic capsule highlight
     let maxMonthTotal = 0;
     let peakMonthIdx = new Date().getMonth();
     let yearVisitSum = 0;
@@ -3895,11 +3891,15 @@ window.FMCUApp = {
     monthlyStats.forEach((m) => {
       const vCount = Math.max(m.visitScheduled, m.visitedStores.size);
       m.effectiveVisit = vCount;
-      const combined = this.adminQuixoticBarMode === 'VISIT' ? vCount : vCount + m.nso;
+      const modeVal = this.adminQuixoticBarMode === 'VISIT'
+        ? vCount
+        : this.adminQuixoticBarMode === 'NSO'
+          ? m.nso
+          : vCount + m.nso;
       yearVisitSum += vCount;
       yearNsoSum += m.nso;
-      if (combined > maxMonthTotal) {
-        maxMonthTotal = combined;
+      if (modeVal > maxMonthTotal) {
+        maxMonthTotal = modeVal;
         peakMonthIdx = m.monthIdx;
       }
     });
@@ -3914,60 +3914,61 @@ window.FMCUApp = {
     const peakBucket = monthlyStats[peakMonthIdx] || monthlyStats[0];
     setElText(
       'qx-bar-peak-month-label',
-      `Puncak: ${peakBucket.fullLabel} (${peakBucket.effectiveVisit} Visit, ${peakBucket.nso} NSO)`
+      `Puncak: ${peakBucket.fullLabel} (${peakBucket.effectiveVisit}V / ${peakBucket.nso}N)`
     );
 
     const barsContainer = document.getElementById('qx-monthly-bars-container');
     if (barsContainer) {
-      const scaleMax = Math.max(10, maxMonthTotal);
+      const scaleMax = Math.max(8, maxMonthTotal);
       barsContainer.innerHTML = monthlyStats
         .map((m) => {
-          const vVal = m.effectiveVisit;
+          const vVal = this.adminQuixoticBarMode === 'NSO' ? 0 : m.effectiveVisit;
           const nVal = this.adminQuixoticBarMode === 'VISIT' ? 0 : m.nso;
           const totalVal = vVal + nVal;
           const isPeak = m.monthIdx === peakMonthIdx;
 
-          const visitHeightPct = totalVal === 0 ? 14 : Math.max(18, Math.round((vVal / scaleMax) * 100));
-          const nsoHeightPct = nVal === 0 ? 0 : Math.max(16, Math.round((nVal / scaleMax) * 100));
+          const primaryVal = this.adminQuixoticBarMode === 'NSO' ? nVal : vVal;
+          const primaryHeightPct = primaryVal === 0 ? 14 : Math.max(18, Math.round((primaryVal / scaleMax) * 100));
+          const secondaryHeightPct = (this.adminQuixoticBarMode === 'BOTH' && nVal > 0)
+            ? Math.max(16, Math.round((nVal / scaleMax) * 100))
+            : 0;
 
-          const capsuleClass = isPeak ? 'qx-capsule-bar-active' : 'qx-capsule-bar-striped';
+          const capsuleClass = this.adminQuixoticBarMode === 'NSO'
+            ? 'qx-capsule-bar-nso'
+            : (isPeak ? 'qx-capsule-bar-active' : 'qx-capsule-bar-striped');
 
           return `
             <div
-              onclick="document.getElementById('adm-qx-filter-month').value='${m.monthCode === monthFilter ? 'ALL' : m.monthCode}'; FMCUApp.renderAdminQuixoticAnalytic();"
-              class="flex-1 min-w-[38px] h-full flex flex-col items-center justify-end group cursor-pointer select-none"
-              title="${m.fullLabel}: ${vVal} Visit Store, ${m.nso} NSO (Klik untuk filter bulan ${m.fullLabel})"
+              onclick="document.getElementById('adm-qx-filter-month').value='${m.monthCode === monthFilter ? 'ALL' : m.monthCode}'; FMCUApp.onAdminQuixoticPeriodChange();"
+              class="flex-1 min-w-[26px] h-full flex flex-col items-center justify-end group cursor-pointer select-none"
+              title="${m.fullLabel}: ${m.effectiveVisit} Visit Store, ${m.nso} NSO (Klik untuk filter bulan ${m.fullLabel})"
             >
-              <!-- Floating Callout Pill on Peak/Selected Month (Quixotic Style) -->
-              <div class="mb-1.5 flex flex-col items-center ${isPeak ? 'opacity-100 scale-100' : 'opacity-80 group-hover:opacity-100'} transition">
+              <div class="mb-1 flex flex-col items-center ${isPeak ? 'opacity-100' : 'opacity-75 group-hover:opacity-100'} transition">
                 ${
                   isPeak
-                    ? `<span class="px-2 py-0.5 rounded-full bg-[#009944] text-white text-[9.5px] font-black shadow-sm whitespace-nowrap">+${totalVal} (${vVal}V${nVal > 0 ? '/' + nVal + 'N' : ''})</span>
-                       <span class="w-2.5 h-2.5 rounded-full bg-[#009944] border-2 border-white shadow-xs -mt-0.5"></span>`
-                    : `<span class="text-[9.5px] font-extrabold ${totalVal > 0 ? 'text-slate-700' : 'text-slate-400'}">${totalVal}</span>`
+                    ? `<span class="px-1.5 py-0.5 rounded-full bg-[#0d8247] text-white text-[8.5px] font-black shadow-2xs whitespace-nowrap">${totalVal}</span>`
+                    : `<span class="text-[8.5px] font-extrabold ${totalVal > 0 ? 'text-slate-700' : 'text-slate-300'}">${totalVal}</span>`
                 }
               </div>
 
-              <!-- Capsule Bars Wrapper -->
-              <div class="w-full flex items-end justify-center gap-1 h-[155px] px-0.5">
+              <div class="w-full flex items-end justify-center gap-0.5 h-[122px] px-0.5">
                 <div
-                  class="${capsuleClass} w-full max-w-[26px] transition-all duration-300 group-hover:brightness-95"
-                  style="height: ${Math.min(100, visitHeightPct)}%;"
+                  class="${capsuleClass} w-full max-w-[20px] transition-all duration-300 group-hover:brightness-95"
+                  style="height: ${Math.min(100, primaryHeightPct)}%;"
                 ></div>
                 ${
-                  nVal > 0
+                  secondaryHeightPct > 0
                     ? `<div
-                        class="qx-capsule-bar-nso w-2.5 sm:w-3 transition-all duration-300"
-                        style="height: ${Math.min(100, nsoHeightPct)}%;"
+                        class="qx-capsule-bar-nso w-2 transition-all duration-300"
+                        style="height: ${Math.min(100, secondaryHeightPct)}%;"
                         title="${nVal} NSO"
                       ></div>`
                     : ''
                 }
               </div>
 
-              <!-- Month Label -->
-              <div class="mt-2 text-[10px] font-extrabold tracking-wider ${
-                isPeak ? 'text-[#009944] font-black' : 'text-slate-400 group-hover:text-slate-700'
+              <div class="mt-1.5 text-[9px] font-extrabold tracking-wider ${
+                isPeak ? 'text-[#0d8247] font-black' : 'text-slate-400 group-hover:text-slate-700'
               }">
                 ${m.label}
               </div>
@@ -3977,7 +3978,7 @@ window.FMCUApp = {
         .join('');
     }
 
-    // 4. Render GRAFIK PERFORMA PER ANGGOTA (#qx-member-perf-chart-body)
+    // 4. Render GRAFIK PERFORMA PER ANGGOTA (#qx-member-perf-chart-body) — Compact Row 2 Card
     const memberPerfContainer = document.getElementById('qx-member-perf-chart-body');
     if (memberPerfContainer) {
       const sortMode = document.getElementById('qx-member-perf-sort')?.value || 'TOTAL_DESC';
@@ -4013,13 +4014,7 @@ window.FMCUApp = {
         const effVisitTotal = Math.max(mVisit, myReports.length);
         const totalMemberAgenda = Math.max(mySchedules.length, effVisitTotal + mNso + mTraining + mOfficeCuti);
         const actionableTotal = effVisitTotal + mNso;
-        const actionableDone = effVisitDone + (mNso - Math.max(0, mPending - (effVisitTotal - effVisitDone)));
         const ratePct = actionableTotal > 0 ? Math.min(100, Math.round((effVisitDone / actionableTotal) * 100)) : (totalMemberAgenda > 0 ? 100 : 0);
-
-        const myScored = myReports.filter((r) => Number(r.qscScore) > 0);
-        const myAvgQsc = myScored.length > 0
-          ? (myScored.reduce((a, b) => a + Number(b.qscScore || 0), 0) / myScored.length).toFixed(1)
-          : '-';
 
         return {
           user: u,
@@ -4030,8 +4025,7 @@ window.FMCUApp = {
           nso: mNso,
           training: mTraining,
           pending: mPending,
-          ratePct,
-          avgQsc: myAvgQsc
+          ratePct
         };
       });
 
@@ -4054,9 +4048,6 @@ window.FMCUApp = {
             .join('')
             .slice(0, 2)
             .toUpperCase();
-          const rolePill = row.actor === 'TRAINER'
-            ? `<span class="px-2 py-0.2 rounded-full text-[9.5px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200">Trainer</span>`
-            : `<span class="px-2 py-0.2 rounded-full text-[9.5px] font-extrabold bg-emerald-50 text-emerald-800 border border-emerald-200">Regional Bestie</span>`;
 
           const doneWidth = Math.round((row.visitDone / maxMemberAgenda) * 100);
           const nsoTrainWidth = Math.round(((row.nso + row.training) / maxMemberAgenda) * 100);
@@ -4065,57 +4056,29 @@ window.FMCUApp = {
           return `
             <div
               onclick="FMCUApp.openMemberDetailAgenda('${u.id}')"
-              class="p-3 rounded-2xl border border-slate-200/80 hover:border-emerald-300 bg-slate-50/60 hover:bg-white transition flex flex-col lg:flex-row lg:items-center justify-between gap-3 cursor-pointer group"
+              class="p-2.5 rounded-xl border border-slate-200/70 hover:border-[#0d8247] bg-[#F8FAF9] hover:bg-white transition cursor-pointer group space-y-1.5"
+              title="Klik untuk buka Direct Detail Agenda: ${u.name}"
             >
-              <!-- Member Identity -->
-              <div class="flex items-center gap-3 min-w-[230px] lg:w-[260px] shrink-0">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#009944] to-teal-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs">
-                  ${initials}
-                </div>
-                <div class="min-w-0 flex-1">
-                  <div class="flex items-center gap-1.5 flex-wrap">
-                    <span class="font-extrabold text-xs sm:text-sm text-slate-900 group-hover:text-[#009944] transition truncate">${u.name}</span>
-                    ${rolePill}
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2 min-w-0">
+                  <div class="w-7 h-7 rounded-lg bg-[#0d8247] text-white font-black text-[10px] flex items-center justify-center shrink-0">
+                    ${initials}
                   </div>
-                  <div class="text-[10.5px] text-slate-400 font-medium truncate">
-                    NIK: ${u.nik || u.username} ${u.region && u.region !== '-' ? '• ' + u.region : ''}
+                  <div class="min-w-0">
+                    <div class="font-extrabold text-xs text-slate-900 group-hover:text-[#0d8247] truncate">${u.name}</div>
+                    <div class="text-[9.5px] text-slate-400 font-medium truncate">
+                      ${row.totalAgenda} Agenda • <span class="text-emerald-700 font-bold">${row.visitDone} Visit</span>${row.nso > 0 ? ` • ${row.nso} NSO` : ''}${row.training > 0 ? ` • ${row.training} Trn` : ''}${row.pending > 0 ? ` • <span class="text-amber-700 font-bold">${row.pending} Pend</span>` : ''}
+                    </div>
                   </div>
                 </div>
+                <span class="px-2 py-0.5 rounded-full text-[9.5px] font-extrabold shrink-0 ${
+                  row.ratePct >= 80 ? 'bg-emerald-100 text-emerald-800' : row.ratePct >= 50 ? 'bg-amber-100 text-amber-800' : 'bg-slate-200/70 text-slate-600'
+                }">${row.ratePct}%</span>
               </div>
-
-              <!-- Horizontal Segmented Bar Chart -->
-              <div class="flex-1 min-w-0 space-y-1.5">
-                <div class="flex items-center justify-between text-[10.5px] font-bold text-slate-600">
-                  <div class="flex flex-wrap items-center gap-2">
-                    <span class="text-slate-900 font-extrabold">${row.totalAgenda} Agenda</span>
-                    <span class="text-emerald-700"><i class="fa-solid fa-circle text-[7px] mr-1"></i>${row.visitDone} Visit Selesai</span>
-                    ${row.nso > 0 ? `<span class="text-teal-700"><i class="fa-solid fa-circle text-[7px] mr-1"></i>${row.nso} NSO</span>` : ''}
-                    ${row.training > 0 ? `<span class="text-amber-700"><i class="fa-solid fa-circle text-[7px] mr-1"></i>${row.training} Training</span>` : ''}
-                    ${row.pending > 0 ? `<span class="text-rose-600"><i class="fa-solid fa-circle text-[7px] mr-1"></i>${row.pending} Pending</span>` : ''}
-                  </div>
-                  <span class="font-black ${row.ratePct >= 80 ? 'text-emerald-700' : row.ratePct >= 50 ? 'text-amber-700' : 'text-slate-600'}">${row.ratePct}% Realisasi</span>
-                </div>
-                <div class="w-full h-3 rounded-full bg-slate-200/80 overflow-hidden flex p-0.5 gap-0.5">
-                  ${doneWidth > 0 ? `<div class="h-full rounded-full bg-[#009944] transition-all duration-500" style="width:${Math.max(4, doneWidth)}%" title="Visit Selesai: ${row.visitDone}"></div>` : ''}
-                  ${nsoTrainWidth > 0 ? `<div class="h-full rounded-full bg-[#0099A6] transition-all duration-500" style="width:${Math.max(4, nsoTrainWidth)}%" title="NSO & Training: ${row.nso + row.training}"></div>` : ''}
-                  ${pendWidth > 0 ? `<div class="h-full rounded-full bg-amber-400 transition-all duration-500" style="width:${Math.max(4, pendWidth)}%" title="Laporan Pending: ${row.pending}"></div>` : ''}
-                </div>
-              </div>
-
-              <!-- Right Stats & Direct Agenda Button -->
-              <div class="flex items-center justify-between lg:justify-end gap-2.5 shrink-0 pt-1 lg:pt-0 border-t lg:border-t-0 border-slate-200/60">
-                <div class="text-left lg:text-right px-2">
-                  <div class="text-[9.5px] font-bold text-slate-400 uppercase">Avg QSC</div>
-                  <div class="text-xs font-black text-slate-800">${row.avgQsc === '-' ? '-' : row.avgQsc + '%'}</div>
-                </div>
-                <button
-                  type="button"
-                  onclick="event.stopPropagation(); FMCUApp.openMemberDetailAgenda('${u.id}')"
-                  class="px-3 py-1.5 rounded-xl bg-white group-hover:bg-[#009944] text-slate-700 group-hover:text-white border border-slate-200 group-hover:border-[#009944] text-[11px] font-extrabold transition flex items-center gap-1.5 shadow-2xs cursor-pointer whitespace-nowrap"
-                >
-                  <span>Detail Agenda</span>
-                  <i class="fa-solid fa-arrow-right text-[10px]"></i>
-                </button>
+              <div class="w-full h-2 rounded-full bg-slate-200/80 overflow-hidden flex gap-0.5">
+                ${doneWidth > 0 ? `<div class="h-full rounded-full bg-[#0d8247]" style="width:${Math.max(5, doneWidth)}%"></div>` : ''}
+                ${nsoTrainWidth > 0 ? `<div class="h-full rounded-full bg-[#0099A6]" style="width:${Math.max(5, nsoTrainWidth)}%"></div>` : ''}
+                ${pendWidth > 0 ? `<div class="h-full rounded-full bg-amber-400" style="width:${Math.max(5, pendWidth)}%"></div>` : ''}
               </div>
             </div>
           `;
@@ -4123,13 +4086,13 @@ window.FMCUApp = {
         .join('');
     }
 
-    // 5. Render Table Ringkasan Bulanan per Indikator (#qx-monthly-indicator-tbody)
+    // 5. Render Table Ringkasan Bulanan per Indikator (#qx-monthly-indicator-tbody) — 6 Core Indicators
     const indicatorTbody = document.getElementById('qx-monthly-indicator-tbody');
     if (indicatorTbody) {
       const indicatorDefs = [
         {
           label: 'Total Agenda',
-          icon: 'fa-calendar-check text-emerald-600',
+          icon: 'fa-calendar-check text-[#0d8247]',
           badgeClass: 'bg-emerald-50 text-emerald-900 font-black',
           getVal: (m) => m.agenda,
           format: (v) => v.toLocaleString('id-ID'),
@@ -4137,77 +4100,40 @@ window.FMCUApp = {
         },
         {
           label: 'Total Training',
-          icon: 'fa-chalkboard-user text-amber-600',
-          badgeClass: 'bg-amber-50 text-amber-900 font-bold',
+          icon: 'fa-chalkboard-user text-indigo-600',
+          badgeClass: 'bg-indigo-50 text-indigo-900 font-bold',
           getVal: (m) => m.training,
           format: (v) => v.toLocaleString('id-ID'),
           isTotalSum: true
         },
         {
-          label: 'Total Visit Store (Terjadwal)',
-          icon: 'fa-store text-[#009944]',
-          badgeClass: 'bg-emerald-50 text-emerald-900 font-bold',
+          label: 'Total Visit Store',
+          icon: 'fa-store text-[#0d8247]',
+          badgeClass: 'bg-emerald-100/80 text-emerald-950 font-black',
           getVal: (m) => m.effectiveVisit,
           format: (v) => v.toLocaleString('id-ID'),
           isTotalSum: true
         },
         {
-          label: 'Visit Store Selesai (Laporan)',
-          icon: 'fa-circle-check text-emerald-600',
-          badgeClass: 'bg-emerald-100/80 text-emerald-950 font-black',
-          getVal: (m) => Math.max(m.visitDone, m.visitedStores.size),
-          format: (v) => v.toLocaleString('id-ID'),
-          isTotalSum: true
-        },
-        {
-          label: 'Total NSO (New Store Opening)',
-          icon: 'fa-sparkles text-[#0099A6]',
+          label: 'Total NSO',
+          icon: 'fa-sparkles text-teal-600',
           badgeClass: 'bg-teal-50 text-teal-900 font-bold',
           getVal: (m) => m.nso,
           format: (v) => v.toLocaleString('id-ID'),
           isTotalSum: true
         },
         {
-          label: 'Office Duty / Meeting / Internal',
-          icon: 'fa-building text-purple-600',
-          badgeClass: 'bg-purple-50 text-purple-900 font-bold',
-          getVal: (m) => m.office,
-          format: (v) => v.toLocaleString('id-ID'),
-          isTotalSum: true
-        },
-        {
-          label: 'Cuti / Hari Libur (Off)',
-          icon: 'fa-umbrella-beach text-indigo-600',
-          badgeClass: 'bg-indigo-50 text-indigo-900 font-bold',
-          getVal: (m) => m.cutiOff,
-          format: (v) => v.toLocaleString('id-ID'),
-          isTotalSum: true
-        },
-        {
           label: 'Total Laporan Pending',
-          icon: 'fa-hourglass-half text-rose-600',
-          badgeClass: 'bg-rose-50 text-rose-900 font-black',
+          icon: 'fa-clock text-amber-600',
+          badgeClass: 'bg-amber-50 text-amber-900 font-black',
           getVal: (m) => m.pending,
           format: (v) => v.toLocaleString('id-ID'),
           isTotalSum: true
         },
         {
-          label: 'Presentase Realisasi Visit (%)',
-          icon: 'fa-chart-line text-emerald-600',
+          label: 'Presentase Visit Store (%)',
+          icon: 'fa-percent text-[#0d8247]',
           badgeClass: 'bg-emerald-50 text-emerald-900 font-black',
-          getVal: (m) => {
-            const tot = m.effectiveVisit + m.nso;
-            const dn = Math.max(m.visitDone, m.visitedStores.size) + Math.max(0, m.nso - m.pending);
-            return tot > 0 ? Math.min(100, Math.round((dn / tot) * 100)) : 0;
-          },
-          format: (v) => `${v}%`,
-          isTotalSum: false,
-          customYearTotal: `${realizationPct}%`
-        },
-        {
-          label: 'Presentase Coverage Store (%)',
-          icon: 'fa-percent text-teal-600',
-          badgeClass: 'bg-teal-50 text-teal-900 font-black',
           getVal: (m) => (totalMasterStores > 0 ? Number(((m.visitedStores.size / totalMasterStores) * 100).toFixed(1)) : 0),
           format: (v) => `${v}%`,
           isTotalSum: false,
@@ -4236,7 +4162,7 @@ window.FMCUApp = {
               const rawV = row.values[idx];
               const isHighlightedMonth = monthFilter !== 'ALL' && parseInt(monthFilter, 10) - 1 === idx;
               return `
-                <td class="py-2.5 px-2.5 text-center font-mono ${
+                <td class="py-2 px-2 text-center font-mono ${
                   isHighlightedMonth ? 'bg-emerald-50/70 font-black text-emerald-950' : rawV > 0 ? 'font-extrabold text-slate-800' : 'text-slate-300'
                 }">
                   ${fv}
@@ -4247,14 +4173,14 @@ window.FMCUApp = {
 
           return `
             <tr class="hover:bg-slate-50/80 transition">
-              <td class="py-2.5 px-4 font-extrabold text-slate-800 sticky left-0 bg-white z-10 border-r border-slate-100 whitespace-nowrap">
+              <td class="py-2 px-3 font-extrabold text-slate-800 sticky left-0 bg-white z-10 border-r border-slate-100 whitespace-nowrap">
                 <div class="flex items-center gap-2">
                   <i class="fa-solid ${row.icon} w-4 text-center"></i>
                   <span>${row.Indikator}</span>
                 </div>
               </td>
               ${cellsHtml}
-              <td class="py-2.5 px-3 text-center font-mono ${row.badgeClass}">
+              <td class="py-2 px-3 text-center font-mono ${row.badgeClass}">
                 ${row.totalDisplay}
               </td>
             </tr>
@@ -4283,7 +4209,7 @@ window.FMCUApp = {
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(sheetData);
-    ws['!cols'] = [{ wch: 34 }, ...monthCols.map(() => ({ wch: 10 })), { wch: 16 }];
+    ws['!cols'] = [{ wch: 32 }, ...monthCols.map(() => ({ wch: 10 })), { wch: 16 }];
     XLSX.utils.book_append_sheet(wb, ws, 'Ringkasan Bulanan');
     const yearFilter = document.getElementById('adm-qx-filter-year')?.value || '2026';
     XLSX.writeFile(wb, `FMCU_Analytic_Ringkasan_Bulanan_${yearFilter}.xlsx`);
@@ -4316,7 +4242,7 @@ window.FMCUApp = {
     const members = users
       .filter((u) => {
         const ac = this.getActorClass(u);
-        if (roleFilter === 'REGIONAL_BESTIE' && ac !== 'REGIONAL_BESTIE') return false;
+        if ((roleFilter === 'REGIONAL_BESTIE' || roleFilter === 'BESTIE') && ac !== 'REGIONAL_BESTIE') return false;
         if (roleFilter === 'TRAINER' && ac !== 'TRAINER') return false;
         if (roleFilter === 'ALL' && ac !== 'REGIONAL_BESTIE' && ac !== 'TRAINER') return false;
         if (!searchQ) return true;
@@ -4329,6 +4255,9 @@ window.FMCUApp = {
         );
       })
       .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'id', { sensitivity: 'base' }));
+
+    const countBadge = document.getElementById('qx-profiles-count-badge');
+    if (countBadge) countBadge.textContent = `${members.length} Anggota`;
 
     if (members.length === 0) {
       container.innerHTML = `
@@ -4396,16 +4325,16 @@ window.FMCUApp = {
           .slice(0, 2);
 
         return `
-          <div class="qx-card p-5 flex flex-col justify-between gap-4 hover:border-emerald-300 transition group">
-            <div class="space-y-4">
+          <div onclick="FMCUApp.openMemberDetailAgenda('${u.id}')" class="qx-card p-4 flex flex-col justify-between gap-3.5 hover:border-[#0d8247] transition cursor-pointer group">
+            <div class="space-y-3">
               <!-- Top Profile Header -->
-              <div class="flex items-start justify-between gap-3">
-                <div class="flex items-center gap-3 min-w-0">
-                  <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#009944] to-teal-600 text-white font-black text-sm flex items-center justify-center shadow-sm shrink-0">
+              <div class="flex items-start justify-between gap-2.5">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <div class="w-11 h-11 rounded-2xl bg-[#0d8247] text-white font-black text-xs flex items-center justify-center shadow-2xs shrink-0">
                     ${initials}
                   </div>
                   <div class="min-w-0">
-                    <h4 class="font-extrabold text-sm text-slate-900 truncate group-hover:text-[#009944] transition" title="${u.name}">${u.name}</h4>
+                    <h4 class="font-extrabold text-sm text-slate-900 truncate group-hover:text-[#0d8247] transition" title="${u.name}">${u.name}</h4>
                     <div class="flex items-center gap-1.5 flex-wrap mt-0.5">
                       <span class="px-2 py-0.2 rounded-full text-[9.5px] font-extrabold ${
                         ac === 'TRAINER' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
@@ -4422,43 +4351,43 @@ window.FMCUApp = {
               </div>
 
               <!-- 4 KPI Mini Grid -->
-              <div class="grid grid-cols-4 gap-2 text-center">
+              <div class="grid grid-cols-4 gap-1.5 text-center">
                 <div class="p-2 rounded-xl bg-slate-50 border border-slate-100">
                   <div class="text-[9px] font-bold text-slate-400 uppercase">Agenda</div>
                   <div class="text-sm font-black text-slate-900 mt-0.5">${totalAgenda}</div>
                 </div>
                 <div class="p-2 rounded-xl bg-emerald-50/70 border border-emerald-100">
                   <div class="text-[9px] font-bold text-emerald-700 uppercase">Visit</div>
-                  <div class="text-sm font-black text-[#009944] mt-0.5">${effVisitDone}</div>
+                  <div class="text-sm font-black text-[#0d8247] mt-0.5">${effVisitDone}</div>
                 </div>
                 <div class="p-2 rounded-xl bg-teal-50/70 border border-teal-100">
                   <div class="text-[9px] font-bold text-teal-700 uppercase">NSO/Trn</div>
                   <div class="text-sm font-black text-[#0099A6] mt-0.5">${nsoCount + trainingCount}</div>
                 </div>
-                <div class="p-2 rounded-xl bg-rose-50/70 border border-rose-100">
-                  <div class="text-[9px] font-bold text-rose-600 uppercase">Pending</div>
-                  <div class="text-sm font-black text-rose-600 mt-0.5">${pendingCount}</div>
+                <div class="p-2 rounded-xl bg-amber-50/70 border border-amber-100">
+                  <div class="text-[9px] font-bold text-amber-700 uppercase">Pending</div>
+                  <div class="text-sm font-black text-amber-700 mt-0.5">${pendingCount}</div>
                 </div>
               </div>
 
               <!-- Store Ownership & QSC Strip -->
-              <div class="flex items-center justify-between text-[11px] px-3 py-2 rounded-xl bg-slate-50 border border-slate-200/60">
-                <span class="text-slate-600 font-semibold"><i class="fa-solid fa-store text-emerald-600 mr-1"></i>Toko PIC: <strong class="text-slate-900">${ownedStoreCodes.size} Toko</strong></span>
+              <div class="flex items-center justify-between text-[11px] px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/60">
+                <span class="text-slate-600 font-semibold"><i class="fa-solid fa-store text-[#0d8247] mr-1"></i>Toko PIC: <strong class="text-slate-900">${ownedStoreCodes.size} Toko</strong></span>
                 <span class="text-slate-600 font-semibold">Avg QSC: <strong class="text-emerald-700">${avgQsc}</strong></span>
               </div>
 
               <!-- Recent 2 Agenda Preview -->
-              <div class="space-y-1.5">
-                <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Agenda Terbaru</div>
+              <div class="space-y-1">
+                <div class="text-[9.5px] font-extrabold uppercase tracking-wider text-slate-400">Agenda Terbaru</div>
                 ${
                   recentAgendas.length === 0
-                    ? `<div class="text-[11px] text-slate-400 italic py-1">Belum ada jadwal agenda terdaftar</div>`
+                    ? `<div class="text-[11px] text-slate-400 italic py-0.5">Belum ada jadwal agenda terdaftar</div>`
                     : recentAgendas
                         .map((s) => {
                           const cat = this.classifyScheduleCategory(s);
                           const done = this.isScheduleCompleted(s, reportsMapByScheduleId, reportsSetByStoreAndDate);
                           return `
-                            <div class="flex items-center justify-between gap-2 text-[11px] py-1 border-b border-slate-100 last:border-0">
+                            <div class="flex items-center justify-between gap-2 text-[11px] py-0.5 border-b border-slate-100 last:border-0">
                               <span class="font-bold text-slate-700 truncate">${this.sanitizeMojibake(s.storeName || s.storeCode || 'Agenda')}</span>
                               <span class="shrink-0 text-[10px] font-mono ${done ? 'text-emerald-700 font-bold' : 'text-amber-700'}">${s.scheduledDate || '-'} (${cat === 'VISIT_STORE' ? 'Visit' : cat})</span>
                             </div>
@@ -4473,19 +4402,19 @@ window.FMCUApp = {
             <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
               <button
                 type="button"
-                onclick="FMCUApp.openMemberDetailAgenda('${u.id}')"
-                class="flex-1 py-2.5 px-3 rounded-xl bg-[#009944] hover:bg-emerald-700 text-white font-extrabold text-xs transition flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                onclick="event.stopPropagation(); FMCUApp.openMemberDetailAgenda('${u.id}')"
+                class="flex-1 py-2 px-3 rounded-xl bg-[#0d8247] hover:bg-emerald-800 text-white font-extrabold text-xs transition flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
               >
                 <i class="fa-solid fa-calendar-week"></i>
-                <span>Lihat Detail Agenda</span>
+                <span>Direct Detail Agenda</span>
               </button>
               <button
                 type="button"
-                onclick="FMCUApp.openCreateScheduleForMember('${u.id}')"
-                class="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                onclick="event.stopPropagation(); FMCUApp.openCreateScheduleForMember('${u.id}')"
+                class="py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs transition flex items-center justify-center gap-1 cursor-pointer"
                 title="Buat Jadwal Baru untuk ${u.name}"
               >
-                <i class="fa-solid fa-plus text-[#009944]"></i>
+                <i class="fa-solid fa-plus text-[#0d8247]"></i>
                 <span>Jadwal</span>
               </button>
             </div>
@@ -4581,65 +4510,44 @@ window.FMCUApp = {
       }
     });
 
-    const headerCard = document.getElementById('qx-member-detail-header-card');
-    if (headerCard) {
-      const initials = String(u.name || 'FM')
-        .split(' ')
-        .filter(Boolean)
-        .map((w) => w[0])
-        .join('')
-        .slice(0, 2)
-        .toUpperCase();
-      const ac = this.getActorClass(u);
+    const initials = String(u.name || 'FM')
+      .split(' ')
+      .filter(Boolean)
+      .map((w) => w[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+    const ac = this.getActorClass(u);
 
-      headerCard.innerHTML = `
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div class="flex items-center gap-4">
-            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#009944] to-teal-600 text-white font-black text-lg flex items-center justify-center shadow-sm shrink-0">
-              ${initials}
-            </div>
-            <div>
-              <div class="flex items-center gap-2 flex-wrap">
-                <h3 class="text-lg font-black text-slate-900">${u.name}</h3>
-                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
-                  ac === 'TRAINER' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
-                }">${ac === 'TRAINER' ? 'Trainer FMCU' : 'Regional Bestie'}</span>
-              </div>
-              <p class="text-xs text-slate-500 mt-0.5">
-                NIK/User: <strong>${u.nik || u.username}</strong> • Wilayah: <strong>${u.region || '-'}</strong> • Arsip Laporan: <strong>${myReports.length} Laporan</strong>
-              </p>
-            </div>
-          </div>
+    const setElText = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val;
+    };
 
-          <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-            <div class="px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200/80 text-center">
-              <div class="text-[9.5px] font-bold text-slate-400 uppercase">Total Agenda</div>
-              <div class="text-base font-black text-slate-900">${mySchedules.length}</div>
-            </div>
-            <div class="px-3.5 py-2 rounded-xl bg-emerald-50 border border-emerald-200/80 text-center">
-              <div class="text-[9.5px] font-bold text-emerald-700 uppercase">Visit Selesai</div>
-              <div class="text-base font-black text-[#009944]">${Math.max(visitDone, myReports.length)}</div>
-            </div>
-            <div class="px-3.5 py-2 rounded-xl bg-teal-50 border border-teal-200/80 text-center">
-              <div class="text-[9.5px] font-bold text-teal-700 uppercase">Total NSO</div>
-              <div class="text-base font-black text-[#0099A6]">${nsoCount}</div>
-            </div>
-            <div class="px-3.5 py-2 rounded-xl bg-amber-50 border border-amber-200/80 text-center">
-              <div class="text-[9.5px] font-bold text-amber-700 uppercase">Training</div>
-              <div class="text-base font-black text-amber-600">${trainingCount}</div>
-            </div>
-            <div class="px-3.5 py-2 rounded-xl bg-rose-50 border border-rose-200/80 text-center">
-              <div class="text-[9.5px] font-bold text-rose-700 uppercase">Pending</div>
-              <div class="text-base font-black text-rose-600">${pendingCount}</div>
-            </div>
-          </div>
-        </div>
-      `;
+    setElText('qx-md-avatar', initials);
+    setElText('qx-md-name', u.name || 'Anggota Tim');
+    const roleBadge = document.getElementById('qx-md-role-badge');
+    if (roleBadge) {
+      roleBadge.textContent = ac === 'TRAINER' ? 'Trainer FMCU' : 'Regional Bestie';
+      roleBadge.className = ac === 'TRAINER'
+        ? 'px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800'
+        : 'px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800';
     }
+    setElText('qx-md-nik-badge', `@${u.nik || u.username}`);
+    setElText('qx-md-subtitle', `Wilayah: ${u.region || '-'} • Arsip Laporan: ${myReports.length} Laporan PDF`);
 
-    const catFilter = document.getElementById('qx-member-detail-cat-filter')?.value || 'ALL';
-    const statusFilter = document.getElementById('qx-member-detail-status-filter')?.value || 'ALL';
-    const searchQ = (document.getElementById('qx-member-detail-search')?.value || '').trim().toLowerCase();
+    const effVisitDone = Math.max(visitDone, myReports.length);
+    const totalAgendaCount = Math.max(mySchedules.length, effVisitDone + nsoCount + trainingCount);
+
+    setElText('qx-md-kpi-agenda', totalAgendaCount.toLocaleString('id-ID'));
+    setElText('qx-md-kpi-visit', effVisitDone.toLocaleString('id-ID'));
+    setElText('qx-md-kpi-nso', nsoCount.toLocaleString('id-ID'));
+    setElText('qx-md-kpi-training', trainingCount.toLocaleString('id-ID'));
+    setElText('qx-md-kpi-pending', pendingCount.toLocaleString('id-ID'));
+
+    const catFilter = document.getElementById('qx-md-cat-filter')?.value || 'ALL';
+    const statusFilter = document.getElementById('qx-md-status-filter')?.value || 'ALL';
+    const searchQ = (document.getElementById('qx-md-search-input')?.value || '').trim().toLowerCase();
 
     const filtered = mySchedules
       .filter((s) => {
@@ -4805,46 +4713,25 @@ window.FMCUApp = {
       this.renderAdminView();
     }
 
-    if (btnCreate) {
-      btnCreate.className =
-        mode === 'create'
-          ? 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-[#009944] text-white shadow-xs whitespace-nowrap'
-          : 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white whitespace-nowrap';
-    }
+    const activePillCls = 'px-3.5 py-1.5 rounded-full text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer bg-white text-slate-900 shadow-2xs whitespace-nowrap';
+    const inactivePillCls = 'px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-900 whitespace-nowrap';
 
-    if (btnCalendar) {
-      btnCalendar.className =
-        mode === 'calendar'
-          ? 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-amber-600 text-white shadow-xs whitespace-nowrap'
-          : 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white whitespace-nowrap';
-    }
-
-    if (btnList) {
-      btnList.className =
-        mode === 'list'
-          ? 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-[#0099A6] text-white shadow-xs whitespace-nowrap'
-          : 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white whitespace-nowrap';
-    }
-
-    if (btnHistory) {
-      btnHistory.className =
-        mode === 'history'
-          ? 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer bg-[#0099A6] text-white shadow-xs whitespace-nowrap'
-          : 'flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 hover:bg-white whitespace-nowrap';
-    }
+    if (btnCreate) btnCreate.className = mode === 'create' ? activePillCls : inactivePillCls;
+    if (btnCalendar) btnCalendar.className = mode === 'calendar' ? activePillCls : inactivePillCls;
+    if (btnList) btnList.className = mode === 'list' ? activePillCls : inactivePillCls;
+    if (btnHistory) btnHistory.className = mode === 'history' ? activePillCls : inactivePillCls;
 
     if (countPill) {
-      countPill.className =
-        mode === 'list'
-          ? 'px-1.5 py-0.2 rounded-full text-[10px] bg-white/25 text-white font-extrabold'
-          : 'px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-extrabold';
+      countPill.className = 'px-1.5 py-0.2 rounded-full text-[9px] bg-emerald-100 text-emerald-800 font-extrabold';
+    }
+    if (histPill) {
+      histPill.className = 'px-1.5 py-0.2 rounded-full text-[9px] bg-teal-100 text-teal-800 font-extrabold';
     }
 
-    if (histPill) {
-      histPill.className =
-        mode === 'history'
-          ? 'px-1.5 py-0.2 rounded-full text-[10px] bg-white/25 text-white font-extrabold'
-          : 'px-1.5 py-0.2 rounded-full text-[10px] bg-teal-100 text-teal-800 font-extrabold';
+    // Sync Top Navbar Histori Agenda vs Hero Create Jadwal button
+    const navHistory = document.getElementById('adm-qx-nav-history');
+    if (navHistory && (this.currentAdminQuixoticSection === 'history' || this.currentAdminQuixoticSection === 'create')) {
+      navHistory.classList.toggle('active', mode !== 'create');
     }
 
     this.updateActorNavActiveState();
@@ -14452,19 +14339,19 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
         cardsContainer.classList.add('hidden');
         tableContainer.classList.remove('hidden');
         if (listBtn) {
-          listBtn.className = 'px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-900 font-bold';
+          listBtn.className = 'px-2.5 py-1 rounded-full transition flex items-center gap-1 cursor-pointer text-slate-600 hover:text-slate-900 font-bold';
         }
         if (tableBtn) {
-          tableBtn.className = 'px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer bg-white text-slate-900 shadow-xs font-black';
+          tableBtn.className = 'px-2.5 py-1 rounded-full transition flex items-center gap-1 cursor-pointer bg-white text-slate-900 shadow-2xs font-black';
         }
       } else {
         cardsContainer.classList.remove('hidden');
         tableContainer.classList.add('hidden');
         if (listBtn) {
-          listBtn.className = 'px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer bg-white text-slate-900 shadow-xs font-black';
+          listBtn.className = 'px-2.5 py-1 rounded-full transition flex items-center gap-1 cursor-pointer bg-white text-slate-900 shadow-2xs font-black';
         }
         if (tableBtn) {
-          tableBtn.className = 'px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-900 font-bold';
+          tableBtn.className = 'px-2.5 py-1 rounded-full transition flex items-center gap-1 cursor-pointer text-slate-600 hover:text-slate-900 font-bold';
         }
       }
     }
@@ -14984,14 +14871,17 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       if (listStatusFilter !== 'ALL' && s.status !== listStatusFilter) return false;
 
       if (listCategoryFilter !== 'ALL') {
-        const isCuti = s.isCuti || s.storeCode === 'CUTI' || s.status === 'CUTI' || s.agendaCategory === 'CUTI';
-        const isOff = s.isOff || s.storeCode === 'OFF' || s.status === 'OFF' || s.agendaCategory === 'OFF';
-        const isNso = s.isNso || String(s.agendaCategory || '').toUpperCase().includes('NSO') || String(s.storeName || '').toUpperCase().includes('NSO');
-        const isAgenda = !isCuti && !isOff && (s.isAgenda || s.storeCode === 'AGENDA' || s.status === 'AGENDA' || s.storeType === 'NON_STORE');
+        const classifiedCat = this.classifyScheduleCategory(s);
+        const isCuti = classifiedCat === 'CUTI';
+        const isOff = classifiedCat === 'OFF';
+        const isNso = classifiedCat === 'NSO';
+        const isTraining = classifiedCat === 'TRAINING';
+        const isAgenda = classifiedCat === 'OFFICE';
         const cat = String(s.agendaCategory || '').toUpperCase();
 
-        if (listCategoryFilter === 'VISIT_STORE' && (isCuti || isOff || isNso || isAgenda)) return false;
+        if (listCategoryFilter === 'VISIT_STORE' && classifiedCat !== 'VISIT_STORE') return false;
         if (listCategoryFilter === 'NSO' && !isNso) return false;
+        if (listCategoryFilter === 'TRAINING' && !isTraining) return false;
         if (listCategoryFilter === 'OFFICE' && (!isAgenda || (!cat.includes('OFFICE') && !cat.includes('HO')))) return false;
         if (listCategoryFilter === 'MEETING' && (!isAgenda || !cat.includes('MEETING'))) return false;
         if (listCategoryFilter === 'CUTI' && !isCuti) return false;
