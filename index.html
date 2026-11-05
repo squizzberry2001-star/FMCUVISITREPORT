@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1800320000000" as="style" />
-  <link rel="preload" href="css/styles.css?v=1800320000000" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1800330000000" as="style" />
+  <link rel="preload" href="css/styles.css?v=1800330000000" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1800320000000" />
-  <link rel="stylesheet" href="css/styles.css?v=1800320000000" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1800330000000" />
+  <link rel="stylesheet" href="css/styles.css?v=1800330000000" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -3941,16 +3941,16 @@ service cloud.firestore {
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js" crossorigin="anonymous"></script>
 
   <!-- Core Application Scripts (Fast Startup & Auth Priority) -->
-  <script defer src="js/holding-time-standards.js?v=1800320000000"></script>
-  <script defer src="js/master-stores-seed.js?v=1800320000000"></script>
-  <script defer src="js/bestie-in-charge-seed.js?v=1800320000000"></script>
-  <script defer src="js/data.js?v=1800320000000"></script>
-  <script defer src="js/pdf-generator.js?v=1800320000000"></script>
-  <script defer src="js/app.js?v=1800320000000"></script>
+  <script defer src="js/holding-time-standards.js?v=1800330000000"></script>
+  <script defer src="js/master-stores-seed.js?v=1800330000000"></script>
+  <script defer src="js/bestie-in-charge-seed.js?v=1800330000000"></script>
+  <script defer src="js/data.js?v=1800330000000"></script>
+  <script defer src="js/pdf-generator.js?v=1800330000000"></script>
+  <script defer src="js/app.js?v=1800330000000"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1800320000000"></script>
+  <script async src="js/pdf-assets.js?v=1800330000000"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================
@@ -5303,6 +5303,156 @@ service cloud.firestore {
       </div>
     </div>
   
+  <!-- ============================================================
+       MODAL: FEEDBACK & LAPOR KENDALA AGENDA JADWAL VISIT
+       ============================================================ -->
+  <div
+    id="modal-agenda-feedback"
+    onclick="if(event.target === this) FMCUApp.closeAgendaFeedbackModal()"
+    class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4"
+    style="display: none; z-index: 99999990 !important;"
+  >
+    <div class="bg-white rounded-3xl p-5 sm:p-6 max-w-lg w-full shadow-2xl border border-slate-100 space-y-4 animate-in fade-in zoom-in duration-150 relative max-h-[92vh] flex flex-col overflow-hidden">
+      <!-- Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
+        <div class="flex items-center gap-2.5">
+          <div class="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg font-bold shadow-xs">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <div>
+            <h3 class="font-black text-sm sm:text-base text-slate-900 leading-tight">Lapor Kendala Agenda</h3>
+            <p id="feedback-modal-subtitle" class="text-[11px] text-slate-500 mt-0.5">Kirim catatan kendala atau hambatan pada jadwal ini</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onclick="FMCUApp.closeAgendaFeedbackModal()"
+          class="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+          aria-label="Tutup modal kendala"
+        >
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+
+      <!-- Scrollable Form Body -->
+      <div class="overflow-y-auto space-y-3.5 pr-1 flex-1 text-xs">
+        <input type="hidden" id="feedback-sch-id" value="" />
+
+        <!-- Target Schedule Banner -->
+        <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="font-extrabold text-slate-800 text-xs" id="feedback-target-title">-</span>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-50 text-[#0099A6] border border-teal-200" id="feedback-target-code">-</span>
+          </div>
+          <div class="text-[11px] text-slate-500 flex items-center gap-3 flex-wrap">
+            <span><i class="fa-regular fa-calendar text-slate-400 mr-1"></i><span id="feedback-target-date">-</span></span>
+            <span><i class="fa-regular fa-user text-slate-400 mr-1"></i><span id="feedback-target-visitor">-</span></span>
+          </div>
+        </div>
+
+        <!-- Kategori Kendala -->
+        <div class="space-y-1.5">
+          <label class="block font-extrabold text-slate-700 text-xs">Kategori Kendala <span class="text-rose-500">*</span></label>
+          <select id="feedback-category-select" class="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-semibold text-slate-800 focus:outline-none focus:border-amber-500 cursor-pointer">
+            <option value="TOKO_TUTUP">🏪 Toko Tutup / Renovasi / Relokasi</option>
+            <option value="AKSES_TERHALANG">🚧 Akses / Lokasi Tidak Dapat Dijangkau</option>
+            <option value="CUACA_BENCANA">🌧️ Bencana Alam / Banjir / Cuaca Ekstrem</option>
+            <option value="KENDALA_OPERASIONAL">⚡ Kendala Operasional Toko (Mati Listrik/Sistem)</option>
+            <option value="KESEHATAN_DARURAT">🏥 Kendala Kesehatan / Sakit / Keadaan Darurat</option>
+            <option value="JADWAL_BENTROK">📅 Jadwal Bentrok / Permohonan Reschedule</option>
+            <option value="LAINNYA">💬 Kendala Lainnya</option>
+          </select>
+        </div>
+
+        <!-- Catatan / Keterangan Kendala -->
+        <div class="space-y-1.5">
+          <label class="block font-extrabold text-slate-700 text-xs">Deskripsi / Detail Kendala <span class="text-rose-500">*</span></label>
+          <textarea
+            id="feedback-notes-input"
+            rows="3"
+            placeholder="Tuliskan kendala yang dihadapi secara detail (misal: Toko tutup sementara karena renovasi lantai hingga tanggal 10, dsb)..."
+            class="w-full p-3 rounded-xl border border-slate-200 font-medium text-slate-800 focus:outline-none focus:border-amber-500 resize-none text-xs"
+          ></textarea>
+        </div>
+
+        <!-- Upload Foto Bukti Kendala (Opsional) -->
+        <div class="space-y-1.5">
+          <label class="block font-extrabold text-slate-700 text-xs">Foto Bukti Kendala <span class="text-slate-400 font-normal">(Opsional)</span></label>
+          <div class="flex items-center gap-2">
+            <input
+              type="file"
+              id="feedback-photo-input"
+              accept="image/*"
+              capture="environment"
+              class="hidden"
+              onchange="FMCUApp.onFeedbackPhotoSelected(event)"
+            />
+            <button
+              type="button"
+              onclick="document.getElementById('feedback-photo-input').click()"
+              class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer border border-slate-200"
+            >
+              <i class="fa-solid fa-camera text-slate-500"></i>
+              <span>Ambil / Unggah Foto</span>
+            </button>
+            <span id="feedback-photo-name" class="text-[11px] text-slate-400 truncate max-w-[200px]">Belum ada foto</span>
+          </div>
+
+          <!-- Preview Foto Bukti -->
+          <div id="feedback-photo-preview-box" class="hidden relative rounded-xl overflow-hidden border border-slate-200 bg-slate-900 max-h-40">
+            <img id="feedback-photo-preview-img" src="" alt="Bukti Kendala" class="w-full h-40 object-contain" />
+            <button
+              type="button"
+              onclick="FMCUApp.clearFeedbackPhoto()"
+              class="absolute top-2 right-2 w-7 h-7 rounded-lg bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center text-xs shadow-md cursor-pointer"
+              title="Hapus Foto"
+            >
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Riwayat Kendala yang Pernah Dilaporkan -->
+        <div id="feedback-history-section" class="hidden space-y-2 pt-2 border-t border-slate-100">
+          <span class="block font-extrabold text-slate-600 text-[11px]">Riwayat Kendala Terdaftar:</span>
+          <div id="feedback-history-list" class="space-y-1.5 max-h-32 overflow-y-auto pr-1"></div>
+        </div>
+      </div>
+
+      <!-- Action Footer -->
+      <div class="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2 shrink-0">
+        <button
+          type="button"
+          onclick="FMCUApp.contactAdminWhatsAppForFeedback()"
+          class="w-full sm:w-auto px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#009944] border border-emerald-200 font-extrabold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+          title="Kirim Pesan Kendala via WhatsApp ke Admin"
+        >
+          <i class="fa-brands fa-whatsapp text-sm text-emerald-600"></i>
+          <span>Hubungi WA Admin</span>
+        </button>
+
+        <div class="flex items-center gap-2 w-full sm:w-auto">
+          <button
+            type="button"
+            onclick="FMCUApp.closeAgendaFeedbackModal()"
+            class="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition cursor-pointer"
+          >
+            Batal
+          </button>
+          <button
+            type="button"
+            id="btn-submit-feedback"
+            onclick="FMCUApp.submitAgendaFeedback()"
+            class="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            <i class="fa-solid fa-paper-plane text-xs"></i>
+            <span>Kirim Kendala</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ============================================================
        MODAL: INFORMASI PENGEMBANG WEB (POINT 11)
        ============================================================ -->

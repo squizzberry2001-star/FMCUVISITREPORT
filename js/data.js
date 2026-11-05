@@ -2126,19 +2126,19 @@ window.FMCUData = {
           'view_home', 'view_analytics', 'create_visit', 'export_pdf',
           'manage_schedule', 'manage_stores', 'view_live_maps'
         ]);
-        finalAuths = Array.isArray(u.authorities)
-          ? u.authorities.filter((a) => allowedScheduleAdmin.has(a))
-          : Array.from(allowedScheduleAdmin);
-        if (finalAuths.length === 0) finalAuths = Array.from(allowedScheduleAdmin);
+        finalAuths = Array.from(new Set([
+          ...allowedScheduleAdmin,
+          ...(Array.isArray(u.authorities) ? u.authorities : [])
+        ]));
       } else {
         // VISITOR / REGIONAL BESTIE: HANYA BOLEH AKSES VISITOR (TIDAK BOLEH MEMILIKI AKSES ADMIN APAPUN)
         const allowedVisitor = new Set([
           'view_home', 'view_analytics', 'create_visit', 'export_pdf'
         ]);
-        finalAuths = Array.isArray(u.authorities)
-          ? u.authorities.filter((a) => allowedVisitor.has(a))
-          : Array.from(allowedVisitor);
-        if (finalAuths.length === 0) finalAuths = Array.from(allowedVisitor);
+        finalAuths = Array.from(new Set([
+          ...allowedVisitor,
+          ...(Array.isArray(u.authorities) ? u.authorities : [])
+        ])).filter((a) => allowedVisitor.has(a));
       }
 
       return {
@@ -4050,6 +4050,13 @@ window.FMCUData = {
         effectiveUser.role = 'AUDITOR';
         effectiveUser.roleBadge = 'Visitor / Regional Bestie';
         effectiveUser.authorities = ['view_home', 'view_analytics', 'create_visit', 'export_pdf'];
+      }
+      if (effectiveUser) {
+        const baseAuths = ['view_home', 'export_pdf'];
+        if (effectiveUser.role === 'ADMIN_SCHEDULE' || (effectiveUser.jabatan && /admin jadwal|regional manager|area manager/i.test(effectiveUser.jabatan))) {
+          baseAuths.push('manage_schedule', 'manage_stores', 'view_live_maps', 'view_analytics');
+        }
+        effectiveUser.authorities = Array.from(new Set([...(effectiveUser.authorities || []), ...baseAuths]));
       }
       return effectiveUser;
     } catch {

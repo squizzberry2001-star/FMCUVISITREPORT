@@ -1524,12 +1524,32 @@ window.FMCUApp = {
       return true;
     }
 
-    // 2. Menu Home selalu dapat diakses oleh semua user aktif (jangan sampai hilang dari navbar)
-    if (authKey === 'view_home') {
+    // 2. Menu Home, Preview & Unduh PDF selalu dapat diakses oleh SEMUA user aktif
+    if (authKey === 'view_home' || authKey === 'export_pdf') {
       return true;
     }
 
-    // 3. Proteksi Mutlak: Akun Visitor / Regional Bestie TIDAK BOLEH mengakses fitur admin apapun
+    // 3. Admin Jadwal selalu memiliki otoritas operasional penuh: jadwal, toko, maps, analitik, form visit, & export pdf
+    if (
+      role === 'ADMIN_SCHEDULE' ||
+      role === 'SCHEDULE_ADMIN' ||
+      (user.jabatan && /admin jadwal|regional manager|area manager/i.test(user.jabatan))
+    ) {
+      const allowedScheduleAdmin = [
+        'view_home',
+        'view_analytics',
+        'create_visit',
+        'export_pdf',
+        'manage_schedule',
+        'manage_stores',
+        'view_live_maps'
+      ];
+      if (allowedScheduleAdmin.includes(authKey)) {
+        return true;
+      }
+    }
+
+    // 4. Proteksi Mutlak: Akun Visitor / Regional Bestie TIDAK BOLEH mengakses fitur admin apapun
     if (role === 'AUDITOR' || role === 'VISITOR' || name.includes('aan bagus')) {
       const allowedVisitor = ['view_home', 'view_analytics', 'create_visit', 'export_pdf'];
       if (!allowedVisitor.includes(authKey)) {
@@ -1541,12 +1561,12 @@ window.FMCUApp = {
       return true;
     }
 
-    // 4. Otoritas Granular Eksplisit (Patuhi array authorities jika sudah ditentukan oleh Admin)
+    // 5. Otoritas Granular Eksplisit (Patuhi array authorities jika sudah ditentukan oleh Admin)
     if (Array.isArray(user.authorities)) {
       return user.authorities.includes(authKey);
     }
 
-    // 5. Fallback jika user lama belum memiliki array authorities:
+    // 6. Fallback jika user lama belum memiliki array authorities:
     if (
       role === 'ADMIN_SCHEDULE' ||
       role === 'SCHEDULE_ADMIN' ||
@@ -5211,6 +5231,25 @@ window.FMCUApp = {
         const repId = s.reportId || matchedRep?.id || null;
         const dateFormatted = window.FMCUPdf.formatIndonesianDate(s.scheduledDate, true);
 
+        const hasFeedback = (Array.isArray(s.feedbacks) && s.feedbacks.length > 0) || Boolean(s.latestFeedback);
+        const feedbackCount = Array.isArray(s.feedbacks) ? s.feedbacks.length : (hasFeedback ? 1 : 0);
+        const latestFb = (Array.isArray(s.feedbacks) && s.feedbacks[s.feedbacks.length - 1]) || s.latestFeedback || null;
+        const feedbackBanner = latestFb ? `
+          <div class="p-2 rounded-xl bg-amber-50 border border-amber-200 text-slate-800 text-xs flex items-start justify-between gap-2">
+            <div class="space-y-0.5 min-w-0">
+              <div class="flex items-center gap-1.5 font-bold text-amber-900 text-[11px]">
+                <i class="fa-solid fa-triangle-exclamation text-amber-600"></i>
+                <span>Kendala: ${latestFb.categoryLabel || latestFb.category || 'Ada Masalah'}</span>
+                ${feedbackCount > 1 ? `<span class="px-1.5 py-0.2 rounded-full bg-amber-200 text-amber-900 text-[9px] font-extrabold">+${feedbackCount - 1} lainnya</span>` : ''}
+              </div>
+              <p class="text-[10.5px] text-slate-600 truncate">${latestFb.notes || '-'}</p>
+            </div>
+            <button type="button" onclick="FMCUApp.openAgendaFeedbackModal('${s.id}')" class="shrink-0 text-[10px] font-extrabold text-amber-800 hover:text-amber-950 underline cursor-pointer">
+              Detail
+            </button>
+          </div>
+        ` : '';
+
         // ====================================================================
         // NON-VISIT SCHEDULE (CUTI, OFF, AGENDA MANUAL)
         // Menampilkan informasi jadwal tanpa form visit & tanpa tombol visit
@@ -5271,14 +5310,21 @@ window.FMCUApp = {
                 </p>
               </div>
 
-              <div class="pt-2 border-t border-slate-200/60 flex items-center justify-between gap-2 text-xs">
+              ${feedbackBanner}
+              <div class="pt-2 border-t border-slate-200/60 flex flex-wrap items-center justify-between gap-2 text-xs">
                 <span class="text-[11px] font-bold ${isCuti ? 'text-amber-800' : isOff ? 'text-indigo-800' : 'text-purple-800'} flex items-center gap-1">
                   <i class="fa-solid fa-circle-info"></i>
-                  <span>Jadwal Informasi Saja (Tidak Ada Form Visit)</span>
+                  <span>Jadwal Informasi Saja</span>
                 </span>
-                <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-500">
-                  Non-Visit
-                </span>
+                <div class="flex items-center gap-1.5">
+                  <button type="button" onclick="FMCUApp.openAgendaFeedbackModal('${s.id}')" class="px-2.5 py-1 rounded-xl ${hasFeedback ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'} font-bold text-xs transition inline-flex items-center gap-1 cursor-pointer shadow-2xs" title="Lapor Kendala Agenda">
+                    <i class="fa-solid fa-circle-exclamation ${hasFeedback ? 'text-amber-600' : 'text-slate-500'}"></i>
+                    <span>Kendala${feedbackCount > 0 ? ` (${feedbackCount})` : ''}</span>
+                  </button>
+                  <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-500">
+                    Non-Visit
+                  </span>
+                </div>
               </div>
             </div>
           `;
@@ -5317,6 +5363,7 @@ window.FMCUApp = {
               <p class="text-[11px] text-slate-500 bg-slate-100/80 p-2.5 rounded-xl leading-relaxed">
                 ${s.auditFocus || '-'}
               </p>
+              ${feedbackBanner}
             </div>
 
             <div class="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
@@ -5327,6 +5374,10 @@ window.FMCUApp = {
                   <i class="fa-solid fa-clock-rotate-left mr-1"></i>In: ${s.actualIn || '-'} • Out: ${s.actualOut || '-'}
                 </div>
                 <div class="flex items-center gap-1.5">
+                  <button type="button" onclick="FMCUApp.openAgendaFeedbackModal('${s.id}')" class="px-2.5 py-1.5 rounded-xl ${hasFeedback ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'} font-bold text-xs transition inline-flex items-center gap-1 cursor-pointer shadow-2xs whitespace-nowrap" title="Lapor Kendala Pada Jadwal Ini">
+                    <i class="fa-solid fa-circle-exclamation ${hasFeedback ? 'text-amber-600' : 'text-slate-500'}"></i>
+                    <span>Kendala${feedbackCount > 0 ? ` (${feedbackCount})` : ''}</span>
+                  </button>
                   ${
                     repId
                       ? `<button onclick="FMCUApp.editReportById('${repId}')" class="px-2.5 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition cursor-pointer"><i class="fa-solid fa-pen mr-1"></i>Buka Form</button>
@@ -5359,6 +5410,10 @@ window.FMCUApp = {
                   <span>${s.actualIn ? `In: ${s.actualIn} (Auto GPS)` : 'Auto Geofence 1m-50m'}</span>
                 </div>
                 <div class="flex items-center gap-1.5">
+                  <button type="button" onclick="FMCUApp.openAgendaFeedbackModal('${s.id}')" class="px-2.5 py-2 rounded-xl ${hasFeedback ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'} font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Lapor Kendala Pada Jadwal Ini">
+                    <i class="fa-solid fa-circle-exclamation ${hasFeedback ? 'text-amber-600' : 'text-slate-500'}"></i>
+                    <span>Kendala${feedbackCount > 0 ? ` (${feedbackCount})` : ''}</span>
+                  </button>
                   <button type="button" onclick="FMCUApp.openGoogleMapsRoute('${s.storeCode}')" class="bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 font-bold px-2.5 py-2 rounded-xl text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Buka Rute di Google Maps">
                     <i class="fa-solid fa-diamond-turn-right text-[#0099A6]"></i>
                     <span>Rute Maps</span>
@@ -5378,6 +5433,218 @@ window.FMCUApp = {
     this.updateHomeTodayVisitButtonUI();
   },
 
+
+
+  // ==========================================================================
+  // FITUR: FEEDBACK & LAPOR KENDALA AGENDA JADWAL VISIT (USER & ADMIN)
+  // ==========================================================================
+  _currentFeedbackScheduleId: null,
+  _currentFeedbackPhotoDataUrl: null,
+
+  openAgendaFeedbackModal(scheduleId) {
+    this.triggerHaptic('light');
+    const schedules = window.FMCUData.getSchedules() || [];
+    const sch = schedules.find((s) => String(s.id) === String(scheduleId));
+    if (!sch) {
+      this.showToast('Data jadwal tidak ditemukan.', 'warning');
+      return;
+    }
+
+    this._currentFeedbackScheduleId = scheduleId;
+    this._currentFeedbackPhotoDataUrl = null;
+
+    const modal = document.getElementById('modal-agenda-feedback');
+    const schIdEl = document.getElementById('feedback-sch-id');
+    const titleEl = document.getElementById('feedback-target-title');
+    const codeEl = document.getElementById('feedback-target-code');
+    const dateEl = document.getElementById('feedback-target-date');
+    const visitorEl = document.getElementById('feedback-target-visitor');
+    const notesEl = document.getElementById('feedback-notes-input');
+    const catSel = document.getElementById('feedback-category-select');
+    const photoNameEl = document.getElementById('feedback-photo-name');
+    const previewBox = document.getElementById('feedback-photo-preview-box');
+    const historySec = document.getElementById('feedback-history-section');
+    const historyList = document.getElementById('feedback-history-list');
+
+    if (schIdEl) schIdEl.value = scheduleId;
+    if (titleEl) titleEl.textContent = sch.storeName || 'Agenda Kegiatan';
+    if (codeEl) codeEl.textContent = sch.storeCode || (sch.agendaCategory || 'NON-VISIT');
+    if (dateEl) dateEl.textContent = window.FMCUPdf ? window.FMCUPdf.formatIndonesianDate(sch.scheduledDate, true) : (sch.scheduledDate || '-');
+    if (visitorEl) visitorEl.textContent = sch.auditorName || this.currentUser?.name || '-';
+    if (notesEl) notesEl.value = '';
+    if (catSel) catSel.selectedIndex = 0;
+    if (photoNameEl) photoNameEl.textContent = 'Belum ada foto';
+    if (previewBox) previewBox.classList.add('hidden');
+
+    // Tampilkan riwayat kendala jika sudah ada sebelumnya
+    if (historySec && historyList) {
+      if (Array.isArray(sch.feedbacks) && sch.feedbacks.length > 0) {
+        historySec.classList.remove('hidden');
+        historyList.innerHTML = sch.feedbacks
+          .map((fb) => `
+            <div class="p-2 rounded-xl bg-amber-50 border border-amber-200 text-slate-800 space-y-0.5">
+              <div class="flex items-center justify-between text-[10px] font-extrabold text-amber-900">
+                <span>⚠️ ${fb.categoryLabel || fb.category}</span>
+                <span class="text-slate-500 font-mono">${fb.dateFormatted || ''}</span>
+              </div>
+              <p class="text-[11px] text-slate-700 leading-snug">${fb.notes}</p>
+              <div class="text-[9.5px] text-slate-400">Oleh: ${fb.submittedBy || 'Visitor'}</div>
+              ${fb.photoUrl ? `<a href="${fb.photoUrl}" target="_blank" class="inline-flex items-center gap-1 text-[10px] text-teal-600 font-bold hover:underline mt-1"><i class="fa-solid fa-image"></i>Lihat Foto Bukti</a>` : ''}
+            </div>
+          `)
+          .join('');
+      } else {
+        historySec.classList.add('hidden');
+        historyList.innerHTML = '';
+      }
+    }
+
+    if (modal) {
+      if (modal.parentElement !== document.body) document.body.appendChild(modal);
+      modal.style.setProperty('z-index', '99999990', 'important');
+      modal.style.setProperty('display', 'flex', 'important');
+      modal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+  },
+
+  closeAgendaFeedbackModal() {
+    this.triggerHaptic('light');
+    const modal = document.getElementById('modal-agenda-feedback');
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.style.setProperty('display', 'none', 'important');
+    }
+    document.body.style.overflow = '';
+    this._currentFeedbackScheduleId = null;
+    this._currentFeedbackPhotoDataUrl = null;
+  },
+
+  onFeedbackPhotoSelected(event) {
+    const file = event?.target?.files?.[0];
+    if (!file) return;
+
+    const photoNameEl = document.getElementById('feedback-photo-name');
+    const previewBox = document.getElementById('feedback-photo-preview-box');
+    const previewImg = document.getElementById('feedback-photo-preview-img');
+
+    if (photoNameEl) photoNameEl.textContent = file.name;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      this._currentFeedbackPhotoDataUrl = e.target.result;
+      if (previewImg) previewImg.src = e.target.result;
+      if (previewBox) previewBox.classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+  },
+
+  clearFeedbackPhoto() {
+    this._currentFeedbackPhotoDataUrl = null;
+    const fileInput = document.getElementById('feedback-photo-input');
+    const photoNameEl = document.getElementById('feedback-photo-name');
+    const previewBox = document.getElementById('feedback-photo-preview-box');
+    const previewImg = document.getElementById('feedback-photo-preview-img');
+
+    if (fileInput) fileInput.value = '';
+    if (photoNameEl) photoNameEl.textContent = 'Belum ada foto';
+    if (previewImg) previewImg.src = '';
+    if (previewBox) previewBox.classList.add('hidden');
+  },
+
+  submitAgendaFeedback() {
+    this.triggerHaptic('medium');
+    const schId = this._currentFeedbackScheduleId;
+    if (!schId) return;
+
+    const catSel = document.getElementById('feedback-category-select');
+    const notesEl = document.getElementById('feedback-notes-input');
+
+    const catValue = catSel?.value || 'LAINNYA';
+    const catLabel = catSel?.options[catSel.selectedIndex]?.text?.replace(/^[^ws]+/, '')?.trim() || catValue;
+    const notes = (notesEl?.value || '').trim();
+
+    if (!notes) {
+      this.showToast('Harap tuliskan detail kendala yang dialami.', 'warning');
+      if (notesEl) notesEl.focus();
+      return;
+    }
+
+    const schedules = window.FMCUData.getSchedules() || [];
+    const sch = schedules.find((s) => String(s.id) === String(schId));
+    if (!sch) {
+      this.showToast('Jadwal tidak ditemukan.', 'error');
+      return;
+    }
+
+    const now = new Date();
+    const dateFormatted = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} WIB`;
+
+    const feedbackItem = {
+      id: 'fb-' + Date.now(),
+      category: catValue,
+      categoryLabel: catLabel,
+      notes: notes,
+      photoUrl: this._currentFeedbackPhotoDataUrl || null,
+      submittedBy: this.currentUser?.name || 'Visitor',
+      submittedByNik: this.currentUser?.nik || '',
+      submittedAt: now.toISOString(),
+      dateFormatted: dateFormatted
+    };
+
+    if (!Array.isArray(sch.feedbacks)) {
+      sch.feedbacks = [];
+    }
+    sch.feedbacks.unshift(feedbackItem);
+    sch.hasFeedback = true;
+    sch.latestFeedback = feedbackItem;
+
+    // Simpan ke local cache & Cloud Firestore
+    window.FMCUData.saveSingleSchedule(sch);
+
+    // Activity Log
+    this.logScheduleAction(
+      'FEEDBACK',
+      `Lapor Kendala [${catLabel}] untuk ${sch.storeName || 'Toko'} (${sch.scheduledDate}): "${notes}"`,
+      'Jadwal Visitor'
+    );
+
+    this.closeAgendaFeedbackModal();
+    this.showToast(`✓ Kendala untuk ${sch.storeName || 'jadwal'} berhasil dilaporkan!`, 'success');
+
+    // Re-render views
+    if (this.currentView === 'home') {
+      this.renderHomeSchedules();
+    }
+    this.renderAdminView();
+  },
+
+  contactAdminWhatsAppForFeedback() {
+    this.triggerHaptic('light');
+    const schId = this._currentFeedbackScheduleId;
+    const schedules = window.FMCUData.getSchedules() || [];
+    const sch = schedules.find((s) => String(s.id) === String(schId));
+    const catSel = document.getElementById('feedback-category-select');
+    const notesEl = document.getElementById('feedback-notes-input');
+    const catLabel = catSel?.options[catSel.selectedIndex]?.text || 'Kendala Agenda';
+    const notes = (notesEl?.value || '').trim() || '-';
+
+    const storeInfo = sch ? `${sch.storeName || 'Agenda'} (${sch.storeCode || '-'}) - Tanggal ${sch.scheduledDate}` : 'Agenda FMCU';
+    const visitorInfo = this.currentUser?.name ? `${this.currentUser.name} (@${this.currentUser.nik || '-'})` : 'Visitor FMCU';
+
+    const text = encodeURIComponent(
+      `*LAPOR KENDALA AGENDA VISIT FMCU*\n` +
+      `------------------------------------\n` +
+      `*Visitor:* ${visitorInfo}\n` +
+      `*Agenda / Toko:* ${storeInfo}\n` +
+      `*Kategori Kendala:* ${catLabel}\n` +
+      `*Detail Kendala:* ${notes}\n` +
+      `------------------------------------\n` +
+      `_Mohon arahan dan petunjuk dari Admin FMCU. Terima kasih._`
+    );
+
+    window.open(`https://wa.me/?text=${text}`, '_blank');
+  },
 
   // ==========================================================================
   // T.A.R.O (Trainer Asyik Rekan Operasional) AI
@@ -10818,15 +11085,26 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       const byId = reports.find((r) => String(r.id) === String(sch.reportId));
       if (byId) return byId;
     }
-    return (
-      reports.find(
-        (r) =>
-          String(r.scheduleId || '') === String(sch.id) ||
-          (String(r.storeCode) === String(sch.storeCode) &&
-            String(r.visitDate || '').slice(0, 10) === String(sch.scheduledDate || '').slice(0, 10) &&
-            (!sch.auditorName || !r.auditorName || r.auditorName === sch.auditorName))
-      ) || null
+    const bySchId = reports.find((r) => String(r.scheduleId || '') === String(sch.id));
+    if (bySchId) return bySchId;
+
+    const schDate = String(sch.scheduledDate || '').slice(0, 10);
+    const schStore = String(sch.storeCode || '').trim();
+
+    // Cari yang storeCode dan tanggal sama
+    const byStoreAndDate = reports.find(
+      (r) =>
+        String(r.storeCode || '').trim() === schStore &&
+        String(r.visitDate || '').slice(0, 10) === schDate
     );
+    if (byStoreAndDate) return byStoreAndDate;
+
+    // Fallback: laporan dengan storeCode sama
+    const storeReports = reports.filter((r) => String(r.storeCode || '').trim() === schStore);
+    if (storeReports.length > 0) {
+      return storeReports[0];
+    }
+    return null;
   },
 
   extractDriveFileId(url) {
@@ -10871,9 +11149,14 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     const modalEl = document.getElementById('modal-in-page-pdf-preview');
     const iframe = document.getElementById('modal-pdf-iframe');
     const frameContainer = document.getElementById('modal-pdf-frame-container');
-    if (!fileId || !modalEl || !iframe || !frameContainer) {
-      // Belum ada file di Drive: fallback ke PDF yang digenerate dari data laporan
-      this.showToast('File PDF di Google Drive belum tersedia, menampilkan PDF dari data laporan.', 'info');
+
+    if (!modalEl) {
+      this.openReportPreview(rep.id);
+      return;
+    }
+
+    if (!fileId) {
+      // Belum ada file di Drive: buka PDF in-page via PDF generator
       this.openInAppPdfModal(rep.id);
       return;
     }
@@ -12425,6 +12708,27 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
         const isNso = s.isNso || String(s.agendaCategory || '').toUpperCase().includes('NSO') || String(s.storeName || '').toUpperCase().includes('NSO');
         const isAgenda = !isCuti && !isOff && (s.isAgenda || s.storeCode === 'AGENDA' || s.status === 'AGENDA' || s.storeType === 'NON_STORE');
 
+        const feedbacks = Array.isArray(s.feedbacks) ? s.feedbacks : [];
+        const fbCount = feedbacks.length;
+        const hasFeedback = fbCount > 0 || Boolean(s.latestFeedback);
+        const feedbackCount = fbCount > 0 ? fbCount : (hasFeedback ? 1 : 0);
+        const latestFb = fbCount > 0 ? feedbacks[0] : (s.latestFeedback || null);
+        const feedbackBanner = latestFb ? `
+          <div class="mt-1.5 p-2 rounded-xl bg-amber-50 border border-amber-200 text-slate-800 text-xs flex items-start justify-between gap-2">
+            <div class="space-y-0.5 min-w-0">
+              <div class="flex items-center gap-1.5 font-bold text-amber-900 text-[10.5px]">
+                <i class="fa-solid fa-triangle-exclamation text-amber-600"></i>
+                <span>Kendala: ${latestFb.categoryLabel || latestFb.category || 'Ada Masalah'}</span>
+                ${feedbackCount > 1 ? `<span class="px-1.5 py-0.2 rounded-full bg-amber-200 text-amber-900 text-[9px] font-extrabold">+${feedbackCount - 1}</span>` : ''}
+              </div>
+              <p class="text-[10px] text-slate-600 truncate">${latestFb.notes || '-'}</p>
+            </div>
+            <button type="button" onclick="FMCUApp.openAgendaFeedbackModal('${s.id}')" class="shrink-0 text-[10px] font-extrabold text-amber-800 hover:text-amber-950 underline cursor-pointer">
+              Detail
+            </button>
+          </div>
+        ` : '';
+
         const cleanStoreName = this.sanitizeMojibake(s.storeName || (isCuti ? 'CUTI TAHUNAN' : isOff ? 'HARI LIBUR / OFF' : 'JADWAL'));
         const cleanAuditorName = this.sanitizeMojibake(s.auditorName || '-');
         const cleanFocus = this.sanitizeMojibake(s.auditFocus || s.focus || s.notes || '-');
@@ -12550,6 +12854,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                     <span class="truncate max-w-[420px] text-slate-500" title="${cleanFocus}">${cleanFocus}</span>
                   </div>
                 ` : ''}
+                ${feedbackBanner}
               </div>
             </div>
 
@@ -12563,6 +12868,15 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
               </div>
 
               <div class="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onclick="FMCUApp.openAgendaFeedbackModal('${s.id}')"
+                  class="px-2 py-1 rounded-xl ${hasFeedback ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200'} font-extrabold text-[10.5px] transition cursor-pointer inline-flex items-center gap-1 shadow-2xs whitespace-nowrap"
+                  title="Lapor Kendala Agenda Ini"
+                >
+                  <i class="fa-solid fa-circle-exclamation ${hasFeedback ? 'text-amber-600' : 'text-slate-400'} text-[9.5px]"></i>
+                  <span>Kendala${feedbackCount > 0 ? ` (${feedbackCount})` : ''}</span>
+                </button>
                 ${
                   s.status === 'COMPLETED' || s.reportId
                     ? `<button type="button" onclick="FMCUApp.viewSchedulePdf('${s.id}')" class="px-2.5 py-1 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-[10.5px] transition cursor-pointer shadow-2xs whitespace-nowrap">Lihat PDF</button>`
