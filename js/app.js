@@ -1713,7 +1713,7 @@ window.FMCUApp = {
   },
 
   promptDeleteSchedule(scheduleId) {
-    if (!this.isPrivilegedAdmin()) {
+    if (!this.hasAuthority('manage_schedule') && !this.isPrivilegedAdmin()) {
       this.showToast('Hanya Admin Jadwal dan Super Admin yang memiliki otoritas untuk menghapus jadwal visit.', 'warning');
       return;
     }
@@ -1934,19 +1934,25 @@ window.FMCUApp = {
   },
 
   isPrivilegedAdmin(user = this.currentUser) {
+    if (!user) {
+      user = (window.FMCUData && typeof window.FMCUData.getSession === 'function') ? window.FMCUData.getSession() : null;
+    }
     if (!user) return false;
+    if (this.hasAuthority('manage_schedule', user)) return true;
     const role = String(user.role || '').toUpperCase();
     const username = String(user.username || '').toLowerCase();
-    if (role === 'AUDITOR' || role === 'VISITOR' || String(user.name || '').toLowerCase().includes('aan bagus')) {
+    const name = String(user.name || '').toLowerCase();
+    if (role === 'SUPER_ADMIN' || username === 'admin' || name.includes('admin') || role.includes('ADMIN')) {
+      return true;
+    }
+    if (role === 'AUDITOR' || role === 'VISITOR') {
       return false;
     }
     return Boolean(
-      role === 'SUPER_ADMIN' ||
       role === 'ADMIN_SCHEDULE' ||
       role === 'SCHEDULE_ADMIN' ||
       role === 'AREA_MANAGER' ||
-      role === 'REGIONAL_MANAGER' ||
-      username === 'admin'
+      role === 'REGIONAL_MANAGER'
     );
   },
 
@@ -17515,9 +17521,13 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     const schedules = window.FMCUData.getSchedules() || [];
     const filtered = this.getFilteredAdminSchedules(schedules);
     if (checked) {
-      filtered.forEach((s) => this.selectedScheduleIds.add(String(s.id)));
+      filtered.forEach((s) => {
+        if (s && s.id) {
+          this.selectedScheduleIds.add(String(s.id));
+        }
+      });
     } else {
-      filtered.forEach((s) => this.selectedScheduleIds.delete(String(s.id)));
+      this.selectedScheduleIds.clear();
     }
     this.updateBulkScheduleUI();
     this.renderAdminView();
@@ -17591,7 +17601,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
   },
 
   promptBulkDeleteSchedules() {
-    if (!this.isPrivilegedAdmin()) {
+    if (!this.hasAuthority('manage_schedule') && !this.isPrivilegedAdmin()) {
       this.showToast('Hanya Admin Jadwal dan Super Admin yang memiliki otoritas untuk menghapus jadwal visit.', 'warning');
       return;
     }
@@ -22687,7 +22697,12 @@ ${extractedPdfText}`;
     this.triggerHaptic('light');
     const modal = document.getElementById('modal-developer-info');
     if (modal) {
+      if (modal.parentElement !== document.body) document.body.appendChild(modal);
       modal.classList.remove('hidden');
+      modal.style.setProperty('display', 'flex', 'important');
+      modal.style.setProperty('z-index', '99999999', 'important');
+      modal.style.visibility = 'visible';
+      modal.style.opacity = '1';
       document.body.style.overflow = 'hidden';
     }
   },
@@ -22696,6 +22711,7 @@ ${extractedPdfText}`;
     const modal = document.getElementById('modal-developer-info');
     if (modal) {
       modal.classList.add('hidden');
+      modal.style.setProperty('display', 'none', 'important');
       document.body.style.overflow = '';
     }
   },

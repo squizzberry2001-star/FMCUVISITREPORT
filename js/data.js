@@ -2581,11 +2581,8 @@ window.FMCUData = {
       localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
     } catch (e) {}
 
-    // 1. Hapus batch di Cloudflare D1 Edge DB & Google Apps Script
+    // 1. Hapus batch di Cloudflare D1 Edge DB & Google Apps Script (Single Atomic Batch Request)
     this.callGasDatabase('db_delete_items', { collection: 'schedules', ids: ids });
-    ids.forEach((id) => {
-      this.callGasDatabase('db_delete_schedule', { scheduleId: String(id) });
-    });
     this.callGasDatabase('db_save_collection', { collection: 'schedules', data: schedules });
 
     // 2. Backup list terbaru ke Google Drive Vault
