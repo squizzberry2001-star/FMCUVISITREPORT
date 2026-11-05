@@ -3655,14 +3655,6 @@ window.FMCUApp = {
   },
 
   adminMonthlyBarStartIdx: null,
-  adminMemberPerfShowAll: false,
-
-  toggleAdminMemberPerfShowAll() {
-    this.adminMemberPerfShowAll = !this.adminMemberPerfShowAll;
-    this.renderAdminQuixoticAnalytic();
-    const body = document.getElementById('qx-member-perf-chart-body');
-    if (body) body.scrollTop = 0;
-  },
 
   slideAdminMonthlyBarWindow(delta = 0) {
     const curMonth = new Date().getMonth();
@@ -3967,53 +3959,50 @@ window.FMCUApp = {
           const isPeak = m.monthIdx === peakMonthIdx || isCurrentActualMonth;
 
           const primaryVal = this.adminQuixoticBarMode === 'NSO' ? nVal : vVal;
-          const primaryHeightPct = primaryVal === 0 ? 14 : Math.max(20, Math.round((primaryVal / scaleMax) * 100));
-          const secondaryHeightPct = (this.adminQuixoticBarMode === 'BOTH' && nVal > 0)
-            ? Math.max(18, Math.round((nVal / scaleMax) * 100))
+          const primaryWidthPct = primaryVal === 0 ? 3 : Math.max(6, Math.round((primaryVal / scaleMax) * 100));
+          const secondaryWidthPct = (this.adminQuixoticBarMode === 'BOTH' && nVal > 0)
+            ? Math.max(5, Math.round((nVal / scaleMax) * 100))
             : 0;
 
           const capsuleClass = this.adminQuixoticBarMode === 'NSO'
             ? 'qx-capsule-bar-nso'
             : (isPeak ? 'qx-capsule-bar-active' : 'qx-capsule-bar-striped');
 
+          const nextMonthVal = m.monthCode === monthFilter ? 'ALL' : m.monthCode;
+
           return `
             <div
-              onclick="document.getElementById('adm-qx-filter-month').value='${m.monthCode === monthFilter ? 'ALL' : m.monthCode}'; FMCUApp.onAdminQuixoticPeriodChange();"
-              class="h-full flex flex-col items-center justify-end group cursor-pointer select-none px-2 py-1 rounded-2xl ${
-                isCurrentActualMonth ? 'bg-emerald-50/50 border border-emerald-200/70' : 'hover:bg-slate-50/80'
+              onclick="(function(){var el=document.getElementById('adm-qx-filter-month'); if(el){el.value='${nextMonthVal}'; FMCUApp.onAdminQuixoticPeriodChange();}})()"
+              class="grid grid-cols-[88px_1fr_auto] sm:grid-cols-[120px_1fr_auto] items-center gap-3 group cursor-pointer select-none px-3 py-2 rounded-2xl ${
+                isCurrentActualMonth ? 'bg-emerald-50/60 border border-emerald-200/70' : 'border border-transparent hover:bg-slate-50/80'
               } transition"
               title="${m.fullLabel}: ${m.effectiveVisit} Visit Store, ${m.nso} NSO"
             >
-              <div class="mb-1.5 flex items-center gap-1">
-                <span class="px-2 py-0.5 rounded-full ${
-                  isPeak ? 'bg-[#0d8247] text-white' : 'bg-slate-100 text-slate-700'
-                } text-[10px] font-black shadow-2xs whitespace-nowrap">
-                  ${vVal} Visit${nVal > 0 ? ` • ${nVal} NSO` : ''}
-                </span>
+              <div class="flex items-center gap-1.5 min-w-0">
+                <span class="text-[11px] font-black tracking-wide truncate ${
+                  isPeak ? 'text-[#0d8247]' : 'text-slate-600 group-hover:text-slate-900'
+                }">${m.fullLabel}</span>
+                ${isCurrentActualMonth ? `<span class="px-1.5 py-0.5 rounded-full bg-emerald-100 text-[#0d8247] text-[8.5px] font-extrabold shrink-0">Aktual</span>` : ''}
               </div>
 
-              <div class="w-full flex items-end justify-center gap-2 h-[108px] px-2">
-                <div
-                  class="${capsuleClass} w-full max-w-[44px] transition-all duration-300 group-hover:brightness-95"
-                  style="height: ${Math.min(100, primaryHeightPct)}%;"
-                ></div>
+              <div class="flex flex-col justify-center gap-1 min-w-0">
+                <div class="w-full h-4 rounded-full bg-slate-100/80 overflow-hidden">
+                  <div class="${capsuleClass} h-full transition-all duration-500 group-hover:brightness-95" style="width: ${Math.min(100, primaryWidthPct)}%; height: 100%;"></div>
+                </div>
                 ${
-                  secondaryHeightPct > 0
-                    ? `<div
-                        class="qx-capsule-bar-nso w-4 transition-all duration-300"
-                        style="height: ${Math.min(100, secondaryHeightPct)}%;"
-                        title="${nVal} NSO"
-                      ></div>`
+                  secondaryWidthPct > 0
+                    ? `<div class="w-full h-2 rounded-full bg-slate-100/80 overflow-hidden">
+                        <div class="qx-capsule-bar-nso h-full transition-all duration-500" style="width: ${Math.min(100, secondaryWidthPct)}%; height: 100%;" title="${nVal} NSO"></div>
+                      </div>`
                     : ''
                 }
               </div>
 
-              <div class="mt-2 flex items-center gap-1">
-                <span class="text-[11px] font-black tracking-wider ${
-                  isPeak ? 'text-[#0d8247]' : 'text-slate-600 group-hover:text-slate-900'
-                }">${m.fullLabel}</span>
-                ${isCurrentActualMonth ? `<span class="px-1.5 py-0.2 rounded-full bg-emerald-100 text-[#0d8247] text-[8.5px] font-extrabold">Aktual</span>` : ''}
-              </div>
+              <span class="px-2 py-0.5 rounded-full ${
+                isPeak ? 'bg-[#0d8247] text-white' : 'bg-slate-100 text-slate-700'
+              } text-[10px] font-black shadow-2xs whitespace-nowrap">
+                ${vVal} Visit${nVal > 0 ? ` • ${nVal} NSO` : ''}
+              </span>
             </div>
           `;
         })
@@ -4079,14 +4068,12 @@ window.FMCUApp = {
       });
 
       const maxMemberAgenda = Math.max(1, ...memberRows.map((r) => r.totalAgenda));
-      const PERF_LIMIT = 10;
       const totalMembers = memberRows.length;
-      const showAll = !!this.adminMemberPerfShowAll;
-      const visibleRows = showAll ? memberRows : memberRows.slice(0, PERF_LIMIT);
+      const visibleRows = memberRows;
 
       const stickyHeaderHtml = `
         <div class="sticky top-0 z-10 bg-white/95 backdrop-blur-sm flex items-center justify-between px-1 py-1.5 border-b border-slate-100 text-[9.5px] font-extrabold uppercase tracking-wider text-slate-400">
-          <span>${showAll ? `Semua ${totalMembers} Anggota` : `Top ${Math.min(PERF_LIMIT, totalMembers)} dari ${totalMembers} Anggota`}</span>
+          <span>${totalMembers} Anggota</span>
           <span class="flex items-center gap-2 normal-case tracking-normal font-bold">
             <span class="flex items-center gap-1"><i class="w-2 h-2 rounded-full bg-[#0d8247] inline-block"></i>Visit</span>
             <span class="flex items-center gap-1"><i class="w-2 h-2 rounded-full bg-[#0099A6] inline-block"></i>NSO/Trn</span>
@@ -4094,15 +4081,7 @@ window.FMCUApp = {
           </span>
         </div>`;
 
-      const stickyFooterHtml = totalMembers > PERF_LIMIT
-        ? `
-        <div class="sticky bottom-0 z-10 bg-white/95 backdrop-blur-sm pt-1.5 pb-0.5">
-          <button type="button" onclick="event.stopPropagation(); FMCUApp.toggleAdminMemberPerfShowAll()" class="w-full py-1.5 rounded-full bg-[#F4F6F5] hover:bg-[#0d8247] text-slate-700 hover:text-white text-[10.5px] font-extrabold transition cursor-pointer flex items-center justify-center gap-1.5">
-            <i class="fa-solid ${showAll ? 'fa-chevron-up' : 'fa-chevron-down'} text-[9px]"></i>
-            <span>${showAll ? `Tampilkan Top ${PERF_LIMIT} Saja` : `Lihat Semua (${totalMembers - PERF_LIMIT} lainnya)`}</span>
-          </button>
-        </div>`
-        : '';
+      const stickyFooterHtml = '';
 
       const emptyHtml = totalMembers === 0
         ? '<div class="py-6 text-center text-[11px] text-slate-400 font-medium">Belum ada data anggota.</div>'

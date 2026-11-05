@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1800410000000" as="style" />
-  <link rel="preload" href="css/styles.css?v=1800410000000" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1800420000000" as="style" />
+  <link rel="preload" href="css/styles.css?v=1800420000000" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1800410000000" />
-  <link rel="stylesheet" href="css/styles.css?v=1800410000000" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1800420000000" />
+  <link rel="stylesheet" href="css/styles.css?v=1800420000000" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -2070,9 +2070,9 @@
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
 
                   <!-- SISI KIRI (6 Cols): GRID 6 CARD (Total Agenda, Training, Visit, NSO, Pending, Coverage Store) -->
-                  <div class="lg:col-span-6 grid grid-cols-2 sm:grid-cols-3 gap-3 content-stretch">
+                  <div class="lg:col-span-6 grid grid-cols-2 sm:grid-cols-3 gap-3 content-start">
                     <!-- CARD 1: TOTAL AGENDA -->
-                    <div onclick="FMCUApp.openHistoryWithCategoryFilter('ALL')" class="qx-card qx-card-hover p-3.5 flex flex-col justify-between gap-2 cursor-pointer">
+                    <div onclick="FMCUApp.openHistoryWithCategoryFilter('ALL')" class="qx-card qx-card-hover aspect-square p-3.5 sm:p-4 flex flex-col justify-between gap-2 cursor-pointer">
                       <div class="flex items-center justify-between gap-1.5">
                         <span class="text-[11px] font-extrabold text-slate-700">Total Agenda</span>
                         <span class="w-7 h-7 rounded-full bg-[#F4F6F5] flex items-center justify-center shrink-0">
@@ -2087,7 +2087,7 @@
                     </div>
 
                     <!-- CARD 2: TOTAL TRAINING -->
-                    <div onclick="FMCUApp.openHistoryWithCategoryFilter('TRAINING')" class="qx-card qx-card-hover p-3.5 flex flex-col justify-between gap-2 cursor-pointer">
+                    <div onclick="FMCUApp.openHistoryWithCategoryFilter('TRAINING')" class="qx-card qx-card-hover aspect-square p-3.5 sm:p-4 flex flex-col justify-between gap-2 cursor-pointer">
                       <div class="flex items-center justify-between gap-1.5">
                         <span class="text-[11px] font-extrabold text-slate-700">Total Training</span>
                         <span class="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
@@ -2102,7 +2102,7 @@
                     </div>
 
                     <!-- CARD 3: TOTAL VISIT -->
-                    <div onclick="FMCUApp.openHistoryWithCategoryFilter('VISIT_STORE')" class="qx-card qx-card-hover p-3.5 flex flex-col justify-between gap-2 cursor-pointer">
+                    <div onclick="FMCUApp.openHistoryWithCategoryFilter('VISIT_STORE')" class="qx-card qx-card-hover aspect-square p-3.5 sm:p-4 flex flex-col justify-between gap-2 cursor-pointer">
                       <div class="flex items-center justify-between gap-1.5">
                         <span class="text-[11px] font-extrabold text-slate-700">Total Visit</span>
                         <span class="w-7 h-7 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
@@ -2117,7 +2117,7 @@
                     </div>
 
                     <!-- CARD 4: TOTAL NSO -->
-                    <div onclick="FMCUApp.openHistoryWithCategoryFilter('NSO')" class="qx-card qx-card-hover p-3.5 flex flex-col justify-between gap-2 cursor-pointer">
+                    <div onclick="FMCUApp.openHistoryWithCategoryFilter('NSO')" class="qx-card qx-card-hover aspect-square p-3.5 sm:p-4 flex flex-col justify-between gap-2 cursor-pointer">
                       <div class="flex items-center justify-between gap-1.5">
                         <span class="text-[11px] font-extrabold text-slate-700">Total NSO</span>
                         <span class="w-7 h-7 rounded-full bg-teal-50 flex items-center justify-center shrink-0">
@@ -2132,7 +2132,7 @@
                     </div>
 
                     <!-- CARD 5: TOTAL PENDING -->
-                    <div onclick="FMCUApp.openHistoryWithStatusFilter('PENDING')" class="qx-card qx-card-hover p-3.5 flex flex-col justify-between gap-2 cursor-pointer">
+                    <div onclick="FMCUApp.openHistoryWithStatusFilter('PENDING')" class="qx-card qx-card-hover aspect-square p-3.5 sm:p-4 flex flex-col justify-between gap-2 cursor-pointer">
                       <div class="flex items-center justify-between gap-1.5">
                         <span class="text-[11px] font-extrabold text-slate-700">Total Pending</span>
                         <span class="w-7 h-7 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
@@ -2147,7 +2147,7 @@
                     </div>
 
                     <!-- CARD 6: COVERAGE VISIT STORE (Quixotic Emerald Card) -->
-                    <div onclick="FMCUApp.switchAdminQuixoticSection('stores')" class="qx-visa-emerald-card qx-card-hover p-3.5 flex flex-col justify-between gap-1.5 cursor-pointer" title="Klik untuk melihat Master Toko (610)">
+                    <div onclick="FMCUApp.switchAdminQuixoticSection('stores')" class="qx-visa-emerald-card qx-card-hover aspect-square p-3.5 sm:p-4 flex flex-col justify-between gap-1.5 cursor-pointer" title="Klik untuk melihat Master Toko (610)">
                       <div class="flex items-center justify-between gap-1">
                         <span class="text-[10.5px] font-extrabold uppercase tracking-wider text-emerald-100 flex items-center gap-1">
                           <i class="fa-solid fa-store text-emerald-200"></i>
@@ -2172,7 +2172,7 @@
                   </div>
 
                   <!-- SISI KANAN SEJAJAR (6 Cols): GRAFIK PERFORMA PER ANGGOTA (SCROLLABLE) -->
-                  <div class="lg:col-span-6 qx-card p-4 flex flex-col justify-between gap-2.5">
+                  <div class="lg:col-span-6 qx-card p-4 flex flex-col gap-2.5 min-h-0">
                     <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
                       <div class="flex items-center gap-2 min-w-0">
                         <span class="w-7 h-7 rounded-full bg-[#F4F6F5] flex items-center justify-center shrink-0">
@@ -2180,7 +2180,7 @@
                         </span>
                         <div class="min-w-0">
                           <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 truncate">Grafik Performa Per Anggota</h3>
-                          <p class="text-[10px] text-slate-400 truncate">Top 10 anggota • Scroll untuk lainnya • Klik baris untuk detail</p>
+                          <p class="text-[10px] text-slate-400 truncate">Scroll untuk melihat semua anggota • Klik baris untuk detail</p>
                         </div>
                       </div>
                       <div class="flex items-center gap-1.5 shrink-0">
@@ -2201,9 +2201,11 @@
                       </div>
                     </div>
 
-                    <!-- Sticky Scroll Member Performance List (Top 10 default + Lihat Semua) -->
-                    <div id="qx-member-perf-chart-body" class="relative flex-1 max-h-[300px] overflow-y-auto overscroll-contain pr-1 -mt-1">
-                      <!-- Populated dynamically by FMCUApp.renderAdminQuixoticAnalytic() -->
+                    <!-- Scroll Member Performance List (semua anggota, scroll di dalam card, tinggi sejajar grid KPI) -->
+                    <div class="relative flex-1 min-h-[320px] lg:min-h-0">
+                      <div id="qx-member-perf-chart-body" class="absolute inset-0 overflow-y-auto overscroll-contain pr-1">
+                        <!-- Populated dynamically by FMCUApp.renderAdminQuixoticAnalytic() -->
+                      </div>
                     </div>
                   </div>
 
@@ -2214,7 +2216,7 @@
                   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                     <div class="flex items-center gap-2.5">
                       <span class="w-8 h-8 rounded-full bg-[#F4F6F5] flex items-center justify-center shrink-0">
-                        <i class="fa-solid fa-chart-column text-[#0d8247] text-xs"></i>
+                        <i class="fa-solid fa-chart-bar text-[#0d8247] text-xs"></i>
                       </span>
                       <div>
                         <h3 class="font-extrabold text-xs sm:text-sm text-slate-900">Grafik Batang Total Visit &amp; NSO Per Bulan</h3>
@@ -2268,7 +2270,7 @@
 
                   <!-- 4-Month Horizontal Capsule Bar Chart Container -->
                   <div class="relative pt-3 pb-1">
-                    <div id="qx-monthly-bars-container" class="w-full h-[180px] grid grid-cols-4 gap-3 sm:gap-6 items-end border-b border-slate-100 pb-2 px-2 sm:px-6 transition-all duration-300">
+                    <div id="qx-monthly-bars-container" class="w-full flex flex-col gap-1.5 border-b border-slate-100 pb-2 transition-all duration-300">
                       <!-- Populated dynamically (4 visible months) by FMCUApp.renderAdminQuixoticAnalytic() -->
                     </div>
                     <div class="flex items-center justify-between text-[10.5px] text-slate-400 pt-1.5 px-1">
@@ -4374,16 +4376,16 @@ service cloud.firestore {
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js" crossorigin="anonymous"></script>
 
   <!-- Core Application Scripts (Fast Startup & Auth Priority) -->
-  <script defer src="js/holding-time-standards.js?v=1800410000000"></script>
-  <script defer src="js/master-stores-seed.js?v=1800410000000"></script>
-  <script defer src="js/bestie-in-charge-seed.js?v=1800410000000"></script>
-  <script defer src="js/data.js?v=1800410000000"></script>
-  <script defer src="js/pdf-generator.js?v=1800410000000"></script>
-  <script defer src="js/app.js?v=1800410000000"></script>
+  <script defer src="js/holding-time-standards.js?v=1800420000000"></script>
+  <script defer src="js/master-stores-seed.js?v=1800420000000"></script>
+  <script defer src="js/bestie-in-charge-seed.js?v=1800420000000"></script>
+  <script defer src="js/data.js?v=1800420000000"></script>
+  <script defer src="js/pdf-generator.js?v=1800420000000"></script>
+  <script defer src="js/app.js?v=1800420000000"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1800410000000"></script>
+  <script async src="js/pdf-assets.js?v=1800420000000"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================
