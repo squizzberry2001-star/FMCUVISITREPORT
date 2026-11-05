@@ -10811,6 +10811,91 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     }
   },
 
+  findReportForSchedule(sch) {
+    const reports = window.FMCUData.getReports() || [];
+    if (!sch) return null;
+    if (sch.reportId) {
+      const byId = reports.find((r) => String(r.id) === String(sch.reportId));
+      if (byId) return byId;
+    }
+    return (
+      reports.find(
+        (r) =>
+          String(r.scheduleId || '') === String(sch.id) ||
+          (String(r.storeCode) === String(sch.storeCode) &&
+            String(r.visitDate || '').slice(0, 10) === String(sch.scheduledDate || '').slice(0, 10) &&
+            (!sch.auditorName || !r.auditorName || r.auditorName === sch.auditorName))
+      ) || null
+    );
+  },
+
+  extractDriveFileId(url) {
+    if (!url || typeof url !== 'string') return '';
+    const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    return m && m[1] ? m[1] : '';
+  },
+
+  // Tombol "Lihat PDF" di halaman admin: tampilkan PDF asli dari Google Drive langsung di web
+  viewSchedulePdf(scheduleId) {
+    const sch = (window.FMCUData.getSchedules() || []).find((s) => String(s.id) === String(scheduleId));
+    const rep = this.findReportForSchedule(sch);
+    if (!rep) {
+      this.showToast('Laporan PDF untuk jadwal ini belum ditemukan.', 'warning');
+      return;
+    }
+    this.openDrivePdfViewer(rep);
+  },
+
+  openDrivePdfViewer(rep) {
+    const candidates = [rep.pdfDriveUrl, rep.pdfUrl, rep.drivePdfUrl, rep.gdrivePdfUrl, rep.driveViewUrl];
+    let fileId = '';
+    let rawUrl = '';
+    for (const u of candidates) {
+      const id = this.extractDriveFileId(u);
+      if (id) {
+        fileId = id;
+        rawUrl = u;
+        break;
+      }
+    }
+
+    const modalEl = document.getElementById('modal-in-page-pdf-preview');
+    const iframe = document.getElementById('modal-pdf-iframe');
+    const frameContainer = document.getElementById('modal-pdf-frame-container');
+    if (!fileId || !modalEl || !iframe || !frameContainer) {
+      // Belum ada file di Drive: fallback ke PDF yang digenerate dari data laporan
+      this.showToast('File PDF di Google Drive belum tersedia, menampilkan PDF dari data laporan.', 'info');
+      this.openInAppPdfModal(rep.id);
+      return;
+    }
+
+    this.cancelRunningModalPdfRender();
+    this.currentModalReportId = rep.id;
+    const titleEl = document.getElementById('modal-pdf-title');
+    const subtitleEl = document.getElementById('modal-pdf-subtitle');
+    const pagesBadge = document.getElementById('modal-pdf-page-badge');
+    const loadingEl = document.getElementById('modal-pdf-loading');
+    const pagesContainer = document.getElementById('modal-pdf-pages-container');
+    const driveLinkBtn = document.getElementById('modal-pdf-drive-link');
+
+    if (titleEl) titleEl.textContent = `${rep.storeName || 'Toko'} (Site ${rep.storeCode || '-'})`;
+    if (subtitleEl) subtitleEl.textContent = `Visitor: ${rep.auditorName || '-'} • PDF asli Google Drive`;
+    if (pagesBadge) pagesBadge.textContent = 'PDF Asli Google Drive';
+    if (driveLinkBtn) {
+      driveLinkBtn.href = rawUrl || `https://drive.google.com/file/d/${fileId}/view`;
+      driveLinkBtn.classList.remove('hidden');
+      driveLinkBtn.classList.add('flex');
+    }
+    if (loadingEl) loadingEl.classList.add('hidden');
+    if (pagesContainer) {
+      pagesContainer.innerHTML = '';
+      pagesContainer.classList.add('hidden');
+    }
+    iframe.src = `https://drive.google.com/file/d/${fileId}/preview`;
+    frameContainer.classList.remove('hidden');
+    modalEl.classList.remove('hidden');
+  },
+
   async openInAppPdfModal(reportId, returnCalendarDate = null) {
     this.triggerHaptic('light');
     if (returnCalendarDate) {
@@ -12462,7 +12547,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
               <div class="flex items-center gap-1 shrink-0">
                 ${
                   s.status === 'COMPLETED' || s.reportId
-                    ? `<button type="button" onclick="FMCUApp.openReportPreview('${s.reportId || ''}')" class="px-2.5 py-1 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-[10.5px] transition cursor-pointer shadow-2xs whitespace-nowrap">Lihat PDF</button>`
+                    ? `<button type="button" onclick="FMCUApp.viewSchedulePdf('${s.id}')" class="px-2.5 py-1 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-[10.5px] transition cursor-pointer shadow-2xs whitespace-nowrap">Lihat PDF</button>`
                     : (!isCuti && !isOff && !isAgenda && this.isScheduleOwnedByUser(s, this.currentUser))
                     ? `<button type="button" onclick="FMCUApp.checkInAndOpenForm('${s.storeCode}', '${s.id}')" class="px-2.5 py-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#009944] border border-emerald-200 font-extrabold text-[10.5px] transition cursor-pointer shadow-2xs whitespace-nowrap">Mulai Visit</button>`
                     : ''
@@ -12956,7 +13041,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                 <td class="py-2.5 px-3 text-right whitespace-nowrap space-x-1">
                   ${
                     s.status === 'COMPLETED' || s.reportId
-                      ? `<button type="button" onclick="FMCUApp.openReportPreview('${s.reportId || ''}')" class="px-2.5 py-1 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-[10.5px] transition cursor-pointer shadow-2xs whitespace-nowrap">Lihat PDF</button>`
+                      ? `<button type="button" onclick="FMCUApp.viewSchedulePdf('${s.id}')" class="px-2.5 py-1 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-[10.5px] transition cursor-pointer shadow-2xs whitespace-nowrap">Lihat PDF</button>`
                       : (!isCuti && !isOff && !isAgenda && this.isScheduleOwnedByUser(s, this.currentUser))
                       ? `<button type="button" onclick="FMCUApp.checkInAndOpenForm('${s.storeCode}', '${s.id}')" class="px-2.5 py-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#009944] border border-emerald-200 font-extrabold text-[10.5px] transition cursor-pointer shadow-2xs whitespace-nowrap">Mulai Visit</button>`
                       : ''
