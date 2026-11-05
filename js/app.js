@@ -1717,19 +1717,22 @@ window.FMCUApp = {
       this.showToast('Hanya Admin Jadwal dan Super Admin yang memiliki otoritas untuk menghapus jadwal visit.', 'warning');
       return;
     }
-    const schedules = window.FMCUData.getSchedules();
+    const schedules = window.FMCUData.getSchedules() || [];
     const sch = schedules.find((s) => String(s.id) === String(scheduleId));
     if (!sch) return;
 
-    this._deleteAuthTarget = {
-      type: 'schedule',
-      id: sch.id,
-      storeName: sch.storeName || 'FamilyMart',
-      storeCode: sch.storeCode || '-',
-      date: window.FMCUPdf.formatIndonesianDate(sch.scheduledDate, true),
-      visitor: sch.auditorName || '-'
-    };
-    this.openDeleteAuthorityModal();
+    const storeLabel = sch.storeName || (sch.storeCode ? `Site ${sch.storeCode}` : 'Jadwal');
+    const dateLabel = sch.scheduledDate ? (window.FMCUPdf ? window.FMCUPdf.formatIndonesianDate(sch.scheduledDate, true) : sch.scheduledDate) : '-';
+
+    this.showConfirmDialog({
+      title: 'Hapus Jadwal Visit',
+      message: `Apakah Anda yakin ingin menghapus jadwal "${storeLabel}" (${dateLabel}) secara permanen? Tindakan ini tidak dapat dibatalkan.`,
+      confirmText: 'Iya, Hapus',
+      cancelText: 'Batal',
+      onConfirm: () => {
+        this.deleteSchedule(sch.id);
+      }
+    });
   },
 
   openDeleteAuthorityModal() {
@@ -1783,7 +1786,15 @@ window.FMCUApp = {
     const errEl = document.getElementById('modal-del-auth-error');
     if (errEl) errEl.classList.add('hidden');
 
+    if (modal.parentElement !== document.body) {
+      document.body.appendChild(modal);
+    }
+    modal.style.setProperty('z-index', '99999999', 'important');
+    modal.style.setProperty('display', 'flex', 'important');
+    modal.style.visibility = 'visible';
+    modal.style.opacity = '1';
     modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
     setTimeout(() => {
       if (pwdInput) pwdInput.focus();
     }, 100);
@@ -1791,7 +1802,11 @@ window.FMCUApp = {
 
   closeDeleteAuthorityModal() {
     const modal = document.getElementById('modal-delete-authority-auth');
-    if (modal) modal.classList.add('hidden');
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.style.setProperty('display', 'none', 'important');
+      document.body.style.overflow = '';
+    }
     this._deleteAuthTarget = null;
   },
 
@@ -17517,17 +17532,22 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       this.showToast('Hanya Admin Jadwal dan Super Admin yang memiliki otoritas untuk menghapus jadwal visit.', 'warning');
       return;
     }
-    if (this.selectedScheduleIds.size === 0) {
+    if (!this.selectedScheduleIds || this.selectedScheduleIds.size === 0) {
       this.showToast('Pilih minimal 1 jadwal dengan mencentang kotak checkbox.', 'warning');
       return;
     }
     const ids = Array.from(this.selectedScheduleIds);
-    this._deleteAuthTarget = {
-      type: 'bulk_schedule',
-      ids: ids,
-      count: ids.length
-    };
-    this.openDeleteAuthorityModal();
+    const count = ids.length;
+
+    this.showConfirmDialog({
+      title: `Hapus ${count} Jadwal Terpilih`,
+      message: `Apakah Anda yakin ingin menghapus ${count} jadwal visit toko yang dicentang secara permanen? Data yang dihapus tidak dapat dipulihkan.`,
+      confirmText: `Iya, Hapus (${count})`,
+      cancelText: 'Batal',
+      onConfirm: () => {
+        this.deleteBulkSchedules(ids);
+      }
+    });
   },
 
   deleteBulkSchedules(ids = []) {
@@ -17535,6 +17555,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     const count = ids.length;
     window.FMCUData.deleteBulkSchedules(ids);
     this.selectedScheduleIds.clear();
+    this.updateBulkScheduleUI();
     this.renderAdminView();
     this.renderHomeSchedules();
     if (this.currentScheduleSubSection === 'calendar') {
