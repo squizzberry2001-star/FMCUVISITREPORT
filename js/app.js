@@ -21825,12 +21825,20 @@ ${extractedPdfText}`;
           onComplete: onApproved,
           onCancel: onCancel
         };
+        if (modal.parentElement !== document.body) document.body.appendChild(modal);
+        modal.style.setProperty('z-index', '99999990', 'important');
+        modal.style.setProperty('display', 'flex', 'important');
         modal.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
         this.setPhotoEditorMode('crop');
         this.setupPhotoEditorCanvasEvents();
         setTimeout(() => this.drawPhotoEditorCanvas(), 50);
       };
+      img.onerror = () => {
+        this.showToast('Gagal memuat foto untuk disunting. Coba muat ulang foto atau unggah ulang.', 'error');
+        if (typeof onCancel === 'function') onCancel();
+      };
+      if (typeof src === 'string' && /^https?:/i.test(src)) img.crossOrigin = 'anonymous';
       img.src = src;
     };
 
@@ -21886,7 +21894,10 @@ ${extractedPdfText}`;
 
   closePhotoEditor(applied = false) {
     const modal = document.getElementById('modal-photo-editor');
-    if (modal) modal.classList.add('hidden');
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.style.setProperty('display', 'none', 'important');
+    }
     document.body.style.overflow = '';
     const wasOpen = this.photoEditorState.isOpen;
     this.photoEditorState.isOpen = false;
@@ -22372,6 +22383,9 @@ ${extractedPdfText}`;
     this.renderLightboxCurrentPhoto();
 
     if (modal) {
+      if (modal.parentElement !== document.body) document.body.appendChild(modal);
+      modal.style.setProperty('z-index', '99999980', 'important');
+      modal.style.setProperty('display', 'flex', 'important');
       modal.classList.remove('hidden');
       document.body.style.overflow = 'hidden';
       this.initLightboxSwipeGestures();
@@ -22428,7 +22442,10 @@ ${extractedPdfText}`;
     }
 
     const lightboxModal = document.getElementById('modal-photo-lightbox');
-    if (lightboxModal) lightboxModal.classList.add('hidden');
+    if (lightboxModal) {
+      lightboxModal.classList.add('hidden');
+      lightboxModal.style.setProperty('display', 'none', 'important');
+    }
 
     const gType = this._lightboxGalleryType;
     const idx = this._lightboxIndex;
@@ -22567,7 +22584,10 @@ ${extractedPdfText}`;
 
   closePhotoPreviewModal() {
     const modal = document.getElementById('modal-photo-lightbox');
-    if (modal) modal.classList.add('hidden');
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.style.setProperty('display', 'none', 'important');
+    }
     document.body.style.overflow = '';
   },
 
