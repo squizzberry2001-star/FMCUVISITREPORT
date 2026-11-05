@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1800250000000" as="style" />
-  <link rel="preload" href="css/styles.css?v=1800250000000" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1800260000000" as="style" />
+  <link rel="preload" href="css/styles.css?v=1800260000000" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1800250000000" />
-  <link rel="stylesheet" href="css/styles.css?v=1800250000000" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1800260000000" />
+  <link rel="stylesheet" href="css/styles.css?v=1800260000000" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -3896,16 +3896,16 @@ service cloud.firestore {
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js" crossorigin="anonymous"></script>
 
   <!-- Core Application Scripts (Fast Startup & Auth Priority) -->
-  <script defer src="js/holding-time-standards.js?v=1800250000000"></script>
-  <script defer src="js/master-stores-seed.js?v=1800250000000"></script>
-  <script defer src="js/bestie-in-charge-seed.js?v=1800250000000"></script>
-  <script defer src="js/data.js?v=1800250000000"></script>
-  <script defer src="js/pdf-generator.js?v=1800250000000"></script>
-  <script defer src="js/app.js?v=1800250000000"></script>
+  <script defer src="js/holding-time-standards.js?v=1800260000000"></script>
+  <script defer src="js/master-stores-seed.js?v=1800260000000"></script>
+  <script defer src="js/bestie-in-charge-seed.js?v=1800260000000"></script>
+  <script defer src="js/data.js?v=1800260000000"></script>
+  <script defer src="js/pdf-generator.js?v=1800260000000"></script>
+  <script defer src="js/app.js?v=1800260000000"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1800250000000"></script>
+  <script async src="js/pdf-assets.js?v=1800260000000"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================
@@ -4448,13 +4448,40 @@ service cloud.firestore {
             </div>
           </div>
 
-          <!-- Section A: Pemilih Toko Master Toko (Muncul jika VISIT STORE / NSO aktif) -->
+          <!-- Section A: Pemilih Toko Master Toko (Muncul jika VISIT STORE aktif) -->
           <div id="agenda-store-picker-container" class="p-3 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-2">
             <div class="flex items-center justify-between">
               <label class="block text-[11px] font-extrabold text-emerald-900 uppercase">
                 <i class="fa-solid fa-store mr-1 text-emerald-600"></i>Pilih Toko dari Master Toko
               </label>
               <span id="agenda-store-count-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-900">0 Toko Terpilih</span>
+            </div>
+
+            <!-- Tab Filter Scope: Semua Master Toko vs Toko Kepemilikan Bestie Ini -->
+            <div class="flex items-center justify-between gap-2 flex-wrap">
+              <div class="inline-flex rounded-xl bg-slate-200/80 p-0.5 border border-slate-300 text-xs shadow-2xs" id="agenda-store-scope-controls">
+                <button
+                  type="button"
+                  id="agenda-store-scope-all"
+                  onclick="FMCUApp.setAgendaStoreFilterScope('ALL')"
+                  class="px-2.5 py-1 rounded-lg font-extrabold text-[11px] transition cursor-pointer flex items-center gap-1 bg-white text-slate-900 shadow-xs"
+                >
+                  <i class="fa-solid fa-store text-emerald-600 text-[10px]"></i>
+                  <span>Semua Master Toko</span>
+                </button>
+                <button
+                  type="button"
+                  id="agenda-store-scope-owned"
+                  onclick="FMCUApp.setAgendaStoreFilterScope('OWNED')"
+                  class="px-2.5 py-1 rounded-lg font-extrabold text-[11px] transition cursor-pointer flex items-center gap-1 text-slate-600 hover:text-slate-900"
+                >
+                  <i class="fa-solid fa-star text-amber-600 text-[10px]"></i>
+                  <span>Milik Bestie Ini</span>
+                </button>
+              </div>
+              <div id="agenda-store-dropdown-info" class="text-[10.5px] text-slate-600 font-medium">
+                <i class="fa-solid fa-database text-emerald-600 mr-1"></i>Menampilkan semua Master Toko beserta data kepemilikan Bestie
+              </div>
             </div>
 
             <!-- Search Toko Cepat -->
@@ -4464,7 +4491,8 @@ service cloud.firestore {
                 type="text"
                 id="agenda-store-search"
                 oninput="FMCUApp.filterAgendaStoreDropdown(this.value)"
-                placeholder="Ketik kode toko, nama, atau kota..."
+                onkeydown="FMCUApp.handleAgendaStoreSearchKeydown(event)"
+                placeholder="Ketik kode, nama toko, kota, atau nama Bestie pemilik toko..."
                 class="fm-input text-xs pl-8 pr-7 w-full font-semibold"
                 aria-label="Cari toko FamilyMart"
               />
