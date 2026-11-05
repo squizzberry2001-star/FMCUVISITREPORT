@@ -1798,3 +1798,189 @@ main > .view-section {
   transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease !important;
   will-change: transform, opacity !important;
 }
+
+/* ==========================================================================
+   QUIXOTIC ADMIN CANVAS DESIGN SYSTEM (CLEAN EMERALD & ROUNDED SAAS UI)
+   ========================================================================== */
+body.admin-quixotic-active {
+  background-color: #EFF2F1 !important;
+}
+
+body.admin-quixotic-active aside[aria-label="Sidebar Utama FMCU"],
+body.admin-quixotic-active #sticky-top-header-wrapper,
+body.admin-quixotic-active #one-gate-role-hub-banner,
+body.admin-quixotic-active #mobile-bottom-nav {
+  display: none !important;
+}
+
+body.admin-quixotic-active #main-layout-content-col {
+  padding-left: 0 !important;
+  padding-bottom: 24px !important;
+}
+
+.qx-canvas-shell {
+  background-color: #F4F6F5;
+  border-radius: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 18px 50px -12px rgba(15, 23, 42, 0.07);
+}
+
+.qx-card {
+  background: #ffffff;
+  border-radius: 26px;
+  border: 1px solid rgba(226, 232, 240, 0.7);
+  box-shadow: 0 8px 26px -6px rgba(15, 23, 42, 0.035), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.qx-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 34px -8px rgba(15, 23, 42, 0.075), 0 4px 10px -2px rgba(14, 124, 71, 0.05);
+}
+
+.qx-visa-emerald-card {
+  background: linear-gradient(135deg, #0d8247 0%, #107c41 55%, #095c30 100%);
+  border-radius: 22px;
+  color: #ffffff;
+  box-shadow: 0 14px 28px -6px rgba(13, 130, 71, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.qx-visa-emerald-card::before {
+  content: '';
+  position: absolute;
+  right: -36px;
+  top: -36px;
+  width: 140px;
+  height: 140px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.14) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.qx-top-nav-track {
+  background: #F1F3F2;
+  border-radius: 9999px;
+  padding: 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.qx-top-nav-pill {
+  border-radius: 9999px;
+  padding: 8px 18px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #475569;
+  transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.qx-top-nav-pill:hover {
+  color: #0f172a;
+}
+
+.qx-top-nav-pill.active {
+  background: #ffffff;
+  color: #0f172a;
+  font-weight: 800;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+}
+
+.qx-rail-group {
+  background: #ffffff;
+  border-radius: 9999px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 6px 20px -4px rgba(15, 23, 42, 0.05);
+  border: 1px solid rgba(226, 232, 240, 0.7);
+}
+
+.qx-rail-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.qx-rail-btn:hover {
+  background: #F1F5F9;
+  color: #0f172a;
+}
+
+.qx-rail-btn.active {
+  background: #0d8247;
+  color: #ffffff;
+  box-shadow: 0 6px 14px -2px rgba(13, 130, 71, 0.4);
+}
+
+.qx-capsule-bar-striped {
+  background-color: #84b59c;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.18) 0px,
+    rgba(255, 255, 255, 0.18) 5px,
+    transparent 5px,
+    transparent 10px
+  );
+  border-radius: 9999px;
+  transition: height 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.2s ease;
+}
+
+.qx-capsule-bar-active {
+  background-color: #0d8247;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.12) 0px,
+    rgba(255, 255, 255, 0.12) 5px,
+    transparent 5px,
+    transparent 10px
+  );
+  border-radius: 9999px;
+  box-shadow: 0 10px 22px -4px rgba(13, 130, 71, 0.42);
+  transition: height 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.2s ease;
+}
+
+.qx-capsule-bar-nso {
+  background-color: #38b2ac;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.2) 0px,
+    rgba(255, 255, 255, 0.2) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+  border-radius: 9999px;
+  transition: height 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.2s ease;
+}
+
+.qx-icon-circle {
+  width: 34px;
+  height: 34px;
+  border-radius: 9999px;
+  background: #F4F6F5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #334155;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.qx-icon-circle:hover {
+  background: #0d8247;
+  color: #ffffff;
+}
+
