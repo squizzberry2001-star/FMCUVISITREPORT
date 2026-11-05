@@ -1,4 +1,4 @@
-﻿// FMCU Visit Store Report - Service Worker (Lightweight & Battery-Friendly PWA Asset Manager)
+// FMCU Visit Store Report - Service Worker (Lightweight & Battery-Friendly PWA Asset Manager)
 const SW_VERSION = 'fmcu-sw-v5-1800450000000';
 
 self.addEventListener('install', (event) => {
