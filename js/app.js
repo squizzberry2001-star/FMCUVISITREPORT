@@ -3655,6 +3655,14 @@ window.FMCUApp = {
   },
 
   adminMonthlyBarStartIdx: null,
+  adminMemberPerfShowAll: false,
+
+  toggleAdminMemberPerfShowAll() {
+    this.adminMemberPerfShowAll = !this.adminMemberPerfShowAll;
+    this.renderAdminQuixoticAnalytic();
+    const body = document.getElementById('qx-member-perf-chart-body');
+    if (body) body.scrollTop = 0;
+  },
 
   slideAdminMonthlyBarWindow(delta = 0) {
     const curMonth = new Date().getMonth();
@@ -4071,9 +4079,37 @@ window.FMCUApp = {
       });
 
       const maxMemberAgenda = Math.max(1, ...memberRows.map((r) => r.totalAgenda));
+      const PERF_LIMIT = 10;
+      const totalMembers = memberRows.length;
+      const showAll = !!this.adminMemberPerfShowAll;
+      const visibleRows = showAll ? memberRows : memberRows.slice(0, PERF_LIMIT);
 
-      memberPerfContainer.innerHTML = memberRows
-        .map((row) => {
+      const stickyHeaderHtml = `
+        <div class="sticky top-0 z-10 bg-white/95 backdrop-blur-sm flex items-center justify-between px-1 py-1.5 border-b border-slate-100 text-[9.5px] font-extrabold uppercase tracking-wider text-slate-400">
+          <span>${showAll ? `Semua ${totalMembers} Anggota` : `Top ${Math.min(PERF_LIMIT, totalMembers)} dari ${totalMembers} Anggota`}</span>
+          <span class="flex items-center gap-2 normal-case tracking-normal font-bold">
+            <span class="flex items-center gap-1"><i class="w-2 h-2 rounded-full bg-[#0d8247] inline-block"></i>Visit</span>
+            <span class="flex items-center gap-1"><i class="w-2 h-2 rounded-full bg-[#0099A6] inline-block"></i>NSO/Trn</span>
+            <span class="flex items-center gap-1"><i class="w-2 h-2 rounded-full bg-amber-400 inline-block"></i>Pend</span>
+          </span>
+        </div>`;
+
+      const stickyFooterHtml = totalMembers > PERF_LIMIT
+        ? `
+        <div class="sticky bottom-0 z-10 bg-white/95 backdrop-blur-sm pt-1.5 pb-0.5">
+          <button type="button" onclick="event.stopPropagation(); FMCUApp.toggleAdminMemberPerfShowAll()" class="w-full py-1.5 rounded-full bg-[#F4F6F5] hover:bg-[#0d8247] text-slate-700 hover:text-white text-[10.5px] font-extrabold transition cursor-pointer flex items-center justify-center gap-1.5">
+            <i class="fa-solid ${showAll ? 'fa-chevron-up' : 'fa-chevron-down'} text-[9px]"></i>
+            <span>${showAll ? `Tampilkan Top ${PERF_LIMIT} Saja` : `Lihat Semua (${totalMembers - PERF_LIMIT} lainnya)`}</span>
+          </button>
+        </div>`
+        : '';
+
+      const emptyHtml = totalMembers === 0
+        ? '<div class="py-6 text-center text-[11px] text-slate-400 font-medium">Belum ada data anggota.</div>'
+        : '';
+
+      memberPerfContainer.innerHTML = stickyHeaderHtml + '<div class="space-y-2 py-2">' + emptyHtml + visibleRows
+        .map((row, idx) => {
           const u = row.user;
           const initials = String(u.name || 'FM')
             .split(' ')
@@ -4095,6 +4131,7 @@ window.FMCUApp = {
             >
               <div class="flex items-center justify-between gap-2">
                 <div class="flex items-center gap-2 min-w-0">
+                  <span class="w-4 text-[10px] font-black text-slate-400 text-center shrink-0">${idx + 1}</span>
                   <div class="w-7 h-7 rounded-lg bg-[#0d8247] text-white font-black text-[10px] flex items-center justify-center shrink-0">
                     ${initials}
                   </div>
@@ -4117,7 +4154,7 @@ window.FMCUApp = {
             </div>
           `;
         })
-        .join('');
+        .join('') + '</div>' + stickyFooterHtml;
     }
 
     // 5. Render Table Ringkasan Bulanan per Indikator (#qx-monthly-indicator-tbody) — 6 Core Indicators
