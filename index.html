@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1793921578514" as="style" />
-  <link rel="preload" href="css/styles.css?v=1793921578514" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1793922207997" as="style" />
+  <link rel="preload" href="css/styles.css?v=1793922207997" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1793921578514" />
-  <link rel="stylesheet" href="css/styles.css?v=1793921578514" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1793922207997" />
+  <link rel="stylesheet" href="css/styles.css?v=1793922207997" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -1996,13 +1996,41 @@
         <div id="admin-panel-content" class="qx-canvas-shell space-y-3.5">
 
           <!-- 1. TOP HEADER ROW: TOP-LEFT CORNER LOGO/PROFILE (OUTSIDE NAVBAR) + WHITE TOP SUB-SECTION NAVBAR -->
-          <div id="adm-qx-top-header-row" class="qx-autohide-navbar sticky top-2 z-40 flex items-center justify-between gap-2 sm:gap-4">
+          <!-- NOTIFICATION MODAL (CENTER) -->
+          <div id="qx-notif-modal" class="hidden" role="dialog" aria-modal="true" aria-label="Notifikasi">
+            <div id="qx-notif-modal-backdrop" onclick="FMCUApp.closeNotifModal()"></div>
+            <div id="qx-notif-modal-box">
+              <div id="qx-notif-modal-header">
+                <div class="flex items-center gap-2">
+                  <span class="w-8 h-8 rounded-full bg-[#F4F6F5] flex items-center justify-center">
+                    <i class="fa-regular fa-bell text-[#0d8247] text-sm"></i>
+                  </span>
+                  <div>
+                    <div class="font-extrabold text-sm text-slate-900">Notifikasi</div>
+                    <div class="text-[10px] text-slate-400 font-medium">Aktivitas & pembaruan terkini</div>
+                  </div>
+                </div>
+                <button onclick="FMCUApp.closeNotifModal()" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition" aria-label="Tutup">
+                  <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+              </div>
+              <div id="qx-notif-modal-body">
+                <!-- populated by JS -->
+                <div class="py-10 text-center text-sm text-slate-400 font-medium">
+                  <i class="fa-regular fa-bell-slash text-2xl mb-2 block text-slate-300"></i>
+                  Belum ada notifikasi.
+                </div>
+              </div>
+            </div>
+          </div>
 
-            <!-- SISI POJOK KIRI ATAS (DI LUAR TOP NAVBAR): LOGO FMCU & PROFIL ADMIN -->
+          <div id="adm-qx-top-header-row" class="qx-autohide-navbar sticky top-2 z-40 grid gap-2 sm:gap-3" style="grid-template-columns: auto 1fr auto; align-items: center;">
+
+            <!-- KIRI: LOGO FMCU & PROFIL ADMIN -->
             <div
               id="adm-qx-corner-profile"
               onclick="FMCUApp.openProfileModal()"
-              class="flex items-center gap-2.5 bg-white rounded-full pl-2 pr-3.5 py-1.5 shadow-sm border border-slate-200/80 cursor-pointer group shrink-0 hover:border-[#0d8247]/40 transition"
+              class="flex items-center gap-2 bg-white rounded-2xl pl-2 pr-3 py-1.5 shadow-sm border border-slate-200/80 cursor-pointer group shrink-0 hover:border-[#0d8247]/40 transition"
               title="Profil & Otoritas Akun Admin"
             >
               <div class="w-8 h-8 rounded-full bg-[#0d8247]/10 border border-[#0d8247]/20 flex items-center justify-center p-1 shrink-0 group-hover:scale-105 transition-transform">
@@ -2011,19 +2039,20 @@
               <div class="leading-tight min-w-0 hidden sm:block">
                 <div class="flex items-center gap-1.5">
                   <span class="font-black text-xs tracking-tight text-[#0d8247]">FMCU</span>
-                  <span id="adm-qx-active-section-badge" class="text-[8.5px] font-extrabold uppercase tracking-wider px-1.5 py-0.2 rounded-full bg-emerald-50 text-[#0d8247]">Analytic</span>
+                  <span id="adm-qx-active-section-badge" class="text-[8.5px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-50 text-[#0d8247]">Analytic</span>
                 </div>
-                <div class="text-[10.5px] font-bold text-slate-500 truncate max-w-[165px]">
+                <div class="text-[10.5px] font-bold text-slate-500 truncate max-w-[150px]">
                   Welcome, <span id="adm-qx-welcome-name" class="text-slate-900 font-extrabold">Admin</span>
                 </div>
               </div>
-              <span id="adm-qx-user-avatar" class="w-8 h-8 rounded-full bg-[#0d8247] group-hover:ring-2 group-hover:ring-emerald-300 text-white font-black text-[11px] flex items-center justify-center shadow-2xs transition">
+              <span id="adm-qx-user-avatar" class="w-8 h-8 rounded-full bg-[#0d8247] group-hover:ring-2 group-hover:ring-emerald-300 text-white font-black text-[11px] flex items-center justify-center shadow-sm transition ml-0.5">
                 AD
               </span>
             </div>
 
-            <!-- TOP SUB-SECTION NAVBAR (BACKGROUND PUTIH, HANYA MEMUNCULKAN SUB-SECTION DARI MAIN SECTION AKTIF) -->
-            <div id="adm-qx-top-navbar" class="bg-white rounded-full px-2.5 py-1.5 shadow-sm border border-slate-200/90 flex items-center justify-center overflow-x-auto no-scrollbar max-w-full mx-auto">
+            <!-- TENGAH: TOP SUB-SECTION NAVBAR — benar-benar centered -->
+            <div class="flex justify-center min-w-0">
+            <div id="adm-qx-top-navbar" class="bg-[#F4F6F5] rounded-2xl px-1.5 py-1.5 shadow-sm border border-slate-200/70 flex items-center justify-center overflow-x-auto no-scrollbar relative">
               <!-- Sub-Nav Group A: ANALYTIC SUB-SECTIONS -->
               <nav id="adm-qx-subnav-analytic" aria-label="Sub Navigasi Analytic" class="qx-top-nav-track">
                 <button type="button" id="adm-sub-analytic-kpi" onclick="FMCUApp.scrollToAdminAnalyticPart('kpi')" class="qx-top-nav-pill active">
@@ -2105,9 +2134,22 @@
                 </button>
               </nav>
             </div>
+            </div><!-- /center col -->
 
-            <!-- Right Spacer on Desktop to Keep White Top Sub-Section Navbar Balanced -->
-            <div class="hidden lg:block w-[170px] shrink-0 pointer-events-none"></div>
+            <!-- KANAN: Notifikasi Bell + Filter Tahun Bulan (symmetric weight) -->
+            <div class="flex items-center gap-2 justify-end shrink-0">
+              <!-- Year filter (compact) -->
+              <select id="adm-qx-filter-year" onchange="FMCUApp.renderAdminQuixoticAnalytic()" class="hidden sm:block px-2.5 py-1.5 rounded-xl bg-white border border-slate-200/80 text-[11px] font-bold text-slate-700 focus:outline-none cursor-pointer shadow-sm" aria-label="Filter Tahun">
+                <option value="2026">2026</option>
+                <option value="2025">2025</option>
+                <option value="ALL">Semua</option>
+              </select>
+              <!-- Notification bell -->
+              <button type="button" onclick="FMCUApp.openNotifModal()" class="qx-notif-btn" aria-label="Notifikasi" title="Notifikasi">
+                <i class="fa-regular fa-bell"></i>
+                <span id="qx-notif-badge" class="qx-notif-badge hidden"></span>
+              </button>
+            </div>
           </div>
 
           <!-- 2. QUIXOTIC WORKSPACE: STICKY CENTERED LEFT ICON-ONLY NAVBAR + FULL-STRETCH CARDS -->
@@ -2116,7 +2158,8 @@
             <!-- STICKY & VERTICALLY CENTERED LEFT SIDE ICON-ONLY NAVBAR (Tanpa Create Jadwal, Master Toko & Export Ringkasan) -->
             <aside id="adm-qx-left-rail" aria-label="Navigasi Utama Admin (Icon Rail)" class="qx-left-icon-rail">
               <!-- Main 4 Sections Group -->
-              <div class="qx-rail-group">
+              <div class="qx-rail-group" id="qx-rail-main-group">
+                <span class="qx-rail-active-pill" id="qx-rail-main-pill" aria-hidden="true"></span>
                 <button
                   type="button"
                   id="adm-qx-nav-analytic"
@@ -2161,7 +2204,8 @@
               </div>
 
               <!-- System Settings (Menampilkan Master Toko & Pengaturan) + Logout -->
-              <div class="qx-rail-group">
+              <div class="qx-rail-group" id="qx-rail-sys-group">
+                <span class="qx-rail-active-pill hidden" id="qx-rail-sys-pill" aria-hidden="true"></span>
                 <button
                   type="button"
                   id="adm-qx-nav-settings"
@@ -4477,16 +4521,16 @@ service cloud.firestore {
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js" crossorigin="anonymous"></script>
 
   <!-- Core Application Scripts (Fast Startup & Auth Priority) -->
-  <script defer src="js/holding-time-standards.js?v=1793921578514"></script>
-  <script defer src="js/master-stores-seed.js?v=1793921578514"></script>
-  <script defer src="js/bestie-in-charge-seed.js?v=1793921578514"></script>
-  <script defer src="js/data.js?v=1793921578514"></script>
-  <script defer src="js/pdf-generator.js?v=1793921578514"></script>
-  <script defer src="js/app.js?v=1793921578514"></script>
+  <script defer src="js/holding-time-standards.js?v=1793922207997"></script>
+  <script defer src="js/master-stores-seed.js?v=1793922207997"></script>
+  <script defer src="js/bestie-in-charge-seed.js?v=1793922207997"></script>
+  <script defer src="js/data.js?v=1793922207997"></script>
+  <script defer src="js/pdf-generator.js?v=1793922207997"></script>
+  <script defer src="js/app.js?v=1793922207997"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1793921578514"></script>
+  <script async src="js/pdf-assets.js?v=1793922207997"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================

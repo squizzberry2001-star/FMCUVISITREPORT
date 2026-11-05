@@ -3486,6 +3486,8 @@ window.FMCUApp = {
       const isRailActive = key === targetSec || (key === 'history' && targetSec === 'create');
       if (btn) btn.classList.toggle('active', isRailActive);
     });
+    // Update fluid indicator pill with slight delay (after DOM settles)
+    setTimeout(() => this._updateRailActivePill(), 60);
 
     // Update Active Section Badge in Top Navbar
     const sectionLabels = {
@@ -3868,6 +3870,100 @@ window.FMCUApp = {
     this.adminBarSemester = sem === 1 ? 1 : 0;
     this.selectedAdminBarMonthIdx = null;
     this.renderAdminQuixoticAnalytic();
+  },
+
+  /* ── Update the fluid active pill indicator on the side rail ── */
+  _updateRailActivePill() {
+    const mainGroup = document.getElementById('qx-rail-main-group');
+    const pill      = document.getElementById('qx-rail-main-pill');
+    const sysGroup  = document.getElementById('qx-rail-sys-group');
+    const sysPill   = document.getElementById('qx-rail-sys-pill');
+    if (!mainGroup || !pill) return;
+
+    const activeBtn = mainGroup.querySelector('.qx-rail-btn.active');
+    const sysActive = sysGroup ? sysGroup.querySelector('.qx-rail-btn.active') : null;
+
+    if (activeBtn) {
+      const groupRect = mainGroup.getBoundingClientRect();
+      const btnRect   = activeBtn.getBoundingClientRect();
+      pill.style.top    = (btnRect.top - groupRect.top) + 'px';
+      pill.style.height = btnRect.height + 'px';
+      pill.classList.remove('hidden');
+      if (sysPill) sysPill.classList.add('hidden');
+    } else if (sysActive && sysPill && sysGroup) {
+      pill.classList.add('hidden');
+      const groupRect = sysGroup.getBoundingClientRect();
+      const btnRect   = sysActive.getBoundingClientRect();
+      sysPill.style.top    = (btnRect.top - groupRect.top) + 'px';
+      sysPill.style.height = btnRect.height + 'px';
+      sysPill.classList.remove('hidden');
+    } else {
+      pill.classList.add('hidden');
+      if (sysPill) sysPill.classList.add('hidden');
+    }
+  },
+
+  /* ── Notification Modal ── */
+  openNotifModal() {
+    const modal = document.getElementById('qx-notif-modal');
+    if (!modal) return;
+    this._populateNotifModal();
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  },
+
+  closeNotifModal() {
+    const modal = document.getElementById('qx-notif-modal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    document.body.style.overflow = '';
+  },
+
+  _populateNotifModal() {
+    const body = document.getElementById('qx-notif-modal-body');
+    if (!body) return;
+    const schedules = window.FMCUData ? window.FMCUData.getSchedules() || [] : [];
+    const reports   = window.FMCUData ? window.FMCUData.getReports()   || [] : [];
+    const reportsMapByScheduleId = new Map();
+    const reportsSetByStoreAndDate = new Set();
+    reports.forEach((r) => {
+      if (r.scheduleId) reportsMapByScheduleId.set(String(r.scheduleId), r);
+      const d = String(r.visitDate || r.date || '').slice(0, 10);
+      const c = String(r.storeCode || '').trim().toUpperCase();
+      if (c && d) reportsSetByStoreAndDate.add(`${c}__${d}`);
+    });
+    const today = new Date().toISOString().slice(0, 10);
+    const pending = schedules.filter((s) => {
+      const d = String(s.scheduledDate || '').slice(0, 10);
+      return d >= today && !this.isScheduleCompleted(s, reportsMapByScheduleId, reportsSetByStoreAndDate);
+    }).slice(0, 10);
+
+    if (pending.length === 0) {
+      body.innerHTML = `<div class="py-10 text-center text-sm text-slate-400 font-medium">
+        <i class="fa-regular fa-bell-slash text-2xl mb-2 block text-slate-300"></i>Tidak ada agenda menunggu.</div>`;
+      const badge = document.getElementById('qx-notif-badge');
+      if (badge) badge.classList.add('hidden');
+      return;
+    }
+    const monthNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+    body.innerHTML = pending.map((s, i) => {
+      const d = new Date(s.scheduledDate || '');
+      const dateStr = isNaN(d) ? '-' : `${d.getDate()} ${monthNames[d.getMonth()]}`;
+      const cat = this.classifyScheduleCategory(s);
+      const catColor = cat === 'TRAINING' ? 'bg-indigo-100 text-indigo-700'
+        : cat === 'NSO' ? 'bg-teal-100 text-teal-700'
+        : 'bg-emerald-100 text-emerald-700';
+      return `<div class="flex items-start gap-3 py-2.5 ${i > 0 ? 'border-t border-slate-100' : ''}">
+        <span class="w-9 h-9 rounded-xl ${catColor} flex flex-col items-center justify-center shrink-0 font-black text-[9px] mt-0.5 leading-tight">${dateStr}</span>
+        <div class="min-w-0 flex-1">
+          <div class="font-bold text-xs text-slate-800 truncate">${s.storeName || s.storeCode || 'Agenda'}</div>
+          <div class="text-[10px] text-slate-400 mt-0.5">${cat} • ${s.picName || 'Tim FMCU'}</div>
+        </div>
+        <span class="text-[9px] font-extrabold uppercase tracking-wider text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full shrink-0 mt-0.5">Pending</span>
+      </div>`;
+    }).join('');
+    const badge = document.getElementById('qx-notif-badge');
+    if (badge) badge.classList.remove('hidden');
   },
 
   /* ── Sparkline helper: build smooth SVG path from monthly data ── */
