@@ -12245,30 +12245,18 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
 
   toggleScheduleSidebar() {
     this.scheduleListSidebarOpen = !this.scheduleListSidebarOpen;
-    const mainCol = document.getElementById('schedule-list-main-col');
+    const grid = document.getElementById('schedule-list-grid');
     const sideCol = document.getElementById('schedule-list-sidebar-col');
     const btn = document.getElementById('btn-sch-toggle-sidebar');
-
-    if (mainCol && sideCol) {
-      if (this.scheduleListSidebarOpen) {
-        mainCol.classList.remove('col-span-12');
-        mainCol.classList.add('lg:col-span-8');
-        sideCol.classList.remove('hidden');
-        sideCol.classList.add('block');
-        if (btn) {
-          btn.classList.add('bg-teal-50', 'border-[#0099A6]', 'text-[#0099A6]');
-          btn.classList.remove('bg-white', 'text-slate-700');
-        }
-      } else {
-        mainCol.classList.add('col-span-12');
-        mainCol.classList.remove('lg:col-span-8');
-        sideCol.classList.add('hidden');
-        sideCol.classList.remove('block');
-        if (btn) {
-          btn.classList.remove('bg-teal-50', 'border-[#0099A6]', 'text-[#0099A6]');
-          btn.classList.add('bg-white', 'text-slate-700');
-        }
-      }
+    const open = this.scheduleListSidebarOpen;
+    if (sideCol) sideCol.classList.toggle('hidden', !open);
+    if (grid) {
+      grid.style.gridTemplateColumns = open && window.innerWidth >= 1024 ? 'minmax(0,1fr) 340px' : 'minmax(0,1fr)';
+    }
+    if (btn) {
+      btn.classList.toggle('bg-teal-50', open);
+      btn.classList.toggle('border-[#0099A6]', open);
+      btn.classList.toggle('bg-white', !open);
     }
   },
 
@@ -22199,6 +22187,7 @@ ${extractedPdfText}`;
   showConfirmDialog({ title = 'Konfirmasi Hapus', message = 'Apakah Anda yakin ingin menghapus data ini?', confirmText = 'Iya, Hapus', cancelText = 'Batal', onConfirm = null }) {
     this.triggerHaptic('warning');
     let modal = this.ensureConfirmModalInDom();
+    if (modal && modal.parentElement !== document.body) document.body.appendChild(modal);
     const titleEl = document.getElementById('modal-confirm-title');
     const msgEl = document.getElementById('modal-confirm-message');
     const yesBtn = document.getElementById('modal-confirm-btn-yes');
