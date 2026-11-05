@@ -5330,7 +5330,7 @@ window.FMCUApp = {
                   ${
                     repId
                       ? `<button onclick="FMCUApp.editReportById('${repId}')" class="px-2.5 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition cursor-pointer"><i class="fa-solid fa-pen mr-1"></i>Buka Form</button>
-                         <button onclick="FMCUApp.openReportPreview('${repId}')" class="px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition cursor-pointer">Lihat PDF →</button>`
+                         <button onclick="FMCUApp.viewReportPdf('${repId}')" class="px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition cursor-pointer">Lihat PDF →</button>`
                       : `<button onclick="FMCUApp.openStoreVisitForm('${s.storeCode}', '${s.id}')" class="px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition cursor-pointer">Buka Form →</button>`
                   }
                 </div>
@@ -6576,7 +6576,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
                   <span>Preview PDF</span>
                 </button>
                 ` : `
-                <button type="button" onclick="FMCUApp.openReportPreview('${r.id}')" class="px-3 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs">
+                <button type="button" onclick="FMCUApp.viewReportPdf('${r.id}')" class="px-3 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] border border-teal-200 font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs">
                   <i class="fa-solid fa-display"></i>
                   <span>Preview Slide</span>
                 </button>
@@ -6606,7 +6606,7 @@ FORMAT STRUKTUR OUTPUT WAJIB (GUNAKAN PERSIS 4 HEADING DI BAWAH, DENGAN BULLET P
                 <button onclick="FMCUApp.editReportById('${r.id}')" class="px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition cursor-pointer">
                   <i class="fa-solid fa-pen mr-1"></i>Buka Form Toko
                 </button>
-                <button onclick="FMCUApp.openReportPreview('${r.id}')" class="px-3.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition flex items-center gap-1.5 cursor-pointer">
+                <button onclick="FMCUApp.viewReportPdf('${r.id}')" class="px-3.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0099A6] font-bold text-xs transition flex items-center gap-1.5 cursor-pointer">
                   <i class="fa-solid fa-display"></i>
                   <span>Preview Slide PDF</span>
                 </button>
@@ -10846,6 +10846,15 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     this.openDrivePdfViewer(rep);
   },
 
+  viewReportPdf(reportId) {
+    const rep = (window.FMCUData.getReports() || []).find((r) => String(r.id) === String(reportId));
+    if (!rep) {
+      this.showToast('Laporan visit toko tidak ditemukan.', 'warning');
+      return;
+    }
+    this.openDrivePdfViewer(rep);
+  },
+
   openDrivePdfViewer(rep) {
     const candidates = [rep.pdfDriveUrl, rep.pdfUrl, rep.drivePdfUrl, rep.gdrivePdfUrl, rep.driveViewUrl];
     let fileId = '';
@@ -10893,7 +10902,10 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     }
     iframe.src = `https://drive.google.com/file/d/${fileId}/preview`;
     frameContainer.classList.remove('hidden');
+    if (modalEl.parentElement !== document.body) document.body.appendChild(modalEl);
+    modalEl.style.setProperty('z-index', '99999998', 'important');
     modalEl.classList.remove('hidden');
+    modalEl.style.setProperty('display', 'flex', 'important');
   },
 
   async openInAppPdfModal(reportId, returnCalendarDate = null) {
@@ -10947,6 +10959,9 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     }
 
     // Buka modal & reset state tampilan
+    if (modalEl.parentElement !== document.body) document.body.appendChild(modalEl);
+    modalEl.style.setProperty('z-index', '99999998', 'important');
+    modalEl.style.setProperty('display', 'flex', 'important');
     modalEl.classList.remove('hidden');
     if (loadingEl) loadingEl.classList.remove('hidden');
     if (pagesContainer) {
@@ -11105,7 +11120,10 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     this.triggerHaptic('light');
     this.cancelRunningModalPdfRender();
     const modalEl = document.getElementById('modal-in-page-pdf-preview');
-    if (modalEl) modalEl.classList.add('hidden');
+    if (modalEl) {
+      modalEl.classList.add('hidden');
+      modalEl.style.setProperty('display', 'none', 'important');
+    }
     const pagesContainer = document.getElementById('modal-pdf-pages-container');
     if (pagesContainer) pagesContainer.innerHTML = '';
     const iframe = document.getElementById('modal-pdf-iframe');
@@ -17935,7 +17953,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
               </div>
 
               <div class="pt-1.5 border-t border-slate-100 flex items-center justify-end">
-                <button type="button" onclick="FMCUApp.openReportPreview('${item.reportId}')" class="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-800 text-[10px] font-extrabold border border-rose-200 transition flex items-center gap-1 cursor-pointer">
+                <button type="button" onclick="FMCUApp.viewReportPdf('${item.reportId}')" class="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-800 text-[10px] font-extrabold border border-rose-200 transition flex items-center gap-1 cursor-pointer">
                   <i class="fa-solid fa-file-pdf"></i>
                   <span>Buka Laporan</span>
                 </button>
