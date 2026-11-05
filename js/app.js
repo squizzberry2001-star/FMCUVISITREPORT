@@ -3527,7 +3527,9 @@ window.FMCUApp = {
       if (ctrlHeader) ctrlHeader.classList.add('hidden');
       if (syncBanner) syncBanner.classList.add('hidden');
       this.showAdminSectionPanel('schedules');
-      const subMode = options.subTab && ['list', 'history', 'calendar'].includes(options.subTab) ? options.subTab : 'list';
+      const subMode = options.subTab && ['calendar', 'list', 'history-agenda', 'history'].includes(options.subTab)
+        ? options.subTab
+        : 'calendar';
       this.switchScheduleSubSection(subMode, false);
       this.renderAdminView();
     } else if (targetSec === 'create') {
@@ -3650,6 +3652,17 @@ window.FMCUApp = {
       return true;
     }
     return false;
+  },
+
+  adminMonthlyBarStartIdx: null,
+
+  slideAdminMonthlyBarWindow(delta = 0) {
+    const curMonth = new Date().getMonth();
+    if (typeof this.adminMonthlyBarStartIdx !== 'number' || isNaN(this.adminMonthlyBarStartIdx)) {
+      this.adminMonthlyBarStartIdx = Math.max(0, Math.min(8, curMonth - 2));
+    }
+    this.adminMonthlyBarStartIdx = Math.max(0, Math.min(8, this.adminMonthlyBarStartIdx + Number(delta || 0)));
+    this.renderAdminQuixoticAnalytic();
   },
 
   setAdminQuixoticMonthlyBarMode(mode = 'BOTH') {
@@ -3917,20 +3930,38 @@ window.FMCUApp = {
       `Puncak: ${peakBucket.fullLabel} (${peakBucket.effectiveVisit}V / ${peakBucket.nso}N)`
     );
 
+    // 4-Month Sliding Window (Actual & Nearest 4 Months, Slidable across 12 Months)
+    const curActualMonthIdx = new Date().getMonth();
+    if (typeof this.adminMonthlyBarStartIdx !== 'number' || isNaN(this.adminMonthlyBarStartIdx)) {
+      this.adminMonthlyBarStartIdx = Math.max(0, Math.min(8, curActualMonthIdx - 2));
+    }
+    const startIdx = Math.max(0, Math.min(8, this.adminMonthlyBarStartIdx));
+    const visibleMonths = monthlyStats.slice(startIdx, startIdx + 4);
+
+    const rangeLabelEl = document.getElementById('qx-bar-window-range-label');
+    if (rangeLabelEl && visibleMonths.length > 0) {
+      rangeLabelEl.textContent = `${visibleMonths[0].label} – ${visibleMonths[visibleMonths.length - 1].label} ${yearFilter === 'ALL' ? '2026' : yearFilter}`;
+    }
+    const prevBtn = document.getElementById('qx-bar-slide-prev');
+    const nextBtn = document.getElementById('qx-bar-slide-next');
+    if (prevBtn) prevBtn.classList.toggle('opacity-40', startIdx <= 0);
+    if (nextBtn) nextBtn.classList.toggle('opacity-40', startIdx >= 8);
+
     const barsContainer = document.getElementById('qx-monthly-bars-container');
     if (barsContainer) {
       const scaleMax = Math.max(8, maxMonthTotal);
-      barsContainer.innerHTML = monthlyStats
+      barsContainer.innerHTML = visibleMonths
         .map((m) => {
           const vVal = this.adminQuixoticBarMode === 'NSO' ? 0 : m.effectiveVisit;
           const nVal = this.adminQuixoticBarMode === 'VISIT' ? 0 : m.nso;
           const totalVal = vVal + nVal;
-          const isPeak = m.monthIdx === peakMonthIdx;
+          const isCurrentActualMonth = m.monthIdx === curActualMonthIdx;
+          const isPeak = m.monthIdx === peakMonthIdx || isCurrentActualMonth;
 
           const primaryVal = this.adminQuixoticBarMode === 'NSO' ? nVal : vVal;
-          const primaryHeightPct = primaryVal === 0 ? 14 : Math.max(18, Math.round((primaryVal / scaleMax) * 100));
+          const primaryHeightPct = primaryVal === 0 ? 14 : Math.max(20, Math.round((primaryVal / scaleMax) * 100));
           const secondaryHeightPct = (this.adminQuixoticBarMode === 'BOTH' && nVal > 0)
-            ? Math.max(16, Math.round((nVal / scaleMax) * 100))
+            ? Math.max(18, Math.round((nVal / scaleMax) * 100))
             : 0;
 
           const capsuleClass = this.adminQuixoticBarMode === 'NSO'
@@ -3940,26 +3971,28 @@ window.FMCUApp = {
           return `
             <div
               onclick="document.getElementById('adm-qx-filter-month').value='${m.monthCode === monthFilter ? 'ALL' : m.monthCode}'; FMCUApp.onAdminQuixoticPeriodChange();"
-              class="flex-1 min-w-[26px] h-full flex flex-col items-center justify-end group cursor-pointer select-none"
-              title="${m.fullLabel}: ${m.effectiveVisit} Visit Store, ${m.nso} NSO (Klik untuk filter bulan ${m.fullLabel})"
+              class="h-full flex flex-col items-center justify-end group cursor-pointer select-none px-2 py-1 rounded-2xl ${
+                isCurrentActualMonth ? 'bg-emerald-50/50 border border-emerald-200/70' : 'hover:bg-slate-50/80'
+              } transition"
+              title="${m.fullLabel}: ${m.effectiveVisit} Visit Store, ${m.nso} NSO"
             >
-              <div class="mb-1 flex flex-col items-center ${isPeak ? 'opacity-100' : 'opacity-75 group-hover:opacity-100'} transition">
-                ${
-                  isPeak
-                    ? `<span class="px-1.5 py-0.5 rounded-full bg-[#0d8247] text-white text-[8.5px] font-black shadow-2xs whitespace-nowrap">${totalVal}</span>`
-                    : `<span class="text-[8.5px] font-extrabold ${totalVal > 0 ? 'text-slate-700' : 'text-slate-300'}">${totalVal}</span>`
-                }
+              <div class="mb-1.5 flex items-center gap-1">
+                <span class="px-2 py-0.5 rounded-full ${
+                  isPeak ? 'bg-[#0d8247] text-white' : 'bg-slate-100 text-slate-700'
+                } text-[10px] font-black shadow-2xs whitespace-nowrap">
+                  ${vVal} Visit${nVal > 0 ? ` • ${nVal} NSO` : ''}
+                </span>
               </div>
 
-              <div class="w-full flex items-end justify-center gap-0.5 h-[122px] px-0.5">
+              <div class="w-full flex items-end justify-center gap-2 h-[108px] px-2">
                 <div
-                  class="${capsuleClass} w-full max-w-[20px] transition-all duration-300 group-hover:brightness-95"
+                  class="${capsuleClass} w-full max-w-[44px] transition-all duration-300 group-hover:brightness-95"
                   style="height: ${Math.min(100, primaryHeightPct)}%;"
                 ></div>
                 ${
                   secondaryHeightPct > 0
                     ? `<div
-                        class="qx-capsule-bar-nso w-2 transition-all duration-300"
+                        class="qx-capsule-bar-nso w-4 transition-all duration-300"
                         style="height: ${Math.min(100, secondaryHeightPct)}%;"
                         title="${nVal} NSO"
                       ></div>`
@@ -3967,10 +4000,11 @@ window.FMCUApp = {
                 }
               </div>
 
-              <div class="mt-1.5 text-[9px] font-extrabold tracking-wider ${
-                isPeak ? 'text-[#0d8247] font-black' : 'text-slate-400 group-hover:text-slate-700'
-              }">
-                ${m.label}
+              <div class="mt-2 flex items-center gap-1">
+                <span class="text-[11px] font-black tracking-wider ${
+                  isPeak ? 'text-[#0d8247]' : 'text-slate-600 group-hover:text-slate-900'
+                }">${m.fullLabel}</span>
+                ${isCurrentActualMonth ? `<span class="px-1.5 py-0.2 rounded-full bg-emerald-100 text-[#0d8247] text-[8.5px] font-extrabold">Aktual</span>` : ''}
               </div>
             </div>
           `;
@@ -4325,97 +4359,68 @@ window.FMCUApp = {
           .slice(0, 2);
 
         return `
-          <div onclick="FMCUApp.openMemberDetailAgenda('${u.id}')" class="qx-card p-4 flex flex-col justify-between gap-3.5 hover:border-[#0d8247] transition cursor-pointer group">
-            <div class="space-y-3">
-              <!-- Top Profile Header -->
-              <div class="flex items-start justify-between gap-2.5">
-                <div class="flex items-center gap-2.5 min-w-0">
-                  <div class="w-11 h-11 rounded-2xl bg-[#0d8247] text-white font-black text-xs flex items-center justify-center shadow-2xs shrink-0">
-                    ${initials}
-                  </div>
-                  <div class="min-w-0">
-                    <h4 class="font-extrabold text-sm text-slate-900 truncate group-hover:text-[#0d8247] transition" title="${u.name}">${u.name}</h4>
-                    <div class="flex items-center gap-1.5 flex-wrap mt-0.5">
-                      <span class="px-2 py-0.2 rounded-full text-[9.5px] font-extrabold ${
-                        ac === 'TRAINER' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
-                      }">${ac === 'TRAINER' ? 'Trainer' : 'Regional Bestie'}</span>
-                      <span class="text-[10px] font-mono text-slate-400">@${u.nik || u.username}</span>
-                    </div>
+          <div onclick="FMCUApp.openMemberDetailAgenda('${u.id}')" class="qx-card p-3 flex flex-col justify-between gap-2.5 hover:border-[#0d8247] transition cursor-pointer group">
+            <div class="space-y-2.5">
+              <!-- Compact Top Profile Header for 6-Col Grid -->
+              <div class="flex items-center gap-2 min-w-0">
+                <div class="w-9 h-9 rounded-xl bg-[#0d8247] text-white font-black text-[11px] flex items-center justify-center shadow-2xs shrink-0">
+                  ${initials}
+                </div>
+                <div class="min-w-0 flex-1">
+                  <h4 class="font-extrabold text-xs text-slate-900 truncate group-hover:text-[#0d8247] transition" title="${u.name}">${u.name}</h4>
+                  <div class="flex items-center justify-between gap-1 mt-0.5">
+                    <span class="text-[9px] font-bold ${ac === 'TRAINER' ? 'text-amber-700' : 'text-emerald-700'} truncate">${ac === 'TRAINER' ? 'Trainer' : 'Bestie'}</span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[8.5px] font-black ${
+                      ratePct >= 80 ? 'bg-emerald-100 text-emerald-800' : ratePct >= 50 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
+                    } shrink-0">${ratePct}%</span>
                   </div>
                 </div>
-                <span class="px-2.5 py-1 rounded-full text-[10px] font-black ${
-                  ratePct >= 80 ? 'bg-emerald-100 text-emerald-800' : ratePct >= 50 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
-                } shrink-0">
-                  ${ratePct}% Selesai
-                </span>
               </div>
 
-              <!-- 4 KPI Mini Grid -->
-              <div class="grid grid-cols-4 gap-1.5 text-center">
-                <div class="p-2 rounded-xl bg-slate-50 border border-slate-100">
-                  <div class="text-[9px] font-bold text-slate-400 uppercase">Agenda</div>
-                  <div class="text-sm font-black text-slate-900 mt-0.5">${totalAgenda}</div>
+              <!-- 2x2 Mini KPI Grid -->
+              <div class="grid grid-cols-2 gap-1 text-center">
+                <div class="p-1.5 rounded-lg bg-slate-50 border border-slate-100">
+                  <div class="text-[8.5px] font-bold text-slate-400 uppercase">Agenda</div>
+                  <div class="text-xs font-black text-slate-900">${totalAgenda}</div>
                 </div>
-                <div class="p-2 rounded-xl bg-emerald-50/70 border border-emerald-100">
-                  <div class="text-[9px] font-bold text-emerald-700 uppercase">Visit</div>
-                  <div class="text-sm font-black text-[#0d8247] mt-0.5">${effVisitDone}</div>
+                <div class="p-1.5 rounded-lg bg-emerald-50/70 border border-emerald-100">
+                  <div class="text-[8.5px] font-bold text-emerald-700 uppercase">Visit</div>
+                  <div class="text-xs font-black text-[#0d8247]">${effVisitDone}</div>
                 </div>
-                <div class="p-2 rounded-xl bg-teal-50/70 border border-teal-100">
-                  <div class="text-[9px] font-bold text-teal-700 uppercase">NSO/Trn</div>
-                  <div class="text-sm font-black text-[#0099A6] mt-0.5">${nsoCount + trainingCount}</div>
+                <div class="p-1.5 rounded-lg bg-teal-50/70 border border-teal-100">
+                  <div class="text-[8.5px] font-bold text-teal-700 uppercase">NSO/Trn</div>
+                  <div class="text-xs font-black text-[#0099A6]">${nsoCount + trainingCount}</div>
                 </div>
-                <div class="p-2 rounded-xl bg-amber-50/70 border border-amber-100">
-                  <div class="text-[9px] font-bold text-amber-700 uppercase">Pending</div>
-                  <div class="text-sm font-black text-amber-700 mt-0.5">${pendingCount}</div>
+                <div class="p-1.5 rounded-lg bg-amber-50/70 border border-amber-100">
+                  <div class="text-[8.5px] font-bold text-amber-700 uppercase">Pending</div>
+                  <div class="text-xs font-black text-amber-700">${pendingCount}</div>
                 </div>
               </div>
 
               <!-- Store Ownership & QSC Strip -->
-              <div class="flex items-center justify-between text-[11px] px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/60">
-                <span class="text-slate-600 font-semibold"><i class="fa-solid fa-store text-[#0d8247] mr-1"></i>Toko PIC: <strong class="text-slate-900">${ownedStoreCodes.size} Toko</strong></span>
-                <span class="text-slate-600 font-semibold">Avg QSC: <strong class="text-emerald-700">${avgQsc}</strong></span>
-              </div>
-
-              <!-- Recent 2 Agenda Preview -->
-              <div class="space-y-1">
-                <div class="text-[9.5px] font-extrabold uppercase tracking-wider text-slate-400">Agenda Terbaru</div>
-                ${
-                  recentAgendas.length === 0
-                    ? `<div class="text-[11px] text-slate-400 italic py-0.5">Belum ada jadwal agenda terdaftar</div>`
-                    : recentAgendas
-                        .map((s) => {
-                          const cat = this.classifyScheduleCategory(s);
-                          const done = this.isScheduleCompleted(s, reportsMapByScheduleId, reportsSetByStoreAndDate);
-                          return `
-                            <div class="flex items-center justify-between gap-2 text-[11px] py-0.5 border-b border-slate-100 last:border-0">
-                              <span class="font-bold text-slate-700 truncate">${this.sanitizeMojibake(s.storeName || s.storeCode || 'Agenda')}</span>
-                              <span class="shrink-0 text-[10px] font-mono ${done ? 'text-emerald-700 font-bold' : 'text-amber-700'}">${s.scheduledDate || '-'} (${cat === 'VISIT_STORE' ? 'Visit' : cat})</span>
-                            </div>
-                          `;
-                        })
-                        .join('')
-                }
+              <div class="flex items-center justify-between text-[9.5px] px-2 py-1 rounded-lg bg-slate-50 border border-slate-200/60">
+                <span class="text-slate-600 font-semibold truncate">PIC: <strong class="text-slate-900">${ownedStoreCodes.size}</strong></span>
+                <span class="text-slate-600 font-semibold shrink-0">QSC: <strong class="text-emerald-700">${avgQsc}</strong></span>
               </div>
             </div>
 
-            <!-- Direct Actions: Lihat Detail Agenda & + Jadwal -->
-            <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+            <!-- Compact Direct Actions -->
+            <div class="flex items-center gap-1.5 pt-2 border-t border-slate-100">
               <button
                 type="button"
                 onclick="event.stopPropagation(); FMCUApp.openMemberDetailAgenda('${u.id}')"
-                class="flex-1 py-2 px-3 rounded-xl bg-[#0d8247] hover:bg-emerald-800 text-white font-extrabold text-xs transition flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                class="flex-1 py-1.5 px-2 rounded-xl bg-[#0d8247] hover:bg-emerald-800 text-white font-extrabold text-[10.5px] transition flex items-center justify-center gap-1 shadow-2xs cursor-pointer truncate"
               >
-                <i class="fa-solid fa-calendar-week"></i>
-                <span>Direct Detail Agenda</span>
+                <i class="fa-solid fa-calendar-week text-[10px]"></i>
+                <span>Detail Agenda</span>
               </button>
               <button
                 type="button"
                 onclick="event.stopPropagation(); FMCUApp.openCreateScheduleForMember('${u.id}')"
-                class="py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                class="w-7 h-7 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-[10px] transition flex items-center justify-center shrink-0 cursor-pointer"
                 title="Buat Jadwal Baru untuk ${u.name}"
               >
                 <i class="fa-solid fa-plus text-[#0d8247]"></i>
-                <span>Jadwal</span>
               </button>
             </div>
           </div>
@@ -4656,8 +4661,8 @@ window.FMCUApp = {
   },
 
   switchScheduleSubSection(subSec, scrollTop = true) {
-    const validModes = ['create', 'calendar', 'list', 'history'];
-    const mode = validModes.includes(subSec) ? subSec : 'create';
+    const validModes = ['create', 'calendar', 'list', 'history-agenda', 'history'];
+    const mode = validModes.includes(subSec) ? subSec : 'calendar';
     this.currentScheduleSubSection = mode;
     try {
       sessionStorage.setItem('fmcu_active_sch_subtab', mode);
@@ -4668,21 +4673,25 @@ window.FMCUApp = {
     const headerIcon = document.getElementById('admin-schedule-header-icon');
 
     if (mode === 'create') {
-      if (headerTitle) headerTitle.textContent = 'Planner 1 Week (Jadwal Kerja & Agenda Tim)';
-      if (headerDesc) headerDesc.textContent = 'Susun penugasan mingguan: visit toko FamilyMart, tugas kantor (office duty), meeting, training, cuti, atau hari libur (off)';
-      if (headerIcon) headerIcon.className = 'fa-solid fa-calendar-plus text-[#009944]';
+      if (headerTitle) headerTitle.textContent = 'Create Jadwal — Planner 1 Week';
+      if (headerDesc) headerDesc.textContent = 'Susun penugasan mingguan: visit toko FamilyMart, NSO, training, office duty, meeting, cuti, atau off';
+      if (headerIcon) headerIcon.className = 'fa-solid fa-calendar-plus text-[#0d8247]';
     } else if (mode === 'calendar') {
-      if (headerTitle) headerTitle.textContent = 'Kalender Jadwal Kerja & Agenda Operasional';
-      if (headerDesc) headerDesc.textContent = 'Visualisasi kalender terpadu: jadwal visit toko, agenda kantor, cuti, dan hari off seluruh tim';
-      if (headerIcon) headerIcon.className = 'fa-solid fa-calendar-days text-amber-600';
+      if (headerTitle) headerTitle.textContent = 'Kalender Agenda & Jadwal Tim';
+      if (headerDesc) headerDesc.textContent = 'Visualisasi kalender bulanan seluruh anggota: visit toko, training, NSO, office, cuti, dan off';
+      if (headerIcon) headerIcon.className = 'fa-solid fa-calendar-days text-[#0d8247]';
     } else if (mode === 'list') {
-      if (headerTitle) headerTitle.textContent = 'Daftar Jadwal Kerja & Agenda Tim';
-      if (headerDesc) headerDesc.textContent = 'Kelola, cari, filter, monitoring status, dan ekspor seluruh jadwal visit toko serta agenda kegiatan internal';
-      if (headerIcon) headerIcon.className = 'fa-solid fa-list-check text-[#0099A6]';
+      if (headerTitle) headerTitle.textContent = 'Semua Agenda & Jadwal Tim';
+      if (headerDesc) headerDesc.textContent = 'Tabel seluruh jadwal kerja dan agenda tim dengan sistem sticky scroll';
+      if (headerIcon) headerIcon.className = 'fa-solid fa-table-list text-[#0d8247]';
+    } else if (mode === 'history-agenda') {
+      if (headerTitle) headerTitle.textContent = 'History Agenda Terlaksana';
+      if (headerDesc) headerDesc.textContent = 'Tabel riwayat agenda kerja dan kunjungan toko dengan sistem sticky scroll';
+      if (headerIcon) headerIcon.className = 'fa-solid fa-clock-rotate-left text-amber-600';
     } else if (mode === 'history') {
-      if (headerTitle) headerTitle.textContent = 'History Riwayat Kunjungan & Laporan';
-      if (headerDesc) headerDesc.textContent = 'Daftar arsip riwayat visit toko yang telah selesai (diurutkan berdasarkan tanggal terbaru)';
-      if (headerIcon) headerIcon.className = 'fa-solid fa-clock-rotate-left text-[#0099A6]';
+      if (headerTitle) headerTitle.textContent = 'Arsip Laporan Visit Toko (PDF)';
+      if (headerDesc) headerDesc.textContent = 'Daftar arsip laporan visit toko lengkap dengan akses Folder Drive, Preview PDF, dan Unduh PDF';
+      if (headerIcon) headerIcon.className = 'fa-solid fa-file-pdf text-[#0099A6]';
     }
 
     const createSec = document.getElementById('schedule-section-create');
@@ -4692,14 +4701,26 @@ window.FMCUApp = {
     const btnCreate = document.getElementById('sch-subtab-btn-create');
     const btnCalendar = document.getElementById('sch-subtab-btn-calendar');
     const btnList = document.getElementById('sch-subtab-btn-list');
+    const btnHistoryAgenda = document.getElementById('sch-subtab-btn-history-agenda');
     const btnHistory = document.getElementById('sch-subtab-btn-history');
     const countPill = document.getElementById('admin-schedule-count-pill');
+    const compPill = document.getElementById('admin-schedule-completed-count-pill');
     const histPill = document.getElementById('admin-schedule-history-count-pill');
 
+    const isTableListSec = mode === 'list' || mode === 'history-agenda';
     if (createSec) createSec.classList.toggle('hidden', mode !== 'create');
     if (calendarSec) calendarSec.classList.toggle('hidden', mode !== 'calendar');
-    if (listSec) listSec.classList.toggle('hidden', mode !== 'list');
+    if (listSec) listSec.classList.toggle('hidden', !isTableListSec);
     if (historySec) historySec.classList.toggle('hidden', mode !== 'history');
+
+    // Sync status filter when toggling between Semua Agenda ('list') and History Agenda ('history-agenda')
+    const statusSel = document.getElementById('adm-sch-list-status');
+    if (mode === 'history-agenda' && statusSel) {
+      statusSel.value = 'COMPLETED';
+    } else if (mode === 'list' && statusSel && this._lastSchSubMode === 'history-agenda') {
+      statusSel.value = 'ALL';
+    }
+    this._lastSchSubMode = mode;
 
     if (mode === 'create') {
       this.switchScheduleCreateMode('weekly');
@@ -4708,27 +4729,31 @@ window.FMCUApp = {
       this.renderAdminCalendarView();
     } else if (mode === 'history') {
       this.renderAdminScheduleHistory();
-    } else if (mode === 'list') {
-      this.setScheduleListViewMode(this.scheduleListViewMode || 'list');
+    } else if (isTableListSec) {
+      this.setScheduleListViewMode('table');
       this.renderAdminView();
     }
 
     const activePillCls = 'px-3.5 py-1.5 rounded-full text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer bg-white text-slate-900 shadow-2xs whitespace-nowrap';
     const inactivePillCls = 'px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-900 whitespace-nowrap';
 
-    if (btnCreate) btnCreate.className = mode === 'create' ? activePillCls : inactivePillCls;
+    if (btnCreate) btnCreate.className = 'hidden';
     if (btnCalendar) btnCalendar.className = mode === 'calendar' ? activePillCls : inactivePillCls;
     if (btnList) btnList.className = mode === 'list' ? activePillCls : inactivePillCls;
+    if (btnHistoryAgenda) btnHistoryAgenda.className = mode === 'history-agenda' ? activePillCls : inactivePillCls;
     if (btnHistory) btnHistory.className = mode === 'history' ? activePillCls : inactivePillCls;
 
     if (countPill) {
       countPill.className = 'px-1.5 py-0.2 rounded-full text-[9px] bg-emerald-100 text-emerald-800 font-extrabold';
     }
+    if (compPill) {
+      compPill.className = 'px-1.5 py-0.2 rounded-full text-[9px] bg-amber-100 text-amber-800 font-extrabold';
+    }
     if (histPill) {
       histPill.className = 'px-1.5 py-0.2 rounded-full text-[9px] bg-teal-100 text-teal-800 font-extrabold';
     }
 
-    // Sync Top Navbar Histori Agenda vs Hero Create Jadwal button
+    // Sync Top Navbar Agenda vs + Create Jadwal button
     const navHistory = document.getElementById('adm-qx-nav-history');
     if (navHistory && (this.currentAdminQuixoticSection === 'history' || this.currentAdminQuixoticSection === 'create')) {
       navHistory.classList.toggle('active', mode !== 'create');
@@ -14327,34 +14352,14 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
   },
 
 
-  setScheduleListViewMode(mode = 'list') {
-    this.scheduleListViewMode = mode;
+  setScheduleListViewMode(mode = 'table') {
+    // Direct Table Preview with Sticky Scroll System (List preview removed per user request)
+    this.scheduleListViewMode = 'table';
     const cardsContainer = document.getElementById('sch-list-cards-container');
     const tableContainer = document.getElementById('sch-list-table-container');
-    const listBtn = document.getElementById('sch-view-mode-list-btn');
-    const tableBtn = document.getElementById('sch-view-mode-table-btn');
 
-    if (cardsContainer && tableContainer) {
-      if (mode === 'table') {
-        cardsContainer.classList.add('hidden');
-        tableContainer.classList.remove('hidden');
-        if (listBtn) {
-          listBtn.className = 'px-2.5 py-1 rounded-full transition flex items-center gap-1 cursor-pointer text-slate-600 hover:text-slate-900 font-bold';
-        }
-        if (tableBtn) {
-          tableBtn.className = 'px-2.5 py-1 rounded-full transition flex items-center gap-1 cursor-pointer bg-white text-slate-900 shadow-2xs font-black';
-        }
-      } else {
-        cardsContainer.classList.remove('hidden');
-        tableContainer.classList.add('hidden');
-        if (listBtn) {
-          listBtn.className = 'px-2.5 py-1 rounded-full transition flex items-center gap-1 cursor-pointer bg-white text-slate-900 shadow-2xs font-black';
-        }
-        if (tableBtn) {
-          tableBtn.className = 'px-2.5 py-1 rounded-full transition flex items-center gap-1 cursor-pointer text-slate-600 hover:text-slate-900 font-bold';
-        }
-      }
-    }
+    if (cardsContainer) cardsContainer.classList.add('hidden');
+    if (tableContainer) tableContainer.classList.remove('hidden');
   },
 
   toggleScheduleSidebar() {
@@ -14977,6 +14982,11 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     // 1. Render Admin Schedules Table & Visitor Recap Strip
     const schPillEl = document.getElementById('admin-schedule-count-pill');
     if (schPillEl) schPillEl.textContent = String(schedules.length);
+    const compPillEl = document.getElementById('admin-schedule-completed-count-pill');
+    if (compPillEl) {
+      const compCount = schedules.filter((s) => s.status === 'COMPLETED' || Boolean(s.reportId)).length;
+      compPillEl.textContent = String(compCount);
+    }
 
     this.renderAdminAuditorRecapStrip();
 
@@ -20278,55 +20288,50 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
 
       cellHtmls.push(`
         <div onclick="FMCUApp.openAdminCalendarDayDetail('${cellDateStr}')"
-             class="min-h-[85px] sm:min-h-[115px] p-1.5 sm:p-2 rounded-xl flex flex-col justify-between transition cursor-pointer select-none group ${
+             class="min-h-[78px] sm:min-h-[96px] p-1.5 sm:p-2 rounded-2xl flex flex-col justify-between transition cursor-pointer select-none group ${
                !isCurrentMonth
-                 ? 'bg-slate-50/50 border border-slate-100 text-slate-400 opacity-60 hover:opacity-100 hover:bg-slate-50'
+                 ? 'bg-slate-50/40 border border-slate-100/80 text-slate-300 opacity-60 hover:opacity-100 hover:bg-slate-50'
                  : isToday
-                 ? 'bg-emerald-50/50 border-2 border-[#009944] shadow-xs ring-2 ring-emerald-500/20'
-                 : 'bg-white border border-slate-200/90 hover:border-amber-400 hover:shadow-xs'
+                 ? 'bg-emerald-50/60 border-2 border-[#0d8247] shadow-2xs'
+                 : 'bg-[#FBFDFC] border border-slate-200/70 hover:border-[#0d8247] hover:bg-white hover:shadow-2xs'
              }">
-          <!-- Header Cell: Tanggal & Badge Jumlah -->
+          <!-- Header Cell: Clean Date & Compact Count Pill -->
           <div class="flex items-center justify-between gap-1 mb-1">
-            <span class="text-xs font-black ${
+            <span class="text-xs font-extrabold ${
               isToday
-                ? 'w-6 h-6 rounded-full bg-[#009944] text-white flex items-center justify-center text-[11px] shadow-2xs'
+                ? 'w-5 h-5 rounded-full bg-[#0d8247] text-white flex items-center justify-center text-[10px]'
                 : !isCurrentMonth
                 ? 'text-slate-400'
-                : 'text-slate-700 group-hover:text-amber-700'
+                : 'text-slate-700 group-hover:text-[#0d8247]'
             }">${cellDayNum}</span>
 
             ${daySchedules.length > 0 ? `
               <div class="flex items-center gap-0.5">
-                ${completedCount > 0 ? `<span class="text-[9px] font-extrabold px-1 rounded-full bg-emerald-100 text-emerald-800" title="${completedCount} Selesai">✓${completedCount}</span>` : ''}
-                ${pendingCount > 0 ? `<span class="text-[9px] font-extrabold px-1 rounded-full bg-amber-100 text-amber-800" title="${pendingCount} Pending"><i class="fa-regular fa-clock text-[8px] mr-0.5"></i>${pendingCount}</span>` : ''}
+                ${completedCount > 0 ? `<span class="text-[8.5px] font-black px-1.5 py-0.2 rounded-full bg-emerald-100 text-[#0d8247]">${completedCount}</span>` : ''}
+                ${pendingCount > 0 ? `<span class="text-[8.5px] font-black px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800">${pendingCount}</span>` : ''}
               </div>
             ` : ''}
           </div>
 
-          <!-- Body Cell: List Toko (Maksimal 2 kartu ringkas) -->
+          <!-- Body Cell: Clean Minimalist Pills (Max 2) -->
           <div class="space-y-1 flex-1 overflow-hidden">
             ${daySchedules.slice(0, 2).map((s) => {
               const isDone = s.status === 'COMPLETED' || s.reportId || reports.some((r) => r.storeCode === s.storeCode && r.visitDate === s.scheduledDate);
               return `
-                <div class="px-1.5 py-0.5 rounded text-[10px] leading-tight font-bold truncate flex items-center gap-1 ${
-                  isDone ? 'bg-emerald-100/90 text-emerald-900 border border-emerald-200' : 'bg-amber-100/90 text-amber-900 border border-amber-200'
+                <div class="px-1.5 py-0.5 rounded-lg text-[9.5px] leading-tight font-bold truncate flex items-center gap-1 ${
+                  isDone ? 'bg-emerald-50 text-emerald-900' : 'bg-slate-100 text-slate-700'
                 }" title="${s.storeName} - ${s.auditorName || ''}">
-                  <span class="w-1.5 h-1.5 rounded-full shrink-0 ${isDone ? 'bg-emerald-600' : 'bg-amber-600'}"></span>
+                  <span class="w-1.5 h-1.5 rounded-full shrink-0 ${isDone ? 'bg-[#0d8247]' : 'bg-amber-500'}"></span>
                   <span class="truncate">${s.storeName}</span>
                 </div>
               `;
             }).join('')}
 
             ${daySchedules.length > 2 ? `
-              <div class="text-[9px] font-extrabold text-amber-700 pt-0.5 group-hover:underline truncate">
-                +${daySchedules.length - 2} toko lagi...
+              <div class="text-[9px] font-extrabold text-slate-400 group-hover:text-[#0d8247] pl-1 truncate">
+                +${daySchedules.length - 2} agenda
               </div>
             ` : ''}
-          </div>
-
-          <!-- Footer Cell -->
-          <div class="text-[9px] text-slate-400 font-medium text-right pt-0.5 hidden sm:block">
-            ${daySchedules.length > 0 ? `<span class="text-[9px] text-slate-500 font-semibold group-hover:text-amber-700">Detail &raquo;</span>` : ''}
           </div>
         </div>
       `);

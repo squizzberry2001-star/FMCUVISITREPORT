@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1800390000000" as="style" />
-  <link rel="preload" href="css/styles.css?v=1800390000000" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1800400000000" as="style" />
+  <link rel="preload" href="css/styles.css?v=1800400000000" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1800390000000" />
-  <link rel="stylesheet" href="css/styles.css?v=1800390000000" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1800400000000" />
+  <link rel="stylesheet" href="css/styles.css?v=1800400000000" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -1996,28 +1996,33 @@
                4. Live Loc Maps
              + Button 5: + Create Jadwal
              ================================================================== -->
-        <div id="admin-panel-content" class="qx-canvas-shell p-2.5 sm:p-4 lg:p-5 space-y-3.5">
+        <div id="admin-panel-content" class="qx-canvas-shell p-2.5 sm:p-4 lg:p-5 space-y-4">
 
-          <!-- 1. QUIXOTIC TOP NAVBAR BAR (4 MAIN SECTIONS + ADMIN TOOLS) -->
-          <div id="adm-qx-top-navbar" class="bg-white rounded-full px-3 sm:px-4 py-2 shadow-2xs border border-slate-200/70 flex items-center justify-between gap-2 sm:gap-3">
-            <!-- Left: Brand Identity -->
-            <div class="flex items-center gap-2 shrink-0 cursor-pointer" onclick="FMCUApp.switchAdminQuixoticSection('analytic')">
-              <div class="w-8 h-8 rounded-full bg-[#0d8247]/10 border border-[#0d8247]/20 flex items-center justify-center p-1 shrink-0">
-                <img src="FMCUICON.png" alt="FMCU" class="w-full h-full object-contain" width="24" height="24" />
+          <!-- 1. STICKY QUIXOTIC TOP NAVBAR (Welcome User + Smooth 4-Section Nav + Create Jadwal + Profile) -->
+          <div id="adm-qx-top-navbar" class="sticky top-2.5 z-40 bg-white/90 backdrop-blur-xl rounded-full px-3.5 sm:px-5 py-2 shadow-sm border border-slate-200/80 flex items-center justify-between gap-2 sm:gap-4 transition-all duration-300">
+            <!-- Left: Brand Identity + Welcome Back (Nama User) -->
+            <div class="flex items-center gap-2.5 min-w-0 shrink-0 cursor-pointer group" onclick="FMCUApp.switchAdminQuixoticSection('analytic')">
+              <div class="w-9 h-9 rounded-full bg-[#0d8247]/10 border border-[#0d8247]/20 flex items-center justify-center p-1.5 shrink-0 group-hover:scale-105 transition-transform duration-200">
+                <img src="FMCUICON.png" alt="FMCU" class="w-full h-full object-contain" width="26" height="26" />
               </div>
-              <div class="leading-none">
-                <span class="font-black text-sm sm:text-base tracking-tight text-[#0d8247]">FMCU</span>
-                <span class="hidden sm:inline-block text-[9.5px] font-extrabold uppercase tracking-widest text-slate-400 ml-0.5">Admin</span>
+              <div class="leading-tight min-w-0">
+                <div class="flex items-center gap-1.5">
+                  <span class="font-black text-sm sm:text-base tracking-tight text-[#0d8247]">FMCU</span>
+                  <span class="hidden md:inline-block text-[9px] font-extrabold uppercase tracking-widest px-1.5 py-0.2 rounded-full bg-emerald-50 text-[#0d8247] border border-emerald-200/60">Admin</span>
+                </div>
+                <div class="text-[11px] sm:text-xs font-bold text-slate-500 truncate max-w-[140px] sm:max-w-[220px]">
+                  Welcome back, <span id="adm-qx-welcome-name" class="text-slate-900 font-extrabold">Admin FMCU</span>
+                </div>
               </div>
             </div>
 
-            <!-- Center: 4 Section Top Navbar Pills (Analytic, Histori Agenda, Metric Profile, Live Loc Maps) -->
+            <!-- Center: 4 Section Top Navbar Pills with Smooth Animation (Analytic, Agenda, Metric Profile, Live Loc Maps) -->
             <nav aria-label="Navigasi Utama Admin" class="qx-top-nav-track overflow-x-auto no-scrollbar max-w-full">
               <button type="button" id="adm-qx-nav-analytic" onclick="FMCUApp.switchAdminQuixoticSection('analytic')" class="qx-top-nav-pill active">
                 Analytic
               </button>
               <button type="button" id="adm-qx-nav-history" onclick="FMCUApp.switchAdminQuixoticSection('history')" class="qx-top-nav-pill">
-                Histori Agenda
+                Agenda
               </button>
               <button type="button" id="adm-qx-nav-profiles" onclick="FMCUApp.switchAdminQuixoticSection('profiles')" class="qx-top-nav-pill">
                 Metric Profile
@@ -2028,264 +2033,161 @@
               </button>
             </nav>
 
-            <!-- Right: Master Toko, Pengaturan, Profil & Logout (No Redundant Duplicate Buttons) -->
-            <div class="flex items-center gap-1.5 shrink-0">
-              <button type="button" id="adm-qx-top-stores-btn" onclick="FMCUApp.switchAdminQuixoticSection('stores')" class="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-[#F4F6F5] hover:bg-slate-200/70 text-slate-700 text-[11px] font-bold transition cursor-pointer" title="Database Master Toko (610)">
-                <i class="fa-solid fa-store text-[#0d8247]"></i>
-                <span class="hidden md:inline">Master Toko</span>
-              </button>
-              <button type="button" id="adm-qx-top-settings-btn" onclick="FMCUApp.switchAdminQuixoticSection('settings')" class="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 text-[11px] font-bold transition cursor-pointer" title="Pengaturan User & Integrasi Cloud (Super Admin)">
-                <i class="fa-solid fa-sliders text-purple-600"></i>
-                <span class="hidden md:inline">Pengaturan</span>
-              </button>
-              <button type="button" onclick="FMCUApp.openProfileModal()" class="flex items-center gap-1 pl-0.5 cursor-pointer" title="Profil & Otoritas Akun">
-                <span id="adm-qx-user-avatar" class="w-8 h-8 rounded-full bg-[#0d8247] text-white font-black text-[11px] flex items-center justify-center shadow-2xs">
-                  AD
-                </span>
-              </button>
-              <button type="button" onclick="FMCUApp.logout()" class="w-8 h-8 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center text-xs transition cursor-pointer" title="Keluar / Ganti Akun">
-                <i class="fa-solid fa-power-off"></i>
-              </button>
-            </div>
-          </div>
-
-          <!-- 2. COMPACT HERO BAR: WELCOME + PERIOD FILTER + BUTTON 5 (+ CREATE JADWAL) -->
-          <div id="adm-qx-hero-bar" class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 px-1">
-            <div class="flex items-center gap-2.5">
-              <h1 class="text-lg sm:text-2xl font-extrabold tracking-tight text-slate-900">
-                Welcome Back, <span id="adm-qx-welcome-name" class="text-slate-400 font-medium">Admin FMCU</span>
-              </h1>
-            </div>
-
-            <div class="flex flex-wrap items-center gap-2">
-              <!-- Period Filter Pill -->
-              <div class="inline-flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-full shadow-2xs border border-slate-200/70 text-xs font-semibold text-slate-700">
-                <i class="fa-regular fa-calendar text-[#0d8247]"></i>
-                <select id="adm-qx-filter-month" onchange="FMCUApp.onAdminQuixoticPeriodChange()" class="bg-transparent font-bold text-slate-700 focus:outline-none cursor-pointer pr-1" aria-label="Filter Bulan Analitik">
-                  <option value="ALL">Jan - Des (1 Tahun)</option>
-                  <option value="01">Januari</option>
-                  <option value="02">Februari</option>
-                  <option value="03">Maret</option>
-                  <option value="04">April</option>
-                  <option value="05">Mei</option>
-                  <option value="06">Juni</option>
-                  <option value="07">Juli</option>
-                  <option value="08">Agustus</option>
-                  <option value="09">September</option>
-                  <option value="10">Oktober</option>
-                  <option value="11">November</option>
-                  <option value="12">Desember</option>
-                </select>
-                <span class="text-slate-300">|</span>
-                <select id="adm-qx-filter-year" onchange="FMCUApp.onAdminQuixoticPeriodChange()" class="bg-transparent font-extrabold text-slate-900 focus:outline-none cursor-pointer" aria-label="Filter Tahun Analitik">
-                  <option value="ALL">Semua Tahun</option>
-                  <option value="2026" selected>2026</option>
-                  <option value="2025">2025</option>
-                </select>
-              </div>
-
-              <!-- 5. BUTTON + CREATE JADWAL -->
+            <!-- Right: + Create Jadwal & Profile Avatar (No Logout & No Setting Button in Top Navbar) -->
+            <div class="flex items-center gap-2 shrink-0">
               <button
                 type="button"
                 id="adm-qx-btn-create-jadwal"
                 onclick="FMCUApp.switchAdminQuixoticSection('create')"
-                class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[#0d8247] hover:bg-emerald-800 text-white font-extrabold text-xs shadow-xs transition-all duration-200 cursor-pointer active:scale-95"
+                class="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-full bg-[#0d8247] hover:bg-emerald-800 text-white font-extrabold text-xs shadow-xs transition-all duration-200 cursor-pointer active:scale-95"
+                title="Buat Jadwal Baru (Planner 1 Week)"
               >
-                <i class="fa-solid fa-plus text-xs"></i>
-                <span>Create Jadwal</span>
+                <i class="fa-solid fa-plus text-[11px]"></i>
+                <span class="hidden sm:inline">Create Jadwal</span>
+              </button>
+              <button type="button" onclick="FMCUApp.openProfileModal()" class="flex items-center gap-1 pl-0.5 cursor-pointer group" title="Profil & Otoritas Akun">
+                <span id="adm-qx-user-avatar" class="w-9 h-9 rounded-full bg-[#0d8247] group-hover:ring-2 group-hover:ring-emerald-300 text-white font-black text-xs flex items-center justify-center shadow-2xs transition-all duration-200">
+                  AD
+                </span>
               </button>
             </div>
           </div>
 
-          <!-- 3. FULL-WIDTH COMPACT MAIN WORKSPACE (No Redundant Left Rail) -->
+          <!-- 2. FULL-WIDTH MAIN WORKSPACE -->
           <div class="w-full">
-            <div class="min-w-0 space-y-3.5">
+            <div class="min-w-0 space-y-4">
 
               <!-- ==============================================================
-                   SECTION 1: ANALYTIC (#adm-qx-sec-analytic) — COMPACT 3-ROW BENTO
-                   Row 1: 5 KPI Cards (Total Agenda, Training, Visit, NSO, Pending)
-                   Row 2: Coverage Store % (3 cols) + Grafik Batang Bulanan (5 cols) + Grafik Performa Anggota (4 cols)
-                   Row 3: Table Ringkasan Bulanan per Indikator (Jan-Des)
+                   SECTION 1: ANALYTIC (#adm-qx-sec-analytic)
+                   Row 1: Left 6-Card Grid (Total Agenda, Training, Visit, NSO, Pending, Coverage Store)
+                          + Right Parallel Grafik Performa Per Anggota (Scrollable)
+                   Row 2: Full-Width Horizontal Bar Chart (4 Nearest Months + Slide Left/Right)
+                   Row 3: Full-Width Table Ringkasan Bulanan per Indikator
                    ============================================================== -->
-              <div id="adm-qx-sec-analytic" class="space-y-3.5">
+              <div id="adm-qx-sec-analytic" class="space-y-4">
 
-                <!-- ROW 1: 5 COMPACT KPI CARDS -->
-                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                  <!-- KPI 1: CARD KPI TOTAL AGENDA -->
-                  <div onclick="FMCUApp.openHistoryWithCategoryFilter('ALL')" class="qx-card qx-card-hover p-3.5 flex flex-col justify-between gap-1.5 cursor-pointer">
-                    <div class="flex items-center justify-between gap-2">
-                      <span class="text-xs font-extrabold text-slate-800">Total Agenda</span>
-                      <span class="w-7 h-7 rounded-full bg-[#F4F6F5] flex items-center justify-center shrink-0">
-                        <i class="fa-solid fa-calendar-check text-[#0d8247] text-xs"></i>
-                      </span>
-                    </div>
-                    <div class="flex items-baseline justify-between gap-2">
-                      <div id="qx-kpi-val-agenda" class="text-2xl font-black text-slate-900 tracking-tight">0</div>
-                      <span class="px-2 py-0.5 rounded-full text-[9.5px] font-extrabold bg-[#0d8247] text-white">Semua</span>
-                    </div>
-                    <div id="qx-kpi-sub-agenda" class="text-[10.5px] text-slate-400 font-semibold truncate">Seluruh jadwal tim</div>
-                  </div>
+                <!-- ROW 1: SPLIT LEFT (6 CARDS GRID) & RIGHT (GRAFIK PERFORMA PER ANGGOTA SEJAJAR) -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
 
-                  <!-- KPI 2: CARD TOTAL TRAINING -->
-                  <div onclick="FMCUApp.openHistoryWithCategoryFilter('TRAINING')" class="qx-card qx-card-hover p-3.5 flex flex-col justify-between gap-1.5 cursor-pointer">
-                    <div class="flex items-center justify-between gap-2">
-                      <span class="text-xs font-extrabold text-slate-800">Total Training</span>
-                      <span class="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
-                        <i class="fa-solid fa-chalkboard-user text-indigo-600 text-xs"></i>
-                      </span>
-                    </div>
-                    <div class="flex items-baseline justify-between gap-2">
-                      <div id="qx-kpi-val-training" class="text-2xl font-black text-slate-900 tracking-tight">0</div>
-                      <span class="px-2 py-0.5 rounded-full text-[9.5px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200">Training</span>
-                    </div>
-                    <div id="qx-kpi-sub-training" class="text-[10.5px] text-slate-400 font-semibold truncate">Kelas &amp; pengembangan</div>
-                  </div>
-
-                  <!-- KPI 3: CARD TOTAL VISIT -->
-                  <div onclick="FMCUApp.openHistoryWithCategoryFilter('VISIT_STORE')" class="qx-card qx-card-hover p-3.5 flex flex-col justify-between gap-1.5 cursor-pointer">
-                    <div class="flex items-center justify-between gap-2">
-                      <span class="text-xs font-extrabold text-slate-800">Total Visit</span>
-                      <span class="w-7 h-7 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
-                        <i class="fa-solid fa-store text-[#0d8247] text-xs"></i>
-                      </span>
-                    </div>
-                    <div class="flex items-baseline justify-between gap-2">
-                      <div id="qx-kpi-val-visit" class="text-2xl font-black text-slate-900 tracking-tight">0</div>
-                      <span class="px-2 py-0.5 rounded-full text-[9.5px] font-extrabold bg-emerald-100 text-emerald-800">Visit Store</span>
-                    </div>
-                    <div id="qx-kpi-sub-visit" class="text-[10.5px] text-slate-400 font-semibold truncate">Audit QSC toko reguler</div>
-                  </div>
-
-                  <!-- KPI 4: CARD TOTAL NSO -->
-                  <div onclick="FMCUApp.openHistoryWithCategoryFilter('NSO')" class="qx-card qx-card-hover p-3.5 flex flex-col justify-between gap-1.5 cursor-pointer">
-                    <div class="flex items-center justify-between gap-2">
-                      <span class="text-xs font-extrabold text-slate-800">Total NSO</span>
-                      <span class="w-7 h-7 rounded-full bg-teal-50 flex items-center justify-center shrink-0">
-                        <i class="fa-solid fa-sparkles text-teal-600 text-xs"></i>
-                      </span>
-                    </div>
-                    <div class="flex items-baseline justify-between gap-2">
-                      <div id="qx-kpi-val-nso" class="text-2xl font-black text-slate-900 tracking-tight">0</div>
-                      <span class="px-2 py-0.5 rounded-full text-[9.5px] font-extrabold bg-teal-100 text-teal-800">NSO</span>
-                    </div>
-                    <div id="qx-kpi-sub-nso" class="text-[10.5px] text-slate-400 font-semibold truncate">New Store Opening</div>
-                  </div>
-
-                  <!-- KPI 5: CARD TOTAL LAPORAN PENDING -->
-                  <div onclick="FMCUApp.openHistoryWithStatusFilter('PENDING')" class="qx-card qx-card-hover p-3.5 flex flex-col justify-between gap-1.5 cursor-pointer col-span-2 sm:col-span-1">
-                    <div class="flex items-center justify-between gap-2">
-                      <span class="text-xs font-extrabold text-slate-800">Laporan Pending</span>
-                      <span class="w-7 h-7 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
-                        <i class="fa-regular fa-clock text-amber-600 text-xs"></i>
-                      </span>
-                    </div>
-                    <div class="flex items-baseline justify-between gap-2">
-                      <div id="qx-kpi-val-pending" class="text-2xl font-black text-amber-600 tracking-tight">0</div>
-                      <span class="px-2 py-0.5 rounded-full text-[9.5px] font-extrabold bg-amber-100 text-amber-800">Pending</span>
-                    </div>
-                    <div id="qx-kpi-sub-pending" class="text-[10.5px] text-slate-400 font-semibold truncate">Belum submit laporan</div>
-                  </div>
-                </div>
-
-                <!-- ROW 2: 3-COLUMN COMPACT BENTO (COVERAGE STORE + GRAFIK BATANG BULANAN + GRAFIK PERFORMA ANGGOTA) -->
-                <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
-
-                  <!-- COL 1 (3 cols): PRESENTASE TOTAL VISIT DARI SEMUA STORE -->
-                  <div class="lg:col-span-3 qx-card p-4 flex flex-col justify-between gap-3">
-                    <div class="flex items-center justify-between">
-                      <div>
-                        <h3 class="font-extrabold text-xs sm:text-sm text-slate-900">Coverage Visit Store</h3>
-                        <p class="text-[10.5px] text-slate-400">Presentase visit dari 610 store</p>
-                      </div>
-                      <button type="button" onclick="FMCUApp.switchAdminQuixoticSection('stores')" class="w-7 h-7 rounded-full bg-[#F4F6F5] hover:bg-[#0d8247] hover:text-white text-slate-600 flex items-center justify-center transition cursor-pointer" title="Lihat Master Toko">
-                        <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
-                      </button>
-                    </div>
-
-                    <!-- Quixotic Emerald VISA-style Card -->
-                    <div class="qx-visa-emerald-card p-4 flex flex-col justify-between gap-2.5">
-                      <div class="flex items-center justify-between">
-                        <span class="font-black text-xs tracking-wider uppercase text-white/95 flex items-center gap-1.5">
-                          <i class="fa-solid fa-store text-emerald-200"></i>
-                          <span>FMCU STORE</span>
+                  <!-- SISI KIRI (6 Cols): GRID 6 CARD (Total Agenda, Training, Visit, NSO, Pending, Coverage Store) -->
+                  <div class="lg:col-span-6 grid grid-cols-2 sm:grid-cols-3 gap-3 content-stretch">
+                    <!-- CARD 1: TOTAL AGENDA -->
+                    <div onclick="FMCUApp.openHistoryWithCategoryFilter('ALL')" class="qx-card qx-card-hover p-3.5 flex flex-col justify-between gap-2 cursor-pointer">
+                      <div class="flex items-center justify-between gap-1.5">
+                        <span class="text-[11px] font-extrabold text-slate-700">Total Agenda</span>
+                        <span class="w-7 h-7 rounded-full bg-[#F4F6F5] flex items-center justify-center shrink-0">
+                          <i class="fa-solid fa-calendar-check text-[#0d8247] text-xs"></i>
                         </span>
-                        <span id="qx-cov-period-badge" class="text-[9.5px] font-mono font-bold text-emerald-100/90">TAHUN 2026</span>
                       </div>
+                      <div class="flex items-baseline justify-between gap-1">
+                        <div id="qx-kpi-val-agenda" class="text-2xl font-black text-slate-900 tracking-tight">0</div>
+                        <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-[#0d8247] text-white">Semua</span>
+                      </div>
+                      <div id="qx-kpi-sub-agenda" class="text-[10px] text-slate-400 font-semibold truncate">Seluruh jadwal tim</div>
+                    </div>
 
+                    <!-- CARD 2: TOTAL TRAINING -->
+                    <div onclick="FMCUApp.openHistoryWithCategoryFilter('TRAINING')" class="qx-card qx-card-hover p-3.5 flex flex-col justify-between gap-2 cursor-pointer">
+                      <div class="flex items-center justify-between gap-1.5">
+                        <span class="text-[11px] font-extrabold text-slate-700">Total Training</span>
+                        <span class="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
+                          <i class="fa-solid fa-chalkboard-user text-indigo-600 text-xs"></i>
+                        </span>
+                      </div>
+                      <div class="flex items-baseline justify-between gap-1">
+                        <div id="qx-kpi-val-training" class="text-2xl font-black text-slate-900 tracking-tight">0</div>
+                        <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200">Training</span>
+                      </div>
+                      <div id="qx-kpi-sub-training" class="text-[10px] text-slate-400 font-semibold truncate">Kelas &amp; workshop</div>
+                    </div>
+
+                    <!-- CARD 3: TOTAL VISIT -->
+                    <div onclick="FMCUApp.openHistoryWithCategoryFilter('VISIT_STORE')" class="qx-card qx-card-hover p-3.5 flex flex-col justify-between gap-2 cursor-pointer">
+                      <div class="flex items-center justify-between gap-1.5">
+                        <span class="text-[11px] font-extrabold text-slate-700">Total Visit</span>
+                        <span class="w-7 h-7 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
+                          <i class="fa-solid fa-store text-[#0d8247] text-xs"></i>
+                        </span>
+                      </div>
+                      <div class="flex items-baseline justify-between gap-1">
+                        <div id="qx-kpi-val-visit" class="text-2xl font-black text-slate-900 tracking-tight">0</div>
+                        <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-100 text-emerald-800">Visit</span>
+                      </div>
+                      <div id="qx-kpi-sub-visit" class="text-[10px] text-slate-400 font-semibold truncate">Audit QSC toko</div>
+                    </div>
+
+                    <!-- CARD 4: TOTAL NSO -->
+                    <div onclick="FMCUApp.openHistoryWithCategoryFilter('NSO')" class="qx-card qx-card-hover p-3.5 flex flex-col justify-between gap-2 cursor-pointer">
+                      <div class="flex items-center justify-between gap-1.5">
+                        <span class="text-[11px] font-extrabold text-slate-700">Total NSO</span>
+                        <span class="w-7 h-7 rounded-full bg-teal-50 flex items-center justify-center shrink-0">
+                          <i class="fa-solid fa-sparkles text-teal-600 text-xs"></i>
+                        </span>
+                      </div>
+                      <div class="flex items-baseline justify-between gap-1">
+                        <div id="qx-kpi-val-nso" class="text-2xl font-black text-slate-900 tracking-tight">0</div>
+                        <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-teal-100 text-teal-800">NSO</span>
+                      </div>
+                      <div id="qx-kpi-sub-nso" class="text-[10px] text-slate-400 font-semibold truncate">New Store Opening</div>
+                    </div>
+
+                    <!-- CARD 5: TOTAL PENDING -->
+                    <div onclick="FMCUApp.openHistoryWithStatusFilter('PENDING')" class="qx-card qx-card-hover p-3.5 flex flex-col justify-between gap-2 cursor-pointer">
+                      <div class="flex items-center justify-between gap-1.5">
+                        <span class="text-[11px] font-extrabold text-slate-700">Total Pending</span>
+                        <span class="w-7 h-7 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
+                          <i class="fa-regular fa-clock text-amber-600 text-xs"></i>
+                        </span>
+                      </div>
+                      <div class="flex items-baseline justify-between gap-1">
+                        <div id="qx-kpi-val-pending" class="text-2xl font-black text-amber-600 tracking-tight">0</div>
+                        <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-100 text-amber-800">Pending</span>
+                      </div>
+                      <div id="qx-kpi-sub-pending" class="text-[10px] text-slate-400 font-semibold truncate">Belum laporan PDF</div>
+                    </div>
+
+                    <!-- CARD 6: COVERAGE VISIT STORE (Quixotic Emerald Card) -->
+                    <div onclick="FMCUApp.switchAdminQuixoticSection('stores')" class="qx-visa-emerald-card qx-card-hover p-3.5 flex flex-col justify-between gap-1.5 cursor-pointer" title="Klik untuk melihat Master Toko (610)">
+                      <div class="flex items-center justify-between gap-1">
+                        <span class="text-[10.5px] font-extrabold uppercase tracking-wider text-emerald-100 flex items-center gap-1">
+                          <i class="fa-solid fa-store text-emerald-200"></i>
+                          <span>Coverage Store</span>
+                        </span>
+                        <span id="qx-cov-completion-pill" class="px-1.5 py-0.2 rounded-full text-[8.5px] font-extrabold bg-white/20 text-white">0%</span>
+                      </div>
                       <div>
                         <div class="flex items-baseline justify-between gap-1">
-                          <span id="qx-cov-percent-big" class="text-2xl sm:text-3xl font-black tracking-tight text-white">0.0%</span>
-                          <span id="qx-cov-visited-fraction" class="text-[11px] font-extrabold text-emerald-100">0 / 610 Toko</span>
+                          <span id="qx-cov-percent-big" class="text-2xl font-black tracking-tight text-white">0.0%</span>
+                          <span id="qx-cov-visited-fraction" class="text-[10px] font-extrabold text-emerald-100">0/610</span>
                         </div>
-                        <div class="w-full h-1.5 rounded-full bg-black/25 overflow-hidden mt-2">
+                        <div class="w-full h-1.5 rounded-full bg-black/25 overflow-hidden mt-1.5">
                           <div id="qx-cov-progress-bar" class="h-full rounded-full bg-white transition-all duration-500" style="width: 0%"></div>
                         </div>
                       </div>
-
-                      <div class="flex items-center justify-between text-[10px] font-mono text-emerald-100/90">
-                        <span id="qx-cov-unvisited-text">Belum: 610 Toko</span>
-                        <span id="qx-analytic-top-score" class="font-bold">QSC: 0.0%</span>
-                      </div>
-                    </div>
-
-                    <!-- Compact Realisasi Footer inside same card -->
-                    <div class="pt-1 border-t border-slate-100 flex items-center justify-between gap-2">
-                      <div>
-                        <div class="text-[10px] font-semibold text-slate-400">Arsip Laporan Masuk</div>
-                        <div id="qx-cov-total-reports" class="text-sm font-black text-slate-900">0 Laporan</div>
-                      </div>
-                      <span id="qx-cov-completion-pill" class="px-2.5 py-1 rounded-full text-[10.5px] font-extrabold bg-[#10b981] text-white">
-                        0% Realisasi
-                      </span>
-                    </div>
-                  </div>
-
-                  <!-- COL 2 (5 cols): GRAFIK BATANG TOTAL VISIT DAN NSO PERBULAN -->
-                  <div class="lg:col-span-5 qx-card p-4 flex flex-col justify-between gap-2.5">
-                    <div class="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <h3 class="font-extrabold text-xs sm:text-sm text-slate-900">Grafik Batang Visit &amp; NSO Per Bulan</h3>
-                        <p class="text-[10.5px] text-slate-400">Jan–Des (<span class="text-[#0d8247] font-bold">Visit: <strong id="qx-bar-legend-visit-total">0</strong></span> • <span class="text-teal-600 font-bold">NSO: <strong id="qx-bar-legend-nso-total">0</strong></span>)</p>
-                      </div>
-
-                      <!-- Quixotic Pill Switcher (All / Visit / NSO) -->
-                      <div class="bg-[#F1F3F2] p-0.5 rounded-full inline-flex items-center text-[10.5px] font-bold">
-                        <button type="button" id="qx-bar-mode-both" onclick="FMCUApp.setAdminQuixoticMonthlyBarMode('BOTH')" class="px-2.5 py-1 rounded-full bg-[#0d8247] text-white font-extrabold shadow-2xs transition cursor-pointer">
-                          Visit &amp; NSO
-                        </button>
-                        <button type="button" id="qx-bar-mode-visit" onclick="FMCUApp.setAdminQuixoticMonthlyBarMode('VISIT')" class="px-2.5 py-1 rounded-full text-slate-600 hover:text-slate-900 transition cursor-pointer">
-                          Visit
-                        </button>
-                        <button type="button" id="qx-bar-mode-nso" onclick="FMCUApp.setAdminQuixoticMonthlyBarMode('NSO')" class="px-2.5 py-1 rounded-full text-slate-600 hover:text-slate-900 transition cursor-pointer">
-                          NSO
-                        </button>
-                      </div>
-                    </div>
-
-                    <!-- Quixotic Capsule Bar Chart Canvas (Jan - Des) -->
-                    <div class="relative pt-4 pb-0.5 flex-1 flex flex-col justify-end">
-                      <div id="qx-monthly-bars-container" class="w-full h-[175px] flex items-end justify-between gap-1 sm:gap-1.5 border-b border-slate-100 pb-1.5 relative">
-                        <!-- Populated dynamically by FMCUApp.renderAdminQuixoticAnalytic() -->
-                      </div>
-                      <div class="flex items-center justify-between text-[10px] text-slate-400 pt-1">
-                        <span>Klik batang bulan untuk memfilter periode</span>
-                        <span id="qx-bar-peak-month-label" class="font-extrabold text-[#0d8247]">Puncak: -</span>
+                      <div class="flex items-center justify-between text-[9.5px] font-mono text-emerald-100/90">
+                        <span id="qx-cov-unvisited-text" class="truncate">Belum: 610</span>
+                        <span id="qx-cov-total-reports" class="font-bold shrink-0">0 Lap</span>
                       </div>
                     </div>
                   </div>
 
-                  <!-- COL 3 (4 cols): GRAFIK PERFORMA PER ANGGOTA -->
-                  <div class="lg:col-span-4 qx-card p-4 flex flex-col justify-between gap-2.5">
+                  <!-- SISI KANAN SEJAJAR (6 Cols): GRAFIK PERFORMA PER ANGGOTA (SCROLLABLE) -->
+                  <div class="lg:col-span-6 qx-card p-4 flex flex-col justify-between gap-2.5">
                     <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
-                      <div class="min-w-0">
-                        <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 truncate">Grafik Performa Per Anggota</h3>
-                        <p class="text-[10.5px] text-slate-400 truncate">Klik anggota untuk Direct Detail Agenda</p>
+                      <div class="flex items-center gap-2 min-w-0">
+                        <span class="w-7 h-7 rounded-full bg-[#F4F6F5] flex items-center justify-center shrink-0">
+                          <i class="fa-solid fa-users-viewfinder text-[#0d8247] text-xs"></i>
+                        </span>
+                        <div class="min-w-0">
+                          <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 truncate">Grafik Performa Per Anggota</h3>
+                          <p class="text-[10px] text-slate-400 truncate">Scroll daftar anggota • Klik baris untuk Direct Detail Agenda</p>
+                        </div>
                       </div>
                       <div class="flex items-center gap-1.5 shrink-0">
                         <select
                           id="qx-member-perf-sort"
                           onchange="FMCUApp.renderAdminQuixoticAnalytic()"
-                          class="px-2 py-1 rounded-full bg-[#F4F6F5] border border-slate-200 text-[10.5px] font-bold text-slate-700 focus:outline-none cursor-pointer"
+                          class="px-2.5 py-1 rounded-full bg-[#F4F6F5] border border-slate-200 text-[10.5px] font-bold text-slate-700 focus:outline-none cursor-pointer"
                           aria-label="Urutkan Performa Anggota"
                         >
                           <option value="TOTAL_DESC">Total Agenda</option>
@@ -2299,15 +2201,84 @@
                       </div>
                     </div>
 
-                    <!-- Compact Scrollable Member Performance Bars -->
-                    <div id="qx-member-perf-chart-body" class="space-y-2 max-h-[215px] overflow-y-auto pr-1">
+                    <!-- Scrollable Member Performance List (Tidak ditampilkan semua sekaligus, bisa di-scroll) -->
+                    <div id="qx-member-perf-chart-body" class="space-y-2 max-h-[195px] overflow-y-auto pr-1">
                       <!-- Populated dynamically by FMCUApp.renderAdminQuixoticAnalytic() -->
                     </div>
                   </div>
 
                 </div>
 
-                <!-- ROW 3: COMPACT TABLE RINGKASAN BULANAN PER INDIKATOR (JANUARI - DESEMBER) -->
+                <!-- ROW 2: HORIZONTAL FULL-WIDTH GRAFIK BATANG (4 BULAN AKTUAL & TERDEKAT + TOMBOL SLIDE 1 TAHUN) -->
+                <div class="qx-card p-4 sm:p-5 space-y-3">
+                  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div class="flex items-center gap-2.5">
+                      <span class="w-8 h-8 rounded-full bg-[#F4F6F5] flex items-center justify-center shrink-0">
+                        <i class="fa-solid fa-chart-column text-[#0d8247] text-xs"></i>
+                      </span>
+                      <div>
+                        <h3 class="font-extrabold text-xs sm:text-sm text-slate-900">Grafik Batang Total Visit &amp; NSO Per Bulan</h3>
+                        <p class="text-[10.5px] text-slate-400">
+                          Menampilkan 4 bulan aktual &amp; terdekat (<span class="text-[#0d8247] font-bold">Total Visit: <strong id="qx-bar-legend-visit-total">0</strong></span> • <span class="text-teal-600 font-bold">Total NSO: <strong id="qx-bar-legend-nso-total">0</strong></span>)
+                        </p>
+                      </div>
+                    </div>
+
+                    <!-- Right Controls: Mode Switcher + 4-Month Slide Prev/Next Buttons -->
+                    <div class="flex flex-wrap items-center gap-2">
+                      <!-- Mode Switcher (Visit & NSO / Visit / NSO) -->
+                      <div class="bg-[#F1F3F2] p-0.5 rounded-full inline-flex items-center text-[10.5px] font-bold">
+                        <button type="button" id="qx-bar-mode-both" onclick="FMCUApp.setAdminQuixoticMonthlyBarMode('BOTH')" class="px-2.5 py-1 rounded-full bg-[#0d8247] text-white font-extrabold shadow-2xs transition cursor-pointer">
+                          Visit &amp; NSO
+                        </button>
+                        <button type="button" id="qx-bar-mode-visit" onclick="FMCUApp.setAdminQuixoticMonthlyBarMode('VISIT')" class="px-2.5 py-1 rounded-full text-slate-600 hover:text-slate-900 transition cursor-pointer">
+                          Visit
+                        </button>
+                        <button type="button" id="qx-bar-mode-nso" onclick="FMCUApp.setAdminQuixoticMonthlyBarMode('NSO')" class="px-2.5 py-1 rounded-full text-slate-600 hover:text-slate-900 transition cursor-pointer">
+                          NSO
+                        </button>
+                      </div>
+
+                      <!-- Slide 4-Month Window Controls (Geser Bulan dalam 1 Tahun) -->
+                      <div class="inline-flex items-center gap-1 bg-[#F1F3F2] p-1 rounded-full border border-slate-200/70">
+                        <button
+                          type="button"
+                          id="qx-bar-slide-prev"
+                          onclick="FMCUApp.slideAdminMonthlyBarWindow(-1)"
+                          class="w-7 h-7 rounded-full bg-white hover:bg-[#0d8247] text-slate-700 hover:text-white flex items-center justify-center text-xs shadow-2xs transition cursor-pointer"
+                          title="Geser ke Bulan Sebelumnya"
+                        >
+                          <i class="fa-solid fa-chevron-left text-[10px]"></i>
+                        </button>
+                        <span id="qx-bar-window-range-label" class="px-2.5 text-[11px] font-extrabold text-slate-800 whitespace-nowrap">
+                          Agu – Nov
+                        </span>
+                        <button
+                          type="button"
+                          id="qx-bar-slide-next"
+                          onclick="FMCUApp.slideAdminMonthlyBarWindow(1)"
+                          class="w-7 h-7 rounded-full bg-white hover:bg-[#0d8247] text-slate-700 hover:text-white flex items-center justify-center text-xs shadow-2xs transition cursor-pointer"
+                          title="Geser ke Bulan Berikutnya"
+                        >
+                          <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 4-Month Horizontal Capsule Bar Chart Container -->
+                  <div class="relative pt-3 pb-1">
+                    <div id="qx-monthly-bars-container" class="w-full h-[180px] grid grid-cols-4 gap-3 sm:gap-6 items-end border-b border-slate-100 pb-2 px-2 sm:px-6 transition-all duration-300">
+                      <!-- Populated dynamically (4 visible months) by FMCUApp.renderAdminQuixoticAnalytic() -->
+                    </div>
+                    <div class="flex items-center justify-between text-[10.5px] text-slate-400 pt-1.5 px-1">
+                      <span>Gunakan tombol panah kiri/kanan untuk menggeser bulan (Januari – Desember)</span>
+                      <span id="qx-bar-peak-month-label" class="font-extrabold text-[#0d8247]">Puncak: -</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ROW 3: CARD TABLE RINGKASAN BULANAN PER INDIKATOR (JANUARI - DESEMBER) -->
                 <div class="qx-card p-4 space-y-3">
                   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div class="flex items-center gap-2">
@@ -2357,14 +2328,13 @@
 
               <!-- ==============================================================
                    SECTION 3: METRIC PROFILE (#adm-qx-sec-profiles)
-                   Card per masing-masing anggota & bisa direct detail Agenda
-                   di masing-masing anggota
+                   Grid 6 Card ke samping & ke bawah sesuai total anggota
                    ============================================================== -->
               <div id="adm-qx-sec-profiles" class="hidden space-y-4">
 
-                <!-- VIEW A: GRID CARD PER MASING-MASING ANGGOTA -->
+                <!-- VIEW A: GRID 6 KOLOM CARD PER MASING-MASING ANGGOTA -->
                 <div id="qx-profiles-grid-view" class="space-y-3.5">
-                  <div class="qx-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div class="qx-card p-3.5 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
                     <div class="flex items-center gap-2.5">
                       <span class="w-9 h-9 rounded-full bg-[#0d8247]/10 text-[#0d8247] flex items-center justify-center text-sm shrink-0">
                         <i class="fa-solid fa-id-card-clip"></i>
@@ -2374,7 +2344,7 @@
                           <h2 class="font-extrabold text-sm sm:text-base text-slate-900">Metric Profile Anggota Tim</h2>
                           <span id="qx-profiles-count-badge" class="px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold bg-emerald-100 text-emerald-800">0 Anggota</span>
                         </div>
-                        <p class="text-[11px] text-slate-400">Klik kartu anggota untuk membuka Direct Detail Agenda masing-masing anggota</p>
+                        <p class="text-[11px] text-slate-400">Grid 6 kartu per baris • Klik kartu anggota untuk membuka Direct Detail Agenda</p>
                       </div>
                     </div>
 
@@ -2403,8 +2373,8 @@
                     </div>
                   </div>
 
-                  <!-- Member Cards Grid -->
-                  <div id="qx-profiles-cards-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  <!-- Member Cards Grid: 6 Columns Across on Desktop -->
+                  <div id="qx-profiles-cards-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                     <!-- Populated dynamically by FMCUApp.renderAdminQuixoticMetricProfiles() -->
                   </div>
                 </div>
@@ -2611,42 +2581,45 @@ service cloud.firestore {
               </div>
 
               <!-- ==============================================================
-                   SECTION 2 (HISTORI AGENDA) & BUTTON 5 (+ CREATE JADWAL)
+                   SECTION 2 (AGENDA) & BUTTON 5 (+ CREATE JADWAL)
                    (#admin-tab-schedules)
                    ============================================================== -->
               <div id="admin-tab-schedules" class="hidden space-y-4">
-                <!-- Sub-Section Switcher Bar for Histori Agenda & Create Jadwal -->
-                <div id="adm-qx-schedule-subbar" class="qx-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <!-- Sub-Section Switcher Bar: Kalender - Semua Agenda - History Agenda - Arsip Laporan -->
+                <div id="adm-qx-schedule-subbar" class="qx-card p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-emerald-50 text-[#0d8247] flex items-center justify-center text-base shrink-0">
-                      <i id="admin-schedule-header-icon" class="fa-solid fa-clock-rotate-left"></i>
+                    <div class="w-9 h-9 rounded-full bg-emerald-50 text-[#0d8247] flex items-center justify-center text-sm shrink-0">
+                      <i id="admin-schedule-header-icon" class="fa-solid fa-calendar-days"></i>
                     </div>
                     <div>
-                      <h2 id="admin-schedule-header-title" class="font-extrabold text-sm sm:text-base text-slate-900 leading-tight">Histori Agenda &amp; Jadwal Tim</h2>
-                      <p id="admin-schedule-header-desc" class="text-[11px] text-slate-400">Kelola, filter, ekspor Excel, dan pantau seluruh histori agenda, laporan visit, serta kalender kerja</p>
+                      <h2 id="admin-schedule-header-title" class="font-extrabold text-sm sm:text-base text-slate-900 leading-tight">Agenda &amp; Jadwal Tim</h2>
+                      <p id="admin-schedule-header-desc" class="text-[11px] text-slate-400">Kalender operasional, daftar semua agenda, histori agenda terlaksana, dan arsip laporan PDF</p>
                     </div>
                   </div>
 
-                  <!-- Pill Switcher: Daftar Agenda | Arsip Laporan PDF | Kalender | + Create Jadwal -->
+                  <!-- Pill Switcher: Kalender | Semua Agenda | History Agenda | Arsip Laporan -->
                   <div class="flex flex-wrap items-center gap-1.5 bg-[#F1F3F2] p-1.5 rounded-full">
-                    <button type="button" id="sch-subtab-btn-list" onclick="FMCUApp.switchScheduleSubSection('list')" class="px-3.5 py-1.5 rounded-full text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer bg-white text-slate-900 shadow-2xs whitespace-nowrap">
-                      <i class="fa-solid fa-list-check text-xs text-[#0d8247]"></i>
-                      <span>Histori Agenda</span>
+                    <button type="button" id="sch-subtab-btn-calendar" onclick="FMCUApp.switchScheduleSubSection('calendar')" class="px-3.5 py-1.5 rounded-full text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer bg-white text-slate-900 shadow-2xs whitespace-nowrap">
+                      <i class="fa-solid fa-calendar-days text-xs text-[#0d8247]"></i>
+                      <span>Kalender</span>
+                    </button>
+                    <button type="button" id="sch-subtab-btn-list" onclick="FMCUApp.switchScheduleSubSection('list')" class="px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-900 whitespace-nowrap">
+                      <i class="fa-solid fa-table-list text-xs text-[#0d8247]"></i>
+                      <span>Semua Agenda</span>
                       <span id="admin-schedule-count-pill" class="px-1.5 py-0.2 rounded-full text-[9px] bg-emerald-100 text-emerald-800 font-extrabold">0</span>
+                    </button>
+                    <button type="button" id="sch-subtab-btn-history-agenda" onclick="FMCUApp.switchScheduleSubSection('history-agenda')" class="px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-900 whitespace-nowrap">
+                      <i class="fa-solid fa-clock-rotate-left text-xs text-amber-600"></i>
+                      <span>History Agenda</span>
+                      <span id="admin-schedule-completed-count-pill" class="px-1.5 py-0.2 rounded-full text-[9px] bg-amber-100 text-amber-800 font-extrabold">0</span>
                     </button>
                     <button type="button" id="sch-subtab-btn-history" onclick="FMCUApp.switchScheduleSubSection('history')" class="px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-900 whitespace-nowrap" title="Riwayat Kunjungan Toko &amp; Arsip Laporan PDF">
                       <i class="fa-solid fa-file-pdf text-xs text-[#0099A6]"></i>
                       <span>Arsip Laporan</span>
                       <span id="admin-schedule-history-count-pill" class="px-1.5 py-0.2 rounded-full text-[9px] bg-teal-100 text-teal-800 font-extrabold">0</span>
                     </button>
-                    <button type="button" id="sch-subtab-btn-calendar" onclick="FMCUApp.switchScheduleSubSection('calendar')" class="px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-900 whitespace-nowrap">
-                      <i class="fa-solid fa-calendar-days text-xs text-amber-600"></i>
-                      <span>Kalender</span>
-                    </button>
-                    <button type="button" id="sch-subtab-btn-create" onclick="FMCUApp.switchScheduleSubSection('create')" class="px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-900 whitespace-nowrap">
-                      <i class="fa-solid fa-plus text-xs text-[#0d8247]"></i>
-                      <span>Create Jadwal</span>
-                    </button>
+                    <!-- Hidden reference button for Create Jadwal (triggered from Top Navbar) -->
+                    <button type="button" id="sch-subtab-btn-create" onclick="FMCUApp.switchScheduleSubSection('create')" class="hidden"></button>
                   </div>
                 </div>
 
@@ -2654,7 +2627,7 @@ service cloud.firestore {
                 <div id="admin-critical-findings-widget" class="hidden"></div>
 
                 <!-- SUB-SECTION HALAMAN 1: PLANNER 1 WEEK (SENIN-MINGGU) MULTI-VISITOR -->
-                <div id="schedule-section-create" class="space-y-4">
+                <div id="schedule-section-create" class="hidden space-y-4">
               <div id="sch-create-mode-weekly" class="space-y-4">
                 <!-- CARD 1: PENGATURAN PERIODE MINGGU & FILTER VISITOR (SIMPEL & TANPA SCROLL BERLEBIH) -->
                 <div class="p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-3">
@@ -2805,117 +2778,82 @@ service cloud.firestore {
               </div>
             </div>
 
-            <!-- SUB-SECTION HALAMAN: KALENDER PENUH JADWAL VISIT (FULL MONTH VIEW) -->
-            <div id="schedule-section-calendar" class="hidden space-y-4">
-              <!-- Top Card: Header, Controls & Month Navigator -->
-              <div class="fm-card p-4 sm:p-5 space-y-4">
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                  <div>
-                    <h3 class="font-extrabold text-sm sm:text-base text-slate-900 flex items-center gap-2">
-                      <i class="fa-solid fa-calendar-days text-amber-600"></i>
-                      <span>Kalender Jadwal Kerja & Agenda Operasional</span>
-                    </h3>
-                    <p class="text-[11px] text-slate-500">Visualisasi kalender bulanan seluruh tim: jadwal visit toko, tugas kantor, meeting, cuti, dan off</p>
-                  </div>
-
-                  <!-- Navigation Month & Buttons -->
-                  <div class="flex flex-wrap items-center gap-2">
-                    <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
-                      <button type="button" onclick="FMCUApp.shiftAdminCalendarMonth(-1)" title="Bulan Sebelumnya" class="w-8 h-8 rounded-lg hover:bg-white text-slate-700 text-xs font-bold flex items-center justify-center transition cursor-pointer" aria-label="Bulan Sebelumnya">
-                        <i class="fa-solid fa-chevron-left text-[11px]"></i>
+            <!-- SUB-SECTION 1: KALENDER (CLEAN & SIMPLE UNIFIED CARD) -->
+            <div id="schedule-section-calendar" class="space-y-3">
+              <div class="qx-card p-4 sm:p-5 space-y-4">
+                <!-- Clean Single-Row Calendar Control Bar -->
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                  <!-- Left: Month Label & Prev/Today/Next Controls -->
+                  <div class="flex flex-wrap items-center gap-2.5">
+                    <div class="flex items-center gap-1 bg-[#F1F3F2] p-1 rounded-full">
+                      <button type="button" onclick="FMCUApp.shiftAdminCalendarMonth(-1)" title="Bulan Sebelumnya" class="w-7 h-7 rounded-full hover:bg-white text-slate-700 text-xs font-bold flex items-center justify-center transition cursor-pointer shadow-2xs" aria-label="Bulan Sebelumnya">
+                        <i class="fa-solid fa-chevron-left text-[10px]"></i>
                       </button>
-                      <button type="button" onclick="FMCUApp.setAdminCalendarToCurrentMonth()" title="Kembali ke Bulan Ini" class="px-2.5 py-1.5 rounded-lg hover:bg-white text-slate-700 text-[11px] font-extrabold transition cursor-pointer">
-                        Hari Ini
+                      <button type="button" onclick="FMCUApp.setAdminCalendarToCurrentMonth()" title="Kembali ke Bulan Ini" class="px-3 py-1 rounded-full bg-white text-slate-800 text-[11px] font-extrabold transition cursor-pointer shadow-2xs">
+                        Bulan Ini
                       </button>
-                      <button type="button" onclick="FMCUApp.shiftAdminCalendarMonth(1)" title="Bulan Berikutnya" class="w-8 h-8 rounded-lg hover:bg-white text-slate-700 text-xs font-bold flex items-center justify-center transition cursor-pointer" aria-label="Bulan Berikutnya">
-                        <i class="fa-solid fa-chevron-right text-[11px]"></i>
+                      <button type="button" onclick="FMCUApp.shiftAdminCalendarMonth(1)" title="Bulan Berikutnya" class="w-7 h-7 rounded-full hover:bg-white text-slate-700 text-xs font-bold flex items-center justify-center transition cursor-pointer shadow-2xs" aria-label="Bulan Berikutnya">
+                        <i class="fa-solid fa-chevron-right text-[10px]"></i>
                       </button>
                     </div>
 
-                    <div id="admin-calendar-month-heading" class="text-xs sm:text-sm font-black text-amber-950 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 flex items-center gap-1.5">
-                      <i class="fa-solid fa-calendar-week text-amber-600 text-xs"></i>
+                    <div id="admin-calendar-month-heading" class="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
                       <span id="admin-calendar-month-label">Bulan Berjalan</span>
                     </div>
-
-                    <button type="button" onclick="FMCUApp.switchScheduleSubSection('create')" class="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer">
-                      <i class="fa-solid fa-plus text-xs"></i>
-                      <span>Susun di Planner 1 Week</span>
-                    </button>
                   </div>
-                </div>
 
-                <!-- Filters & Monthly Summary KPIs -->
-                <div class="pt-2 border-t border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-                  <!-- Filters -->
+                  <!-- Center/Right: Minimalist Filters & Stat Pills -->
                   <div class="flex flex-wrap items-center gap-2">
-                    <div class="flex items-center gap-1.5">
-                      <span class="text-xs font-bold text-slate-600"><i class="fa-solid fa-filter text-slate-400 mr-1"></i>Visitor:</span>
-                      <select id="admin-calendar-filter-auditor" onchange="FMCUApp.onAdminCalendarFilterChange()" class="fm-input py-1 px-2.5 text-xs font-semibold w-44" aria-label="Admin Calendar Filter Auditor">
-                        <option value="ALL">Semua Visitor / Bestie</option>
-                      </select>
-                    </div>
+                    <select id="admin-calendar-filter-auditor" onchange="FMCUApp.onAdminCalendarFilterChange()" class="px-3 py-1.5 rounded-full border border-slate-200 bg-[#F4F6F5] text-slate-700 text-xs font-bold focus:outline-none focus:border-[#0d8247] focus:bg-white cursor-pointer" aria-label="Admin Calendar Filter Auditor">
+                      <option value="ALL">Semua Anggota</option>
+                    </select>
 
-                    <div class="flex items-center gap-1.5">
-                      <span class="text-xs font-bold text-slate-600">Status:</span>
-                      <select id="admin-calendar-filter-status" onchange="FMCUApp.onAdminCalendarFilterChange()" class="fm-input py-1 px-2.5 text-xs font-semibold w-36" aria-label="Admin Calendar Filter Status">
-                        <option value="ALL">Semua Status</option>
-                        <option value="PENDING">Terjadwal / Pending</option>
-                        <option value="COMPLETED">Selesai (Completed)</option>
-                      </select>
-                    </div>
-                  </div>
+                    <select id="admin-calendar-filter-status" onchange="FMCUApp.onAdminCalendarFilterChange()" class="px-3 py-1.5 rounded-full border border-slate-200 bg-[#F4F6F5] text-slate-700 text-xs font-bold focus:outline-none focus:border-[#0d8247] focus:bg-white cursor-pointer" aria-label="Admin Calendar Filter Status">
+                      <option value="ALL">Semua Status</option>
+                      <option value="PENDING">Pending</option>
+                      <option value="COMPLETED">Selesai</option>
+                    </select>
 
-                  <!-- Monthly Summary Metric Pills -->
-                  <div class="flex flex-wrap items-center gap-1.5 text-[11px] font-bold">
-                    <span id="admin-cal-stat-total" class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 border border-slate-200">
-                      Total: <strong>0</strong> Jadwal
-                    </span>
-                    <span id="admin-cal-stat-completed" class="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200">
-                      <i class="fa-solid fa-check text-emerald-600 mr-1"></i>Selesai: <strong>0</strong>
-                    </span>
-                    <span id="admin-cal-stat-pending" class="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200">
-                      <i class="fa-regular fa-clock text-amber-600 mr-1"></i>Pending: <strong>0</strong>
-                    </span>
-                    <span id="admin-cal-stat-stores" class="px-2.5 py-1 rounded-lg bg-teal-50 text-teal-800 border border-teal-200">
-                      <i class="fa-solid fa-store text-[#009944] mr-1"></i>Toko: <strong>0</strong>
-                    </span>
+                    <div class="hidden xl:flex items-center gap-1.5 text-[10.5px] font-bold pl-1">
+                      <span id="admin-cal-stat-total" class="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">Total: <strong>0</strong></span>
+                      <span id="admin-cal-stat-completed" class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700">Selesai: <strong>0</strong></span>
+                      <span id="admin-cal-stat-pending" class="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700">Pending: <strong>0</strong></span>
+                      <span id="admin-cal-stat-stores" class="px-2.5 py-1 rounded-full bg-teal-50 text-teal-700">Toko: <strong>0</strong></span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <!-- Calendar Grid Container -->
-              <div class="fm-card p-3 sm:p-5 overflow-hidden">
-                <!-- Day-of-week Header (Senin s/d Minggu) -->
-                <div class="grid grid-cols-7 gap-1 sm:gap-2 mb-2 text-center">
-                  <div class="py-2 text-[10px] sm:text-xs font-black uppercase tracking-wider text-slate-700 bg-slate-100 rounded-lg">Senin</div>
-                  <div class="py-2 text-[10px] sm:text-xs font-black uppercase tracking-wider text-slate-700 bg-slate-100 rounded-lg">Selasa</div>
-                  <div class="py-2 text-[10px] sm:text-xs font-black uppercase tracking-wider text-slate-700 bg-slate-100 rounded-lg">Rabu</div>
-                  <div class="py-2 text-[10px] sm:text-xs font-black uppercase tracking-wider text-slate-700 bg-slate-100 rounded-lg">Kamis</div>
-                  <div class="py-2 text-[10px] sm:text-xs font-black uppercase tracking-wider text-slate-700 bg-slate-100 rounded-lg">Jumat</div>
-                  <div class="py-2 text-[10px] sm:text-xs font-black uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200/60 rounded-lg">Sabtu</div>
-                  <div class="py-2 text-[10px] sm:text-xs font-black uppercase tracking-wider text-rose-800 bg-rose-50 border border-rose-200/60 rounded-lg">Minggu</div>
+                <!-- Minimalist Day-of-week Header (Sen s/d Min) -->
+                <div class="grid grid-cols-7 gap-1.5 text-center">
+                  <div class="py-1.5 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-slate-500">Sen</div>
+                  <div class="py-1.5 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-slate-500">Sel</div>
+                  <div class="py-1.5 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-slate-500">Rab</div>
+                  <div class="py-1.5 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-slate-500">Kam</div>
+                  <div class="py-1.5 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-slate-500">Jum</div>
+                  <div class="py-1.5 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-emerald-700">Sab</div>
+                  <div class="py-1.5 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-rose-600">Min</div>
                 </div>
 
                 <!-- Calendar Days Grid (Dynamically rendered) -->
-                <div id="admin-calendar-days-grid" class="grid grid-cols-7 gap-1 sm:gap-2">
+                <div id="admin-calendar-days-grid" class="grid grid-cols-7 gap-1.5">
                   <!-- Dynamically rendered cells -->
                 </div>
               </div>
             </div>
 
-            <!-- SUB-SECTION HALAMAN 2: DAFTAR SELURUH JADWAL VISIT TOKO & RINGKASAN BEBAN (SPLIT MINIMALIST LAYOUT) -->
+            <!-- SUB-SECTION 2 & 3: SEMUA AGENDA & HISTORY AGENDA (DIRECT TABLE PREVIEW + STICKY SCROLL SYSTEM) -->
             <div id="schedule-section-list" class="hidden">
               <div id="schedule-list-grid" style="display:grid;grid-template-columns:minmax(0,1fr);gap:1rem;align-items:start">
 
-                <!-- KOLOM UTAMA: DAFTAR SELURUH JADWAL VISIT TOKO & LIST AGENDA -->
-                <div id="schedule-list-main-col" style="min-width:0" class="space-y-3.5">
+                <!-- KOLOM UTAMA: TABEL JADWAL DENGAN STICKY SCROLL -->
+                <div id="schedule-list-main-col" style="min-width:0" class="space-y-3">
                   <div class="qx-card p-3.5 sm:p-4 space-y-3">
                     <span id="admin-schedule-count" class="hidden">0 Jadwal</span>
                     <span id="sch-auditor-count-badge" class="hidden">0</span>
 
-                    <!-- Compact Single-Row Filter, Search & View Switcher Bar -->
+                    <!-- Compact Single-Row Filter, Search & Action Bar -->
                     <div class="flex flex-wrap items-center gap-2">
-                      <div class="relative" style="flex:2 1 220px;min-width:190px">
+                      <div class="relative" style="flex:2 1 220px;min-width:180px">
                         <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
                         <input
                           type="text"
@@ -2924,16 +2862,16 @@ service cloud.firestore {
                           placeholder="Cari Toko / Site / Visitor / Tanggal / Fokus..."
                           class="w-full pl-8 pr-3 py-1.5 rounded-full border border-slate-200 bg-[#F4F6F5] text-slate-800 placeholder-slate-400 text-xs font-semibold focus:outline-none focus:border-[#0d8247] focus:bg-white" aria-label="Cari Toko / Site / Visitor / Tanggal..." />
                       </div>
-                      <div style="flex:1 1 140px;min-width:130px">
+                      <div style="flex:1 1 135px;min-width:125px">
                         <select
                           id="adm-sch-list-auditor"
                           onchange="FMCUApp.renderAdminView()"
                           class="w-full px-3 py-1.5 rounded-full border border-slate-200 bg-[#F4F6F5] text-slate-700 text-xs font-semibold focus:outline-none focus:border-[#0d8247] focus:bg-white cursor-pointer"
                          aria-label="Adm Sch List Auditor">
-                          <option value="ALL">Semua Visitor</option>
+                          <option value="ALL">Semua Anggota</option>
                         </select>
                       </div>
-                      <div style="flex:1 1 125px;min-width:115px">
+                      <div style="flex:1 1 120px;min-width:110px">
                         <select
                           id="adm-sch-list-category"
                           onchange="FMCUApp.renderAdminView()"
@@ -2949,7 +2887,7 @@ service cloud.firestore {
                           <option value="OFF">Libur / OFF</option>
                         </select>
                       </div>
-                      <div style="flex:1 1 120px;min-width:110px">
+                      <div style="flex:1 1 115px;min-width:105px">
                         <select
                           id="adm-sch-list-status"
                           onchange="FMCUApp.renderAdminView()"
@@ -2966,18 +2904,6 @@ service cloud.firestore {
                         <i class="fa-solid fa-rotate-left"></i>
                       </button>
 
-                      <!-- View Switcher (List Agenda vs Tabel) -->
-                      <div class="inline-flex p-0.5 rounded-full bg-[#F1F3F2] border border-slate-200 text-xs font-extrabold shrink-0">
-                        <button type="button" id="sch-view-mode-list-btn" onclick="FMCUApp.setScheduleListViewMode('list')" class="px-2.5 py-1 rounded-full transition flex items-center gap-1 cursor-pointer bg-white text-slate-900 shadow-2xs font-black" title="Tampilan List Agenda Harian">
-                          <i class="fa-solid fa-list-ul text-[#0d8247]"></i>
-                          <span>List</span>
-                        </button>
-                        <button type="button" id="sch-view-mode-table-btn" onclick="FMCUApp.setScheduleListViewMode('table')" class="px-2.5 py-1 rounded-full transition flex items-center gap-1 cursor-pointer text-slate-600 hover:text-slate-900 font-bold" title="Tampilan Tabel Lengkap">
-                          <i class="fa-solid fa-table-list text-slate-500"></i>
-                          <span>Tabel</span>
-                        </button>
-                      </div>
-
                       <!-- Log Riwayat Button -->
                       <button type="button" onclick="FMCUApp.openScheduleAuditLogsModal()" class="px-2.5 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-[11px] font-bold transition flex items-center gap-1 cursor-pointer" title="Log Riwayat Perubahan Jadwal">
                         <i class="fa-solid fa-clock-rotate-left text-amber-600"></i>
@@ -2985,8 +2911,8 @@ service cloud.firestore {
                       </button>
                     </div>
 
-                    <!-- BULK SELECTION ACTION TOOLBAR -->
-                    <div id="sch-bulk-action-bar" class="p-2 sm:p-2.5 rounded-xl bg-slate-100/90 border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <!-- BULK SELECTION & EXPORT TOOLBAR -->
+                    <div id="sch-bulk-action-bar" class="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-xs">
                       <div class="flex items-center gap-2.5">
                         <label class="inline-flex items-center gap-2 cursor-pointer font-bold text-slate-700 text-xs select-none">
                           <input
@@ -3005,21 +2931,21 @@ service cloud.firestore {
                         <button
                           type="button"
                           onclick="FMCUApp.exportSchedulesAndAuditorRecapExcel()"
-                          class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-700 to-[#009944] hover:opacity-95 text-white font-extrabold text-[11px] shadow-2xs transition flex items-center gap-1.5 cursor-pointer active:scale-98"
+                          class="px-3 py-1.5 rounded-full bg-[#0d8247] hover:bg-[#096636] text-white font-extrabold text-[11px] shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
                           title="Ekspor seluruh jadwal dan rekap penugasan ke file Excel (.xlsx)"
                         >
                           <i class="fa-solid fa-file-excel"></i>
-                          <span>Export Jadwal (.xlsx)</span>
+                          <span>Export Excel (.xlsx)</span>
                         </button>
                         <button
                           type="button"
                           id="btn-bulk-delete-sch"
                           onclick="FMCUApp.promptBulkDeleteSchedules()"
-                          class="hidden px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-[11px] shadow-xs transition items-center gap-1.5 cursor-pointer"
+                          class="hidden px-3 py-1.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-[11px] shadow-xs transition items-center gap-1.5 cursor-pointer"
                           title="Hapus seluruh jadwal yang dicentang sekaligus"
                         >
                           <i class="fa-solid fa-trash-can"></i>
-                          <span>Hapus Terpilih (<span id="sch-bulk-del-count">0</span>)</span>
+                          <span>Hapus (<span id="sch-bulk-del-count">0</span>)</span>
                         </button>
                         <button
                           type="button"
@@ -3032,21 +2958,21 @@ service cloud.firestore {
                       </div>
                     </div>
 
-                    <!-- TAMPILAN 1: LIST AGENDA (DEFAULT - RAPI, BERSIH, MUDAH DILIHAT) -->
-                    <div id="sch-list-cards-container" class="space-y-4"></div>
+                    <!-- Hidden legacy card list container (table preview is now direct & default) -->
+                    <div id="sch-list-cards-container" class="hidden"></div>
 
-                    <!-- TAMPILAN 2: TABEL DAFTAR JADWAL (TERSEDIA DENGAN TOMBOL SWITCH VIEW) -->
-                    <div id="sch-list-table-container" class="hidden overflow-x-auto rounded-xl border border-slate-200/90 shadow-2xs">
+                    <!-- DIRECT TABLE PREVIEW WITH STICKY SCROLL SYSTEM -->
+                    <div id="sch-list-table-container" class="max-h-[430px] overflow-y-auto overflow-x-auto rounded-2xl border border-slate-200/90 shadow-2xs bg-white">
                       <table class="w-full text-left border-collapse text-xs min-w-[760px]">
-                        <thead>
-                          <tr class="bg-slate-50 text-slate-600 border-b border-slate-200 uppercase text-[10px] tracking-wider font-extrabold">
-                            <th class="py-2.5 px-3 w-9 text-center">#</th>
-                            <th class="py-2.5 px-3 whitespace-nowrap">Hari & Tanggal</th>
-                            <th class="py-2.5 px-3">Aktivitas / Toko</th>
-                            <th class="py-2.5 px-3 whitespace-nowrap">Visitor Ditugaskan</th>
-                            <th class="py-2.5 px-3">Kategori & Fokus</th>
-                            <th class="py-2.5 px-3 text-center whitespace-nowrap">Status</th>
-                            <th class="py-2.5 px-3 text-right whitespace-nowrap">Aksi</th>
+                        <thead class="sticky top-0 z-20 bg-slate-50 shadow-2xs">
+                          <tr class="text-slate-600 border-b border-slate-200 uppercase text-[10px] tracking-wider font-extrabold">
+                            <th class="py-2.5 px-3 w-9 text-center bg-slate-50">#</th>
+                            <th class="py-2.5 px-3 whitespace-nowrap bg-slate-50">Hari &amp; Tanggal</th>
+                            <th class="py-2.5 px-3 bg-slate-50">Aktivitas / Toko</th>
+                            <th class="py-2.5 px-3 whitespace-nowrap bg-slate-50">Anggota Ditugaskan</th>
+                            <th class="py-2.5 px-3 bg-slate-50">Kategori &amp; Fokus</th>
+                            <th class="py-2.5 px-3 text-center whitespace-nowrap bg-slate-50">Status</th>
+                            <th class="py-2.5 px-3 text-right whitespace-nowrap bg-slate-50">Aksi</th>
                           </tr>
                         </thead>
                         <tbody id="admin-schedules-tbody" class="divide-y divide-slate-100"></tbody>
@@ -3055,53 +2981,9 @@ service cloud.firestore {
                   </div>
                 </div>
 
-                <!-- KOLOM KANAN: RINGKASAN BEBAN VISITOR (TOGGLEABLE SIDEBAR) -->
+                <!-- KOLOM KANAN: RINGKASAN BEBAN VISITOR (HIDDEN) -->
                 <div id="schedule-list-sidebar-col" style="min-width:0" class="hidden space-y-3.5">
                   <div class="fm-card p-4 sm:p-5 space-y-3 border border-slate-200 sticky top-20">
-                    <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                      <div class="flex items-center gap-2">
-                        <div class="w-7 h-7 rounded-lg bg-teal-50 text-[#0099A6] flex items-center justify-center text-xs font-bold shrink-0 shadow-2xs">
-                          <i class="fa-solid fa-users-viewfinder"></i>
-                        </div>
-                        <div>
-                          <h4 class="font-extrabold text-xs sm:text-sm text-slate-900 leading-tight">Ringkasan Beban</h4>
-                          <p class="text-[10px] text-slate-500">Beban visit seluruh Bestie</p>
-                        </div>
-                      </div>
-                      <div class="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onclick="FMCUApp.openScheduleAuditLogsModal()"
-                          class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-[10.5px] border border-slate-200 transition flex items-center gap-1 cursor-pointer"
-                          title="Log Riwayat Jadwal"
-                          aria-label="Log Riwayat Jadwal">
-                          <i class="fa-solid fa-clock-rotate-left text-amber-600"></i>
-                          <span>Log</span>
-                        </button>
-                        <button
-                          type="button"
-                          onclick="FMCUApp.toggleScheduleSidebar()"
-                          class="p-1 rounded-lg text-slate-400 hover:text-slate-600 transition cursor-pointer"
-                          title="Tutup Panel Beban Visitor"
-                          aria-label="Tutup Panel Beban Visitor">
-                          <i class="fa-solid fa-xmark text-xs"></i>
-                        </button>
-                      </div>
-                    </div>
-
-                    <!-- Reset Filter Button -->
-                    <div class="flex items-center justify-between text-[11px] font-bold text-slate-500 pt-0.5">
-                      <span>Daftar Bestie / Visitor:</span>
-                      <button
-                        type="button"
-                        onclick="FMCUApp.filterScheduleListByAuditor('ALL')"
-                        class="text-[#0099A6] hover:underline font-extrabold text-[10px] cursor-pointer"
-                      >
-                        Tampilkan Semua
-                      </button>
-                    </div>
-
-                    <!-- List Minimalist Besties (Vertical Scrollable) -->
                     <div id="admin-auditor-recap-strip" class="max-h-[560px] overflow-y-auto space-y-1.5 pr-1"></div>
                   </div>
                 </div>
@@ -3109,53 +2991,46 @@ service cloud.firestore {
               </div>
             </div>
 
-            <!-- SUB-SECTION HALAMAN 3: HISTORY VISIT & ARSIP LAPORAN TOKO (ADMIN JADWAL) -->
+            <!-- SUB-SECTION 4: ARSIP LAPORAN TOKO -->
             <div id="schedule-section-history" class="space-y-4 hidden">
-              <div class="fm-card p-4 sm:p-5 space-y-4 border border-slate-200">
-                <!-- Header Panel -->
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+              <div class="qx-card p-4 sm:p-5 space-y-3.5">
+                <!-- Header & Filter Controls in 1 Clean Row -->
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-100 pb-3">
                   <div class="flex items-center gap-2.5 min-w-0">
-                    <div class="w-9 h-9 rounded-xl bg-teal-50 text-[#0099A6] flex items-center justify-center text-base font-bold shrink-0 shadow-2xs">
-                      <i class="fa-solid fa-clock-rotate-left"></i>
+                    <div class="w-8 h-8 rounded-full bg-teal-50 text-[#0099A6] flex items-center justify-center text-sm font-bold shrink-0">
+                      <i class="fa-solid fa-file-pdf"></i>
                     </div>
                     <div class="min-w-0">
                       <div class="flex items-center gap-2 flex-wrap">
-                        <h3 class="font-extrabold text-sm sm:text-base text-slate-900 leading-tight">History & Arsip Laporan Toko</h3>
-                        <span id="admin-sch-history-count-badge" class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-teal-50 text-[#0099A6] border border-teal-200">0 Laporan</span>
+                        <h3 class="font-extrabold text-sm text-slate-900 leading-tight">Arsip Laporan Visit Toko</h3>
+                        <span id="admin-sch-history-count-badge" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-teal-50 text-[#0099A6] border border-teal-200">0 Laporan</span>
                       </div>
-                      <p class="text-[11px] text-slate-500 truncate">Riwayat hasil visit seluruh toko FamilyMart lengkap dengan akses Folder Toko, Preview PDF, Unduh PDF, dan Hapus</p>
                     </div>
                   </div>
 
-                  <div class="flex items-center gap-2 shrink-0">
-
-                  </div>
-                </div>
-
-                <!-- Filter & Search Controls -->
-                <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
-                  <div class="sm:col-span-7 relative">
-                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                    <input
-                      type="text"
-                      id="admin-sch-history-search"
-                      oninput="FMCUApp.onAdmSchHistorySearchInput()"
-                      placeholder="Cari Toko, Site, Visitor, Store Head, atau Tanggal..."
-                      class="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-slate-800 placeholder-slate-400 text-xs font-semibold focus:outline-none focus:border-[#009944] focus:bg-white" aria-label="Cari Toko, Site, Visitor, Store Head, atau Tanggal..." />
-                  </div>
-                  <div class="sm:col-span-5">
+                  <!-- Search & Visitor Filter -->
+                  <div class="flex flex-wrap items-center gap-2 flex-1 max-w-xl">
+                    <div class="relative flex-1 min-w-[180px]">
+                      <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                      <input
+                        type="text"
+                        id="admin-sch-history-search"
+                        oninput="FMCUApp.onAdmSchHistorySearchInput()"
+                        placeholder="Cari Toko, Site, Anggota, atau Tanggal..."
+                        class="w-full pl-8 pr-3 py-1.5 rounded-full border border-slate-200 bg-[#F4F6F5] text-slate-800 placeholder-slate-400 text-xs font-semibold focus:outline-none focus:border-[#009944] focus:bg-white" aria-label="Cari Toko, Site, Visitor, Store Head, atau Tanggal..." />
+                    </div>
                     <select
                       id="admin-sch-history-visitor-filter"
                       onchange="FMCUApp.renderAdminScheduleHistory()"
-                      class="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-slate-700 text-xs font-semibold focus:outline-none focus:border-[#009944] focus:bg-white cursor-pointer"
+                      class="px-3 py-1.5 rounded-full border border-slate-200 bg-[#F4F6F5] text-slate-700 text-xs font-semibold focus:outline-none focus:border-[#009944] focus:bg-white cursor-pointer"
                      aria-label="Admin Sch History Visitor Filter">
-                      <option value="ALL">Semua Visitor / Regional Bestie</option>
+                      <option value="ALL">Semua Anggota</option>
                     </select>
                   </div>
                 </div>
 
-                <!-- Container List Card Toko History Visit -->
-                <div id="admin-sch-history-list" class="space-y-3 pt-1"></div>
+                <!-- Sticky Scroll Container for Arsip Laporan -->
+                <div id="admin-sch-history-list" class="max-h-[430px] overflow-y-auto space-y-2.5 pr-1"></div>
               </div>
             </div>
           </div>
@@ -3896,191 +3771,136 @@ service cloud.firestore {
 
       <!-- ====================================================================
            HALAMAN KHUSUS: LIVE LOCATION MAPS (KHUSUS ADMIN JADWAL & SUPER ADMIN)
+           (MAP-FIRST DESIGN: LARGE INTERACTIVE MAP IMMEDIATELY AT TOP)
            ==================================================================== -->
-      <section id="view-live-maps" aria-label="Peta Live Location Tim Regional Bestie" class="view-section p-4 sm:p-6 max-w-7xl w-full mx-auto space-y-6 hidden">
-        <!-- 1. Header Banner & Quick Action Buttons -->
-        <div class="fm-card p-5 sm:p-6 bg-gradient-to-r from-teal-500/10 via-emerald-500/10 to-blue-500/10 border border-teal-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div class="flex items-start sm:items-center gap-3.5">
-            <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#0099A6] to-emerald-500 text-white flex items-center justify-center text-xl shadow-md shrink-0">
-              <i class="fa-solid fa-map-location-dot"></i>
-            </div>
-            <div>
-              <div class="flex flex-wrap items-center gap-2">
-                <h2 class="text-lg sm:text-xl font-extrabold text-slate-900">Live Location Maps FMCU</h2>
-                <span class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
-                  <i class="fa-solid fa-shield-halved mr-1"></i>Khusus Admin Jadwal & Super Admin
-                </span>
-                <span class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 flex items-center gap-1.5">
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 gps-pulse"></span>Real-Time GPS
-                </span>
+      <section id="view-live-maps" aria-label="Peta Live Location Tim Regional Bestie" class="view-section p-3 sm:p-5 max-w-[1440px] w-full mx-auto space-y-4 hidden">
+        <!-- 1. LARGE INTERACTIVE MAP IMMEDIATELY PRESENTED AT TOP -->
+        <div class="qx-card p-3 sm:p-4 space-y-3 flex flex-col relative">
+          <!-- Compact Map Header + Action Buttons Adjusted Cleanly in One Bar -->
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 pb-2 border-b border-slate-100">
+            <div class="flex flex-wrap items-center gap-2">
+              <div class="w-8 h-8 rounded-full bg-emerald-50 text-[#0d8247] flex items-center justify-center text-sm shrink-0">
+                <i class="fa-solid fa-map-location-dot"></i>
               </div>
-              <p class="text-xs sm:text-sm text-slate-500 mt-0.5">
-                Monitoring sebaran aktual 18 Regional Bestie / Visitor dan 610 Toko FamilyMart se-Indonesia secara terpusat
-              </p>
+              <h2 class="text-sm sm:text-base font-extrabold text-slate-900">Live Location Maps FMCU</h2>
+              <span class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 gps-pulse"></span>Real-Time GPS
+              </span>
+              <span id="live-loc-map-coords-indicator" class="text-[10.5px] text-slate-400 font-mono hidden xl:inline pl-1">Lat, Lng Real-time</span>
+            </div>
+
+            <!-- Action Buttons Adjusted Cleanly to Top-Right of Map -->
+            <div class="flex flex-wrap items-center gap-1.5">
+              <button type="button" onclick="FMCUApp.refreshLiveLocMap()" class="px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-[#F4F6F5] text-slate-700 hover:bg-slate-200 transition cursor-pointer flex items-center gap-1.5">
+                <i class="fa-solid fa-arrows-rotate text-[#0099A6]"></i>
+                <span>Refresh GPS</span>
+              </button>
+              <button type="button" onclick="FMCUApp.fitLiveLocMapToAllBesties()" class="px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-[#0099A6] text-white hover:bg-teal-700 transition cursor-pointer flex items-center gap-1.5">
+                <i class="fa-solid fa-users"></i>
+                <span>Bestie (18)</span>
+              </button>
+              <button type="button" onclick="FMCUApp.fitLiveLocMapToAllStores()" class="px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-[#0d8247] text-white hover:bg-[#096636] transition cursor-pointer flex items-center gap-1.5">
+                <i class="fa-solid fa-store"></i>
+                <span>Toko (610)</span>
+              </button>
+              <button type="button" onclick="FMCUApp.focusLiveLocMapOnMe()" class="px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-[#F4F6F5] hover:bg-slate-200 text-slate-700 transition cursor-pointer flex items-center gap-1.5">
+                <i class="fa-solid fa-location-crosshairs text-emerald-600"></i>
+                <span>Posisi Saya</span>
+              </button>
+              <button type="button" onclick="FMCUApp.toggleLiveLocMapExpand()" id="btn-toggle-live-loc-map" class="px-2.5 py-1.5 rounded-full text-[11px] font-extrabold text-slate-700 hover:text-emerald-700 bg-white border border-slate-200 transition flex items-center gap-1 cursor-pointer" title="Perbesar atau perkecil tampilan peta">
+                <i id="icon-toggle-live-loc-map" class="fa-solid fa-maximize text-[#0099A6]"></i>
+                <span id="text-toggle-live-loc-map" class="hidden sm:inline">Perbesar</span>
+              </button>
+              <button type="button" onclick="FMCUApp.openHomeMapModal()" class="w-7 h-7 rounded-full text-[11px] font-extrabold text-[#0099A6] hover:bg-teal-50 bg-white border border-slate-200 transition flex items-center justify-center cursor-pointer" title="Buka Peta Interaktif Layar Penuh" aria-label="Buka Peta Interaktif Layar Penuh">
+                <i class="fa-solid fa-expand"></i>
+              </button>
             </div>
           </div>
 
-          <div class="grid grid-cols-3 gap-1.5 w-full sm:w-auto sm:flex sm:flex-wrap sm:items-center">
-            <button type="button" onclick="FMCUApp.refreshLiveLocMap()" class="px-2.5 sm:px-3.5 py-2 rounded-xl text-[11px] sm:text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5">
-              <i class="fa-solid fa-arrows-rotate text-[#0099A6]"></i>
-              <span>Refresh GPS</span>
-            </button>
-            <button type="button" onclick="FMCUApp.fitLiveLocMapToAllBesties()" class="px-2.5 sm:px-3.5 py-2 rounded-xl text-[11px] sm:text-xs font-bold bg-[#0099A6] text-white hover:bg-teal-700 shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5">
-              <i class="fa-solid fa-users"></i>
-              <span>Bestie (18)</span>
-            </button>
-            <button type="button" onclick="FMCUApp.fitLiveLocMapToAllStores()" class="px-2.5 sm:px-3.5 py-2 rounded-xl text-[11px] sm:text-xs font-bold bg-[#009944] text-white hover:bg-emerald-700 shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5">
-              <i class="fa-solid fa-store"></i>
-              <span>Toko (610)</span>
-            </button>
-          </div>
-        </div>
+          <!-- LARGE LEAFLET MAP CANVAS -->
+          <div id="live-loc-dedicated-map" class="w-full h-[460px] sm:h-[540px] lg:h-[600px] rounded-2xl border border-slate-200 overflow-hidden relative z-0 transition-all duration-300"></div>
 
-        <!-- 3. Toolbar: Search, Filters & Layer Toggles -->
-        <div class="fm-card p-4 space-y-3 bg-white">
-          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-            <!-- Search Input -->
-            <div class="relative flex-1">
-              <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-              <input type="text" id="live-loc-search-input" oninput="FMCUApp.onLiveLocSearchInput(this.value)" placeholder="Cari Nama Bestie, NIK, Toko FamilyMart, atau Kode Toko..." class="fm-input pl-9 text-xs" aria-label="Cari Nama Bestie, NIK, Toko FamilyMart, atau Kode Toko..." />
-            </div>
-
-            <!-- Bestie Quick Select Dropdown -->
-            <div class="w-full sm:w-64">
-              <select id="live-loc-bestie-select" onchange="FMCUApp.onLiveLocBestieFilterChange(this.value)" class="fm-input text-xs font-medium" aria-label="Live Loc Bestie Select">
-                <option value="ALL">-- Pilih Fokus Bestie (Semua 18) --</option>
-              </select>
-            </div>
-
-            <!-- Position Me Button -->
-            <button type="button" onclick="FMCUApp.focusLiveLocMapOnMe()" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer flex items-center justify-center gap-1.5 shrink-0">
-              <i class="fa-solid fa-location-crosshairs text-emerald-600"></i>
-              <span>Posisi Saya</span>
-            </button>
-          </div>
-
-          <!-- Layer Switches & Filter Chips -->
-          <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
-            <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
-              <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Layer:</span>
-              <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-50 text-teal-800 font-bold border border-teal-200 cursor-pointer text-xs">
-                <input type="checkbox" id="layer-toggle-besties" checked onchange="FMCUApp.toggleLiveLocLayer('besties', this.checked)" class="accent-[#0099A6] w-3.5 h-3.5" aria-label="Layer Toggle Besties" />
-                <i class="fa-solid fa-users text-[11px]"></i>
+          <!-- Compact Bottom Map Bar: Layer Toggles + Legend -->
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px]">
+            <!-- Layer Switches -->
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mr-0.5">Layer:</span>
+              <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-50 text-teal-800 font-bold border border-teal-200 cursor-pointer text-[11px]">
+                <input type="checkbox" id="layer-toggle-besties" checked onchange="FMCUApp.toggleLiveLocLayer('besties', this.checked)" class="accent-[#0099A6] w-3 h-3" aria-label="Layer Toggle Besties" />
                 <span>Bestie (18)</span>
               </label>
-
-              <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 font-bold border border-emerald-200 cursor-pointer text-xs">
-                <input type="checkbox" id="layer-toggle-stores" checked onchange="FMCUApp.toggleLiveLocLayer('stores', this.checked)" class="accent-[#009944] w-3.5 h-3.5" aria-label="Layer Toggle Stores" />
-                <i class="fa-solid fa-store text-[11px]"></i>
+              <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 font-bold border border-emerald-200 cursor-pointer text-[11px]">
+                <input type="checkbox" id="layer-toggle-stores" checked onchange="FMCUApp.toggleLiveLocLayer('stores', this.checked)" class="accent-[#009944] w-3 h-3" aria-label="Layer Toggle Stores" />
                 <span>Toko FM (610)</span>
               </label>
-
-              <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 font-bold border border-amber-200 cursor-pointer text-xs">
-                <input type="checkbox" id="layer-toggle-geofence" checked onchange="FMCUApp.toggleLiveLocLayer('geofence', this.checked)" class="accent-amber-600 w-3.5 h-3.5" aria-label="Layer Toggle Geofence" />
-                <i class="fa-solid fa-bullseye text-[11px]"></i>
-                <span>Geofence 1m-50m</span>
+              <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 font-bold border border-amber-200 cursor-pointer text-[11px]">
+                <input type="checkbox" id="layer-toggle-geofence" checked onchange="FMCUApp.toggleLiveLocLayer('geofence', this.checked)" class="accent-amber-600 w-3 h-3" aria-label="Layer Toggle Geofence" />
+                <span>Geofence 50m</span>
               </label>
-
-              <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-800 font-bold border border-indigo-200 cursor-pointer text-xs">
-                <input type="checkbox" id="layer-toggle-routes" checked onchange="FMCUApp.toggleLiveLocLayer('routes', this.checked)" class="accent-indigo-600 w-3.5 h-3.5" aria-label="Layer Toggle Routes" />
-                <i class="fa-solid fa-route text-[11px]"></i>
-                <span>Rute Kunjungan</span>
+              <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-800 font-bold border border-indigo-200 cursor-pointer text-[11px]">
+                <input type="checkbox" id="layer-toggle-routes" checked onchange="FMCUApp.toggleLiveLocLayer('routes', this.checked)" class="accent-indigo-600 w-3 h-3" aria-label="Layer Toggle Routes" />
+                <span>Rute</span>
               </label>
             </div>
 
-            <!-- Bestie List Scope Chips (Semua, Sedang Visit, Diluar Radius, Keluar Aplikasi, Belum Akses Web) -->
-            <div class="flex flex-wrap items-center gap-1 bg-slate-100 p-1 rounded-xl w-full lg:w-auto">
-              <button type="button" id="btn-bestie-scope-all" onclick="FMCUApp.filterLiveLocBestieScope('ALL')" class="flex-1 sm:flex-initial text-center justify-center px-2 sm:px-2.5 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold bg-slate-900 text-white shadow-xs cursor-pointer">
-                Semua (18)
-              </button>
-              <button type="button" id="btn-bestie-scope-visiting" onclick="FMCUApp.filterLiveLocBestieScope('VISITING')" class="flex-1 sm:flex-initial text-center justify-center px-2 sm:px-2.5 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold text-emerald-800 hover:bg-white transition cursor-pointer">
-                Sedang Visit
-              </button>
-              <button type="button" id="btn-bestie-scope-outside" onclick="FMCUApp.filterLiveLocBestieScope('OUTSIDE_RADIUS')" class="flex-1 sm:flex-initial text-center justify-center px-2 sm:px-2.5 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold text-amber-800 hover:bg-white transition cursor-pointer">
-                Diluar Radius Toko
-              </button>
-              <button type="button" id="btn-bestie-scope-exited" onclick="FMCUApp.filterLiveLocBestieScope('EXITED')" class="flex-1 sm:flex-initial text-center justify-center px-2 sm:px-2.5 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold text-slate-700 hover:bg-white transition cursor-pointer">
-                Keluar Aplikasi
-              </button>
-              <button type="button" id="btn-bestie-scope-not-accessed" onclick="FMCUApp.filterLiveLocBestieScope('NOT_ACCESSED')" class="flex-1 sm:flex-initial text-center justify-center px-2 sm:px-2.5 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold text-slate-500 hover:bg-white transition cursor-pointer">
-                Belum Akses Web
-              </button>
+            <!-- Compact Legend -->
+            <div class="flex flex-wrap items-center gap-3 text-[10.5px] text-slate-500">
+              <span class="inline-flex items-center gap-1 font-semibold">
+                <span class="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>Bestie
+              </span>
+              <span class="inline-flex items-center gap-1 font-semibold">
+                <span class="w-2.5 h-2.5 rounded-full bg-[#009944]"></span>Toko (610)
+              </span>
+              <span class="inline-flex items-center gap-1 font-semibold">
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>Dikunjungi Hari Ini
+              </span>
             </div>
           </div>
         </div>
 
-        <!-- 4. Split Monitoring Grid: Dedicated Interactive Map + Side Bestie Cards -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-          <!-- Interactive Map: Order 1 on mobile, Order 2 on lg -->
-          <div class="lg:col-span-7 xl:col-span-8 fm-card p-3 sm:p-4 space-y-3 flex flex-col relative order-1 lg:order-2">
-            <div class="flex items-center justify-between text-xs flex-wrap gap-2">
-              <div class="font-extrabold text-slate-800 flex items-center gap-2">
-                <i class="fa-solid fa-map text-[#0099A6]"></i>
-                <span>Peta Interaktif Sebaran Live GPS & Toko</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <div class="text-[11px] text-slate-500 font-mono hidden sm:inline">
-                  <span id="live-loc-map-coords-indicator">Lat, Lng Real-time</span>
-                </div>
-                <!-- Tombol Perbesar / Perkecil Ukuran Maps Inline -->
-                <button type="button" onclick="FMCUApp.toggleLiveLocMapExpand()" id="btn-toggle-live-loc-map" class="text-[11px] font-extrabold text-slate-700 hover:text-emerald-700 bg-white hover:bg-slate-100 border border-slate-300 px-2.5 py-1 rounded-xl shadow-2xs transition flex items-center gap-1.5 cursor-pointer" title="Perbesar atau perkecil tampilan peta">
-                  <i id="icon-toggle-live-loc-map" class="fa-solid fa-maximize text-[#0099A6]"></i>
-                  <span id="text-toggle-live-loc-map" class="hidden sm:inline">Perbesar Maps</span>
-                </button>
-                <!-- Tombol Fullscreen Modal Maps -->
-                <button type="button" onclick="FMCUApp.openHomeMapModal()" class="text-[11px] font-extrabold text-[#0099A6] hover:text-emerald-700 bg-white hover:bg-teal-50 border border-teal-300 p-1.5 rounded-xl shadow-2xs transition flex items-center justify-center cursor-pointer" title="Buka Peta Interaktif Layar Penuh" aria-label="Buka Peta Interaktif Layar Penuh">
-                  <i class="fa-solid fa-expand"></i>
-                </button>
-              </div>
-            </div>
-
-            <!-- Leaflet Map Container: Responsive height on mobile with Expand Capability -->
-            <div id="live-loc-dedicated-map" class="w-full h-[380px] sm:h-[480px] lg:h-[640px] rounded-xl border border-slate-200 overflow-hidden relative z-0 transition-all duration-300"></div>
-
-            <!-- Map Floating Bottom Legend -->
-            <div class="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600">
-              <div class="flex flex-wrap items-center gap-3">
-                <span class="inline-flex items-center gap-1.5 font-semibold">
-                  <span class="w-3 h-3 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 border border-white"></span>
-                  Regional Bestie / Visitor
-                </span>
-                <span class="inline-flex items-center gap-1.5 font-semibold">
-                  <span class="w-3 h-3 rounded-full bg-teal-400 ring-2 ring-teal-300"></span>
-                  Posisi Anda
-                </span>
-                <span class="inline-flex items-center gap-1.5 font-semibold">
-                  <span class="w-2.5 h-2.5 rounded-full bg-[#009944]"></span>
-                  Toko FamilyMart (610)
-                </span>
-                <span class="inline-flex items-center gap-1.5 font-semibold">
-                  <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-                  Toko Dikunjungi Hari Ini
-                </span>
-                <span class="inline-flex items-center gap-1.5 font-semibold">
-                  <span class="w-3.5 h-0 border-b-2 border-dashed border-[#009944]"></span>
-                  Geofence 1m-50m
-                </span>
-              </div>
-              <div class="text-[10px] text-slate-400">
-                Peta Leaflet & OpenStreetMap
-              </div>
-            </div>
-          </div>
-
-          <!-- Bestie Cards List: Order 2 on mobile, Order 1 on lg -->
-          <div class="lg:col-span-5 xl:col-span-4 fm-card p-4 space-y-3 flex flex-col order-2 lg:order-1">
-            <div class="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div class="flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 gps-pulse"></span>
-                <h3 class="font-extrabold text-sm text-slate-900">Daftar Tim Regional Bestie</h3>
-              </div>
+        <!-- 2. COMPACT FILTER & SCROLLABLE BESTIE STATUS DRAWER BELOW MAP -->
+        <div class="qx-card p-3.5 sm:p-4 space-y-3">
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 gps-pulse"></span>
+              <h3 class="font-extrabold text-xs sm:text-sm text-slate-900">Filter &amp; Status Tim Regional Bestie</h3>
               <span id="live-loc-bestie-count-badge" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800">18 Personil</span>
             </div>
 
-            <!-- Scrollable Bestie Cards List -->
-            <div id="live-loc-bestie-list-container" class="space-y-2.5 max-h-[640px] overflow-y-auto pr-1">
-              <!-- Rendered dynamically by FMCUApp.renderLiveLocView() -->
+            <!-- Search + Select + Scope Filter Chips -->
+            <div class="flex flex-wrap items-center gap-2">
+              <div class="relative min-w-[200px] flex-1 sm:flex-initial">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" id="live-loc-search-input" oninput="FMCUApp.onLiveLocSearchInput(this.value)" placeholder="Cari Bestie / NIK / Toko..." class="w-full pl-8 pr-3 py-1.5 rounded-full border border-slate-200 bg-[#F4F6F5] text-xs font-semibold focus:outline-none focus:bg-white" aria-label="Cari Nama Bestie, NIK, Toko FamilyMart, atau Kode Toko..." />
+              </div>
+
+              <select id="live-loc-bestie-select" onchange="FMCUApp.onLiveLocBestieFilterChange(this.value)" class="px-3 py-1.5 rounded-full border border-slate-200 bg-[#F4F6F5] text-xs font-semibold text-slate-700 cursor-pointer" aria-label="Live Loc Bestie Select">
+                <option value="ALL">Semua Bestie (18)</option>
+              </select>
+
+              <div class="flex flex-wrap items-center gap-1 bg-[#F1F3F2] p-1 rounded-full">
+                <button type="button" id="btn-bestie-scope-all" onclick="FMCUApp.filterLiveLocBestieScope('ALL')" class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-900 text-white shadow-2xs cursor-pointer">
+                  Semua (18)
+                </button>
+                <button type="button" id="btn-bestie-scope-visiting" onclick="FMCUApp.filterLiveLocBestieScope('VISITING')" class="px-2.5 py-1 rounded-full text-[10px] font-bold text-emerald-800 hover:bg-white transition cursor-pointer">
+                  Sedang Visit
+                </button>
+                <button type="button" id="btn-bestie-scope-outside" onclick="FMCUApp.filterLiveLocBestieScope('OUTSIDE_RADIUS')" class="px-2.5 py-1 rounded-full text-[10px] font-bold text-amber-800 hover:bg-white transition cursor-pointer">
+                  Diluar Radius
+                </button>
+                <button type="button" id="btn-bestie-scope-exited" onclick="FMCUApp.filterLiveLocBestieScope('EXITED')" class="px-2.5 py-1 rounded-full text-[10px] font-bold text-slate-700 hover:bg-white transition cursor-pointer">
+                  Keluar App
+                </button>
+                <button type="button" id="btn-bestie-scope-not-accessed" onclick="FMCUApp.filterLiveLocBestieScope('NOT_ACCESSED')" class="px-2.5 py-1 rounded-full text-[10px] font-bold text-slate-500 hover:bg-white transition cursor-pointer">
+                  Belum Akses
+                </button>
+              </div>
             </div>
+          </div>
+
+          <!-- Compact Scrollable Multi-Column Bestie List -->
+          <div id="live-loc-bestie-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-[300px] overflow-y-auto pr-1">
+            <!-- Rendered dynamically by FMCUApp.renderLiveLocView() -->
           </div>
         </div>
       </section>
@@ -4446,10 +4266,18 @@ service cloud.firestore {
 
       <div id="profile-modal-body" class="space-y-4"></div>
 
-      <div class="flex items-center justify-between pt-3 border-t border-slate-100">
-        <button type="button" onclick="FMCUApp.logout()" class="px-4 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs cursor-pointer">
-          <i class="fa-solid fa-power-off mr-1"></i>Keluar / Ganti Akun Login
-        </button>
+      <div class="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-100">
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="button" onclick="FMCUApp.logout()" class="px-4 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs cursor-pointer">
+            <i class="fa-solid fa-power-off mr-1"></i>Keluar / Ganti Akun Login
+          </button>
+          <button type="button" onclick="FMCUApp.closeModal('modal-user-profile'); FMCUApp.switchAdminTab('stores')" class="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs cursor-pointer">
+            <i class="fa-solid fa-store mr-1"></i>Master Toko
+          </button>
+          <button type="button" onclick="FMCUApp.closeModal('modal-user-profile'); FMCUApp.switchAdminTab('settings')" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer">
+            <i class="fa-solid fa-sliders mr-1"></i>Pengaturan
+          </button>
+        </div>
         <button type="button" onclick="FMCUApp.closeModal('modal-user-profile')" class="px-5 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs cursor-pointer">
           Selesai
         </button>
@@ -4546,16 +4374,16 @@ service cloud.firestore {
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js" crossorigin="anonymous"></script>
 
   <!-- Core Application Scripts (Fast Startup & Auth Priority) -->
-  <script defer src="js/holding-time-standards.js?v=1800390000000"></script>
-  <script defer src="js/master-stores-seed.js?v=1800390000000"></script>
-  <script defer src="js/bestie-in-charge-seed.js?v=1800390000000"></script>
-  <script defer src="js/data.js?v=1800390000000"></script>
-  <script defer src="js/pdf-generator.js?v=1800390000000"></script>
-  <script defer src="js/app.js?v=1800390000000"></script>
+  <script defer src="js/holding-time-standards.js?v=1800400000000"></script>
+  <script defer src="js/master-stores-seed.js?v=1800400000000"></script>
+  <script defer src="js/bestie-in-charge-seed.js?v=1800400000000"></script>
+  <script defer src="js/data.js?v=1800400000000"></script>
+  <script defer src="js/pdf-generator.js?v=1800400000000"></script>
+  <script defer src="js/app.js?v=1800400000000"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1800390000000"></script>
+  <script async src="js/pdf-assets.js?v=1800400000000"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================
@@ -5049,27 +4877,27 @@ service cloud.firestore {
     <!-- ============================================================
          MODAL BUAT / ATUR AGENDA & JADWAL KARYAWAN (MULTI-SELECT KATEGORI)
          ============================================================ -->
-    <div id="modal-manual-agenda" class="fixed inset-0 z-50 bg-white flex flex-col w-screen h-screen overflow-hidden hidden animate-in fade-in duration-200">
-      <div class="w-full h-full flex flex-col bg-white overflow-hidden">
-        <!-- Header Full-Screen -->
-        <div class="px-4 py-3 sm:px-6 sm:py-4 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 text-white flex items-center justify-between shrink-0 shadow-sm">
+    <div id="modal-manual-agenda" class="fixed inset-0 z-50 bg-slate-900/45 backdrop-blur-md flex items-center justify-center p-4 hidden animate-in fade-in duration-200">
+      <div class="w-full max-w-xl max-h-[86vh] flex flex-col bg-white rounded-[28px] shadow-2xl border border-white/80 overflow-hidden animate-in zoom-in-95 duration-200">
+        <!-- Header Rounded Modal -->
+        <div class="px-5 py-4 bg-gradient-to-r from-[#0d8247] to-[#0099A6] text-white flex items-center justify-between shrink-0">
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-lg shrink-0">
+            <div class="w-9 h-9 rounded-2xl bg-white/20 flex items-center justify-center text-base shrink-0">
               <i class="fa-solid fa-calendar-check"></i>
             </div>
             <div>
-              <h3 class="font-black text-sm sm:text-base leading-tight">Atur Jadwal & Agenda Karyawan</h3>
-              <p class="text-xs text-emerald-100 font-medium">Visit Store, NSO, Kantor, Meeting, Cuti, & Agenda Lainnya</p>
+              <h3 class="font-black text-sm sm:text-base leading-tight">Atur Jadwal &amp; Agenda Karyawan</h3>
+              <p class="text-[11px] text-emerald-100 font-medium">Visit Store, NSO, Kantor, Meeting, Cuti, &amp; Agenda Lainnya</p>
             </div>
           </div>
-          <button type="button" onclick="FMCUApp.closeManualAgendaModal()" class="w-9 h-9 rounded-xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition cursor-pointer" aria-label="Tutup dialog">
-            <i class="fa-solid fa-xmark text-base"></i>
+          <button type="button" onclick="FMCUApp.closeManualAgendaModal()" class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition cursor-pointer" aria-label="Tutup dialog">
+            <i class="fa-solid fa-xmark text-sm"></i>
           </button>
         </div>
 
-        <!-- Body Form Full-Screen -->
-        <form onsubmit="event.preventDefault(); FMCUApp.submitManualAgendaForm();" class="flex-1 overflow-y-auto bg-slate-50/60 p-4 sm:p-6 w-full flex flex-col">
-          <div class="max-w-3xl mx-auto w-full space-y-4 flex-1">
+        <!-- Body Form Centered Modal -->
+        <form onsubmit="event.preventDefault(); FMCUApp.submitManualAgendaForm();" class="flex-1 overflow-y-auto bg-slate-50/60 p-4 sm:p-5 w-full flex flex-col">
+          <div class="w-full space-y-3.5 flex-1">
           <input type="hidden" id="agenda-target-auditor-id" value="" />
           <input type="hidden" id="agenda-target-day-index" value="" />
 
@@ -5295,29 +5123,29 @@ service cloud.firestore {
     </div>
 
     <!-- ============================================================
-         MODAL: EDIT JADWAL KERJA & AGENDA TIM
+         MODAL: EDIT JADWAL KERJA & AGENDA TIM (CENTER SQUARE ROUNDED BLURRY BACKGROUND)
          ============================================================ -->
-    <div id="modal-edit-schedule" class="fixed inset-0 z-50 bg-white flex flex-col w-screen h-screen overflow-hidden hidden animate-in fade-in duration-200">
-      <div class="w-full h-full flex flex-col bg-white overflow-hidden">
-        <!-- Header Full-Screen -->
-        <div class="px-4 py-3 sm:px-6 sm:py-4 bg-gradient-to-r from-amber-500 via-[#009944] to-[#0099A6] text-white flex items-center justify-between shrink-0 shadow-sm">
+    <div id="modal-edit-schedule" class="fixed inset-0 z-50 bg-slate-900/45 backdrop-blur-md flex items-center justify-center p-4 hidden animate-in fade-in duration-200">
+      <div class="w-full max-w-lg max-h-[85vh] flex flex-col bg-white rounded-[28px] shadow-2xl border border-white/80 overflow-hidden animate-in zoom-in-95 duration-200">
+        <!-- Header Rounded Modal -->
+        <div class="px-5 py-4 bg-gradient-to-r from-[#0d8247] to-[#0099A6] text-white flex items-center justify-between shrink-0">
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-lg shrink-0">
+            <div class="w-9 h-9 rounded-2xl bg-white/20 flex items-center justify-center text-base shrink-0">
               <i class="fa-solid fa-pen-to-square"></i>
             </div>
             <div>
-              <h3 class="font-black text-sm sm:text-base leading-tight">Sunting Jadwal & Agenda Tim</h3>
-              <p class="text-xs text-amber-100 font-medium">Ubah penugasan visit toko, agenda kantor, meeting, cuti, atau hari off</p>
+              <h3 class="font-black text-sm sm:text-base leading-tight">Sunting Jadwal &amp; Agenda</h3>
+              <p class="text-[11px] text-emerald-100 font-medium">Ubah penugasan visit toko, agenda, cuti, atau off</p>
             </div>
           </div>
-          <button type="button" onclick="FMCUApp.closeEditScheduleModal()" class="w-9 h-9 rounded-xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition cursor-pointer" aria-label="Tutup dialog">
-            <i class="fa-solid fa-xmark text-base"></i>
+          <button type="button" onclick="FMCUApp.closeEditScheduleModal()" class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition cursor-pointer" aria-label="Tutup dialog">
+            <i class="fa-solid fa-xmark text-sm"></i>
           </button>
         </div>
 
-        <!-- Body Full-Screen -->
-        <div class="p-4 sm:p-6 bg-slate-50/60 flex-1 overflow-y-auto">
-          <div class="max-w-3xl mx-auto w-full space-y-4">
+        <!-- Body Centered Square Modal -->
+        <div class="p-4 sm:p-5 bg-slate-50/60 flex-1 overflow-y-auto">
+          <div class="w-full space-y-3.5">
           <input type="hidden" id="edit-sch-id" />
 
           <!-- Tipe Penugasan / Aktivitas -->
