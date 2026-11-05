@@ -3870,6 +3870,102 @@ window.FMCUApp = {
     this.renderAdminQuixoticAnalytic();
   },
 
+  /* ── Sparkline helper: build smooth SVG path from monthly data ── */
+  _buildSparkPath(values, W, H, padTop = 4) {
+    if (!values || values.length < 2) return { linePath: `M0,${H} L${W},${H}`, areaPath: `M0,${H} L${W},${H} Z`, len: W };
+    const max = Math.max(...values, 1);
+    const n = values.length;
+    const pts = values.map((v, i) => ({
+      x: (i / (n - 1)) * W,
+      y: H - padTop - ((v / max) * (H - padTop))
+    }));
+    // Catmull-Rom → cubic bezier smoothing
+    let d = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i - 1] || pts[i];
+      const p1 = pts[i];
+      const p2 = pts[i + 1];
+      const p3 = pts[i + 2] || pts[i + 1];
+      const cp1x = p1.x + (p2.x - p0.x) / 6;
+      const cp1y = p1.y + (p2.y - p0.y) / 6;
+      const cp2x = p2.x - (p3.x - p1.x) / 6;
+      const cp2y = p2.y - (p3.y - p1.y) / 6;
+      d += ` C${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
+    }
+    const last = pts[pts.length - 1];
+    const areaPath = d + ` L${last.x.toFixed(1)},${H} L${pts[0].x.toFixed(1)},${H} Z`;
+    // Approximate path length for stroke-dasharray
+    let len = 0;
+    for (let i = 1; i < pts.length; i++) {
+      const dx = pts[i].x - pts[i-1].x;
+      const dy = pts[i].y - pts[i-1].y;
+      len += Math.sqrt(dx*dx + dy*dy);
+    }
+    return { linePath: d, areaPath, len: Math.ceil(len * 1.3), endX: last.x, endY: last.y };
+  },
+
+  /* ── Update a sparkline SVG in a KPI card ── */
+  _updateKpiSpark(pathId, areaId, dotId, values, W, H, padTop) {
+    const lineEl = document.getElementById(pathId);
+    const areaEl = document.getElementById(areaId);
+    const dotEl  = document.getElementById(dotId);
+    if (!lineEl) return;
+    const { linePath, areaPath, len, endX, endY } = this._buildSparkPath(values, W, H, padTop || 4);
+    lineEl.setAttribute('d', linePath);
+    lineEl.style.setProperty('--spark-len', len);
+    // Re-trigger animation by cloning
+    const clone = lineEl.cloneNode(true);
+    lineEl.parentNode.replaceChild(clone, lineEl);
+    if (areaEl) {
+      areaEl.setAttribute('d', areaPath);
+      const aClone = areaEl.cloneNode(true);
+      areaEl.parentNode.replaceChild(aClone, areaEl);
+    }
+    if (dotEl) {
+      dotEl.setAttribute('cx', (endX || W).toFixed(1));
+      dotEl.setAttribute('cy', (endY || H / 2).toFixed(1));
+      const dClone = dotEl.cloneNode(true);
+      dotEl.parentNode.replaceChild(dClone, dotEl);
+    }
+  },
+
+  /* ── Animated countup for a KPI value element ── */
+  _animateKpiCount(elId, targetVal) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    el.classList.remove('qx-kpi-val-animated');
+    void el.offsetWidth; // reflow
+    el.classList.add('qx-kpi-val-animated');
+    const start = performance.now();
+    const dur = 900;
+    const startNum = 0;
+    const isInt = Number.isInteger(targetVal);
+    const step = (now) => {
+      const t = Math.min(1, (now - start) / dur);
+      const ease = 1 - Math.pow(1 - t, 3);
+      const cur = startNum + (targetVal - startNum) * ease;
+      el.textContent = isInt
+        ? Math.round(cur).toLocaleString('id-ID')
+        : cur.toFixed(1).toLocaleString('id-ID');
+      if (t < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  },
+
+  /* ── Update Coverage ring arc ── */
+  _updateCovRing(pct) {
+    const arc = document.getElementById('qx-kpi-ring-arc');
+    if (!arc) return;
+    const r = 16;
+    const circum = 2 * Math.PI * r; // ≈100.53
+    const offset = circum * (1 - Math.min(1, Math.max(0, pct / 100)));
+    arc.style.setProperty('--ring-circum', circum.toFixed(2));
+    arc.style.setProperty('--ring-offset', offset.toFixed(2));
+    // Re-trigger animation
+    const clone = arc.cloneNode(true);
+    arc.parentNode.replaceChild(clone, arc);
+  },
+
   renderAdminEngagementBarChart(monthlyStats = []) {
     const container = document.getElementById('qx-monthly-bars-container');
     if (!container || !monthlyStats.length) return;
@@ -4111,6 +4207,16 @@ window.FMCUApp = {
 
     setElText('qx-cov-completion-pill', `${realizationPct}% Realisasi`);
 
+    // ── Animated count-up for 5 KPI numbers ──
+    this._animateKpiCount('qx-kpi-val-agenda', totalAgenda);
+    this._animateKpiCount('qx-kpi-val-training', totalTraining);
+    this._animateKpiCount('qx-kpi-val-visit', effectiveTotalVisit);
+    this._animateKpiCount('qx-kpi-val-nso', totalNso);
+    this._animateKpiCount('qx-kpi-val-pending', totalPending);
+
+    // ── Coverage ring animation ──
+    this._updateCovRing(coveragePct);
+
     const scoredReports = filteredReports.filter((r) => Number(r.qscScore) > 0);
     const avgQsc = scoredReports.length > 0
       ? (scoredReports.reduce((acc, r) => acc + Number(r.qscScore || 0), 0) / scoredReports.length).toFixed(1)
@@ -4219,6 +4325,17 @@ window.FMCUApp = {
 
     this.renderAdminEngagementBarChart(monthlyStats);
 
+    // ── Render sparklines into 5 KPI cards using monthlyStats ──
+    const sparkW = 80, sparkH = 32;
+    this._updateKpiSpark('qx-spark-path-agenda',  'qx-spark-area-agenda',  'qx-spark-dot-agenda',  monthlyStats.map(m => m.agenda),         sparkW, sparkH, 4);
+    this._updateKpiSpark('qx-spark-path-training','qx-spark-area-training','qx-spark-dot-training', monthlyStats.map(m => m.training),       sparkW, sparkH, 4);
+    this._updateKpiSpark('qx-spark-path-visit',   'qx-spark-area-visit',   'qx-spark-dot-visit',   monthlyStats.map(m => m.effectiveVisit), sparkW, sparkH, 4);
+    this._updateKpiSpark('qx-spark-path-nso',     'qx-spark-area-nso',     'qx-spark-dot-nso',     monthlyStats.map(m => m.nso),            sparkW, sparkH, 4);
+    this._updateKpiSpark('qx-spark-path-pending', 'qx-spark-area-pending', 'qx-spark-dot-pending', monthlyStats.map(m => m.pending),        72, 28, 3);
+    // Show/hide pending pulse dot
+    const pendPulse = document.getElementById('qx-kpi-pend-pulse');
+    if (pendPulse) pendPulse.style.display = totalPending > 0 ? '' : 'none';
+
     // 4. Render GRAFIK PERFORMA PER ANGGOTA (#qx-member-perf-chart-body) — Compact Row 2 Card
     const memberPerfContainer = document.getElementById('qx-member-perf-chart-body');
     if (memberPerfContainer) {
@@ -4297,53 +4414,69 @@ window.FMCUApp = {
         ? '<div class="py-6 text-center text-[11px] text-slate-400 font-medium">Belum ada data anggota.</div>'
         : '';
 
-      memberPerfContainer.innerHTML = stickyHeaderHtml + '<div class="space-y-2 py-2">' + emptyHtml + visibleRows
-        .map((row, idx) => {
-          const u = row.user;
-          const initials = String(u.name || 'FM')
-            .split(' ')
-            .filter(Boolean)
-            .map((w) => w[0])
-            .join('')
-            .slice(0, 2)
-            .toUpperCase();
+      // ── Build revamped member rows with ring + animated bars ──
+      const buildMemberRow = (row, idx) => {
+        const u = row.user;
+        const initials = String(u.name || 'FM')
+          .split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
-          const doneWidth = Math.round((row.visitDone / maxMemberAgenda) * 100);
-          const nsoTrainWidth = Math.round(((row.nso + row.training) / maxMemberAgenda) * 100);
-          const pendWidth = Math.round((row.pending / maxMemberAgenda) * 100);
+        const doneW  = Math.round((row.visitDone / maxMemberAgenda) * 100);
+        const nstW   = Math.round(((row.nso + row.training) / maxMemberAgenda) * 100);
+        const pendW  = Math.round((row.pending / maxMemberAgenda) * 100);
+        const delay  = (idx * 60) + 'ms';
 
-          return `
-            <div
-              onclick="FMCUApp.openMemberDetailAgenda('${u.id}')"
-              class="p-2.5 rounded-xl border border-slate-200/70 hover:border-[#0d8247] bg-[#F8FAF9] hover:bg-white transition cursor-pointer group space-y-1.5"
-              title="Klik untuk buka Direct Detail Agenda: ${u.name}"
-            >
-              <div class="flex items-center justify-between gap-2">
-                <div class="flex items-center gap-2 min-w-0">
-                  <span class="w-4 text-[10px] font-black text-slate-400 text-center shrink-0">${idx + 1}</span>
-                  <div class="w-7 h-7 rounded-lg bg-[#0d8247] text-white font-black text-[10px] flex items-center justify-center shrink-0">
-                    ${initials}
-                  </div>
-                  <div class="min-w-0">
-                    <div class="font-extrabold text-xs text-slate-900 group-hover:text-[#0d8247] truncate">${u.name}</div>
-                    <div class="text-[9.5px] text-slate-400 font-medium truncate">
-                      ${row.totalAgenda} Agenda • <span class="text-emerald-700 font-bold">${row.visitDone} Visit</span>${row.nso > 0 ? ` • ${row.nso} NSO` : ''}${row.training > 0 ? ` • ${row.training} Trn` : ''}${row.pending > 0 ? ` • <span class="text-amber-700 font-bold">${row.pending} Pend</span>` : ''}
-                    </div>
-                  </div>
-                </div>
-                <span class="px-2 py-0.5 rounded-full text-[9.5px] font-extrabold shrink-0 ${
-                  row.ratePct >= 80 ? 'bg-emerald-100 text-emerald-800' : row.ratePct >= 50 ? 'bg-amber-100 text-amber-800' : 'bg-slate-200/70 text-slate-600'
-                }">${row.ratePct}%</span>
+        // Mini ring SVG (r=10 → circum≈62.83)
+        const ringR = 10;
+        const ringC = (2 * Math.PI * ringR).toFixed(2); // 62.83
+        const ringOff = (ringC * (1 - row.ratePct / 100)).toFixed(2);
+        const ringColor = row.ratePct >= 80 ? '#0d8247' : row.ratePct >= 50 ? '#f59e0b' : '#94a3b8';
+        const rateBadgeClass = row.ratePct >= 80
+          ? 'bg-emerald-100 text-emerald-800'
+          : row.ratePct >= 50
+            ? 'bg-amber-100 text-amber-800'
+            : 'bg-slate-200/70 text-slate-600';
+
+        return `<div
+          onclick="FMCUApp.openMemberDetailAgenda('${u.id}')"
+          class="qx-member-row p-2.5 rounded-xl border border-slate-200/70 hover:border-[#0d8247] bg-[#F8FAF9] hover:bg-white transition cursor-pointer group"
+          style="--row-delay:${delay}"
+          title="Klik untuk detail: ${u.name}"
+        >
+          <div class="flex items-center gap-2">
+            <span class="w-4 text-[10px] font-black text-slate-400 text-center shrink-0">${idx + 1}</span>
+            <!-- Ring avatar -->
+            <div class="relative shrink-0 w-9 h-9">
+              <svg width="36" height="36" viewBox="0 0 36 36" aria-hidden="true">
+                <circle cx="18" cy="18" r="${ringR}" fill="none" stroke="#e2e8f0" stroke-width="3"/>
+                <circle cx="18" cy="18" r="${ringR}" class="qx-mem-ring-arc"
+                  fill="none" stroke="${ringColor}" stroke-width="3" stroke-linecap="round"
+                  style="--mem-circum:${ringC};--mem-offset:${ringOff};--seg-delay:${delay}"/>
+              </svg>
+              <div class="absolute inset-0 flex items-center justify-center rounded-full bg-[#0d8247]/10 text-[#0d8247] font-black text-[9px]">${initials}</div>
+            </div>
+            <!-- Name + stats -->
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between gap-1 mb-1">
+                <div class="font-extrabold text-[11px] text-slate-900 group-hover:text-[#0d8247] truncate">${u.name}</div>
+                <span class="px-1.5 py-0.5 rounded-full text-[9px] font-extrabold shrink-0 ${rateBadgeClass}">${row.ratePct}%</span>
               </div>
-              <div class="w-full h-2 rounded-full bg-slate-200/80 overflow-hidden flex gap-0.5">
-                ${doneWidth > 0 ? `<div class="h-full rounded-full bg-[#0d8247]" style="width:${Math.max(5, doneWidth)}%"></div>` : ''}
-                ${nsoTrainWidth > 0 ? `<div class="h-full rounded-full bg-[#0099A6]" style="width:${Math.max(5, nsoTrainWidth)}%"></div>` : ''}
-                ${pendWidth > 0 ? `<div class="h-full rounded-full bg-amber-400" style="width:${Math.max(5, pendWidth)}%"></div>` : ''}
+              <div class="text-[9px] text-slate-400 truncate mb-1.5">
+                ${row.totalAgenda} Agenda • <span class="text-emerald-700 font-bold">${row.visitDone}V</span>${row.nso > 0 ? ' • <span class="text-teal-700 font-semibold">' + row.nso + 'N</span>' : ''}${row.training > 0 ? ' • ' + row.training + 'T' : ''}${row.pending > 0 ? ' • <span class="text-amber-600 font-bold">' + row.pending + 'P</span>' : ''}
+              </div>
+              <!-- Animated stacked bar -->
+              <div class="w-full h-2 rounded-full bg-slate-200/80 overflow-hidden flex">
+                ${doneW > 0 ? `<div class="qx-perf-seg h-full rounded-l-full bg-[#0d8247]" style="--bar-w:${Math.max(4,doneW)}%;--seg-delay:${delay}"></div>` : ''}
+                ${nstW > 0 ? `<div class="qx-perf-seg h-full bg-[#0099A6]" style="--bar-w:${Math.max(4,nstW)}%;--seg-delay:${(idx*60+80)}ms"></div>` : ''}
+                ${pendW > 0 ? `<div class="qx-perf-seg h-full rounded-r-full bg-amber-400" style="--bar-w:${Math.max(4,pendW)}%;--seg-delay:${(idx*60+160)}ms"></div>` : ''}
               </div>
             </div>
-          `;
-        })
-        .join('') + '</div>' + stickyFooterHtml;
+          </div>
+        </div>`;
+      };
+
+      memberPerfContainer.innerHTML = stickyHeaderHtml + '<div class="space-y-2 py-2">' + emptyHtml
+        + visibleRows.map((row, idx) => buildMemberRow(row, idx)).join('')
+        + '</div>' + stickyFooterHtml;
     }
 
     // 5. Render Table Ringkasan Bulanan per Indikator (#qx-monthly-indicator-tbody) — 6 Core Indicators

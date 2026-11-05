@@ -2333,3 +2333,125 @@ body.admin-quixotic-active #main-layout-content-col {
   .qx-er-bars, .qx-er-xaxis { column-gap: 6px; }
   .qx-er-tab { padding: 6px 10px; font-size: 10.5px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   KPI CARD SPARKLINES & ANIMATED MINI CHARTS
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Sparkline SVG inside KPI cards */
+.qx-kpi-spark {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+
+/* Count-up number animation */
+@keyframes qxCountUp {
+  from { opacity: 0; transform: translateY(6px) scale(0.92); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+.qx-kpi-val-animated {
+  animation: qxCountUp 0.55s cubic-bezier(0.22,1,0.36,1) both;
+}
+
+/* SVG sparkline draw-in animation */
+@keyframes qxSparkDraw {
+  from { stroke-dashoffset: var(--spark-len, 300); }
+  to   { stroke-dashoffset: 0; }
+}
+.qx-spark-line {
+  stroke-dasharray: var(--spark-len, 300);
+  stroke-dashoffset: var(--spark-len, 300);
+  animation: qxSparkDraw 1.1s cubic-bezier(0.22,1,0.36,1) 0.25s both;
+}
+
+/* Gradient area fill fade-in */
+@keyframes qxSparkFill {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.qx-spark-area {
+  animation: qxSparkFill 1.2s ease 0.4s both;
+}
+
+/* Circular ring progress */
+@keyframes qxRingFill {
+  from { stroke-dashoffset: var(--ring-circum, 100); }
+  to   { stroke-dashoffset: var(--ring-offset, 0); }
+}
+.qx-ring-arc {
+  stroke-dasharray: var(--ring-circum, 100);
+  stroke-dashoffset: var(--ring-circum, 100);
+  animation: qxRingFill 1.1s cubic-bezier(0.22,1,0.36,1) 0.3s both;
+  transform-origin: center;
+  transform: rotate(-90deg);
+}
+
+/* Pulse animation for pending card */
+@keyframes qxPulseWarn {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.6; transform: scale(1.18); }
+}
+.qx-warn-pulse {
+  animation: qxPulseWarn 1.8s ease-in-out infinite;
+}
+
+/* Mini bar grow-in for card sparklines */
+@keyframes qxMiniBarGrow {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+.qx-mini-bar {
+  transform-origin: bottom;
+  animation: qxMiniBarGrow 0.65s cubic-bezier(0.22,1,0.36,1) var(--bar-delay,0s) both;
+}
+
+/* Stagger entrance for KPI cards */
+@keyframes qxCardEnter {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.qx-kpi-square-card {
+  animation: qxCardEnter 0.5s cubic-bezier(0.22,1,0.36,1) var(--card-delay, 0s) both;
+}
+
+/* Member perf row stagger */
+@keyframes qxRowSlide {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.qx-member-row {
+  animation: qxRowSlide 0.4s cubic-bezier(0.22,1,0.36,1) var(--row-delay,0s) both;
+}
+
+/* Member perf bar segments animated */
+@keyframes qxBarWidth {
+  from { width: 0 !important; }
+  to   { width: var(--bar-w, 0%) !important; }
+}
+.qx-perf-seg {
+  animation: qxBarWidth 0.75s cubic-bezier(0.22,1,0.36,1) var(--seg-delay,0.1s) both;
+  width: var(--bar-w, 0%) !important;
+}
+
+/* Radial ring for member row */
+.qx-mem-ring {
+  transform-origin: center;
+  transform: rotate(-90deg);
+}
+@keyframes qxMemRingFill {
+  from { stroke-dashoffset: var(--mem-circum, 50); }
+  to   { stroke-dashoffset: var(--mem-offset, 0); }
+}
+.qx-mem-ring-arc {
+  stroke-dasharray: var(--mem-circum, 50);
+  stroke-dashoffset: var(--mem-circum, 50);
+  animation: qxMemRingFill 0.8s cubic-bezier(0.22,1,0.36,1) var(--seg-delay,0.1s) both;
+  transform-origin: center;
+  transform: rotate(-90deg);
+}
+
+/* Trend dot on sparkline */
+.qx-spark-dot {
+  animation: qxSparkFill 0.4s ease 1.1s both;
+}

@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1800460000000" as="style" />
-  <link rel="preload" href="css/styles.css?v=1800460000000" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1793921578514" as="style" />
+  <link rel="preload" href="css/styles.css?v=1793921578514" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1800460000000" />
-  <link rel="stylesheet" href="css/styles.css?v=1800460000000" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1793921578514" />
+  <link rel="stylesheet" href="css/styles.css?v=1793921578514" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -2214,6 +2214,12 @@
                         <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-[#0d8247] text-white">Semua</span>
                       </div>
                       <div id="qx-kpi-sub-agenda" class="text-[10px] text-slate-400 font-semibold truncate">Seluruh jadwal tim</div>
+                      <svg id="qx-kpi-spark-agenda" class="qx-kpi-spark" height="32" viewBox="0 0 80 32" preserveAspectRatio="none" aria-hidden="true">
+                        <defs><linearGradient id="ag-grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0d8247" stop-opacity="0.22"/><stop offset="100%" stop-color="#0d8247" stop-opacity="0"/></linearGradient></defs>
+                        <path id="qx-spark-area-agenda" class="qx-spark-area" fill="url(#ag-grad)" d="M0,32 L0,32 L80,32 Z"/>
+                        <path id="qx-spark-path-agenda" class="qx-spark-line" fill="none" stroke="#0d8247" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M0,24 L80,24"/>
+                        <circle id="qx-spark-dot-agenda" class="qx-spark-dot" cx="80" cy="24" r="3" fill="#0d8247"/>
+                      </svg>
                     </div>
 
                     <!-- CARD 2: TOTAL TRAINING -->
@@ -2229,6 +2235,12 @@
                         <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200">Training</span>
                       </div>
                       <div id="qx-kpi-sub-training" class="text-[10px] text-slate-400 font-semibold truncate">Kelas &amp; workshop</div>
+                      <svg id="qx-kpi-spark-training" class="qx-kpi-spark" height="32" viewBox="0 0 80 32" preserveAspectRatio="none" aria-hidden="true">
+                        <defs><linearGradient id="tr-grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#6366f1" stop-opacity="0.2"/><stop offset="100%" stop-color="#6366f1" stop-opacity="0"/></linearGradient></defs>
+                        <path id="qx-spark-area-training" class="qx-spark-area" fill="url(#tr-grad)" d="M0,32 L0,32 L80,32 Z"/>
+                        <path id="qx-spark-path-training" class="qx-spark-line" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M0,24 L80,24"/>
+                        <circle id="qx-spark-dot-training" class="qx-spark-dot" cx="80" cy="24" r="3" fill="#6366f1"/>
+                      </svg>
                     </div>
 
                     <!-- CARD 3: TOTAL VISIT -->
@@ -2244,6 +2256,12 @@
                         <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-100 text-emerald-800">Visit</span>
                       </div>
                       <div id="qx-kpi-sub-visit" class="text-[10px] text-slate-400 font-semibold truncate">Audit QSC toko</div>
+                      <svg id="qx-kpi-spark-visit" class="qx-kpi-spark" height="32" viewBox="0 0 80 32" preserveAspectRatio="none" aria-hidden="true">
+                        <defs><linearGradient id="vs-grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#059669" stop-opacity="0.22"/><stop offset="100%" stop-color="#059669" stop-opacity="0"/></linearGradient></defs>
+                        <path id="qx-spark-area-visit" class="qx-spark-area" fill="url(#vs-grad)" d="M0,32 L0,32 L80,32 Z"/>
+                        <path id="qx-spark-path-visit" class="qx-spark-line" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M0,24 L80,24"/>
+                        <circle id="qx-spark-dot-visit" class="qx-spark-dot" cx="80" cy="24" r="3" fill="#059669"/>
+                      </svg>
                     </div>
 
                     <!-- CARD 4: TOTAL NSO -->
@@ -2259,6 +2277,12 @@
                         <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-teal-100 text-teal-800">NSO</span>
                       </div>
                       <div id="qx-kpi-sub-nso" class="text-[10px] text-slate-400 font-semibold truncate">New Store Opening</div>
+                      <svg id="qx-kpi-spark-nso" class="qx-kpi-spark" height="32" viewBox="0 0 80 32" preserveAspectRatio="none" aria-hidden="true">
+                        <defs><linearGradient id="ns-grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0d9488" stop-opacity="0.2"/><stop offset="100%" stop-color="#0d9488" stop-opacity="0"/></linearGradient></defs>
+                        <path id="qx-spark-area-nso" class="qx-spark-area" fill="url(#ns-grad)" d="M0,32 L0,32 L80,32 Z"/>
+                        <path id="qx-spark-path-nso" class="qx-spark-line" fill="none" stroke="#0d9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M0,24 L80,24"/>
+                        <circle id="qx-spark-dot-nso" class="qx-spark-dot" cx="80" cy="24" r="3" fill="#0d9488"/>
+                      </svg>
                     </div>
 
                     <!-- CARD 5: TOTAL PENDING -->
@@ -2274,6 +2298,15 @@
                         <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-100 text-amber-800">Pending</span>
                       </div>
                       <div id="qx-kpi-sub-pending" class="text-[10px] text-slate-400 font-semibold truncate">Belum laporan PDF</div>
+                      <div class="flex items-center gap-1.5 mt-auto">
+                        <span id="qx-kpi-pend-pulse" class="qx-warn-pulse w-2 h-2 rounded-full bg-amber-400 inline-block"></span>
+                        <svg id="qx-kpi-spark-pending" class="qx-kpi-spark flex-1" height="28" viewBox="0 0 72 28" preserveAspectRatio="none" aria-hidden="true">
+                          <defs><linearGradient id="pd-grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f59e0b" stop-opacity="0.18"/><stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/></linearGradient></defs>
+                          <path id="qx-spark-area-pending" class="qx-spark-area" fill="url(#pd-grad)" d="M0,28 L0,28 L72,28 Z"/>
+                          <path id="qx-spark-path-pending" class="qx-spark-line" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M0,16 L72,16"/>
+                          <circle id="qx-spark-dot-pending" class="qx-spark-dot" cx="72" cy="16" r="3" fill="#f59e0b"/>
+                        </svg>
+                      </div>
                     </div>
 
                     <!-- CARD 6: COVERAGE VISIT STORE (Quixotic Emerald Card) -->
@@ -2285,13 +2318,20 @@
                         </span>
                         <span id="qx-cov-completion-pill" class="px-1.5 py-0.2 rounded-full text-[8.5px] font-extrabold bg-white/20 text-white">0%</span>
                       </div>
-                      <div>
-                        <div class="flex items-baseline justify-between gap-1">
-                          <span id="qx-cov-percent-big" class="text-2xl font-black tracking-tight text-white">0.0%</span>
-                          <span id="qx-cov-visited-fraction" class="text-[10px] font-extrabold text-emerald-100">0/610</span>
-                        </div>
-                        <div class="w-full h-1.5 rounded-full bg-black/25 overflow-hidden mt-1.5">
-                          <div id="qx-cov-progress-bar" class="h-full rounded-full bg-white transition-all duration-500" style="width: 0%"></div>
+                      <div class="flex items-center gap-2">
+                        <svg id="qx-kpi-ring-cov" width="40" height="40" viewBox="0 0 40 40" aria-hidden="true" class="shrink-0">
+                          <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="3.5"/>
+                          <circle id="qx-kpi-ring-arc" class="qx-ring-arc" cx="20" cy="20" r="16" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round"
+                            style="--ring-circum:100.53;--ring-offset:100.53"/>
+                        </svg>
+                        <div class="flex-1 min-w-0">
+                          <div class="flex items-baseline justify-between gap-1">
+                            <span id="qx-cov-percent-big" class="text-2xl font-black tracking-tight text-white">0.0%</span>
+                            <span id="qx-cov-visited-fraction" class="text-[10px] font-extrabold text-emerald-100">0/610</span>
+                          </div>
+                          <div class="w-full h-1.5 rounded-full bg-black/25 overflow-hidden mt-1.5">
+                            <div id="qx-cov-progress-bar" class="h-full rounded-full bg-white transition-all duration-500" style="width: 0%"></div>
+                          </div>
                         </div>
                       </div>
                       <div class="flex items-center justify-between text-[9.5px] font-mono text-emerald-100/90">
@@ -4437,16 +4477,16 @@ service cloud.firestore {
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js" crossorigin="anonymous"></script>
 
   <!-- Core Application Scripts (Fast Startup & Auth Priority) -->
-  <script defer src="js/holding-time-standards.js?v=1800460000000"></script>
-  <script defer src="js/master-stores-seed.js?v=1800460000000"></script>
-  <script defer src="js/bestie-in-charge-seed.js?v=1800460000000"></script>
-  <script defer src="js/data.js?v=1800460000000"></script>
-  <script defer src="js/pdf-generator.js?v=1800460000000"></script>
-  <script defer src="js/app.js?v=1800460000000"></script>
+  <script defer src="js/holding-time-standards.js?v=1793921578514"></script>
+  <script defer src="js/master-stores-seed.js?v=1793921578514"></script>
+  <script defer src="js/bestie-in-charge-seed.js?v=1793921578514"></script>
+  <script defer src="js/data.js?v=1793921578514"></script>
+  <script defer src="js/pdf-generator.js?v=1793921578514"></script>
+  <script defer src="js/app.js?v=1793921578514"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1800460000000"></script>
+  <script async src="js/pdf-assets.js?v=1793921578514"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================
