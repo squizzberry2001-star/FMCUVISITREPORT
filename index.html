@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1800360000000" as="style" />
-  <link rel="preload" href="css/styles.css?v=1800360000000" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1800370000000" as="style" />
+  <link rel="preload" href="css/styles.css?v=1800370000000" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1800360000000" />
-  <link rel="stylesheet" href="css/styles.css?v=1800360000000" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1800370000000" />
+  <link rel="stylesheet" href="css/styles.css?v=1800370000000" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -263,46 +263,94 @@
   <div id="auth-screen" class="fixed inset-0 z-50 bg-slate-900/95 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
     <div class="bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200 max-w-4xl w-full overflow-visible grid grid-cols-1 lg:grid-cols-12 my-auto relative">
 
-      <!-- PANEL 1: VISUAL CORPORATE BRANDING & MOBILE INTRO LOADING ANIMATION -->
+      <!-- PANEL 1: VISUAL CORPORATE BRANDING & ONE GATE ARCHITECTURE -->
       <div id="auth-splash-panel" onclick="FMCUApp.skipMobileAuthSplash()" class="hidden lg:flex lg:col-span-5 fm-gradient p-6 sm:p-8 text-white flex-col justify-between relative overflow-hidden cursor-pointer lg:cursor-default rounded-2xl sm:rounded-3xl lg:rounded-r-none lg:rounded-l-3xl">
         <div class="relative z-10 splash-anim-1">
-          <div class="flex items-center gap-3.5 mb-4">
+          <div class="flex items-center gap-3.5 mb-3">
             <img src="FMCUICON.png" alt="FMCU Icon" decoding="async" class="w-14 h-14 sm:w-16 sm:h-16 object-contain shrink-0 drop-shadow-md" width="64" height="64" />
             <div>
-              <div class="inline-flex items-center gap-2 bg-white/15 px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold tracking-wider uppercase">
+              <div class="inline-flex items-center gap-2 bg-white/15 px-3 py-1 rounded-full text-[10px] sm:text-xs font-extrabold tracking-wider uppercase">
                 <span class="w-2 h-2 rounded-full bg-emerald-300"></span>
-                FamilyMart (FMCU)
+                FMCU ONE GATE SYSTEM
               </div>
               <h2 onclick="FMCUApp.handleSecretTitleTap(event)" class="text-xl sm:text-2xl font-extrabold leading-tight tracking-tight select-none cursor-pointer mt-1">
-                FMCU VISIT STORE REPORT
+                SISTEM VALIDASI ROLE
               </h2>
             </div>
           </div>
-          <p class="text-white/85 text-xs sm:text-sm mt-2 leading-relaxed">
-            Platform terpadu laporan audit kunjungan toko, pemantauan Live GPS Location, Actual In-Out, Analitik Trend Temuan & Toko, serta generator laporan PDF otomatis.
+          <p class="text-white/85 text-xs leading-relaxed">
+            Arsitektur pintu akses tunggal (One Gate System) dengan klasifikasi otomatis ke 4 Dashboard Aktor sesuai otoritas jabatan.
           </p>
         </div>
 
-        <div class="space-y-2.5 sm:space-y-3 my-6 sm:my-8 relative z-10 text-xs text-white/90">
-          <div class="flex items-center gap-3 bg-white/10 rounded-xl p-3 splash-anim-2">
-            <i class="fa-solid fa-location-crosshairs text-lg text-emerald-200 shrink-0"></i>
-            <div>
-              <div class="font-bold">Live Location & Actual In-Out</div>
-              <div class="text-white/75 text-[11px] sm:text-xs">Validasi titik koordinat GPS aktual & durasi kunjungan visitor</div>
+        <!-- 4 Actor Classification Architecture Cards -->
+        <div class="space-y-2 my-4 relative z-10 text-xs text-white/95">
+          <div class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-200 flex items-center gap-1.5 mb-1">
+            <i class="fa-solid fa-sitemap"></i>
+            <span>4 Klasifikasi Dashboard &amp; Aktor</span>
+          </div>
+
+          <!-- 1. Regional Bestie -->
+          <div class="flex items-start gap-2.5 bg-white/10 hover:bg-white/15 transition rounded-xl p-2.5 border border-white/10 splash-anim-2">
+            <div class="w-7 h-7 rounded-lg bg-emerald-400/25 text-emerald-200 flex items-center justify-center font-extrabold shrink-0 mt-0.5">
+              <i class="fa-solid fa-user-check text-xs"></i>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="font-extrabold text-white flex items-center justify-between">
+                <span>Dashboard Regional Bestie</span>
+                <span class="text-[9px] px-2 py-0.5 rounded-full bg-emerald-400/25 text-emerald-100 font-bold">Bestie</span>
+              </div>
+              <div class="text-white/80 text-[10px] mt-0.5 leading-snug">
+                ├── Jadwal Agenda &bull; Isi Form Visit &bull; History &amp; Arsip &bull; Preview PDF
+              </div>
             </div>
           </div>
-          <div class="flex items-center gap-3 bg-white/10 rounded-xl p-3 splash-anim-3">
-            <i class="fa-solid fa-file-pdf text-lg text-emerald-200 shrink-0"></i>
-            <div>
-              <div class="font-bold">Auto PDF Presentation 16:9</div>
-              <div class="text-white/75 text-[11px] sm:text-xs">Cetak laporan PDF standar korporat & sinkronisasi ke Google Drive + Email</div>
+
+          <!-- 2. Trainer -->
+          <div class="flex items-start gap-2.5 bg-white/10 hover:bg-white/15 transition rounded-xl p-2.5 border border-white/10 splash-anim-3">
+            <div class="w-7 h-7 rounded-lg bg-amber-400/25 text-amber-200 flex items-center justify-center font-extrabold shrink-0 mt-0.5">
+              <i class="fa-solid fa-chalkboard-user text-xs"></i>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="font-extrabold text-white flex items-center justify-between">
+                <span>Dashboard Trainer</span>
+                <span class="text-[9px] px-2 py-0.5 rounded-full bg-amber-400/25 text-amber-100 font-bold">Trainer</span>
+              </div>
+              <div class="text-white/80 text-[10px] mt-0.5 leading-snug">
+                ├── Jadwal Agenda &bull; Create Jadwal (+ Visit &amp; NSO)
+              </div>
             </div>
           </div>
-          <div class="flex items-center gap-3 bg-white/10 rounded-xl p-3 splash-anim-4">
-            <i class="fa-solid fa-chart-line text-lg text-emerald-200 shrink-0"></i>
-            <div>
-              <div class="font-bold">Analitik Performa & Trend Temuan</div>
-              <div class="text-white/75 text-[11px] sm:text-xs">Pantau efektivitas tim visitor, trend temuan QSC, & ranking toko</div>
+
+          <!-- 3. Admin -->
+          <div class="flex items-start gap-2.5 bg-white/10 hover:bg-white/15 transition rounded-xl p-2.5 border border-white/10 splash-anim-4">
+            <div class="w-7 h-7 rounded-lg bg-sky-400/25 text-sky-200 flex items-center justify-center font-extrabold shrink-0 mt-0.5">
+              <i class="fa-solid fa-calendar-check text-xs"></i>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="font-extrabold text-white flex items-center justify-between">
+                <span>Dashboard Admin</span>
+                <span class="text-[9px] px-2 py-0.5 rounded-full bg-sky-400/25 text-sky-100 font-bold">Admin</span>
+              </div>
+              <div class="text-white/80 text-[10px] mt-0.5 leading-snug">
+                └── Agenda FMCU (Planner 1 Week, Kalender, Monitoring &amp; Toko)
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Super User -->
+          <div class="flex items-start gap-2.5 bg-white/10 hover:bg-white/15 transition rounded-xl p-2.5 border border-white/10 splash-anim-4">
+            <div class="w-7 h-7 rounded-lg bg-purple-400/25 text-purple-200 flex items-center justify-center font-extrabold shrink-0 mt-0.5">
+              <i class="fa-solid fa-user-shield text-xs"></i>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="font-extrabold text-white flex items-center justify-between">
+                <span>Dashboard Super User</span>
+                <span class="text-[9px] px-2 py-0.5 rounded-full bg-purple-400/25 text-purple-100 font-bold">Super User</span>
+              </div>
+              <div class="text-white/80 text-[10px] mt-0.5 leading-snug">
+                └── Akses Penuh / Pengaturan Sistem, Otoritas &amp; Cloud Vault
+              </div>
             </div>
           </div>
         </div>
@@ -312,7 +360,7 @@
           <div class="flex items-center justify-between text-[11px] font-bold text-emerald-100">
             <span class="flex items-center gap-1.5">
               <i class="fa-solid fa-circle-notch fa-spin text-emerald-200"></i>
-              <span>Memuat Portal Login FMCU...</span>
+              <span>Memuat FMCU One Gate System...</span>
             </span>
             <span class="text-[10px] text-white/75">Ketuk untuk lewati &rarr;</span>
           </div>
@@ -321,9 +369,9 @@
           </div>
         </div>
 
-        <div class="text-[11px] text-white/70 relative z-10 flex items-center justify-between border-t border-white/15 pt-3.5 splash-anim-4">
-          <span>FMCU Digital Audit System</span>
-          <span>100% Responsive Web App</span>
+        <div class="text-[11px] text-white/70 relative z-10 flex items-center justify-between border-t border-white/15 pt-3 splash-anim-4">
+          <span>FMCU One Gate System v3</span>
+          <span>100% Data &amp; History Protected</span>
         </div>
       </div>
 
@@ -334,31 +382,59 @@
           <div class="flex items-center gap-2.5">
             <img src="FMCUICON.png" alt="FMCU Icon" decoding="async" class="w-8 h-8 object-contain shrink-0 drop-shadow-xs" width="32" height="32" />
             <div>
-              <div class="text-[9px] font-bold uppercase tracking-wider text-emerald-200">FamilyMart Corporate University (FMCU)</div>
-              <div onclick="FMCUApp.handleSecretTitleTap(event)" class="text-xs sm:text-sm font-extrabold tracking-tight select-none cursor-pointer">FMCU VISIT STORE REPORT</div>
+              <div class="text-[9px] font-bold uppercase tracking-wider text-emerald-200">Akses Web: FMCU ONE GATE SYSTEM</div>
+              <div onclick="FMCUApp.handleSecretTitleTap(event)" class="text-xs sm:text-sm font-extrabold tracking-tight select-none cursor-pointer">HALAMAN LOGIN &bull; VALIDASI ROLE</div>
             </div>
           </div>
-          <button type="button" onclick="FMCUApp.triggerMobileAuthSplash()" title="Lihat Info Sistem" class="w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-xs text-white cursor-pointer" aria-label="Lihat Info Sistem">
-            <i class="fa-solid fa-circle-info"></i>
+          <button type="button" onclick="FMCUApp.triggerMobileAuthSplash()" title="Lihat Arsitektur Role" class="w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-xs text-white cursor-pointer" aria-label="Lihat Info Sistem">
+            <i class="fa-solid fa-sitemap"></i>
           </button>
         </div>
 
-        <div class="p-5 sm:p-8 lg:p-10 flex-1 flex flex-col justify-center">
-          <div class="mb-3.5 sm:mb-6">
+        <div class="p-5 sm:p-7 lg:p-9 flex-1 flex flex-col justify-center">
+          <div class="mb-3 sm:mb-4">
             <div class="flex items-center gap-3">
               <img src="FMCUICON.png" alt="FMCU Icon" class="hidden lg:block w-11 h-11 object-contain shrink-0" width="44" height="44" decoding="async" />
               <div>
-                <span class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full">Portal Akses Otoritas</span>
-                <h2 id="login-title-secret" onclick="FMCUApp.handleSecretTitleTap(event)" class="text-lg sm:text-2xl font-extrabold text-slate-900 mt-1 select-none cursor-pointer">Masuk ke Sistem FMCU</h2>
+                <span class="inline-flex items-center gap-1.5 text-[10px] sm:text-xs font-extrabold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                  <i class="fa-solid fa-shield-halved text-[10px]"></i>
+                  <span>&lt; Sistem Validasi Role &gt;</span>
+                </span>
+                <h2 id="login-title-secret" onclick="FMCUApp.handleSecretTitleTap(event)" class="text-lg sm:text-2xl font-extrabold text-slate-900 mt-1 select-none cursor-pointer">FMCU One Gate System</h2>
               </div>
             </div>
-            <p class="text-[11px] sm:text-sm text-slate-500 mt-1">Pilih nama user / karyawan dan masukkan password otoritas Anda.</p>
+            <p class="text-[11px] sm:text-xs text-slate-500 mt-1">Pilih klasifikasi aktor atau nama karyawan, lalu masukkan password/PIN untuk masuk ke dashboard sesuai role Anda.</p>
           </div>
 
-          <form id="login-form" class="space-y-3 sm:space-y-4">
+          <!-- KLASIFIKASI AKTOR FILTER PILLS (SISTEM VALIDASI ROLE) -->
+          <div class="mb-3">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Filter Klasifikasi Aktor:</span>
+              <span id="login-actor-filter-count" class="text-[10px] font-bold text-emerald-700">Semua Aktor</span>
+            </div>
+            <div id="login-role-filter-bar" class="grid grid-cols-5 gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/80">
+              <button type="button" onclick="FMCUApp.setLoginActorFilter('ALL')" id="login-actor-tab-ALL" class="px-2 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-extrabold transition cursor-pointer bg-white text-slate-900 shadow-2xs truncate">
+                Semua
+              </button>
+              <button type="button" onclick="FMCUApp.setLoginActorFilter('REGIONAL_BESTIE')" id="login-actor-tab-REGIONAL_BESTIE" class="px-2 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold transition cursor-pointer text-slate-600 hover:text-slate-900 truncate" title="Regional Bestie">
+                Bestie
+              </button>
+              <button type="button" onclick="FMCUApp.setLoginActorFilter('TRAINER')" id="login-actor-tab-TRAINER" class="px-2 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold transition cursor-pointer text-slate-600 hover:text-slate-900 truncate" title="Trainer FMCU">
+                Trainer
+              </button>
+              <button type="button" onclick="FMCUApp.setLoginActorFilter('ADMIN')" id="login-actor-tab-ADMIN" class="px-2 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold transition cursor-pointer text-slate-600 hover:text-slate-900 truncate" title="Admin Agenda FMCU">
+                Admin
+              </button>
+              <button type="button" onclick="FMCUApp.setLoginActorFilter('SUPER_USER')" id="login-actor-tab-SUPER_USER" class="px-2 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold transition cursor-pointer text-slate-600 hover:text-slate-900 truncate" title="Super User">
+                Super User
+              </button>
+            </div>
+          </div>
+
+          <form id="login-form" class="space-y-3 sm:space-y-3.5">
             <!-- Custom Interactive User Dropdown (UI Elegan Tanpa Picker Bawaan HP) -->
             <div class="relative" id="custom-user-select-container">
-              <label id="custom-user-select-label" class="block text-[11px] sm:text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Pilih Nama User / Karyawan</label>
+              <label id="custom-user-select-label" class="block text-[11px] sm:text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Pilih Nama Aktor / Karyawan</label>
               
               <!-- Hidden Backing Input for Form Submit -->
               <input type="hidden" id="login-username" name="username" required value="" />
@@ -378,8 +454,16 @@
                     <i class="fa-regular fa-user"></i>
                   </div>
                   <div class="min-w-0 flex-1">
-                    <div id="custom-user-selected-name" class="text-xs sm:text-sm font-bold text-slate-900 truncate">
-                      -- Pilih Nama User --
+                    <div class="flex items-center gap-2">
+                      <div id="custom-user-selected-name" class="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                        -- Pilih Nama User --
+                      </div>
+                      <span id="custom-user-selected-role-pill" class="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-100 text-emerald-800 shrink-0">
+                        Regional Bestie
+                      </span>
+                    </div>
+                    <div id="custom-user-selected-dashboard-target" class="text-[10px] text-slate-500 truncate mt-0.5">
+                      Tujuan: Dashboard Regional Bestie (Jadwal, Form Visit, History, PDF)
                     </div>
                   </div>
                 </div>
@@ -510,16 +594,19 @@
     <!-- DESKTOP SIDEBAR -->
     <aside role="complementary" aria-label="Sidebar Utama FMCU" class="hidden lg:flex lg:flex-col lg:w-72 lg:fixed lg:inset-y-0 lg:left-0 lg:pt-[5px] bg-white border-r border-slate-200 z-30 select-none">
       <!-- Brand Logo Header -->
-      <div class="px-5 py-4 border-b border-slate-100 flex items-center gap-3">
+      <div class="px-5 py-3.5 border-b border-slate-100 flex items-center gap-3">
         <img src="FMCUICON.png" alt="FMCU Logo" class="w-10 h-10 object-contain shrink-0" width="40" height="40" decoding="async" />
-        <div>
-          <div class="font-extrabold text-sm tracking-tight text-slate-900 leading-none">FMCU VISIT REPORT</div>
-          <div class="text-[11px] font-semibold text-emerald-600 mt-1">Store Audit & Analytics</div>
+        <div class="min-w-0 flex-1">
+          <div class="font-extrabold text-xs tracking-tight text-slate-900 leading-none truncate">FMCU ONE GATE SYSTEM</div>
+          <div id="sidebar-actor-dashboard-badge" class="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[9.5px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 truncate">
+            <i class="fa-solid fa-shield-halved text-[9px]"></i>
+            <span>Dashboard Regional Bestie</span>
+          </div>
         </div>
       </div>
 
       <!-- Active Check-In Status Widget in Sidebar (Only shown when actively visiting a store) -->
-      <div id="sidebar-checkin-widget" class="mx-4 mt-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 hidden">
+      <div id="sidebar-checkin-widget" class="mx-4 mt-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200 hidden">
         <div class="flex items-center justify-between">
           <span class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 flex items-center gap-1.5">
             <span class="w-2 h-2 rounded-full bg-emerald-500 gps-pulse"></span>
@@ -534,103 +621,121 @@
       </div>
 
       <!-- Main Navigation Links / Form Section Navigation (Berubah otomatis saat masuk ke Form Visit) -->
-      <nav aria-label="Menu Navigasi Desktop" class="flex-1 px-3 py-4 overflow-y-auto">
-        <!-- A. MENU NAVIGASI UTAMA (Muncul saat di luar Form Visit) -->
-        <div id="sidebar-main-nav" class="space-y-1.5">
-          <div class="px-3 pb-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Menu Navigasi</div>
+      <nav aria-label="Menu Navigasi Desktop" class="flex-1 px-3 py-3 overflow-y-auto">
+        <!-- A. MENU NAVIGASI UTAMA (Muncul saat di luar Form Visit - Menyesuaikan Klasifikasi Aktor) -->
+        <div id="sidebar-main-nav" class="space-y-1">
+          <div id="sidebar-nav-section-title" class="px-3 pb-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Menu Dashboard Aktor</div>
 
-          <!-- 1. HOME -->
-          <button type="button" onclick="FMCUApp.navigate('home')" id="nav-home" class="nav-item active w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
-            <i class="fa-solid fa-house w-5 text-center text-base text-[#009944]"></i>
-            <div>
-              <div class="leading-tight">Home</div>
-              <div class="text-[10px] font-normal text-slate-400">Jadwal Toko & History Visit</div>
+          <!-- 1. JADWAL AGENDA (Regional Bestie & Trainer & Home) -->
+          <button type="button" onclick="FMCUApp.openActorMenu('jadwal_agenda')" id="nav-home" class="nav-item active w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
+            <i class="fa-solid fa-calendar-check w-5 text-center text-base text-[#009944]"></i>
+            <div class="min-w-0 flex-1">
+              <div id="nav-home-title" class="leading-tight font-bold">Jadwal Agenda</div>
+              <div id="nav-home-subtitle" class="text-[10px] font-normal text-slate-400 truncate">Agenda Visit, News &amp; Maps</div>
             </div>
           </button>
 
-          <!-- 2. ANALITIK DASHBOARD (Terpisah dari Home) -->
-          <button type="button" onclick="FMCUApp.navigate('analytics')" id="nav-analytics" class="nav-item w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
-            <i class="fa-solid fa-chart-pie w-5 text-center text-base text-[#0099A6]"></i>
-            <div>
-              <div class="leading-tight">Analitik Dashboard</div>
-              <div class="text-[10px] font-normal text-slate-400">Performa, Trend Temuan & Toko</div>
+          <!-- 2. CREATE JADWAL / AGENDA FMCU (Trainer, Admin, Super User) -->
+          <button type="button" onclick="FMCUApp.openActorMenu('agenda_fmcu')" id="nav-schedules" class="nav-item hidden w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
+            <i class="fa-solid fa-calendar-days w-5 text-center text-base text-[#009944]"></i>
+            <div class="min-w-0 flex-1">
+              <div id="nav-schedules-title" class="leading-tight font-bold">Agenda FMCU</div>
+              <div id="nav-schedules-subtitle" class="text-[10px] font-normal text-slate-400 truncate">Kelola &amp; Monitoring Agenda Tim</div>
             </div>
           </button>
 
-          <!-- 3. FORM VISIT STORE (Hanya muncul/terbuka saat user masuk ke form toko masing-masing) -->
-          <button type="button" onclick="FMCUApp.navigate('form')" id="nav-form" class="nav-item hidden w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
+          <!-- 2B. CREATE JADWAL (Tombol Khusus Trainer & Admin untuk langsung ke Planner Buat Jadwal) -->
+          <button type="button" onclick="FMCUApp.openActorMenu('create_jadwal')" id="nav-create-schedule" class="nav-item hidden w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
+            <i class="fa-solid fa-calendar-plus w-5 text-center text-base text-amber-600"></i>
+            <div class="min-w-0 flex-1">
+              <div class="leading-tight font-bold">Create Jadwal</div>
+              <div class="text-[10px] font-normal text-slate-400 truncate">Planner 1 Week &amp; Buat Agenda</div>
+            </div>
+          </button>
+
+          <!-- 3. ISI FORM VISIT (Regional Bestie & Trainer) -->
+          <button type="button" onclick="FMCUApp.openActorMenu('isi_form_visit')" id="nav-form" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
             <i class="fa-solid fa-clipboard-check w-5 text-center text-base text-[#009944]"></i>
             <div class="flex-1 overflow-hidden">
-              <div class="leading-tight flex items-center justify-between">
-                <span>Form Visit Store</span>
-                <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">Aktif</span>
+              <div class="leading-tight font-bold flex items-center justify-between">
+                <span>Isi Form Visit</span>
+                <span id="nav-form-active-pill" class="hidden text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">Aktif</span>
               </div>
-              <div id="nav-form-store-subtitle" class="text-[10px] font-normal text-slate-400 truncate">Input QSC & Observasi</div>
+              <div id="nav-form-store-subtitle" class="text-[10px] font-normal text-slate-400 truncate">Input QSC, Observasi &amp; Bukti</div>
             </div>
           </button>
 
-          <!-- 4. PREVIEW & UNDUH PDF -->
-          <button type="button" onclick="FMCUApp.navigate('preview')" id="nav-preview" class="nav-item w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
+          <!-- 4. HISTORY & ARSIP (Regional Bestie & Trainer) -->
+          <button type="button" onclick="FMCUApp.openActorMenu('history_arsip')" id="nav-history" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
+            <i class="fa-solid fa-clock-rotate-left w-5 text-center text-base text-[#0099A6]"></i>
+            <div class="min-w-0 flex-1">
+              <div class="leading-tight font-bold">History &amp; Arsip</div>
+              <div class="text-[10px] font-normal text-slate-400 truncate">Riwayat Kunjungan &amp; Laporan</div>
+            </div>
+          </button>
+
+          <!-- 5. PREVIEW PDF (Semua Role) -->
+          <button type="button" onclick="FMCUApp.navigate('preview')" id="nav-preview" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
             <i class="fa-solid fa-file-pdf w-5 text-center text-base text-rose-600"></i>
-            <div>
-              <div class="leading-tight">Preview & Unduh PDF</div>
-              <div class="text-[10px] font-normal text-slate-400">Slide 16:9, Email & Google Drive</div>
+            <div class="min-w-0 flex-1">
+              <div class="leading-tight font-bold">Preview PDF</div>
+              <div class="text-[10px] font-normal text-slate-400 truncate">Slide 16:9, Email &amp; Google Drive</div>
             </div>
           </button>
 
-          <!-- 5. ATUR JADWAL VISIT (Muncul sesuai otoritas manage_schedule) -->
-          <button type="button" onclick="FMCUApp.navigate('schedules')" id="nav-schedules" class="nav-item hidden w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
-            <i class="fa-solid fa-calendar-days w-5 text-center text-base text-[#009944]"></i>
-            <div class="flex-1">
-              <div class="leading-tight">Atur Jadwal Visit</div>
-              <div class="text-[10px] font-normal text-slate-400">Buat & Assign Jadwal Visitor</div>
+          <!-- 6. ANALITIK DASHBOARD -->
+          <button type="button" onclick="FMCUApp.navigate('analytics')" id="nav-analytics" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
+            <i class="fa-solid fa-chart-pie w-5 text-center text-base text-[#0099A6]"></i>
+            <div class="min-w-0 flex-1">
+              <div class="leading-tight font-bold">Analitik Performa</div>
+              <div class="text-[10px] font-normal text-slate-400 truncate">Trend Temuan QSC &amp; Ranking Toko</div>
             </div>
           </button>
 
-          <!-- 6. LIVE LOC MAPS (Khusus Admin Jadwal & Super Admin) -->
-          <button type="button" onclick="FMCUApp.navigate('live-maps')" id="nav-live-maps" class="nav-item hidden w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
+          <!-- 7. LIVE LOC MAPS (Admin & Super User) -->
+          <button type="button" onclick="FMCUApp.navigate('live-maps')" id="nav-live-maps" class="nav-item hidden w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
             <i class="fa-solid fa-map-location-dot w-5 text-center text-base text-[#0099A6]"></i>
             <div class="flex-1">
-              <div class="leading-tight flex items-center justify-between">
+              <div class="leading-tight font-bold flex items-center justify-between">
                 <span>Live Loc Maps</span>
                 <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-cyan-100 text-cyan-800 font-extrabold flex items-center gap-1">
                   <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 gps-pulse"></span>Live
                 </span>
               </div>
-              <div class="text-[10px] font-normal text-slate-400">Monitoring GPS Bestie & Toko</div>
+              <div class="text-[10px] font-normal text-slate-400">Monitoring GPS Bestie &amp; Toko</div>
             </div>
           </button>
 
-          <!-- 6. MASTER TOKO (Muncul sesuai otoritas manage_stores) -->
-          <button type="button" onclick="FMCUApp.navigate('stores')" id="nav-stores" class="nav-item hidden w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
+          <!-- 8. MASTER TOKO (Admin & Super User) -->
+          <button type="button" onclick="FMCUApp.navigate('stores')" id="nav-stores" class="nav-item hidden w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
             <i class="fa-solid fa-store w-5 text-center text-base text-[#0099A6]"></i>
             <div class="flex-1">
-              <div class="leading-tight">Master Toko</div>
-              <div class="text-[10px] font-normal text-slate-400">Database Toko & Upload Excel</div>
+              <div class="leading-tight font-bold">Master Toko</div>
+              <div class="text-[10px] font-normal text-slate-400">Database Toko &amp; Upload Excel</div>
             </div>
           </button>
 
-          <!-- 7. PORTAL ADMIN (Muncul sesuai otoritas manage_users / manage_integrations) -->
-          <button type="button" onclick="FMCUApp.navigate('admin')" id="nav-admin" class="nav-item hidden w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
-            <i class="fa-solid fa-user-shield w-5 text-center text-base text-amber-600"></i>
+          <!-- 9. AKSES PENUH / PENGATURAN (Super User) -->
+          <button type="button" onclick="FMCUApp.navigate('admin')" id="nav-admin" class="nav-item hidden w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
+            <i class="fa-solid fa-sliders w-5 text-center text-base text-purple-600"></i>
             <div class="flex-1">
-              <div class="leading-tight flex items-center justify-between">
-                <span>Portal Admin</span>
-                <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">Admin</span>
+              <div class="leading-tight font-bold flex items-center justify-between">
+                <span>Akses Penuh / Pengaturan</span>
+                <span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 font-bold">Super</span>
               </div>
-              <div class="text-[10px] font-normal text-slate-400">User, Otoritas & Integrasi GDrive</div>
+              <div class="text-[10px] font-normal text-slate-400">Kelola Role User &amp; Cloud Vault</div>
             </div>
           </button>
 
-          <!-- 8. KONTROL NEWS (Khusus Super Admin) -->
-          <button type="button" onclick="FMCUApp.navigate('admin', 'news')" id="nav-news" class="nav-item hidden w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
+          <!-- 10. KONTROL NEWS (Super User) -->
+          <button type="button" onclick="FMCUApp.navigate('admin', 'news')" id="nav-news" class="nav-item hidden w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer text-left">
             <i class="fa-solid fa-bullhorn w-5 text-center text-base text-amber-500"></i>
             <div class="flex-1">
-              <div class="leading-tight flex items-center justify-between">
+              <div class="leading-tight font-bold flex items-center justify-between">
                 <span>Kontrol News</span>
-                <span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">Super Admin</span>
+                <span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">Banner</span>
               </div>
-              <div class="text-[10px] font-normal text-slate-400">Broadcast & Slide Teks Home</div>
+              <div class="text-[10px] font-normal text-slate-400">Broadcast &amp; Slide Informasi</div>
             </div>
           </button>
         </div>
@@ -774,9 +879,55 @@
       </div>
 
       <!-- ==================================================================
-           HALAMAN 1A: HOME (HANYA JADWAL TOKO YANG DIMINTA & HISTORY VISIT)
+           ONE GATE ROLE VALIDATION & ACTOR DASHBOARD HUB BANNER
            ================================================================== -->
       <main id="main-content" role="main" class="flex-1 w-full">
+        <div id="one-gate-role-hub-banner" class="max-w-7xl w-full mx-auto px-4 sm:px-6 pt-3 sm:pt-4 pb-0">
+          <div class="bg-white border border-slate-200/90 rounded-2xl p-3 sm:p-4 shadow-2xs flex flex-col gap-2.5">
+            <!-- Top Row: Actor Classification Identity + Super User Simulator Switcher -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <div id="role-hub-icon-box" class="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-sm shadow-2xs shrink-0">
+                  <i id="role-hub-icon" class="fa-solid fa-user-check"></i>
+                </div>
+                <div class="min-w-0">
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">FMCU One Gate System &rarr;</span>
+                    <span id="role-hub-actor-badge" class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
+                      Regional Bestie
+                    </span>
+                  </div>
+                  <h2 id="role-hub-dashboard-title" class="font-extrabold text-xs sm:text-sm text-slate-900 truncate mt-0.5">
+                    Dashboard Regional Bestie
+                  </h2>
+                </div>
+              </div>
+
+              <!-- Super User One Gate Simulator Switcher (Hanya muncul bagi Super User) -->
+              <div id="role-hub-superuser-simulator" class="hidden items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto no-scrollbar shrink-0">
+                <span class="text-[9.5px] font-extrabold text-purple-700 px-2 whitespace-nowrap"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i>Mode View:</span>
+                <button type="button" onclick="FMCUApp.switchSuperUserSimulatedActor('SUPER_USER')" id="sim-actor-btn-SUPER_USER" class="px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition cursor-pointer bg-purple-600 text-white shadow-2xs whitespace-nowrap">
+                  Super User
+                </button>
+                <button type="button" onclick="FMCUApp.switchSuperUserSimulatedActor('ADMIN')" id="sim-actor-btn-ADMIN" class="px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer text-slate-600 hover:bg-white whitespace-nowrap">
+                  Dashboard Admin
+                </button>
+                <button type="button" onclick="FMCUApp.switchSuperUserSimulatedActor('TRAINER')" id="sim-actor-btn-TRAINER" class="px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer text-slate-600 hover:bg-white whitespace-nowrap">
+                  Dashboard Trainer
+                </button>
+                <button type="button" onclick="FMCUApp.switchSuperUserSimulatedActor('REGIONAL_BESTIE')" id="sim-actor-btn-REGIONAL_BESTIE" class="px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer text-slate-600 hover:bg-white whitespace-nowrap">
+                  Regional Bestie
+                </button>
+              </div>
+            </div>
+
+            <!-- Bottom Row: Actor Quick Action Tree Pills (Sesuai Bagan Arsitektur Role) -->
+            <div id="role-hub-action-pills" class="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-0.5">
+              <!-- Populated dynamically via FMCUApp.renderOneGateRoleHubUI() -->
+            </div>
+          </div>
+        </div>
+
       <section id="view-home" aria-label="Beranda Jadwal dan Riwayat Kunjungan" class="view-section p-4 sm:p-6 max-w-7xl w-full mx-auto space-y-6">
 
         <!-- Home Sub-Section Navigation Switcher Bar with Mobile Auto-Slide & Peek -->
@@ -2855,11 +3006,12 @@ service cloud.firestore {
                     </div>
                   </div>
                   <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Level Otoritas Utama *</label>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Klasifikasi Role / Aktor (One Gate System) *</label>
                     <select id="adm-usr-role" onchange="FMCUApp.onChangeUserRolePreset(this.value)" class="fm-input font-semibold" aria-label="Adm Usr Role">
-                      <option value="AUDITOR">VISITOR (Regional Bestie / Trainer)</option>
-                      <option value="ADMIN_SCHEDULE">ADMIN JADWAL (Regional / Area Manager)</option>
-                      <option value="SUPER_ADMIN">SUPER ADMIN FMCU (Full Akses)</option>
+                      <option value="AUDITOR">REGIONAL BESTIE (Jadwal Agenda, Form Visit, History &amp; PDF)</option>
+                      <option value="TRAINER">TRAINER FMCU (Jadwal Agenda &amp; Create Jadwal + Visit/NSO)</option>
+                      <option value="ADMIN_SCHEDULE">ADMIN (Dashboard Admin — Agenda FMCU)</option>
+                      <option value="SUPER_ADMIN">SUPER USER (Akses Penuh / Pengaturan Sistem)</option>
                     </select>
                   </div>
                   <div>
@@ -3509,42 +3661,50 @@ service cloud.firestore {
        (Posisi Center Presisi, Tanpa Geser-Geser, & Icon Lengkap di Form Visit)
        ==================================================================== -->
   <nav id="mobile-bottom-nav" aria-label="Menu Navigasi Mobile" class="lg:hidden fixed bottom-0 inset-x-0 z-40 py-1 px-2.5">
-    <!-- A. MENU UTAMA MOBILE (Posisi Center Merata, Tanpa Scroll/Geser-Geser) -->
+    <!-- A. MENU UTAMA MOBILE (Posisi Center Merata, Menyesuaikan Klasifikasi Aktor) -->
     <div id="mobile-main-nav" class="relative flex items-center justify-around w-full h-full max-w-md mx-auto">
       <!-- Fluid Morphing Liquid Indicator Bubble -->
       <div id="mobile-main-pill" class="mobile-nav-liquid-pill" aria-hidden="true"></div>
 
-      <button type="button" onclick="FMCUApp.navigate('home')" id="mnav-home" class="mobile-nav-item active flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-400 cursor-pointer text-center relative z-10">
-        <i class="fa-solid fa-house text-base"></i>
-        <span class="text-[10px] mt-0.5">Home</span>
+      <button type="button" onclick="FMCUApp.openActorMenu('jadwal_agenda')" id="mnav-home" class="mobile-nav-item active flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-400 cursor-pointer text-center relative z-10">
+        <i class="fa-solid fa-calendar-check text-base"></i>
+        <span id="mnav-home-label" class="text-[9.5px] font-bold mt-0.5">Jadwal</span>
       </button>
-      <button type="button" onclick="FMCUApp.navigate('analytics')" id="mnav-analytics" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-400 cursor-pointer text-center relative z-10">
-        <i class="fa-solid fa-chart-pie text-base"></i>
-        <span class="text-[10px] mt-0.5">Analitik</span>
+      <button type="button" onclick="FMCUApp.openActorMenu('agenda_fmcu')" id="mnav-schedules" class="mobile-nav-item hidden flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-400 cursor-pointer text-center relative z-10">
+        <i class="fa-solid fa-calendar-days text-base"></i>
+        <span id="mnav-schedules-label" class="text-[9.5px] font-bold mt-0.5">Agenda FMCU</span>
       </button>
-      <button type="button" onclick="FMCUApp.navigate('form')" id="mnav-form" class="mobile-nav-item hidden flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-400 cursor-pointer text-center relative z-10">
+      <button type="button" onclick="FMCUApp.openActorMenu('create_jadwal')" id="mnav-create-schedule" class="mobile-nav-item hidden flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-400 cursor-pointer text-center relative z-10">
+        <i class="fa-solid fa-calendar-plus text-base"></i>
+        <span class="text-[9.5px] font-bold mt-0.5">Create</span>
+      </button>
+      <button type="button" onclick="FMCUApp.openActorMenu('isi_form_visit')" id="mnav-form" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-400 cursor-pointer text-center relative z-10">
         <i class="fa-solid fa-clipboard-check text-base"></i>
-        <span class="text-[10px] mt-0.5">Form Toko</span>
+        <span class="text-[9.5px] font-bold mt-0.5">Form Visit</span>
+      </button>
+      <button type="button" onclick="FMCUApp.openActorMenu('history_arsip')" id="mnav-history" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-400 cursor-pointer text-center relative z-10">
+        <i class="fa-solid fa-clock-rotate-left text-base"></i>
+        <span class="text-[9.5px] font-bold mt-0.5">History</span>
       </button>
       <button type="button" onclick="FMCUApp.navigate('preview')" id="mnav-preview" class="mobile-nav-item flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-400 cursor-pointer text-center relative z-10">
         <i class="fa-solid fa-file-pdf text-base"></i>
-        <span class="text-[10px] mt-0.5">Preview PDF</span>
+        <span class="text-[9.5px] font-bold mt-0.5">PDF</span>
       </button>
-      <button type="button" onclick="FMCUApp.navigate('schedules')" id="mnav-schedules" class="mobile-nav-item hidden flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-400 cursor-pointer text-center relative z-10">
-        <i class="fa-solid fa-calendar-days text-base"></i>
-        <span class="text-[10px] mt-0.5">Jadwal</span>
+      <button type="button" onclick="FMCUApp.navigate('analytics')" id="mnav-analytics" class="mobile-nav-item hidden flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-400 cursor-pointer text-center relative z-10">
+        <i class="fa-solid fa-chart-pie text-base"></i>
+        <span class="text-[9.5px] font-bold mt-0.5">Analitik</span>
       </button>
       <button type="button" onclick="FMCUApp.navigate('live-maps')" id="mnav-live-maps" class="mobile-nav-item hidden flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-400 cursor-pointer text-center relative z-10">
         <i class="fa-solid fa-map-location-dot text-base text-[#0099A6]"></i>
-        <span class="text-[10px] mt-0.5 font-bold">Live Maps</span>
+        <span class="text-[9.5px] mt-0.5 font-bold">Live Maps</span>
       </button>
       <button type="button" onclick="FMCUApp.navigate('stores')" id="mnav-stores" class="mobile-nav-item hidden flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-400 cursor-pointer text-center relative z-10">
         <i class="fa-solid fa-store text-base"></i>
-        <span class="text-[10px] mt-0.5">Master Toko</span>
+        <span class="text-[9.5px] font-bold mt-0.5">Toko</span>
       </button>
       <button type="button" onclick="FMCUApp.navigate('admin')" id="mnav-admin" class="mobile-nav-item hidden flex-1 flex flex-col items-center justify-center py-1 px-1 text-slate-400 cursor-pointer text-center relative z-10">
-        <i class="fa-solid fa-user-shield text-base"></i>
-        <span class="text-[10px] mt-0.5">Admin</span>
+        <i class="fa-solid fa-sliders text-base"></i>
+        <span class="text-[9.5px] font-bold mt-0.5">Pengaturan</span>
       </button>
     </div>
 
@@ -3941,16 +4101,16 @@ service cloud.firestore {
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js" crossorigin="anonymous"></script>
 
   <!-- Core Application Scripts (Fast Startup & Auth Priority) -->
-  <script defer src="js/holding-time-standards.js?v=1800360000000"></script>
-  <script defer src="js/master-stores-seed.js?v=1800360000000"></script>
-  <script defer src="js/bestie-in-charge-seed.js?v=1800360000000"></script>
-  <script defer src="js/data.js?v=1800360000000"></script>
-  <script defer src="js/pdf-generator.js?v=1800360000000"></script>
-  <script defer src="js/app.js?v=1800360000000"></script>
+  <script defer src="js/holding-time-standards.js?v=1800370000000"></script>
+  <script defer src="js/master-stores-seed.js?v=1800370000000"></script>
+  <script defer src="js/bestie-in-charge-seed.js?v=1800370000000"></script>
+  <script defer src="js/data.js?v=1800370000000"></script>
+  <script defer src="js/pdf-generator.js?v=1800370000000"></script>
+  <script defer src="js/app.js?v=1800370000000"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1800360000000"></script>
+  <script async src="js/pdf-assets.js?v=1800370000000"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================

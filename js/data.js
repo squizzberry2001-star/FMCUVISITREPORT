@@ -334,8 +334,10 @@ function mapEmployeeRowToUserObject(row, index = 0, options = {}) {
 
   const jabLower = rawJabatan.toLowerCase();
   const nameLower = rawName.toLowerCase();
+  const nikUpper = String(rawNik || '').toUpperCase();
   let role = 'AUDITOR';
-  let roleBadge = 'Visitor / Regional Bestie';
+  let actorClass = 'REGIONAL_BESTIE';
+  let roleBadge = 'Regional Bestie';
   let authorities = ['view_home', 'view_analytics', 'create_visit', 'export_pdf'];
 
   if (
@@ -343,7 +345,8 @@ function mapEmployeeRowToUserObject(row, index = 0, options = {}) {
     jabLower.includes('super admin')
   ) {
     role = 'SUPER_ADMIN';
-    roleBadge = 'Super Admin FMCU';
+    actorClass = 'SUPER_USER';
+    roleBadge = 'Super User';
     authorities = [
       'view_home',
       'view_analytics',
@@ -365,7 +368,8 @@ function mapEmployeeRowToUserObject(row, index = 0, options = {}) {
     jabLower === 'am'
   ) {
     role = 'ADMIN_SCHEDULE';
-    roleBadge = rawJabatan ? `Admin Jadwal (${rawJabatan})` : 'Admin Jadwal';
+    actorClass = 'ADMIN';
+    roleBadge = 'Admin FMCU';
     authorities = [
       'view_home',
       'view_analytics',
@@ -375,15 +379,25 @@ function mapEmployeeRowToUserObject(row, index = 0, options = {}) {
       'manage_stores',
       'view_live_maps'
     ];
+  } else if (
+    row.role === 'TRAINER' ||
+    nikUpper.startsWith('TR-') ||
+    jabLower.includes('trainer')
+  ) {
+    role = 'TRAINER';
+    actorClass = 'TRAINER';
+    roleBadge = 'Trainer FMCU';
+    authorities = [
+      'view_home',
+      'view_analytics',
+      'create_visit',
+      'export_pdf',
+      'manage_schedule'
+    ];
   } else {
     role = 'AUDITOR';
-    if (jabLower.includes('visitor')) {
-      roleBadge = rawJabatan;
-    } else if (rawJabatan) {
-      roleBadge = `Visitor / ${rawJabatan}`;
-    } else {
-      roleBadge = 'Visitor / Regional Bestie';
-    }
+    actorClass = 'REGIONAL_BESTIE';
+    roleBadge = 'Regional Bestie';
   }
 
   const palette = ['#0099A6', '#009944', '#0284C7', '#0D9488', '#059669', '#2563EB'];
@@ -396,10 +410,11 @@ function mapEmployeeRowToUserObject(row, index = 0, options = {}) {
     name: rawName,
     email: rawEmail,
     role,
+    actorClass,
     roleBadge,
     region: rawRegion || '-',
     phone: '',
-    avatarColor: role === 'SUPER_ADMIN' ? '#009944' : palette[index % palette.length],
+    avatarColor: role === 'SUPER_ADMIN' ? '#7C3AED' : role === 'ADMIN_SCHEDULE' ? '#0284C7' : role === 'TRAINER' ? '#D97706' : palette[index % palette.length],
     active: true,
     authorities,
     _v2AuthSchema: true,
@@ -1345,16 +1360,27 @@ window.FMCUData = {
               userMap.set(key, u);
             } else {
               const curNorm = String(cur.name || '').toLowerCase();
+              const curNik = String(cur.nik || u.nik || '').toUpperCase();
+              const curJab = String(cur.jabatan || u.jabatan || '').toLowerCase();
               const isSuper = cur.role === 'SUPER_ADMIN' || cur.username === 'admin' || curNorm.includes('admin fmcu');
-              const isScheduleAdmin = !isSuper && (cur.role === 'ADMIN_SCHEDULE' || (cur.jabatan && /admin jadwal|regional manager|area manager/i.test(cur.jabatan)));
+              const isScheduleAdmin = !isSuper && (cur.role === 'ADMIN_SCHEDULE' || /admin jadwal|regional manager|area manager/i.test(curJab));
+              const isTrainer = !isSuper && !isScheduleAdmin && (cur.role === 'TRAINER' || curNik.startsWith('TR-') || /trainer/i.test(curJab));
+              const defaultAuths = isSuper
+                ? ['view_home', 'view_analytics', 'create_visit', 'export_pdf', 'live_checkin', 'manage_schedule', 'manage_stores', 'manage_users', 'manage_integrations', 'view_live_maps']
+                : isScheduleAdmin
+                  ? ['view_home', 'view_analytics', 'create_visit', 'export_pdf', 'manage_schedule', 'manage_stores', 'view_live_maps']
+                  : isTrainer
+                    ? ['view_home', 'view_analytics', 'create_visit', 'export_pdf', 'manage_schedule']
+                    : ['view_home', 'view_analytics', 'create_visit', 'export_pdf'];
               const targetAuths = Array.isArray(u.authorities)
-                ? u.authorities
-                : (Array.isArray(cur.authorities) ? cur.authorities : (isScheduleAdmin ? ['view_home', 'view_analytics', 'create_visit', 'export_pdf', 'manage_schedule', 'manage_stores', 'view_live_maps'] : ['view_home', 'view_analytics', 'create_visit', 'export_pdf']));
+                ? Array.from(new Set([...defaultAuths, ...u.authorities]))
+                : (Array.isArray(cur.authorities) ? Array.from(new Set([...defaultAuths, ...cur.authorities])) : defaultAuths);
               userMap.set(key, {
                 ...cur,
                 ...u,
-                role: isSuper ? 'SUPER_ADMIN' : (isScheduleAdmin ? 'ADMIN_SCHEDULE' : (cur.role || u.role)),
-                roleBadge: isSuper ? 'Super Admin FMCU' : (cur.roleBadge || u.roleBadge),
+                role: isSuper ? 'SUPER_ADMIN' : (isScheduleAdmin ? 'ADMIN_SCHEDULE' : (isTrainer ? 'TRAINER' : (cur.role || u.role || 'AUDITOR'))),
+                actorClass: isSuper ? 'SUPER_USER' : (isScheduleAdmin ? 'ADMIN' : (isTrainer ? 'TRAINER' : 'REGIONAL_BESTIE')),
+                roleBadge: isSuper ? 'Super User' : (isScheduleAdmin ? 'Admin FMCU' : (isTrainer ? 'Trainer FMCU' : 'Regional Bestie')),
                 authorities: targetAuths,
                 _v2AuthSchema: true
               });
@@ -2112,8 +2138,11 @@ window.FMCUData = {
 
     const result = deduped.map((u) => {
       const normName = String(u.name || '').toLowerCase();
+      const nikUpper = String(u.nik || '').toUpperCase();
+      const jabLower = String(u.jabatan || '').toLowerCase();
       const isSuper = u.role === 'SUPER_ADMIN' || u.username === 'admin' || normName.includes('admin fmcu');
-      const isScheduleAdmin = !isSuper && (u.role === 'ADMIN_SCHEDULE' || (u.jabatan && /admin jadwal|regional manager|area manager/i.test(u.jabatan)));
+      const isScheduleAdmin = !isSuper && (u.role === 'ADMIN_SCHEDULE' || /admin jadwal|regional manager|area manager/i.test(jabLower));
+      const isTrainer = !isSuper && !isScheduleAdmin && (u.role === 'TRAINER' || nikUpper.startsWith('TR-') || /trainer/i.test(jabLower));
 
       let finalAuths = null;
       if (isSuper) {
@@ -2130,8 +2159,16 @@ window.FMCUData = {
           ...allowedScheduleAdmin,
           ...(Array.isArray(u.authorities) ? u.authorities : [])
         ]));
+      } else if (isTrainer) {
+        const allowedTrainer = new Set([
+          'view_home', 'view_analytics', 'create_visit', 'export_pdf', 'manage_schedule'
+        ]);
+        finalAuths = Array.from(new Set([
+          ...allowedTrainer,
+          ...(Array.isArray(u.authorities) ? u.authorities : [])
+        ])).filter((a) => allowedTrainer.has(a));
       } else {
-        // VISITOR / REGIONAL BESTIE: HANYA BOLEH AKSES VISITOR (TIDAK BOLEH MEMILIKI AKSES ADMIN APAPUN)
+        // REGIONAL BESTIE: HANYA BOLEH AKSES REGIONAL BESTIE
         const allowedVisitor = new Set([
           'view_home', 'view_analytics', 'create_visit', 'export_pdf'
         ]);
@@ -2141,12 +2178,21 @@ window.FMCUData = {
         ])).filter((a) => allowedVisitor.has(a));
       }
 
+      const resolvedRole = isSuper ? 'SUPER_ADMIN' : (isScheduleAdmin ? 'ADMIN_SCHEDULE' : (isTrainer ? 'TRAINER' : 'AUDITOR'));
+      const resolvedActorClass = isSuper ? 'SUPER_USER' : (isScheduleAdmin ? 'ADMIN' : (isTrainer ? 'TRAINER' : 'REGIONAL_BESTIE'));
+      const resolvedBadge = isSuper
+        ? 'Super User'
+        : isScheduleAdmin
+          ? 'Admin FMCU'
+          : isTrainer
+            ? 'Trainer FMCU'
+            : 'Regional Bestie';
+
       return {
         ...u,
-        role: isSuper ? 'SUPER_ADMIN' : (isScheduleAdmin ? 'ADMIN_SCHEDULE' : (u.role || 'AUDITOR')),
-        roleBadge: isSuper
-          ? 'Super Admin FMCU'
-          : String(u.roleBadge || '').replace(/Auditor/gi, 'Visitor'),
+        role: resolvedRole,
+        actorClass: resolvedActorClass,
+        roleBadge: resolvedBadge,
         authorities: finalAuths,
         _v2AuthSchema: true,
         name: u.name === 'Auditor FMCU' ? 'Visitor FMCU' : u.name
@@ -4045,13 +4091,16 @@ window.FMCUData = {
       const effectiveUser = freshUser || userObj;
       if (effectiveUser && String(effectiveUser.name || '').toLowerCase().includes('aan bagus') && (effectiveUser.role === 'AUDITOR' || effectiveUser.role === 'VISITOR' || effectiveUser.role === 'SUPER_ADMIN')) {
         effectiveUser.role = 'AUDITOR';
-        effectiveUser.roleBadge = 'Visitor / Regional Bestie';
+        effectiveUser.actorClass = 'REGIONAL_BESTIE';
+        effectiveUser.roleBadge = 'Regional Bestie';
         effectiveUser.authorities = ['view_home', 'view_analytics', 'create_visit', 'export_pdf'];
       }
       if (effectiveUser) {
         const baseAuths = ['view_home', 'export_pdf'];
         if (effectiveUser.role === 'ADMIN_SCHEDULE' || (effectiveUser.jabatan && /admin jadwal|regional manager|area manager/i.test(effectiveUser.jabatan))) {
           baseAuths.push('manage_schedule', 'manage_stores', 'view_live_maps', 'view_analytics');
+        } else if (effectiveUser.role === 'TRAINER' || String(effectiveUser.nik || '').toUpperCase().startsWith('TR-')) {
+          baseAuths.push('manage_schedule', 'create_visit', 'view_analytics');
         }
         effectiveUser.authorities = Array.from(new Set([...(effectiveUser.authorities || []), ...baseAuths]));
       }

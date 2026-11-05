@@ -1233,6 +1233,7 @@ window.FMCUApp = {
 
   setLoggedInUser(user) {
     this.currentUser = user;
+    this._simulatedActorClass = null;
     window.FMCUData.setSession(user);
     if (this.liveGps && this.liveGps.lat !== null && this.liveGps.lng !== null && this.isUserScheduledForVisitOrNsoToday(user)) {
       window.FMCUData.updateUserLocation(
@@ -1508,13 +1509,354 @@ window.FMCUApp = {
     this.showToast(`Akses Rahasia Super Admin dibuka: ${superAdmin.name}`, 'success');
   },
 
+  getActorClass(user = this.currentUser) {
+    if (!user) return 'REGIONAL_BESTIE';
+    const role = String(user.role || '').toUpperCase();
+    const username = String(user.username || '').toLowerCase();
+    const name = String(user.name || '').toLowerCase();
+    const nik = String(user.nik || '').toUpperCase();
+    const jab = String(user.jabatan || '').toLowerCase();
+
+    if (role === 'SUPER_ADMIN' || username === 'admin' || name.includes('admin fmcu')) {
+      return 'SUPER_USER';
+    }
+    if (role === 'ADMIN_SCHEDULE' || role === 'SCHEDULE_ADMIN' || /admin jadwal|regional manager|area manager/i.test(jab)) {
+      return 'ADMIN';
+    }
+    if (role === 'TRAINER' || nik.startsWith('TR-') || /trainer/i.test(jab)) {
+      return 'TRAINER';
+    }
+    return 'REGIONAL_BESTIE';
+  },
+
+  _simulatedActorClass: null,
+
+  getEffectiveActorClass(user = this.currentUser) {
+    const realActor = this.getActorClass(user);
+    if (realActor === 'SUPER_USER' && this._simulatedActorClass) {
+      return this._simulatedActorClass;
+    }
+    return realActor;
+  },
+
+  switchSuperUserSimulatedActor(actorClass) {
+    const realActor = this.getActorClass(this.currentUser);
+    if (realActor !== 'SUPER_USER') return;
+    this._simulatedActorClass = actorClass || 'SUPER_USER';
+    this.updateSidebarAuthoritiesUI();
+    this.renderOneGateRoleHubUI();
+    if (actorClass === 'SUPER_USER') {
+      this.navigate('admin');
+      this.showToast('Mode View: Dashboard Super User (Akses Penuh / Pengaturan)', 'info');
+    } else if (actorClass === 'ADMIN') {
+      this.openActorMenu('agenda_fmcu');
+      this.showToast('Mode View: Dashboard Admin (Agenda FMCU)', 'info');
+    } else if (actorClass === 'TRAINER') {
+      this.openActorMenu('jadwal_agenda');
+      this.showToast('Mode View: Dashboard Trainer (Jadwal Agenda & Create Jadwal)', 'info');
+    } else if (actorClass === 'REGIONAL_BESTIE') {
+      this.openActorMenu('jadwal_agenda');
+      this.showToast('Mode View: Dashboard Regional Bestie (Jadwal, Form Visit, History, PDF)', 'info');
+    }
+  },
+
+  openActorMenu(menuAction) {
+    this.triggerHaptic('light');
+    if (menuAction === 'jadwal_agenda') {
+      this.currentHomeSubSection = 'schedule';
+      try {
+        sessionStorage.setItem('fmcu_active_home_subtab', 'schedule');
+      } catch (e) {}
+      if (this.currentView !== 'home') {
+        this.navigate('home');
+      } else {
+        this.switchHomeSubSection('schedule', true);
+      }
+      this.updateActorNavActiveState();
+      this.renderOneGateRoleHubUI();
+      return;
+    }
+
+    if (menuAction === 'news_maps') {
+      this.currentHomeSubSection = 'overview';
+      try {
+        sessionStorage.setItem('fmcu_active_home_subtab', 'overview');
+      } catch (e) {}
+      if (this.currentView !== 'home') {
+        this.navigate('home');
+      } else {
+        this.switchHomeSubSection('overview', true);
+      }
+      this.updateActorNavActiveState();
+      this.renderOneGateRoleHubUI();
+      return;
+    }
+
+    if (menuAction === 'history_arsip') {
+      this.currentHomeSubSection = 'history';
+      try {
+        sessionStorage.setItem('fmcu_active_home_subtab', 'history');
+      } catch (e) {}
+      if (this.currentView !== 'home') {
+        this.navigate('home');
+      } else {
+        this.switchHomeSubSection('history', true);
+      }
+      this.updateActorNavActiveState();
+      this.renderOneGateRoleHubUI();
+      return;
+    }
+
+    if (menuAction === 'isi_form_visit') {
+      this.checkAndExpireOldCheckIns();
+      const activeCheckIn = window.FMCUData.getActiveCheckIn();
+      if (this.hasActiveStoreForm || (activeCheckIn && activeCheckIn.storeCode && !this.isSchedulePast24Hours(activeCheckIn))) {
+        this.navigate('form');
+      } else {
+        this.currentHomeSubSection = 'schedule';
+        try {
+          sessionStorage.setItem('fmcu_active_home_subtab', 'schedule');
+        } catch (e) {}
+        if (this.currentView !== 'home') {
+          this.navigate('home');
+        } else {
+          this.switchHomeSubSection('schedule', true);
+        }
+        this.showToast('Pilih dan klik tombol "Check-In / Mulai Visit" pada kartu jadwal toko hari ini untuk membuka Form Visit.', 'info');
+      }
+      this.updateActorNavActiveState();
+      this.renderOneGateRoleHubUI();
+      return;
+    }
+
+    if (menuAction === 'create_jadwal') {
+      this.currentScheduleSubSection = 'create';
+      try {
+        sessionStorage.setItem('fmcu_active_sch_subtab', 'create');
+      } catch (e) {}
+      if (this.currentView !== 'schedules') {
+        this.navigate('schedules');
+      } else {
+        this.switchScheduleSubSection('create', true);
+      }
+      this.updateActorNavActiveState();
+      this.renderOneGateRoleHubUI();
+      return;
+    }
+
+    if (menuAction === 'agenda_fmcu') {
+      this.currentScheduleSubSection = 'list';
+      try {
+        sessionStorage.setItem('fmcu_active_sch_subtab', 'list');
+      } catch (e) {}
+      if (this.currentView !== 'schedules') {
+        this.navigate('schedules');
+      } else {
+        this.switchScheduleSubSection('list', true);
+      }
+      this.updateActorNavActiveState();
+      this.renderOneGateRoleHubUI();
+      return;
+    }
+
+    if (menuAction === 'agenda_calendar') {
+      this.currentScheduleSubSection = 'calendar';
+      try {
+        sessionStorage.setItem('fmcu_active_sch_subtab', 'calendar');
+      } catch (e) {}
+      if (this.currentView !== 'schedules') {
+        this.navigate('schedules');
+      } else {
+        this.switchScheduleSubSection('calendar', true);
+      }
+      this.updateActorNavActiveState();
+      this.renderOneGateRoleHubUI();
+      return;
+    }
+
+    if (menuAction === 'preview_pdf') {
+      this.navigate('preview');
+      this.updateActorNavActiveState();
+      this.renderOneGateRoleHubUI();
+      return;
+    }
+
+    if (menuAction === 'pengaturan_super') {
+      this.navigate('admin');
+      this.updateActorNavActiveState();
+      this.renderOneGateRoleHubUI();
+    }
+  },
+
+  updateActorNavActiveState() {
+    const v = this.currentView;
+    const hSub = this.currentHomeSubSection || 'overview';
+    const sSub = this.currentScheduleSubSection || 'create';
+
+    const setPairActive = (dId, mId, isActive) => {
+      const dEl = document.getElementById(dId);
+      const mEl = document.getElementById(mId);
+      if (dEl) dEl.classList.toggle('active', Boolean(isActive));
+      if (mEl) mEl.classList.toggle('active', Boolean(isActive));
+    };
+
+    setPairActive('nav-home', 'mnav-home', v === 'home' && hSub !== 'history');
+    setPairActive('nav-history', 'mnav-history', v === 'home' && hSub === 'history');
+    setPairActive('nav-form', 'mnav-form', v === 'form');
+    setPairActive('nav-preview', 'mnav-preview', v === 'preview');
+    setPairActive('nav-analytics', 'mnav-analytics', v === 'analytics');
+    setPairActive('nav-create-schedule', 'mnav-create-schedule', v === 'schedules' && sSub === 'create');
+    setPairActive('nav-schedules', 'mnav-schedules', v === 'schedules' && sSub !== 'create');
+    setPairActive('nav-live-maps', 'mnav-live-maps', v === 'live-maps');
+    setPairActive('nav-stores', 'mnav-stores', v === 'stores');
+    setPairActive('nav-admin', 'mnav-admin', v === 'admin' && this.currentAdminTab !== 'news');
+    setPairActive('nav-news', 'mnav-news', v === 'admin' && this.currentAdminTab === 'news');
+
+    setTimeout(() => this.updateMobileNavLiquidPill(), 30);
+  },
+
+  renderOneGateRoleHubUI() {
+    const banner = document.getElementById('one-gate-role-hub-banner');
+    if (!banner) return;
+    if (!this.currentUser || this.currentView === 'form') {
+      banner.classList.add('hidden');
+      return;
+    }
+    banner.classList.remove('hidden');
+
+    const realActor = this.getActorClass(this.currentUser);
+    const effActor = this.getEffectiveActorClass(this.currentUser);
+    const simBox = document.getElementById('role-hub-superuser-simulator');
+    if (simBox) {
+      if (realActor === 'SUPER_USER') {
+        simBox.classList.remove('hidden');
+        simBox.classList.add('flex');
+        ['SUPER_USER', 'ADMIN', 'TRAINER', 'REGIONAL_BESTIE'].forEach((ac) => {
+          const btn = document.getElementById(`sim-actor-btn-${ac}`);
+          if (btn) {
+            btn.className = ac === effActor
+              ? 'px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition cursor-pointer bg-purple-600 text-white shadow-2xs whitespace-nowrap'
+              : 'px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer text-slate-600 hover:bg-white whitespace-nowrap';
+          }
+        });
+      } else {
+        simBox.classList.add('hidden');
+        simBox.classList.remove('flex');
+      }
+    }
+
+    const iconBox = document.getElementById('role-hub-icon-box');
+    const iconEl = document.getElementById('role-hub-icon');
+    const badgeEl = document.getElementById('role-hub-actor-badge');
+    const titleEl = document.getElementById('role-hub-dashboard-title');
+    const sidebarBadge = document.getElementById('sidebar-actor-dashboard-badge');
+    const pillsContainer = document.getElementById('role-hub-action-pills');
+
+    const v = this.currentView;
+    const hSub = this.currentHomeSubSection || 'overview';
+    const sSub = this.currentScheduleSubSection || 'create';
+
+    const actorMeta = {
+      REGIONAL_BESTIE: {
+        actorName: 'Regional Bestie',
+        dashTitle: 'Dashboard Regional Bestie',
+        icon: 'fa-solid fa-user-check',
+        iconBoxClass: 'w-9 h-9 rounded-xl bg-[#009944] text-white flex items-center justify-center text-sm shadow-2xs shrink-0',
+        badgeClass: 'px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800',
+        sidebarBadgeClass: 'inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[9.5px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 truncate',
+        pills: [
+          { label: 'Jadwal Agenda', icon: 'fa-calendar-check', action: "FMCUApp.openActorMenu('jadwal_agenda')", active: v === 'home' && hSub === 'schedule' },
+          { label: 'Isi Form Visit', icon: 'fa-clipboard-check', action: "FMCUApp.openActorMenu('isi_form_visit')", active: v === 'form' },
+          { label: 'History & Arsip', icon: 'fa-clock-rotate-left', action: "FMCUApp.openActorMenu('history_arsip')", active: v === 'home' && hSub === 'history' },
+          { label: 'Preview PDF', icon: 'fa-file-pdf', action: "FMCUApp.openActorMenu('preview_pdf')", active: v === 'preview' },
+          { label: 'News & Peta', icon: 'fa-newspaper', action: "FMCUApp.openActorMenu('news_maps')", active: v === 'home' && hSub === 'overview' }
+        ]
+      },
+      TRAINER: {
+        actorName: 'Trainer',
+        dashTitle: 'Dashboard Trainer',
+        icon: 'fa-solid fa-chalkboard-user',
+        iconBoxClass: 'w-9 h-9 rounded-xl bg-amber-600 text-white flex items-center justify-center text-sm shadow-2xs shrink-0',
+        badgeClass: 'px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800',
+        sidebarBadgeClass: 'inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[9.5px] font-extrabold bg-amber-50 text-amber-800 border border-amber-200 truncate',
+        pills: [
+          { label: 'Jadwal Agenda', icon: 'fa-calendar-check', action: "FMCUApp.openActorMenu('jadwal_agenda')", active: v === 'home' && hSub === 'schedule' },
+          { label: 'Create Jadwal', icon: 'fa-calendar-plus', action: "FMCUApp.openActorMenu('create_jadwal')", active: v === 'schedules' && sSub === 'create' },
+          { label: 'Daftar Agenda Tim', icon: 'fa-list-check', action: "FMCUApp.openActorMenu('agenda_fmcu')", active: v === 'schedules' && sSub !== 'create' },
+          { label: 'Isi Form Visit', icon: 'fa-clipboard-check', action: "FMCUApp.openActorMenu('isi_form_visit')", active: v === 'form' },
+          { label: 'History & Arsip', icon: 'fa-clock-rotate-left', action: "FMCUApp.openActorMenu('history_arsip')", active: v === 'home' && hSub === 'history' },
+          { label: 'Preview PDF', icon: 'fa-file-pdf', action: "FMCUApp.openActorMenu('preview_pdf')", active: v === 'preview' }
+        ]
+      },
+      ADMIN: {
+        actorName: 'Admin',
+        dashTitle: 'Dashboard Admin — Agenda FMCU',
+        icon: 'fa-solid fa-calendar-days',
+        iconBoxClass: 'w-9 h-9 rounded-xl bg-sky-600 text-white flex items-center justify-center text-sm shadow-2xs shrink-0',
+        badgeClass: 'px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-sky-100 text-sky-800',
+        sidebarBadgeClass: 'inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[9.5px] font-extrabold bg-sky-50 text-sky-800 border border-sky-200 truncate',
+        pills: [
+          { label: 'Agenda FMCU (Daftar)', icon: 'fa-list-check', action: "FMCUApp.openActorMenu('agenda_fmcu')", active: v === 'schedules' && sSub === 'list' },
+          { label: 'Create Jadwal (Planner)', icon: 'fa-calendar-plus', action: "FMCUApp.openActorMenu('create_jadwal')", active: v === 'schedules' && sSub === 'create' },
+          { label: 'Kalender Agenda', icon: 'fa-calendar-days', action: "FMCUApp.openActorMenu('agenda_calendar')", active: v === 'schedules' && sSub === 'calendar' },
+          { label: 'Live Loc Maps', icon: 'fa-map-location-dot', action: "FMCUApp.navigate('live-maps')", active: v === 'live-maps' },
+          { label: 'Master Toko', icon: 'fa-store', action: "FMCUApp.navigate('stores')", active: v === 'stores' },
+          { label: 'Analitik', icon: 'fa-chart-pie', action: "FMCUApp.navigate('analytics')", active: v === 'analytics' }
+        ]
+      },
+      SUPER_USER: {
+        actorName: 'Super User',
+        dashTitle: 'Dashboard Super User — Akses Penuh / Pengaturan',
+        icon: 'fa-solid fa-user-shield',
+        iconBoxClass: 'w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center text-sm shadow-2xs shrink-0',
+        badgeClass: 'px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-100 text-purple-800',
+        sidebarBadgeClass: 'inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[9.5px] font-extrabold bg-purple-50 text-purple-800 border border-purple-200 truncate',
+        pills: [
+          { label: 'Akses Penuh / Pengaturan', icon: 'fa-sliders', action: "FMCUApp.openActorMenu('pengaturan_super')", active: v === 'admin' },
+          { label: 'Agenda FMCU', icon: 'fa-calendar-days', action: "FMCUApp.openActorMenu('agenda_fmcu')", active: v === 'schedules' && sSub !== 'create' },
+          { label: 'Create Jadwal', icon: 'fa-calendar-plus', action: "FMCUApp.openActorMenu('create_jadwal')", active: v === 'schedules' && sSub === 'create' },
+          { label: 'Master Toko', icon: 'fa-store', action: "FMCUApp.navigate('stores')", active: v === 'stores' },
+          { label: 'Live Loc Maps', icon: 'fa-map-location-dot', action: "FMCUApp.navigate('live-maps')", active: v === 'live-maps' },
+          { label: 'Analitik', icon: 'fa-chart-pie', action: "FMCUApp.navigate('analytics')", active: v === 'analytics' },
+          { label: 'Preview PDF', icon: 'fa-file-pdf', action: "FMCUApp.openActorMenu('preview_pdf')", active: v === 'preview' }
+        ]
+      }
+    };
+
+    const meta = actorMeta[effActor] || actorMeta.REGIONAL_BESTIE;
+    if (iconBox) iconBox.className = meta.iconBoxClass;
+    if (iconEl) iconEl.className = meta.icon;
+    if (badgeEl) {
+      badgeEl.className = meta.badgeClass;
+      badgeEl.textContent = meta.actorName;
+    }
+    if (titleEl) titleEl.textContent = meta.dashTitle;
+    if (sidebarBadge) {
+      sidebarBadge.className = meta.sidebarBadgeClass;
+      sidebarBadge.innerHTML = `<i class="${meta.icon} text-[9px]"></i><span>${meta.dashTitle}</span>`;
+    }
+
+    if (pillsContainer) {
+      pillsContainer.innerHTML = meta.pills
+        .map((p) => {
+          const btnCls = p.active
+            ? 'shrink-0 px-3 py-1.5 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer bg-[#009944] text-white shadow-2xs whitespace-nowrap'
+            : 'shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80 whitespace-nowrap';
+          return `<button type="button" onclick="${p.action}" class="${btnCls}"><i class="fa-solid ${p.icon} text-[11px]"></i><span>${p.label}</span></button>`;
+        })
+        .join('');
+    }
+  },
+
   hasAuthority(authKey, user = this.currentUser) {
     if (!user) return false;
     const role = String(user.role || '').toUpperCase();
     const username = String(user.username || '').toLowerCase();
     const name = String(user.name || '').toLowerCase();
+    const nik = String(user.nik || '').toUpperCase();
+    const jab = String(user.jabatan || '').toLowerCase();
 
-    // 1. Super Admin & root admin selalu memiliki SEMUA otoritas tanpa pengecualian
+    // 1. Super User selalu memiliki SEMUA otoritas tanpa pengecualian
     if (
       role === 'SUPER_ADMIN' ||
       username === 'admin' ||
@@ -1529,11 +1871,11 @@ window.FMCUApp = {
       return true;
     }
 
-    // 3. Admin Jadwal selalu memiliki otoritas operasional penuh: jadwal, toko, maps, analitik, form visit, & export pdf
+    // 3. Admin (Agenda FMCU) selalu memiliki otoritas operasional penuh: jadwal, toko, maps, analitik, form visit, & export pdf
     if (
       role === 'ADMIN_SCHEDULE' ||
       role === 'SCHEDULE_ADMIN' ||
-      (user.jabatan && /admin jadwal|regional manager|area manager/i.test(user.jabatan))
+      /admin jadwal|regional manager|area manager/i.test(jab)
     ) {
       const allowedScheduleAdmin = [
         'view_home',
@@ -1549,7 +1891,26 @@ window.FMCUApp = {
       }
     }
 
-    // 4. Proteksi Mutlak: Akun Visitor / Regional Bestie TIDAK BOLEH mengakses fitur admin apapun
+    // 4. Trainer FMCU: memiliki akses Jadwal Agenda, Create Jadwal (manage_schedule), Form Visit, History, Analitik, & PDF
+    if (
+      role === 'TRAINER' ||
+      nik.startsWith('TR-') ||
+      /trainer/i.test(jab)
+    ) {
+      const allowedTrainer = [
+        'view_home',
+        'view_analytics',
+        'create_visit',
+        'export_pdf',
+        'manage_schedule'
+      ];
+      if (allowedTrainer.includes(authKey)) {
+        return true;
+      }
+      return false;
+    }
+
+    // 5. Regional Bestie: HANYA mengakses fitur Regional Bestie (Jadwal Agenda, Form Visit, History & Arsip, Preview PDF, Analitik)
     if (role === 'AUDITOR' || role === 'VISITOR' || name.includes('aan bagus')) {
       const allowedVisitor = ['view_home', 'view_analytics', 'create_visit', 'export_pdf'];
       if (!allowedVisitor.includes(authKey)) {
@@ -1561,29 +1922,12 @@ window.FMCUApp = {
       return true;
     }
 
-    // 5. Otoritas Granular Eksplisit (Patuhi array authorities jika sudah ditentukan oleh Admin)
+    // 6. Otoritas Granular Eksplisit (Patuhi array authorities jika sudah ditentukan oleh Admin)
     if (Array.isArray(user.authorities)) {
       return user.authorities.includes(authKey);
     }
 
-    // 6. Fallback jika user lama belum memiliki array authorities:
-    if (
-      role === 'ADMIN_SCHEDULE' ||
-      role === 'SCHEDULE_ADMIN' ||
-      (user.jabatan && /admin jadwal/i.test(user.jabatan))
-    ) {
-      return [
-        'view_home',
-        'view_analytics',
-        'create_visit',
-        'export_pdf',
-        'manage_schedule',
-        'manage_stores',
-        'view_live_maps'
-      ].includes(authKey);
-    }
-
-    // 6. Fallback hak akses dasar bagi seluruh Visitor / Regional Bestie lama
+    // 7. Fallback hak akses dasar bagi seluruh Visitor / Regional Bestie lama
     return ['view_home', 'create_visit', 'export_pdf', 'view_analytics'].includes(authKey);
   },
 
@@ -1986,17 +2330,29 @@ window.FMCUApp = {
 
   getFirstAllowedView(user = this.currentUser) {
     if (!user) return 'home';
-    // Admin Jadwal & Super Admin default mendarat di Atur Jadwal Visit
-    if (user.role === 'ADMIN_SCHEDULE' || user.role === 'SUPER_ADMIN') {
-      if (this.hasAuthority('manage_schedule', user)) return 'schedules';
-      if (this.hasAuthority('manage_stores', user)) return 'stores';
-      if (this.canAccessLiveMaps(user)) return 'live-maps';
+    const actor = this.getEffectiveActorClass(user);
+    if (actor === 'SUPER_USER') {
       if (this.hasPortalAdminAuthority(user)) return 'admin';
+      if (this.hasAuthority('manage_schedule', user)) return 'schedules';
+    }
+    if (actor === 'ADMIN') {
+      this.currentScheduleSubSection = 'list';
+      try {
+        sessionStorage.setItem('fmcu_active_sch_subtab', 'list');
+      } catch (e) {}
+      if (this.hasAuthority('manage_schedule', user)) return 'schedules';
+    }
+    if (actor === 'TRAINER' || actor === 'REGIONAL_BESTIE') {
+      this.currentHomeSubSection = 'schedule';
+      try {
+        sessionStorage.setItem('fmcu_active_home_subtab', 'schedule');
+      } catch (e) {}
+      if (this.hasAuthority('view_home', user)) return 'home';
     }
     if (this.hasAuthority('view_home', user)) return 'home';
+    if (this.hasAuthority('manage_schedule', user)) return 'schedules';
     if (this.hasAuthority('view_analytics', user)) return 'analytics';
     if (this.hasAuthority('export_pdf', user)) return 'preview';
-    if (this.hasAuthority('manage_schedule', user)) return 'schedules';
     if (this.hasAuthority('manage_stores', user)) return 'stores';
     if (this.canAccessLiveMaps(user)) return 'live-maps';
     if (this.hasPortalAdminAuthority(user)) return 'admin';
@@ -2013,35 +2369,123 @@ window.FMCUApp = {
 
   updateSidebarAuthoritiesUI() {
     const u = this.currentUser;
+    const effActor = this.getEffectiveActorClass(u);
     const canHome = this.hasAuthority('view_home', u);
     const canAnalytics = this.hasAuthority('view_analytics', u);
     const canCreateVisit = this.hasAuthority('create_visit', u);
-    const canForm = canCreateVisit && this.hasActiveStoreForm;
     const canPreview = this.hasAuthority('export_pdf', u);
     const canSchedules = this.hasAuthority('manage_schedule', u);
     const canStores = this.hasAuthority('manage_stores', u);
     const canPortalAdmin = this.hasPortalAdminAuthority(u);
     const canLiveMaps = this.canAccessLiveMaps(u);
-
-    const togglePair = (desktopId, mobileId, allowed) => {
-      const dEl = document.getElementById(desktopId);
-      const mEl = document.getElementById(mobileId);
-      if (dEl) dEl.classList.toggle('hidden', !allowed);
-      if (mEl) mEl.classList.toggle('hidden', !allowed);
-    };
-
     const isSuperAdmin = Boolean(u && (u.role === 'SUPER_ADMIN' || u.username === 'admin'));
 
-    // 1. Sidebar & Mobile Bottom Nav Buttons (Muncul sesuai otoritas masing-masing)
-    togglePair('nav-home', 'mnav-home', canHome);
-    togglePair('nav-analytics', 'mnav-analytics', canAnalytics);
-    togglePair('nav-form', 'mnav-form', canForm);
-    togglePair('nav-preview', 'mnav-preview', canPreview);
-    togglePair('nav-schedules', 'mnav-schedules', canSchedules);
-    togglePair('nav-stores', 'mnav-stores', canStores);
-    togglePair('nav-admin', 'mnav-admin', canPortalAdmin);
-    togglePair('nav-live-maps', 'mnav-live-maps', canLiveMaps);
-    togglePair('nav-news', 'mnav-news', isSuperAdmin);
+    const toggleEl = (id, show) => {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('hidden', !show);
+    };
+
+    const activePill = document.getElementById('nav-form-active-pill');
+    if (activePill) activePill.classList.toggle('hidden', !this.hasActiveStoreForm);
+
+    // Klasifikasi Menu Sidebar & Mobile Bottom Nav Berdasarkan 4 Aktor One Gate System
+    if (effActor === 'REGIONAL_BESTIE') {
+      // [Dashboard Regional Bestie]: Jadwal Agenda, Isi Form Visit, History & Arsip, Preview PDF (+ Analitik di Sidebar)
+      toggleEl('nav-home', canHome);
+      toggleEl('nav-form', canCreateVisit);
+      toggleEl('nav-history', canHome);
+      toggleEl('nav-preview', canPreview);
+      toggleEl('nav-analytics', canAnalytics);
+      toggleEl('nav-schedules', false);
+      toggleEl('nav-create-schedule', false);
+      toggleEl('nav-live-maps', false);
+      toggleEl('nav-stores', false);
+      toggleEl('nav-admin', false);
+      toggleEl('nav-news', false);
+
+      toggleEl('mnav-home', canHome);
+      toggleEl('mnav-form', canCreateVisit);
+      toggleEl('mnav-history', canHome);
+      toggleEl('mnav-preview', canPreview);
+      toggleEl('mnav-schedules', false);
+      toggleEl('mnav-create-schedule', false);
+      toggleEl('mnav-analytics', false);
+      toggleEl('mnav-live-maps', false);
+      toggleEl('mnav-stores', false);
+      toggleEl('mnav-admin', false);
+    } else if (effActor === 'TRAINER') {
+      // [Dashboard Trainer]: Jadwal Agenda, Create Jadwal (+ Isi Form Visit, History & Arsip, Preview PDF)
+      toggleEl('nav-home', canHome);
+      toggleEl('nav-create-schedule', canSchedules);
+      toggleEl('nav-schedules', canSchedules);
+      toggleEl('nav-form', canCreateVisit);
+      toggleEl('nav-history', canHome);
+      toggleEl('nav-preview', canPreview);
+      toggleEl('nav-analytics', canAnalytics);
+      toggleEl('nav-live-maps', false);
+      toggleEl('nav-stores', false);
+      toggleEl('nav-admin', false);
+      toggleEl('nav-news', false);
+
+      toggleEl('mnav-home', canHome);
+      toggleEl('mnav-create-schedule', canSchedules);
+      toggleEl('mnav-form', canCreateVisit);
+      toggleEl('mnav-history', canHome);
+      toggleEl('mnav-preview', canPreview);
+      toggleEl('mnav-schedules', false);
+      toggleEl('mnav-analytics', false);
+      toggleEl('mnav-live-maps', false);
+      toggleEl('mnav-stores', false);
+      toggleEl('mnav-admin', false);
+    } else if (effActor === 'ADMIN') {
+      // [Dashboard Admin]: Agenda FMCU, Create Jadwal, Live Maps, Master Toko, Analitik, Preview PDF
+      toggleEl('nav-schedules', canSchedules);
+      toggleEl('nav-create-schedule', canSchedules);
+      toggleEl('nav-live-maps', canLiveMaps);
+      toggleEl('nav-stores', canStores);
+      toggleEl('nav-analytics', canAnalytics);
+      toggleEl('nav-preview', canPreview);
+      toggleEl('nav-home', canHome);
+      toggleEl('nav-form', this.hasActiveStoreForm && canCreateVisit);
+      toggleEl('nav-history', false);
+      toggleEl('nav-admin', false);
+      toggleEl('nav-news', false);
+
+      toggleEl('mnav-schedules', canSchedules);
+      toggleEl('mnav-create-schedule', canSchedules);
+      toggleEl('mnav-live-maps', canLiveMaps);
+      toggleEl('mnav-stores', canStores);
+      toggleEl('mnav-preview', canPreview);
+      toggleEl('mnav-home', false);
+      toggleEl('mnav-form', false);
+      toggleEl('mnav-history', false);
+      toggleEl('mnav-analytics', false);
+      toggleEl('mnav-admin', false);
+    } else {
+      // [Dashboard Super User]: Akses Penuh / Pengaturan + Seluruh Modul
+      toggleEl('nav-admin', canPortalAdmin);
+      toggleEl('nav-news', isSuperAdmin);
+      toggleEl('nav-schedules', canSchedules);
+      toggleEl('nav-create-schedule', canSchedules);
+      toggleEl('nav-stores', canStores);
+      toggleEl('nav-live-maps', canLiveMaps);
+      toggleEl('nav-analytics', canAnalytics);
+      toggleEl('nav-home', canHome);
+      toggleEl('nav-history', canHome);
+      toggleEl('nav-form', canCreateVisit);
+      toggleEl('nav-preview', canPreview);
+
+      toggleEl('mnav-admin', canPortalAdmin);
+      toggleEl('mnav-schedules', canSchedules);
+      toggleEl('mnav-create-schedule', canSchedules);
+      toggleEl('mnav-stores', canStores);
+      toggleEl('mnav-live-maps', canLiveMaps);
+      toggleEl('mnav-home', false);
+      toggleEl('mnav-form', false);
+      toggleEl('mnav-history', false);
+      toggleEl('mnav-preview', false);
+      toggleEl('mnav-analytics', false);
+    }
 
     // 2. Portal Admin Sub-Tab Buttons (User, News & Integrasi)
     const adminTabMap = [
@@ -2071,7 +2515,8 @@ window.FMCUApp = {
     const modalMapBtnAllBesties = document.getElementById('modal-map-btn-all-besties');
     if (modalMapBtnAllBesties) modalMapBtnAllBesties.classList.toggle('hidden', !isPrivilegedAdmin);
 
-    setTimeout(() => this.updateMobileNavLiquidPill(), 25);
+    this.updateActorNavActiveState();
+    this.renderOneGateRoleHubUI();
   },
 
   toggleAdminWatermarkGps(isChecked) {
@@ -2088,16 +2533,60 @@ window.FMCUApp = {
     this.showToast(`Watermark GPS & Timestamp foto ${isChecked ? 'diaktifkan (ON)' : 'dinonaktifkan (OFF)'}.`, isChecked ? 'success' : 'info');
   },
 
+  // ==========================================================================
+  // CUSTOM USER DROPDOWN & LOGIN ROLE VALIDATION FILTER
+  // ==========================================================================
+  _loginActorFilter: 'ALL',
 
-  // ==========================================================================
-  // CUSTOM USER DROPDOWN (SMOOTH & INTERACTIVE UI - TANPA NATIVE OS PICKER HP)
-  // ==========================================================================
+  setLoginActorFilter(actorClass = 'ALL') {
+    this._loginActorFilter = actorClass || 'ALL';
+    const tabs = ['ALL', 'REGIONAL_BESTIE', 'TRAINER', 'ADMIN', 'SUPER_USER'];
+    tabs.forEach((t) => {
+      const btn = document.getElementById(`login-actor-tab-${t}`);
+      if (!btn) return;
+      if (t === this._loginActorFilter) {
+        btn.className = 'px-2 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-extrabold transition cursor-pointer bg-[#009944] text-white shadow-2xs truncate';
+      } else {
+        btn.className = 'px-2 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold transition cursor-pointer text-slate-600 hover:text-slate-900 hover:bg-white/70 truncate';
+      }
+    });
+
+    this.populateCustomUserDropdown(true);
+    const filtered = this.getFilteredLoginUsers();
+    if (filtered.length > 0) {
+      this.selectCustomUser(filtered[0].username, false);
+    }
+  },
+
+  getFilteredLoginUsers(query = '') {
+    const allUsers = window.FMCUData.getUsers() || [];
+    const af = this._loginActorFilter || 'ALL';
+    const q = (query || '').trim().toLowerCase();
+
+    return allUsers
+      .filter((u) => {
+        const uActor = this.getActorClass(u);
+        if (af === 'ALL') {
+          // Tampilkan seluruh karyawan + Super User jika difilter atau dicari
+          return true;
+        }
+        return uActor === af;
+      })
+      .filter((u) => {
+        if (!q) return true;
+        const name = String(u.name || '').toLowerCase();
+        const nik = String(u.nik || '').toLowerCase();
+        const jabatan = String(u.jabatan || u.roleBadge || '').toLowerCase();
+        return name.includes(q) || nik.includes(q) || jabatan.includes(q);
+      })
+      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'id', { sensitivity: 'base' }));
+  },
+
   setupCustomUserSelectListeners() {
     if (this._customUserSelectListenerBound) return;
     this._customUserSelectListenerBound = true;
 
     document.addEventListener('click', (e) => {
-      // Close preview report custom dropdown if clicked outside
       const repMenu = document.getElementById('preview-report-dropdown-menu');
       const repTrigger = document.getElementById('preview-report-custom-trigger');
       if (repMenu && !repMenu.classList.contains('hidden') && repTrigger && !repTrigger.contains(e.target) && !repMenu.contains(e.target)) {
@@ -2124,11 +2613,9 @@ window.FMCUApp = {
     const menu = document.getElementById('custom-user-dropdown-menu');
     const searchInput = document.getElementById('custom-user-search-input');
 
-    // Jika modal login tersembunyi (user sudah login) dan opsi sudah terisi, skip render ulang
     if (!force && authScreen && authScreen.classList.contains('hidden') && container && container.children.length > 0) {
       return;
     }
-    // Jangan pernah mereset / menutup dropdown saat user sedang membuka menu atau mengetik pencarian nama!
     if (!force && menu && !menu.classList.contains('hidden')) {
       return;
     }
@@ -2136,12 +2623,8 @@ window.FMCUApp = {
       return;
     }
 
-    const users = window.FMCUData.getUsers();
-    const visibleLoginUsers = users
-      .filter((u) => u.username !== 'admin' && u.id !== 'usr-admin' && u.name !== 'Admin FMCU')
-      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'id', { sensitivity: 'base' }));
-
-    const listSig = visibleLoginUsers.map((u) => `${u.username}:${u.name}:${u.nik || ''}`).join('|');
+    const visibleLoginUsers = this.getFilteredLoginUsers();
+    const listSig = `${this._loginActorFilter}:` + visibleLoginUsers.map((u) => `${u.username}:${u.name}:${u.role || ''}`).join('|');
     if (!force && this._lastLoginUsersSig === listSig && container && container.children.length > 0) {
       return;
     }
@@ -2150,19 +2633,29 @@ window.FMCUApp = {
     this._cachedLoginUsers = visibleLoginUsers;
     this.renderCustomUserOptions(visibleLoginUsers);
 
-    // Update count label
     const countEl = document.getElementById('custom-user-count-label');
     if (countEl) {
-      countEl.textContent = `${visibleLoginUsers.length} Karyawan Terdaftar`;
+      countEl.textContent = `${visibleLoginUsers.length} Akun Tersedia`;
+    }
+    const filterCountEl = document.getElementById('login-actor-filter-count');
+    if (filterCountEl) {
+      const labelMap = {
+        ALL: `Semua Aktor (${visibleLoginUsers.length})`,
+        REGIONAL_BESTIE: `Regional Bestie (${visibleLoginUsers.length})`,
+        TRAINER: `Trainer FMCU (${visibleLoginUsers.length})`,
+        ADMIN: `Admin FMCU (${visibleLoginUsers.length})`,
+        SUPER_USER: `Super User (${visibleLoginUsers.length})`
+      };
+      filterCountEl.textContent = labelMap[this._loginActorFilter || 'ALL'] || `${visibleLoginUsers.length} Akun`;
     }
 
-    // Set initial selection
     const backingInput = document.getElementById('login-username');
     const currentVal = backingInput ? backingInput.value : '';
     if (currentVal && visibleLoginUsers.some((u) => u.username === currentVal || u.nik === currentVal)) {
       this.selectCustomUser(currentVal, false);
     } else if (visibleLoginUsers.length > 0 && !currentVal) {
-      this.selectCustomUser(visibleLoginUsers[0].username, false);
+      const firstNonSuper = visibleLoginUsers.find((u) => this.getActorClass(u) !== 'SUPER_USER') || visibleLoginUsers[0];
+      this.selectCustomUser(firstNonSuper.username, false);
     }
   },
 
@@ -2174,8 +2667,8 @@ window.FMCUApp = {
       container.innerHTML = `
         <div class="py-6 px-4 text-center text-slate-400">
           <i class="fa-solid fa-user-slash text-2xl mb-1.5 text-slate-300"></i>
-          <div class="text-xs font-bold text-slate-600">Karyawan tidak ditemukan</div>
-          <div class="text-[11px] text-slate-400 mt-0.5">Coba gunakan kata kunci nama atau NIK lain</div>
+          <div class="text-xs font-bold text-slate-600">Aktor / Karyawan tidak ditemukan</div>
+          <div class="text-[11px] text-slate-400 mt-0.5">Coba gunakan kata kunci nama atau pilih filter aktor lain</div>
         </div>
       `;
       return;
@@ -2184,11 +2677,20 @@ window.FMCUApp = {
     const backingInput = document.getElementById('login-username');
     const currentVal = backingInput ? backingInput.value : '';
 
+    const badgeStyleMap = {
+      REGIONAL_BESTIE: { label: 'Regional Bestie', cls: 'bg-emerald-100 text-emerald-800' },
+      TRAINER: { label: 'Trainer', cls: 'bg-amber-100 text-amber-800' },
+      ADMIN: { label: 'Admin', cls: 'bg-sky-100 text-sky-800' },
+      SUPER_USER: { label: 'Super User', cls: 'bg-purple-100 text-purple-800' }
+    };
+
     const html = list
       .map((u) => {
         const isSelected = u.username === currentVal || (u.nik && u.nik === currentVal);
         const nameParts = (u.name || '').trim().split(' ').filter(Boolean);
         const initials = nameParts.slice(0, 2).map((p) => p[0].toUpperCase()).join('') || 'FM';
+        const uActor = this.getActorClass(u);
+        const bMeta = badgeStyleMap[uActor] || badgeStyleMap.REGIONAL_BESTIE;
 
         return `
           <button
@@ -2210,8 +2712,13 @@ window.FMCUApp = {
                 ${initials}
               </div>
               <div class="min-w-0 flex-1">
-                <div class="text-xs sm:text-sm font-bold ${isSelected ? 'text-emerald-950' : 'text-slate-800'} truncate">
-                  ${u.name}
+                <div class="flex items-center gap-1.5">
+                  <div class="text-xs sm:text-sm font-bold ${isSelected ? 'text-emerald-950' : 'text-slate-800'} truncate">
+                    ${u.name}
+                  </div>
+                  <span class="px-1.5 py-0.5 rounded-full text-[9px] font-extrabold ${bMeta.cls} shrink-0">
+                    ${bMeta.label}
+                  </span>
                 </div>
               </div>
             </div>
@@ -2274,9 +2781,9 @@ window.FMCUApp = {
       }, 60);
     }
 
-    if (this._cachedLoginUsers) {
-      this.renderCustomUserOptions(this._cachedLoginUsers);
-    }
+    const list = this.getFilteredLoginUsers();
+    this._cachedLoginUsers = list;
+    this.renderCustomUserOptions(list);
   },
 
   closeCustomUserDropdown() {
@@ -2304,12 +2811,8 @@ window.FMCUApp = {
   },
 
   selectCustomUser(username, shouldFocusPassword = true) {
-    if (!this._cachedLoginUsers) {
-      this._cachedLoginUsers = window.FMCUData.getUsers()
-        .filter((u) => u.username !== 'admin' && u.id !== 'usr-admin' && u.name !== 'Admin FMCU')
-        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'id', { sensitivity: 'base' }));
-    }
-    const user = this._cachedLoginUsers.find((u) => u.username === username || u.nik === username);
+    const allUsers = window.FMCUData.getUsers() || [];
+    const user = allUsers.find((u) => u.username === username || u.nik === username);
     if (!user) return;
 
     const backingInput = document.getElementById('login-username');
@@ -2319,12 +2822,46 @@ window.FMCUApp = {
 
     const nameEl = document.getElementById('custom-user-selected-name');
     const avatarEl = document.getElementById('custom-user-selected-avatar');
+    const rolePillEl = document.getElementById('custom-user-selected-role-pill');
+    const targetEl = document.getElementById('custom-user-selected-dashboard-target');
 
     if (nameEl) nameEl.textContent = user.name;
     if (avatarEl) {
       const nameParts = (user.name || '').trim().split(' ').filter(Boolean);
       const initials = nameParts.slice(0, 2).map((p) => p[0].toUpperCase()).join('') || 'FM';
       avatarEl.innerHTML = `<span class="font-extrabold text-[11px] tracking-wider">${initials}</span>`;
+    }
+
+    const uActor = this.getActorClass(user);
+    const roleTargetMeta = {
+      REGIONAL_BESTIE: {
+        pill: 'Regional Bestie',
+        pillCls: 'px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-100 text-emerald-800 shrink-0',
+        target: 'Tujuan: Dashboard Regional Bestie (Jadwal Agenda • Isi Form Visit • History & Arsip • Preview PDF)'
+      },
+      TRAINER: {
+        pill: 'Trainer',
+        pillCls: 'px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-100 text-amber-800 shrink-0',
+        target: 'Tujuan: Dashboard Trainer (Jadwal Agenda • Create Jadwal)'
+      },
+      ADMIN: {
+        pill: 'Admin',
+        pillCls: 'px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-sky-100 text-sky-800 shrink-0',
+        target: 'Tujuan: Dashboard Admin (Agenda FMCU)'
+      },
+      SUPER_USER: {
+        pill: 'Super User',
+        pillCls: 'px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-purple-100 text-purple-800 shrink-0',
+        target: 'Tujuan: Dashboard Super User (Akses Penuh / Pengaturan)'
+      }
+    };
+    const meta = roleTargetMeta[uActor] || roleTargetMeta.REGIONAL_BESTIE;
+    if (rolePillEl) {
+      rolePillEl.className = meta.pillCls;
+      rolePillEl.textContent = meta.pill;
+    }
+    if (targetEl) {
+      targetEl.textContent = meta.target;
     }
 
     this.closeCustomUserDropdown();
@@ -2353,20 +2890,7 @@ window.FMCUApp = {
     if (clearBtn) {
       clearBtn.classList.toggle('hidden', !q);
     }
-
-    if (!this._cachedLoginUsers) {
-      this._cachedLoginUsers = window.FMCUData.getUsers()
-        .filter((u) => u.username !== 'admin' && u.id !== 'usr-admin' && u.name !== 'Admin FMCU')
-        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'id', { sensitivity: 'base' }));
-    }
-
-    const filtered = this._cachedLoginUsers.filter((u) => {
-      const name = String(u.name || '').toLowerCase();
-      const nik = String(u.nik || '').toLowerCase();
-      const jabatan = String(u.jabatan || u.roleBadge || '').toLowerCase();
-      return name.includes(q) || nik.includes(q) || jabatan.includes(q);
-    });
-
+    const filtered = this.getFilteredLoginUsers(q);
     this.renderCustomUserOptions(filtered, q);
   },
 
@@ -2635,39 +3159,27 @@ window.FMCUApp = {
       }
     });
 
-    const navKeys = ['home', 'analytics', 'form', 'preview', 'schedules', 'stores', 'admin', 'live-maps', 'news'];
-    navKeys.forEach((k) => {
-      const dNav = document.getElementById(`nav-${k}`);
-      if (dNav) {
-        if (k === 'news') {
-          dNav.classList.toggle('active', viewName === 'admin' && this.currentAdminTab === 'news');
-        } else if (k === 'admin') {
-          dNav.classList.toggle('active', viewName === 'admin' && this.currentAdminTab !== 'news');
-        } else {
-          dNav.classList.toggle('active', k === viewName);
-        }
-      }
-      const mNav = document.getElementById(`mnav-${k}`);
-      if (mNav) {
-        if (k === 'news') {
-          mNav.classList.toggle('active', viewName === 'admin' && this.currentAdminTab === 'news');
-        } else if (k === 'admin') {
-          mNav.classList.toggle('active', viewName === 'admin' && this.currentAdminTab !== 'news');
-        } else {
-          mNav.classList.toggle('active', k === viewName);
-        }
-      }
-    });
+    this.updateActorNavActiveState();
+    this.renderOneGateRoleHubUI();
+
+    const effActor = this.getEffectiveActorClass(this.currentUser);
+    const actorDashTitles = {
+      REGIONAL_BESTIE: 'Dashboard Regional Bestie',
+      TRAINER: 'Dashboard Trainer',
+      ADMIN: 'Dashboard Admin',
+      SUPER_USER: 'Dashboard Super User'
+    };
+    const dashPrefix = actorDashTitles[effActor] || 'FMCU One Gate';
 
     const titles = {
-      home: ['Home', ''],
-      analytics: ['Analitik Performa', ''],
+      home: [`${dashPrefix} — Jadwal & History`, ''],
+      analytics: [`${dashPrefix} — Analitik Performa`, ''],
       form: ['Form Visit Store', ''],
-      preview: ['Preview PDF', ''],
-      schedules: ['Atur Jadwal Visit', ''],
-      stores: ['Master Data Toko', ''],
-      admin: ['Portal Admin', ''],
-      'live-maps': ['Live Loc Maps', '']
+      preview: [`${dashPrefix} — Preview PDF`, ''],
+      schedules: [effActor === 'ADMIN' ? 'Dashboard Admin — Agenda FMCU' : `${dashPrefix} — Agenda & Create Jadwal`, ''],
+      stores: [`${dashPrefix} — Master Data Toko`, ''],
+      admin: ['Dashboard Super User — Akses Penuh / Pengaturan', ''],
+      'live-maps': [`${dashPrefix} — Live Loc Maps`, '']
     };
 
     const [t, sub] = titles[viewName] || titles.home;
@@ -3093,6 +3605,9 @@ window.FMCUApp = {
           : 'px-1.5 py-0.2 rounded-full text-[10px] bg-teal-100 text-teal-800 font-extrabold';
     }
 
+    this.updateActorNavActiveState();
+    this.renderOneGateRoleHubUI();
+
     if (scrollTop) {
       window.scrollTo(0, 0);
     }
@@ -3120,14 +3635,12 @@ window.FMCUApp = {
   updateFormGuardVisibility() {
     const guardEl = document.getElementById('form-no-store-guard');
     const wrapperEl = document.getElementById('form-active-store-wrapper');
-    const navForm = document.getElementById('nav-form');
-    const mnavForm = document.getElementById('mnav-form');
-    const canShowFormNav = this.hasActiveStoreForm && this.hasAuthority('create_visit');
+    const activePill = document.getElementById('nav-form-active-pill');
 
     if (guardEl) guardEl.classList.toggle('hidden', this.hasActiveStoreForm);
     if (wrapperEl) wrapperEl.classList.toggle('hidden', !this.hasActiveStoreForm);
-    if (navForm) navForm.classList.toggle('hidden', !canShowFormNav);
-    if (mnavForm) mnavForm.classList.toggle('hidden', !canShowFormNav);
+    if (activePill) activePill.classList.toggle('hidden', !this.hasActiveStoreForm);
+    this.updateSidebarAuthoritiesUI();
     this.updateNavbarModeUI();
   },
 
@@ -4598,7 +5111,7 @@ window.FMCUApp = {
     if (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN_SCHEDULE' || user.role === 'SCHEDULE_ADMIN') return false;
     const nameLower = String(user.name || '').toLowerCase();
     if (nameLower.includes('aan bagus')) return true;
-    if (user.role === 'AUDITOR' || user.role === 'VISITOR') return true;
+    if (user.role === 'AUDITOR' || user.role === 'VISITOR' || user.role === 'TRAINER') return true;
     const badge = String(user.roleBadge || '').toLowerCase();
     const jab = String(user.jabatan || '').toLowerCase();
     return (
@@ -4973,6 +5486,8 @@ window.FMCUApp = {
 
     this.updateHomeSubSectionPills();
     this.scrollActiveHomeSubtabIntoView();
+    this.updateActorNavActiveState();
+    this.renderOneGateRoleHubUI();
 
     if (target === 'overview') {
       this.renderHomeNewsSlider();
@@ -18958,6 +19473,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
   onChangeUserRolePreset(role) {
     const presets = {
       AUDITOR: ['view_home', 'view_analytics', 'create_visit', 'export_pdf'],
+      TRAINER: ['view_home', 'view_analytics', 'create_visit', 'export_pdf', 'manage_schedule'],
       ADMIN_SCHEDULE: ['view_home', 'view_analytics', 'create_visit', 'export_pdf', 'manage_schedule', 'manage_stores', 'view_live_maps'],
       SUPER_ADMIN: [
         'view_home',
