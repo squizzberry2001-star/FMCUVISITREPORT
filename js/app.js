@@ -12302,10 +12302,11 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       groupsByDate.get(d).push(s);
     });
 
-    const todayStr = this.getTodayDateString();
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = this.formatDateIso ? this.formatDateIso(tomorrow) : '';
+    const toIso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const todayStr = toIso(new Date());
+    const tomorrowDate = new Date();
+    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+    const tomorrowStr = toIso(tomorrowDate);
 
     const html = Array.from(groupsByDate.entries()).map(([dateStr, items]) => {
       const isToday = dateStr === todayStr;
@@ -12831,7 +12832,11 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     }
 
     // Render Tampilan 1: List Agenda Cards (Rapi, Bersih, Dikelompokkan per Hari)
-    this.renderScheduleListCards(filteredSchedules);
+    try {
+      this.renderScheduleListCards(filteredSchedules);
+    } catch (err) {
+      console.error('[renderScheduleListCards]', err);
+    }
 
     // Render Tampilan 2: Table View
     const schTbody = document.getElementById('admin-schedules-tbody');
