@@ -1815,14 +1815,15 @@ body.admin-quixotic-active #mobile-bottom-nav {
 
 body.admin-quixotic-active #main-layout-content-col {
   padding-left: 0 !important;
-  padding-bottom: 24px !important;
+  padding-bottom: 4px !important;
 }
 
 .qx-canvas-shell {
-  background-color: #F4F6F5;
-  border-radius: 32px;
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 18px 50px -12px rgba(15, 23, 42, 0.07);
+  background: transparent !important;
+  border-radius: 0 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
 }
 
 .qx-card {
@@ -1859,13 +1860,15 @@ body.admin-quixotic-active #main-layout-content-col {
   pointer-events: none;
 }
 
+#adm-qx-top-header-row,
 #adm-qx-top-navbar,
 .qx-autohide-navbar {
   transition: transform 0.36s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.28s ease, box-shadow 0.3s ease;
   will-change: transform, opacity;
 }
 
-.qx-autohide-navbar.qx-nav-hidden {
+.qx-autohide-navbar.qx-nav-hidden,
+#adm-qx-top-header-row.qx-nav-hidden {
   transform: translateY(-135%);
   opacity: 0;
   pointer-events: none;
@@ -1883,6 +1886,7 @@ body.admin-quixotic-active #main-layout-content-col {
     flex-direction: row;
     align-items: flex-start;
     gap: 16px;
+    padding-left: 62px;
   }
 }
 
@@ -1890,35 +1894,45 @@ body.admin-quixotic-active #main-layout-content-col {
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 8px;
   overflow-x: auto;
-  padding: 2px 0;
-  z-index: 35;
+  padding: 4px 0;
+  position: sticky;
+  top: 8px;
+  z-index: 45;
 }
 
 @media (min-width: 768px) {
   .qx-left-icon-rail {
     flex-direction: column;
-    justify-content: flex-start;
+    justify-content: center;
+    align-items: center;
     gap: 14px;
-    position: sticky;
-    top: 72px;
-    min-height: calc(100vh - 110px);
+    position: fixed;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    min-height: auto;
     overflow: visible;
     flex-shrink: 0;
     padding: 0;
+    z-index: 45;
   }
 }
 
 .qx-top-nav-track {
-  background: #F1F3F2;
+  background: #F4F6F5;
   border-radius: 9999px;
   padding: 4px;
   display: inline-flex;
   align-items: center;
   gap: 4px;
   transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.qx-top-nav-track.hidden {
+  display: none !important;
 }
 
 .qx-top-nav-pill {
@@ -2080,13 +2094,13 @@ body.admin-quixotic-active #main-layout-content-col {
 }
 
 .qx-capsule-bar-striped {
-  background-color: #84b59c;
+  background-color: #8ab8a0;
   background-image: repeating-linear-gradient(
     -45deg,
-    rgba(255, 255, 255, 0.22) 0px,
-    rgba(255, 255, 255, 0.22) 6px,
-    transparent 6px,
-    transparent 12px
+    rgba(255, 255, 255, 0.24) 0px,
+    rgba(255, 255, 255, 0.24) 7px,
+    transparent 7px,
+    transparent 14px
   );
   background-size: 28px 28px;
   border-radius: 9999px;
@@ -2098,7 +2112,7 @@ body.admin-quixotic-active #main-layout-content-col {
 .qx-capsule-bar-striped:hover {
   background-color: #0d8247;
   animation: qxStripeFlow 1.2s linear infinite;
-  box-shadow: 0 10px 20px -4px rgba(13, 130, 71, 0.35);
+  box-shadow: 0 10px 22px -4px rgba(13, 130, 71, 0.38);
 }
 
 .qx-capsule-bar-active {
@@ -2106,16 +2120,39 @@ body.admin-quixotic-active #main-layout-content-col {
   background-image: repeating-linear-gradient(
     -45deg,
     rgba(255, 255, 255, 0.14) 0px,
-    rgba(255, 255, 255, 0.14) 6px,
-    transparent 6px,
-    transparent 12px
+    rgba(255, 255, 255, 0.14) 7px,
+    transparent 7px,
+    transparent 14px
   );
   background-size: 28px 28px;
   border-radius: 9999px;
-  box-shadow: 0 12px 24px -4px rgba(13, 130, 71, 0.45);
+  box-shadow: 0 12px 26px -4px rgba(13, 130, 71, 0.45);
   transform-origin: bottom center;
   animation: qxBarGrowUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) backwards, qxStripeFlow 1.6s linear infinite;
   transition: height 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.qx-callout-bubble {
+  position: relative;
+  background: #0d8247;
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 4px 11px;
+  border-radius: 9999px;
+  box-shadow: 0 6px 14px -2px rgba(13, 130, 71, 0.35);
+  white-space: nowrap;
+}
+
+.qx-callout-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 5px 5px 0 5px;
+  border-style: solid;
+  border-color: #0d8247 transparent transparent transparent;
 }
 
 .qx-capsule-bar-nso {

@@ -3450,7 +3450,11 @@ window.FMCUApp = {
 
   switchAdminQuixoticSection(secName, options = {}) {
     const validSecs = ['analytic', 'history', 'profiles', 'livemaps', 'create', 'stores', 'settings'];
-    const targetSec = validSecs.includes(secName) ? secName : 'analytic';
+    let targetSec = validSecs.includes(secName) ? secName : 'analytic';
+    if (targetSec === 'stores') {
+      targetSec = 'settings';
+      options = { ...options, subTab: 'stores' };
+    }
     this.currentAdminQuixoticSection = targetSec;
 
     // Pastikan #view-admin tampil jika dipanggil dari tombol Top Navbar / Left Rail
@@ -3461,7 +3465,7 @@ window.FMCUApp = {
           const el = document.getElementById(`view-${sec}`);
           if (el) el.classList.toggle('hidden', sec !== 'admin');
         });
-        this.currentView = targetSec === 'stores' ? 'stores' : targetSec === 'settings' ? 'admin' : 'schedules';
+        this.currentView = targetSec === 'settings' ? 'admin' : 'schedules';
       }
       this.checkAdminGateUI();
     }
@@ -3475,13 +3479,12 @@ window.FMCUApp = {
       history: 'adm-qx-nav-history',
       profiles: 'adm-qx-nav-profiles',
       livemaps: 'adm-qx-nav-livemaps',
-      create: 'adm-qx-nav-create',
-      stores: 'adm-qx-nav-stores',
       settings: 'adm-qx-nav-settings'
     };
     Object.entries(railMap).forEach(([key, id]) => {
       const btn = document.getElementById(id);
-      if (btn) btn.classList.toggle('active', key === targetSec);
+      const isRailActive = key === targetSec || (key === 'history' && targetSec === 'create');
+      if (btn) btn.classList.toggle('active', isRailActive);
     });
 
     // Update Active Section Badge in Top Navbar
@@ -3491,20 +3494,18 @@ window.FMCUApp = {
       create: 'Create Schedule',
       profiles: 'Metric Profile',
       livemaps: 'Live Loc Maps',
-      stores: 'Master Store',
-      settings: 'Settings'
+      settings: 'Pengaturan Sistem'
     };
     const activeBadgeEl = document.getElementById('adm-qx-active-section-badge');
     if (activeBadgeEl) {
       activeBadgeEl.textContent = sectionLabels[targetSec] || 'Admin';
     }
 
-    // Switch Dynamic Sub-Section Track in Top Auto-Hide Bar
+    // Switch Dynamic Sub-Section Track in Top Auto-Hide Bar (ONLY show active main section's sub-sections)
     const subNavGroups = {
       analytic: 'adm-qx-subnav-analytic',
       history: 'adm-qx-subnav-history',
       create: 'adm-qx-subnav-history',
-      stores: 'adm-qx-subnav-analytic',
       profiles: 'adm-qx-subnav-profiles',
       livemaps: 'adm-qx-subnav-livemaps',
       settings: 'adm-qx-subnav-settings'
@@ -3515,9 +3516,11 @@ window.FMCUApp = {
       if (el) el.classList.toggle('hidden', id !== activeSubNavId);
     });
 
-    // Ensure Top Navbar is visible when switching sections
+    // Ensure Top Navbar & Corner Profile are visible when switching sections
     const topNavEl = document.getElementById('adm-qx-top-navbar');
     if (topNavEl) topNavEl.classList.remove('qx-nav-hidden');
+    const topRowEl = document.getElementById('adm-qx-top-header-row');
+    if (topRowEl) topRowEl.classList.remove('qx-nav-hidden');
 
     const createBtn = document.getElementById('adm-qx-btn-create-jadwal');
     if (createBtn) {
@@ -3592,16 +3595,11 @@ window.FMCUApp = {
       setTimeout(() => {
         if (this.liveLocMap) this.liveLocMap.invalidateSize();
       }, 220);
-    } else if (targetSec === 'stores') {
-      if (ctrlHeader) ctrlHeader.classList.add('hidden');
-      if (syncBanner) syncBanner.classList.add('hidden');
-      this.showAdminSectionPanel('stores');
-      this.renderAdminView();
     } else if (targetSec === 'settings') {
       if (ctrlHeader) ctrlHeader.classList.remove('hidden');
       if (syncBanner) syncBanner.classList.remove('hidden');
       const isSuperAdmin = Boolean(this.currentUser && (this.currentUser.role === 'SUPER_ADMIN' || this.currentUser.username === 'admin'));
-      const defaultPortalTab = this.hasAuthority('manage_users') ? 'users' : 'integrations';
+      const defaultPortalTab = this.hasAuthority('manage_stores') ? 'stores' : (this.hasAuthority('manage_users') ? 'users' : 'integrations');
       const targetTab = options.subTab || defaultPortalTab;
       this.switchAdminTab(targetTab === 'news' && !isSuperAdmin ? defaultPortalTab : targetTab);
       this.renderAdminView();
@@ -3624,16 +3622,20 @@ window.FMCUApp = {
       'scroll',
       () => {
         const topNav = document.getElementById('adm-qx-top-navbar');
-        if (!topNav) return;
+        const topRow = document.getElementById('adm-qx-top-header-row');
+        if (!topNav && !topRow) return;
         const curY = window.scrollY || 0;
         const delta = curY - this._lastAdminScrollY;
 
         if (curY < 56) {
-          topNav.classList.remove('qx-nav-hidden');
+          if (topNav) topNav.classList.remove('qx-nav-hidden');
+          if (topRow) topRow.classList.remove('qx-nav-hidden');
         } else if (delta > 10) {
-          topNav.classList.add('qx-nav-hidden');
+          if (topNav) topNav.classList.add('qx-nav-hidden');
+          if (topRow) topRow.classList.add('qx-nav-hidden');
         } else if (delta < -8) {
-          topNav.classList.remove('qx-nav-hidden');
+          if (topNav) topNav.classList.remove('qx-nav-hidden');
+          if (topRow) topRow.classList.remove('qx-nav-hidden');
         }
         this._lastAdminScrollY = curY;
       },
@@ -4090,15 +4092,14 @@ window.FMCUApp = {
         .map((m, colIdx) => {
           const vVal = this.adminQuixoticBarMode === 'NSO' ? 0 : m.effectiveVisit;
           const nVal = this.adminQuixoticBarMode === 'VISIT' ? 0 : m.nso;
-          const totalVal = vVal + nVal;
           const isCurrentActualMonth = m.monthIdx === curActualMonthIdx;
           const isSelectedMonth = m.monthIdx === activeFocusIdx;
           const isPeak = m.monthIdx === peakMonthIdx || isSelectedMonth;
 
           const primaryVal = this.adminQuixoticBarMode === 'NSO' ? nVal : vVal;
-          const primaryHeightPct = primaryVal === 0 ? 14 : Math.max(22, Math.min(96, Math.round((primaryVal / scaleMax) * 100)));
+          const primaryHeightPct = primaryVal === 0 ? 18 : Math.max(28, Math.min(94, Math.round((primaryVal / scaleMax) * 100)));
           const secondaryHeightPct = (this.adminQuixoticBarMode === 'BOTH' && nVal > 0)
-            ? Math.max(18, Math.min(92, Math.round((nVal / scaleMax) * 100)))
+            ? Math.max(22, Math.min(90, Math.round((nVal / scaleMax) * 100)))
             : 0;
 
           const capsuleClass = this.adminQuixoticBarMode === 'NSO'
@@ -4110,15 +4111,17 @@ window.FMCUApp = {
             ? Math.min(100, Math.round(((m.visitDone + (m.nso - Math.max(0, m.pending - (m.visitScheduled - m.visitDone)))) / monthActionable) * 100))
             : (m.effectiveVisit > 0 ? 100 : 0);
 
+          const calloutText = this.adminQuixoticBarMode === 'NSO'
+            ? `${nVal} NSO`
+            : `${vVal} Visit (${monthRatePct}%)`;
+
           return `
             <div
               onclick="FMCUApp.selectAdminBarMonth(${m.monthIdx})"
-              class="qx-bar-col-group relative h-full flex flex-col items-center justify-end cursor-pointer select-none px-1.5 sm:px-3 pt-8 pb-1 rounded-2xl transition ${
-                isSelectedMonth ? 'bg-emerald-50/45 ring-1 ring-emerald-200/80' : 'hover:bg-slate-50/70'
-              }"
+              class="qx-bar-col-group group relative h-full flex flex-col items-center justify-end cursor-pointer select-none px-1.5 sm:px-3 pt-10 pb-1 rounded-2xl transition"
             >
               <!-- Interactive Hover Breakdown Tooltip -->
-              <div class="qx-bar-tooltip-card absolute -top-2 left-1/2 -translate-x-1/2 z-30 w-44 p-2.5 rounded-2xl bg-slate-900/95 text-white shadow-xl border border-slate-700/80 text-[10px] space-y-1">
+              <div class="qx-bar-tooltip-card absolute -top-1 left-1/2 -translate-x-1/2 z-30 w-44 p-2.5 rounded-2xl bg-slate-900/95 text-white shadow-xl border border-slate-700/80 text-[10px] space-y-1">
                 <div class="flex items-center justify-between font-black border-b border-slate-700/80 pb-1">
                   <span>${m.fullLabel}</span>
                   <span class="px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300">${monthRatePct}%</span>
@@ -4137,27 +4140,27 @@ window.FMCUApp = {
                 </div>
               </div>
 
-              <!-- Quixotic Callout Pill Badge Above Bar -->
-              <div class="mb-2 flex flex-col items-center">
-                <span class="px-2.5 py-0.5 rounded-full ${
-                  isPeak
-                    ? 'bg-[#0d8247] text-white shadow-sm'
-                    : 'bg-[#F1F3F2] text-slate-700 group-hover:bg-slate-800 group-hover:text-white'
-                } text-[10px] font-black transition whitespace-nowrap">
-                  ${this.adminQuixoticBarMode === 'NSO' ? `${nVal} NSO` : `${vVal} Visit${nVal > 0 ? ` • +${nVal} NSO` : ''}`}
-                </span>
-              </div>
-
-              <!-- Capsule Bars Stage -->
-              <div class="w-full flex items-end justify-center gap-2 h-[148px] px-1 relative z-10">
+              <!-- Capsule Bars Stage (Quixotic Reference Image Style) -->
+              <div class="w-full flex items-end justify-center gap-2 h-[156px] px-1 relative z-10">
                 <div
-                  class="${capsuleClass} relative w-full max-w-[54px] flex items-start justify-center pt-1.5"
+                  class="${capsuleClass} relative w-full max-w-[58px] sm:max-w-[66px] flex items-start justify-center"
                   style="height: ${primaryHeightPct}%; animation-delay: ${colIdx * 70}ms;"
                 >
                   ${
                     isPeak
-                      ? `<span class="w-3.5 h-3.5 rounded-full bg-[#0d8247] border-2 border-white shadow-sm -mt-3"></span>`
-                      : `<span class="w-2.5 h-2.5 rounded-full bg-white/70 opacity-0 group-hover:opacity-100 transition"></span>`
+                      ? `
+                        <!-- Floating Quixotic Callout Pill + Downward Pointer Above White-Ringed Green Dot -->
+                        <div class="absolute -top-11 left-1/2 -translate-x-1/2 flex flex-col items-center z-20 pointer-events-none">
+                          <div class="qx-callout-bubble">${calloutText}</div>
+                        </div>
+                        <span class="w-4 h-4 rounded-full bg-[#0d8247] border-[3px] border-white shadow-md -mt-2 z-10"></span>
+                      `
+                      : `
+                        <div class="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition pointer-events-none z-20">
+                          <span class="px-2.5 py-0.5 rounded-full bg-[#0d8247] text-white text-[9.5px] font-extrabold shadow-xs whitespace-nowrap">${vVal}V${nVal > 0 ? ` • +${nVal}N` : ''}</span>
+                        </div>
+                        <span class="w-3.5 h-3.5 rounded-full bg-[#0d8247] border-2 border-white opacity-0 group-hover:opacity-100 transition -mt-1.5"></span>
+                      `
                   }
                 </div>
                 ${
@@ -4173,8 +4176,8 @@ window.FMCUApp = {
 
               <!-- Month X-Axis Label -->
               <div class="mt-2.5 flex items-center gap-1.5">
-                <span class="text-[11px] font-black tracking-wider uppercase ${
-                  isPeak ? 'text-[#0d8247]' : 'text-slate-500 group-hover:text-slate-900'
+                <span class="text-[11px] font-extrabold tracking-wider uppercase ${
+                  isPeak ? 'text-[#0d8247]' : 'text-slate-400 group-hover:text-slate-800'
                 }">${m.label}</span>
                 ${isCurrentActualMonth ? `<span class="px-1.5 py-0.2 rounded-full bg-emerald-100 text-[#0d8247] text-[8.5px] font-extrabold">Aktual</span>` : ''}
               </div>
@@ -14550,6 +14553,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     });
 
     const topSetMap = {
+      stores: 'adm-top-set-stores',
       users: 'adm-top-set-users',
       news: 'adm-top-set-news',
       integrations: 'adm-top-set-integrations',
