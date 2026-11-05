@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1800420000000" as="style" />
-  <link rel="preload" href="css/styles.css?v=1800420000000" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1800430000000" as="style" />
+  <link rel="preload" href="css/styles.css?v=1800430000000" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1800420000000" />
-  <link rel="stylesheet" href="css/styles.css?v=1800420000000" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1800430000000" />
+  <link rel="stylesheet" href="css/styles.css?v=1800430000000" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -1989,17 +1989,13 @@
 
         <!-- ==================================================================
              REBUILT QUIXOTIC ADMIN CANVAS SHELL (#admin-panel-content)
-             Top Navbar (4 Sections):
-               1. Analytic
-               2. Histori Agenda
-               3. Metric Profile
-               4. Live Loc Maps
-             + Button 5: + Create Jadwal
+             - Left Side Icon-Only Navbar (Main Sections: Analytic, Agenda, Metric Profile, Live Loc Maps, Create Schedule, Stores, Settings, Logout)
+             - Top Auto-Hide Sub-Section Bar (Dynamic Sub-Sections per Main Section + Welcome User)
              ================================================================== -->
-        <div id="admin-panel-content" class="qx-canvas-shell p-2.5 sm:p-4 lg:p-5 space-y-4">
+        <div id="admin-panel-content" class="qx-canvas-shell p-2.5 sm:p-4 lg:p-5 space-y-3.5">
 
-          <!-- 1. STICKY QUIXOTIC TOP NAVBAR (Welcome User + Smooth 4-Section Nav + Create Jadwal + Profile) -->
-          <div id="adm-qx-top-navbar" class="sticky top-2.5 z-40 bg-white/90 backdrop-blur-xl rounded-full px-3.5 sm:px-5 py-2 shadow-sm border border-slate-200/80 flex items-center justify-between gap-2 sm:gap-4 transition-all duration-300">
+          <!-- 1. AUTO-HIDE STICKY TOP SUB-SECTION BAR (Welcome User + Dynamic Sub-Sections + Quick Actions) -->
+          <div id="adm-qx-top-navbar" class="qx-autohide-navbar sticky top-2.5 z-40 bg-white/92 backdrop-blur-xl rounded-full px-3.5 sm:px-5 py-2 shadow-sm border border-slate-200/80 flex items-center justify-between gap-2 sm:gap-4">
             <!-- Left: Brand Identity + Welcome Back (Nama User) -->
             <div class="flex items-center gap-2.5 min-w-0 shrink-0 cursor-pointer group" onclick="FMCUApp.switchAdminQuixoticSection('analytic')">
               <div class="w-9 h-9 rounded-full bg-[#0d8247]/10 border border-[#0d8247]/20 flex items-center justify-center p-1.5 shrink-0 group-hover:scale-105 transition-transform duration-200">
@@ -2008,42 +2004,107 @@
               <div class="leading-tight min-w-0">
                 <div class="flex items-center gap-1.5">
                   <span class="font-black text-sm sm:text-base tracking-tight text-[#0d8247]">FMCU</span>
-                  <span class="hidden md:inline-block text-[9px] font-extrabold uppercase tracking-widest px-1.5 py-0.2 rounded-full bg-emerald-50 text-[#0d8247] border border-emerald-200/60">Admin</span>
+                  <span id="adm-qx-active-section-badge" class="hidden md:inline-block text-[9px] font-extrabold uppercase tracking-widest px-2 py-0.2 rounded-full bg-emerald-50 text-[#0d8247] border border-emerald-200/60">Analytic</span>
                 </div>
-                <div class="text-[11px] sm:text-xs font-bold text-slate-500 truncate max-w-[140px] sm:max-w-[220px]">
+                <div class="text-[11px] sm:text-xs font-bold text-slate-500 truncate max-w-[140px] sm:max-w-[230px]">
                   Welcome back, <span id="adm-qx-welcome-name" class="text-slate-900 font-extrabold">Admin FMCU</span>
                 </div>
               </div>
             </div>
 
-            <!-- Center: 4 Section Top Navbar Pills with Smooth Animation (Analytic, Agenda, Metric Profile, Live Loc Maps) -->
-            <nav aria-label="Navigasi Utama Admin" class="qx-top-nav-track overflow-x-auto no-scrollbar max-w-full">
-              <button type="button" id="adm-qx-nav-analytic" onclick="FMCUApp.switchAdminQuixoticSection('analytic')" class="qx-top-nav-pill active">
-                Analytic
-              </button>
-              <button type="button" id="adm-qx-nav-history" onclick="FMCUApp.switchAdminQuixoticSection('history')" class="qx-top-nav-pill">
-                Agenda
-              </button>
-              <button type="button" id="adm-qx-nav-profiles" onclick="FMCUApp.switchAdminQuixoticSection('profiles')" class="qx-top-nav-pill">
-                Metric Profile
-              </button>
-              <button type="button" id="adm-qx-nav-livemaps" onclick="FMCUApp.switchAdminQuixoticSection('livemaps')" class="qx-top-nav-pill flex items-center gap-1.5">
-                <span>Live Loc Maps</span>
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 gps-pulse"></span>
-              </button>
-            </nav>
+            <!-- Center: Dynamic Sub-Section Navigation Pills for Active Main Section -->
+            <div class="flex items-center justify-center min-w-0 flex-1 overflow-x-auto no-scrollbar">
+              <!-- Sub-Nav Group A: ANALYTIC SUB-SECTIONS -->
+              <nav id="adm-qx-subnav-analytic" aria-label="Sub Navigasi Analytic" class="qx-top-nav-track">
+                <button type="button" id="adm-sub-analytic-kpi" onclick="FMCUApp.scrollToAdminAnalyticPart('kpi')" class="qx-top-nav-pill active">
+                  Overview KPI
+                </button>
+                <button type="button" id="adm-sub-analytic-chart" onclick="FMCUApp.scrollToAdminAnalyticPart('chart')" class="qx-top-nav-pill">
+                  Grafik Bulanan
+                </button>
+                <button type="button" id="adm-sub-analytic-table" onclick="FMCUApp.scrollToAdminAnalyticPart('table')" class="qx-top-nav-pill">
+                  Tabel Indikator
+                </button>
+              </nav>
 
-            <!-- Right: + Create Jadwal & Profile Avatar (No Logout & No Setting Button in Top Navbar) -->
+              <!-- Sub-Nav Group B: AGENDA SUB-SECTIONS (Kalender - Semua Agenda - History Agenda - Arsip Laporan - + Create Schedule) -->
+              <nav id="adm-qx-subnav-history" aria-label="Sub Navigasi Agenda" class="qx-top-nav-track hidden">
+                <button type="button" id="adm-top-sub-calendar" onclick="FMCUApp.switchScheduleSubSection('calendar')" class="qx-top-nav-pill active">
+                  Kalender
+                </button>
+                <button type="button" id="adm-top-sub-list" onclick="FMCUApp.switchScheduleSubSection('list')" class="qx-top-nav-pill">
+                  Semua Agenda
+                </button>
+                <button type="button" id="adm-top-sub-history-agenda" onclick="FMCUApp.switchScheduleSubSection('history-agenda')" class="qx-top-nav-pill">
+                  History Agenda
+                </button>
+                <button type="button" id="adm-top-sub-history" onclick="FMCUApp.switchScheduleSubSection('history')" class="qx-top-nav-pill">
+                  Arsip Laporan
+                </button>
+                <button type="button" id="adm-top-sub-create" onclick="FMCUApp.switchScheduleSubSection('create')" class="qx-top-nav-pill flex items-center gap-1 text-[#0d8247] font-extrabold">
+                  <i class="fa-solid fa-plus text-[10px]"></i>
+                  <span>Create Schedule</span>
+                </button>
+              </nav>
+
+              <!-- Sub-Nav Group C: METRIC PROFILE SUB-SECTIONS -->
+              <nav id="adm-qx-subnav-profiles" aria-label="Sub Navigasi Metric Profile" class="qx-top-nav-track hidden">
+                <button type="button" id="adm-sub-prof-all" onclick="FMCUApp.setAdminProfileSubFilter('ALL')" class="qx-top-nav-pill active">
+                  Semua Anggota
+                </button>
+                <button type="button" id="adm-sub-prof-bestie" onclick="FMCUApp.setAdminProfileSubFilter('REGIONAL_BESTIE')" class="qx-top-nav-pill">
+                  Regional Bestie
+                </button>
+                <button type="button" id="adm-sub-prof-trainer" onclick="FMCUApp.setAdminProfileSubFilter('TRAINER')" class="qx-top-nav-pill">
+                  Trainer FMCU
+                </button>
+              </nav>
+
+              <!-- Sub-Nav Group D: LIVE LOC MAPS SUB-SECTIONS -->
+              <nav id="adm-qx-subnav-livemaps" aria-label="Sub Navigasi Live Maps" class="qx-top-nav-track hidden">
+                <button type="button" onclick="FMCUApp.focusLiveLocMapCanvas()" class="qx-top-nav-pill active flex items-center gap-1.5">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 gps-pulse"></span>
+                  <span>Peta Live GPS</span>
+                </button>
+                <button type="button" onclick="FMCUApp.toggleLiveLocPinpointDrawer()" class="qx-top-nav-pill">
+                  Daftar Pinpoint
+                </button>
+                <button type="button" onclick="FMCUApp.toggleLiveLocControlsDrawer()" class="qx-top-nav-pill">
+                  Filter Tim
+                </button>
+                <button type="button" onclick="FMCUApp.manualRefreshLiveLocations()" class="qx-top-nav-pill">
+                  Refresh GPS
+                </button>
+              </nav>
+
+              <!-- Sub-Nav Group E: SETTINGS SUB-SECTIONS -->
+              <nav id="adm-qx-subnav-settings" aria-label="Sub Navigasi Pengaturan" class="qx-top-nav-track hidden">
+                <button type="button" id="adm-top-set-users" onclick="FMCUApp.switchAdminTab('users')" class="qx-top-nav-pill active">
+                  User &amp; Login
+                </button>
+                <button type="button" id="adm-top-set-news" onclick="FMCUApp.switchAdminTab('news')" class="qx-top-nav-pill">
+                  News &amp; Info
+                </button>
+                <button type="button" id="adm-top-set-integrations" onclick="FMCUApp.switchAdminTab('integrations')" class="qx-top-nav-pill">
+                  Integrasi GDrive
+                </button>
+                <button type="button" id="adm-top-set-holding" onclick="FMCUApp.switchAdminTab('holding-time')" class="qx-top-nav-pill">
+                  Holding Time
+                </button>
+              </nav>
+            </div>
+
+            <!-- Right: + Create Schedule & Profile Avatar -->
             <div class="flex items-center gap-2 shrink-0">
               <button
                 type="button"
                 id="adm-qx-btn-create-jadwal"
                 onclick="FMCUApp.switchAdminQuixoticSection('create')"
                 class="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-full bg-[#0d8247] hover:bg-emerald-800 text-white font-extrabold text-xs shadow-xs transition-all duration-200 cursor-pointer active:scale-95"
-                title="Buat Jadwal Baru (Planner 1 Week)"
+                title="Create Schedule (Planner 1 Week)"
               >
                 <i class="fa-solid fa-plus text-[11px]"></i>
-                <span class="hidden sm:inline">Create Jadwal</span>
+                <span class="hidden sm:inline">Create Schedule</span>
               </button>
               <button type="button" onclick="FMCUApp.openProfileModal()" class="flex items-center gap-1 pl-0.5 cursor-pointer group" title="Profil & Otoritas Akun">
                 <span id="adm-qx-user-avatar" class="w-9 h-9 rounded-full bg-[#0d8247] group-hover:ring-2 group-hover:ring-emerald-300 text-white font-black text-xs flex items-center justify-center shadow-2xs transition-all duration-200">
@@ -2053,9 +2114,115 @@
             </div>
           </div>
 
-          <!-- 2. FULL-WIDTH MAIN WORKSPACE -->
-          <div class="w-full">
-            <div class="min-w-0 space-y-4">
+          <!-- 2. QUIXOTIC WORKSPACE: LEFT ICON-ONLY NAVBAR RAIL + MAIN CONTENT CANVAS -->
+          <div class="qx-workspace-layout">
+
+            <!-- LEFT SIDE ICON-ONLY NAVBAR (Only Icons, No Text Titles — Matches Quixotic Reference) -->
+            <aside id="adm-qx-left-rail" aria-label="Navigasi Utama Admin (Icon Rail)" class="qx-left-icon-rail">
+              <!-- Top Group: 4 Main Sections -->
+              <div class="qx-rail-group">
+                <button
+                  type="button"
+                  id="adm-qx-nav-analytic"
+                  onclick="FMCUApp.switchAdminQuixoticSection('analytic')"
+                  class="qx-rail-btn active"
+                  data-tip="Analytic Dashboard"
+                  aria-label="Analytic Dashboard"
+                >
+                  <i class="fa-solid fa-table-cells-large"></i>
+                </button>
+                <button
+                  type="button"
+                  id="adm-qx-nav-history"
+                  onclick="FMCUApp.switchAdminQuixoticSection('history')"
+                  class="qx-rail-btn"
+                  data-tip="Agenda & Jadwal"
+                  aria-label="Agenda & Jadwal"
+                >
+                  <i class="fa-regular fa-calendar-check"></i>
+                </button>
+                <button
+                  type="button"
+                  id="adm-qx-nav-profiles"
+                  onclick="FMCUApp.switchAdminQuixoticSection('profiles')"
+                  class="qx-rail-btn"
+                  data-tip="Metric Profile (6 Grid)"
+                  aria-label="Metric Profile"
+                >
+                  <i class="fa-solid fa-id-card-clip"></i>
+                </button>
+                <button
+                  type="button"
+                  id="adm-qx-nav-livemaps"
+                  onclick="FMCUApp.switchAdminQuixoticSection('livemaps')"
+                  class="qx-rail-btn relative"
+                  data-tip="Live Loc Maps"
+                  aria-label="Live Loc Maps"
+                >
+                  <i class="fa-solid fa-location-dot"></i>
+                  <span class="w-2 h-2 rounded-full bg-emerald-500 gps-pulse absolute top-1.5 right-1.5 border border-white"></span>
+                </button>
+              </div>
+
+              <!-- Middle Group: Create Schedule & Master Store -->
+              <div class="qx-rail-group">
+                <button
+                  type="button"
+                  id="adm-qx-nav-create"
+                  onclick="FMCUApp.switchAdminQuixoticSection('create')"
+                  class="qx-rail-btn"
+                  data-tip="+ Create Schedule"
+                  aria-label="Create Schedule"
+                >
+                  <i class="fa-solid fa-calendar-plus"></i>
+                </button>
+                <button
+                  type="button"
+                  id="adm-qx-nav-stores"
+                  onclick="FMCUApp.switchAdminQuixoticSection('stores')"
+                  class="qx-rail-btn"
+                  data-tip="Master Toko (610)"
+                  aria-label="Master Toko"
+                >
+                  <i class="fa-solid fa-store"></i>
+                </button>
+                <button
+                  type="button"
+                  onclick="FMCUApp.exportAdminAnalyticSummaryExcel()"
+                  class="qx-rail-btn"
+                  data-tip="Export Ringkasan (.xlsx)"
+                  aria-label="Export Ringkasan Excel"
+                >
+                  <i class="fa-solid fa-file-excel"></i>
+                </button>
+              </div>
+
+              <!-- Bottom Group: Settings & Logout (Matches Quixotic Reference Bottom Left Icons) -->
+              <div class="qx-rail-group mt-auto">
+                <button
+                  type="button"
+                  id="adm-qx-nav-settings"
+                  onclick="FMCUApp.switchAdminQuixoticSection('settings')"
+                  class="qx-rail-btn"
+                  data-tip="Pengaturan Sistem"
+                  aria-label="Pengaturan Sistem"
+                >
+                  <i class="fa-solid fa-gear"></i>
+                </button>
+                <button
+                  type="button"
+                  onclick="FMCUApp.handleLogout()"
+                  class="qx-rail-btn hover:!bg-rose-50 hover:!text-rose-600"
+                  data-tip="Keluar / Logout"
+                  aria-label="Logout"
+                >
+                  <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+              </div>
+            </aside>
+
+            <!-- MAIN CONTENT COLUMN -->
+            <div class="min-w-0 flex-1 space-y-4">
 
               <!-- ==============================================================
                    SECTION 1: ANALYTIC (#adm-qx-sec-analytic)
@@ -2067,12 +2234,12 @@
               <div id="adm-qx-sec-analytic" class="space-y-4">
 
                 <!-- ROW 1: SPLIT LEFT (6 CARDS GRID) & RIGHT (GRAFIK PERFORMA PER ANGGOTA SEJAJAR) -->
-                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+                <div id="adm-analytic-part-kpi" class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch scroll-mt-20">
 
-                  <!-- SISI KIRI (6 Cols): GRID 6 CARD (Total Agenda, Training, Visit, NSO, Pending, Coverage Store) -->
+                  <!-- SISI KIRI (6 Cols): GRID 6 CARD SQUARE (Total Agenda, Training, Visit, NSO, Pending, Coverage Store) -->
                   <div class="lg:col-span-6 grid grid-cols-2 sm:grid-cols-3 gap-3 content-start">
                     <!-- CARD 1: TOTAL AGENDA -->
-                    <div onclick="FMCUApp.openHistoryWithCategoryFilter('ALL')" class="qx-card qx-card-hover aspect-square p-3.5 sm:p-4 flex flex-col justify-between gap-2 cursor-pointer">
+                    <div onclick="FMCUApp.openHistoryWithCategoryFilter('ALL')" class="qx-card qx-card-hover qx-kpi-square-card p-3.5 sm:p-4 flex flex-col justify-between gap-2 cursor-pointer">
                       <div class="flex items-center justify-between gap-1.5">
                         <span class="text-[11px] font-extrabold text-slate-700">Total Agenda</span>
                         <span class="w-7 h-7 rounded-full bg-[#F4F6F5] flex items-center justify-center shrink-0">
@@ -2087,7 +2254,7 @@
                     </div>
 
                     <!-- CARD 2: TOTAL TRAINING -->
-                    <div onclick="FMCUApp.openHistoryWithCategoryFilter('TRAINING')" class="qx-card qx-card-hover aspect-square p-3.5 sm:p-4 flex flex-col justify-between gap-2 cursor-pointer">
+                    <div onclick="FMCUApp.openHistoryWithCategoryFilter('TRAINING')" class="qx-card qx-card-hover qx-kpi-square-card p-3.5 sm:p-4 flex flex-col justify-between gap-2 cursor-pointer">
                       <div class="flex items-center justify-between gap-1.5">
                         <span class="text-[11px] font-extrabold text-slate-700">Total Training</span>
                         <span class="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
@@ -2102,7 +2269,7 @@
                     </div>
 
                     <!-- CARD 3: TOTAL VISIT -->
-                    <div onclick="FMCUApp.openHistoryWithCategoryFilter('VISIT_STORE')" class="qx-card qx-card-hover aspect-square p-3.5 sm:p-4 flex flex-col justify-between gap-2 cursor-pointer">
+                    <div onclick="FMCUApp.openHistoryWithCategoryFilter('VISIT_STORE')" class="qx-card qx-card-hover qx-kpi-square-card p-3.5 sm:p-4 flex flex-col justify-between gap-2 cursor-pointer">
                       <div class="flex items-center justify-between gap-1.5">
                         <span class="text-[11px] font-extrabold text-slate-700">Total Visit</span>
                         <span class="w-7 h-7 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
@@ -2117,7 +2284,7 @@
                     </div>
 
                     <!-- CARD 4: TOTAL NSO -->
-                    <div onclick="FMCUApp.openHistoryWithCategoryFilter('NSO')" class="qx-card qx-card-hover aspect-square p-3.5 sm:p-4 flex flex-col justify-between gap-2 cursor-pointer">
+                    <div onclick="FMCUApp.openHistoryWithCategoryFilter('NSO')" class="qx-card qx-card-hover qx-kpi-square-card p-3.5 sm:p-4 flex flex-col justify-between gap-2 cursor-pointer">
                       <div class="flex items-center justify-between gap-1.5">
                         <span class="text-[11px] font-extrabold text-slate-700">Total NSO</span>
                         <span class="w-7 h-7 rounded-full bg-teal-50 flex items-center justify-center shrink-0">
@@ -2132,7 +2299,7 @@
                     </div>
 
                     <!-- CARD 5: TOTAL PENDING -->
-                    <div onclick="FMCUApp.openHistoryWithStatusFilter('PENDING')" class="qx-card qx-card-hover aspect-square p-3.5 sm:p-4 flex flex-col justify-between gap-2 cursor-pointer">
+                    <div onclick="FMCUApp.openHistoryWithStatusFilter('PENDING')" class="qx-card qx-card-hover qx-kpi-square-card p-3.5 sm:p-4 flex flex-col justify-between gap-2 cursor-pointer">
                       <div class="flex items-center justify-between gap-1.5">
                         <span class="text-[11px] font-extrabold text-slate-700">Total Pending</span>
                         <span class="w-7 h-7 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
@@ -2147,7 +2314,7 @@
                     </div>
 
                     <!-- CARD 6: COVERAGE VISIT STORE (Quixotic Emerald Card) -->
-                    <div onclick="FMCUApp.switchAdminQuixoticSection('stores')" class="qx-visa-emerald-card qx-card-hover aspect-square p-3.5 sm:p-4 flex flex-col justify-between gap-1.5 cursor-pointer" title="Klik untuk melihat Master Toko (610)">
+                    <div onclick="FMCUApp.switchAdminQuixoticSection('stores')" class="qx-visa-emerald-card qx-card-hover qx-kpi-square-card p-3.5 sm:p-4 flex flex-col justify-between gap-1.5 cursor-pointer" title="Klik untuk melihat Master Toko (610)">
                       <div class="flex items-center justify-between gap-1">
                         <span class="text-[10.5px] font-extrabold uppercase tracking-wider text-emerald-100 flex items-center gap-1">
                           <i class="fa-solid fa-store text-emerald-200"></i>
@@ -2211,17 +2378,17 @@
 
                 </div>
 
-                <!-- ROW 2: HORIZONTAL FULL-WIDTH GRAFIK BATANG (4 BULAN AKTUAL & TERDEKAT + TOMBOL SLIDE 1 TAHUN) -->
-                <div class="qx-card p-4 sm:p-5 space-y-3">
+                <!-- ROW 2: PROPER QUIXOTIC INTERACTIVE BAR CHART (4 BULAN AKTUAL & TERDEKAT + TOMBOL SLIDE 1 TAHUN) -->
+                <div id="adm-analytic-part-chart" class="qx-card p-4 sm:p-5 space-y-3.5 scroll-mt-20">
                   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                     <div class="flex items-center gap-2.5">
                       <span class="w-8 h-8 rounded-full bg-[#F4F6F5] flex items-center justify-center shrink-0">
-                        <i class="fa-solid fa-chart-bar text-[#0d8247] text-xs"></i>
+                        <i class="fa-solid fa-chart-column text-[#0d8247] text-xs"></i>
                       </span>
                       <div>
                         <h3 class="font-extrabold text-xs sm:text-sm text-slate-900">Grafik Batang Total Visit &amp; NSO Per Bulan</h3>
                         <p class="text-[10.5px] text-slate-400">
-                          Menampilkan 4 bulan aktual &amp; terdekat (<span class="text-[#0d8247] font-bold">Total Visit: <strong id="qx-bar-legend-visit-total">0</strong></span> • <span class="text-teal-600 font-bold">Total NSO: <strong id="qx-bar-legend-nso-total">0</strong></span>)
+                          Interaktif 4 bulan aktual &amp; terdekat (<span class="text-[#0d8247] font-bold">Total Visit: <strong id="qx-bar-legend-visit-total">0</strong></span> • <span class="text-teal-600 font-bold">Total NSO: <strong id="qx-bar-legend-nso-total">0</strong></span>)
                         </p>
                       </div>
                     </div>
@@ -2229,14 +2396,14 @@
                     <!-- Right Controls: Mode Switcher + 4-Month Slide Prev/Next Buttons -->
                     <div class="flex flex-wrap items-center gap-2">
                       <!-- Mode Switcher (Visit & NSO / Visit / NSO) -->
-                      <div class="bg-[#F1F3F2] p-0.5 rounded-full inline-flex items-center text-[10.5px] font-bold">
-                        <button type="button" id="qx-bar-mode-both" onclick="FMCUApp.setAdminQuixoticMonthlyBarMode('BOTH')" class="px-2.5 py-1 rounded-full bg-[#0d8247] text-white font-extrabold shadow-2xs transition cursor-pointer">
+                      <div class="bg-[#F1F3F2] p-1 rounded-full inline-flex items-center text-[10.5px] font-bold">
+                        <button type="button" id="qx-bar-mode-both" onclick="FMCUApp.setAdminQuixoticMonthlyBarMode('BOTH')" class="px-3 py-1 rounded-full bg-[#0d8247] text-white font-extrabold shadow-2xs transition cursor-pointer">
                           Visit &amp; NSO
                         </button>
-                        <button type="button" id="qx-bar-mode-visit" onclick="FMCUApp.setAdminQuixoticMonthlyBarMode('VISIT')" class="px-2.5 py-1 rounded-full text-slate-600 hover:text-slate-900 transition cursor-pointer">
+                        <button type="button" id="qx-bar-mode-visit" onclick="FMCUApp.setAdminQuixoticMonthlyBarMode('VISIT')" class="px-3 py-1 rounded-full text-slate-600 hover:text-slate-900 transition cursor-pointer">
                           Visit
                         </button>
-                        <button type="button" id="qx-bar-mode-nso" onclick="FMCUApp.setAdminQuixoticMonthlyBarMode('NSO')" class="px-2.5 py-1 rounded-full text-slate-600 hover:text-slate-900 transition cursor-pointer">
+                        <button type="button" id="qx-bar-mode-nso" onclick="FMCUApp.setAdminQuixoticMonthlyBarMode('NSO')" class="px-3 py-1 rounded-full text-slate-600 hover:text-slate-900 transition cursor-pointer">
                           NSO
                         </button>
                       </div>
@@ -2268,20 +2435,24 @@
                     </div>
                   </div>
 
-                  <!-- 4-Month Horizontal Capsule Bar Chart Container -->
-                  <div class="relative pt-3 pb-1">
-                    <div id="qx-monthly-bars-container" class="w-full flex flex-col gap-1.5 border-b border-slate-100 pb-2 transition-all duration-300">
-                      <!-- Populated dynamically (4 visible months) by FMCUApp.renderAdminQuixoticAnalytic() -->
+                  <!-- Proper Quixotic Interactive Bar Chart Stage (Y-Axis + Dashed Gridlines + Animated Striped Capsule Bars) -->
+                  <div class="relative pt-2 pb-1">
+                    <div id="qx-monthly-bars-container" class="w-full">
+                      <!-- Populated dynamically by FMCUApp.renderAdminQuixoticAnalytic() -->
                     </div>
-                    <div class="flex items-center justify-between text-[10.5px] text-slate-400 pt-1.5 px-1">
-                      <span>Gunakan tombol panah kiri/kanan untuk menggeser bulan (Januari – Desember)</span>
+                    <div class="flex flex-wrap items-center justify-between gap-2 text-[10.5px] text-slate-400 pt-2.5 px-1 border-t border-slate-100 mt-1">
+                      <span class="flex items-center gap-3">
+                        <span class="inline-flex items-center gap-1.5 font-bold text-slate-600"><i class="w-2.5 h-2.5 rounded-full bg-[#0d8247] inline-block"></i>Bulan Aktual / Puncak</span>
+                        <span class="inline-flex items-center gap-1.5 font-bold text-slate-600"><i class="w-2.5 h-2.5 rounded-full bg-[#84b59c] inline-block"></i>Visit Store</span>
+                        <span class="inline-flex items-center gap-1.5 font-bold text-slate-600"><i class="w-2.5 h-2.5 rounded-full bg-[#38b2ac] inline-block"></i>NSO</span>
+                      </span>
                       <span id="qx-bar-peak-month-label" class="font-extrabold text-[#0d8247]">Puncak: -</span>
                     </div>
                   </div>
                 </div>
 
                 <!-- ROW 3: CARD TABLE RINGKASAN BULANAN PER INDIKATOR (JANUARI - DESEMBER) -->
-                <div class="qx-card p-4 space-y-3">
+                <div id="adm-analytic-part-table" class="qx-card p-4 space-y-3 scroll-mt-20">
                   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div class="flex items-center gap-2">
                       <span class="w-7 h-7 rounded-full bg-[#F4F6F5] flex items-center justify-center shrink-0">
@@ -2375,8 +2546,8 @@
                     </div>
                   </div>
 
-                  <!-- Member Cards Grid: 6 Columns Across on Desktop -->
-                  <div id="qx-profiles-cards-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                  <!-- Member Cards Grid: Strictly 6 Columns Across on Desktop -->
+                  <div id="qx-profiles-cards-container" class="qx-profiles-grid-6">
                     <!-- Populated dynamically by FMCUApp.renderAdminQuixoticMetricProfiles() -->
                   </div>
                 </div>
@@ -2587,8 +2758,8 @@ service cloud.firestore {
                    (#admin-tab-schedules)
                    ============================================================== -->
               <div id="admin-tab-schedules" class="hidden space-y-4">
-                <!-- Sub-Section Switcher Bar: Kalender - Semua Agenda - History Agenda - Arsip Laporan -->
-                <div id="adm-qx-schedule-subbar" class="qx-card p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <!-- Sub-Section Switcher Bar: Kalender - Semua Agenda - History Agenda - Arsip Laporan + Button Create Schedule -->
+                <div id="adm-qx-schedule-subbar" class="qx-card p-3.5 sm:p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                   <div class="flex items-center gap-3">
                     <div class="w-9 h-9 rounded-full bg-emerald-50 text-[#0d8247] flex items-center justify-center text-sm shrink-0">
                       <i id="admin-schedule-header-icon" class="fa-solid fa-calendar-days"></i>
@@ -2599,29 +2770,41 @@ service cloud.firestore {
                     </div>
                   </div>
 
-                  <!-- Pill Switcher: Kalender | Semua Agenda | History Agenda | Arsip Laporan -->
-                  <div class="flex flex-wrap items-center gap-1.5 bg-[#F1F3F2] p-1.5 rounded-full">
-                    <button type="button" id="sch-subtab-btn-calendar" onclick="FMCUApp.switchScheduleSubSection('calendar')" class="px-3.5 py-1.5 rounded-full text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer bg-white text-slate-900 shadow-2xs whitespace-nowrap">
-                      <i class="fa-solid fa-calendar-days text-xs text-[#0d8247]"></i>
-                      <span>Kalender</span>
+                  <!-- Pill Switcher: Kalender | Semua Agenda | History Agenda | Arsip Laporan + Create Schedule Button -->
+                  <div class="flex flex-wrap items-center gap-2">
+                    <div class="flex flex-wrap items-center gap-1.5 bg-[#F1F3F2] p-1.5 rounded-full">
+                      <button type="button" id="sch-subtab-btn-calendar" onclick="FMCUApp.switchScheduleSubSection('calendar')" class="px-3.5 py-1.5 rounded-full text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer bg-white text-slate-900 shadow-2xs whitespace-nowrap">
+                        <i class="fa-solid fa-calendar-days text-xs text-[#0d8247]"></i>
+                        <span>Kalender</span>
+                      </button>
+                      <button type="button" id="sch-subtab-btn-list" onclick="FMCUApp.switchScheduleSubSection('list')" class="px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-900 whitespace-nowrap">
+                        <i class="fa-solid fa-table-list text-xs text-[#0d8247]"></i>
+                        <span>Semua Agenda</span>
+                        <span id="admin-schedule-count-pill" class="px-1.5 py-0.2 rounded-full text-[9px] bg-emerald-100 text-emerald-800 font-extrabold">0</span>
+                      </button>
+                      <button type="button" id="sch-subtab-btn-history-agenda" onclick="FMCUApp.switchScheduleSubSection('history-agenda')" class="px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-900 whitespace-nowrap">
+                        <i class="fa-solid fa-clock-rotate-left text-xs text-amber-600"></i>
+                        <span>History Agenda</span>
+                        <span id="admin-schedule-completed-count-pill" class="px-1.5 py-0.2 rounded-full text-[9px] bg-amber-100 text-amber-800 font-extrabold">0</span>
+                      </button>
+                      <button type="button" id="sch-subtab-btn-history" onclick="FMCUApp.switchScheduleSubSection('history')" class="px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-900 whitespace-nowrap" title="Riwayat Kunjungan Toko &amp; Arsip Laporan PDF">
+                        <i class="fa-solid fa-file-pdf text-xs text-[#0099A6]"></i>
+                        <span>Arsip Laporan</span>
+                        <span id="admin-schedule-history-count-pill" class="px-1.5 py-0.2 rounded-full text-[9px] bg-teal-100 text-teal-800 font-extrabold">0</span>
+                      </button>
+                    </div>
+
+                    <!-- Button + Create Schedule Directly in Section Agenda -->
+                    <button
+                      type="button"
+                      id="sch-subtab-btn-create"
+                      onclick="FMCUApp.switchScheduleSubSection('create')"
+                      class="px-4 py-2 rounded-full bg-[#0d8247] hover:bg-emerald-800 text-white text-xs font-extrabold shadow-xs transition-all duration-200 flex items-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
+                      title="Buat Jadwal Baru (Planner 1 Week)"
+                    >
+                      <i class="fa-solid fa-calendar-plus text-xs"></i>
+                      <span>+ Create Schedule</span>
                     </button>
-                    <button type="button" id="sch-subtab-btn-list" onclick="FMCUApp.switchScheduleSubSection('list')" class="px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-900 whitespace-nowrap">
-                      <i class="fa-solid fa-table-list text-xs text-[#0d8247]"></i>
-                      <span>Semua Agenda</span>
-                      <span id="admin-schedule-count-pill" class="px-1.5 py-0.2 rounded-full text-[9px] bg-emerald-100 text-emerald-800 font-extrabold">0</span>
-                    </button>
-                    <button type="button" id="sch-subtab-btn-history-agenda" onclick="FMCUApp.switchScheduleSubSection('history-agenda')" class="px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-900 whitespace-nowrap">
-                      <i class="fa-solid fa-clock-rotate-left text-xs text-amber-600"></i>
-                      <span>History Agenda</span>
-                      <span id="admin-schedule-completed-count-pill" class="px-1.5 py-0.2 rounded-full text-[9px] bg-amber-100 text-amber-800 font-extrabold">0</span>
-                    </button>
-                    <button type="button" id="sch-subtab-btn-history" onclick="FMCUApp.switchScheduleSubSection('history')" class="px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-900 whitespace-nowrap" title="Riwayat Kunjungan Toko &amp; Arsip Laporan PDF">
-                      <i class="fa-solid fa-file-pdf text-xs text-[#0099A6]"></i>
-                      <span>Arsip Laporan</span>
-                      <span id="admin-schedule-history-count-pill" class="px-1.5 py-0.2 rounded-full text-[9px] bg-teal-100 text-teal-800 font-extrabold">0</span>
-                    </button>
-                    <!-- Hidden reference button for Create Jadwal (triggered from Top Navbar) -->
-                    <button type="button" id="sch-subtab-btn-create" onclick="FMCUApp.switchScheduleSubSection('create')" class="hidden"></button>
                   </div>
                 </div>
 
@@ -4376,16 +4559,16 @@ service cloud.firestore {
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js" crossorigin="anonymous"></script>
 
   <!-- Core Application Scripts (Fast Startup & Auth Priority) -->
-  <script defer src="js/holding-time-standards.js?v=1800420000000"></script>
-  <script defer src="js/master-stores-seed.js?v=1800420000000"></script>
-  <script defer src="js/bestie-in-charge-seed.js?v=1800420000000"></script>
-  <script defer src="js/data.js?v=1800420000000"></script>
-  <script defer src="js/pdf-generator.js?v=1800420000000"></script>
-  <script defer src="js/app.js?v=1800420000000"></script>
+  <script defer src="js/holding-time-standards.js?v=1800430000000"></script>
+  <script defer src="js/master-stores-seed.js?v=1800430000000"></script>
+  <script defer src="js/bestie-in-charge-seed.js?v=1800430000000"></script>
+  <script defer src="js/data.js?v=1800430000000"></script>
+  <script defer src="js/pdf-generator.js?v=1800430000000"></script>
+  <script defer src="js/app.js?v=1800430000000"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1800420000000"></script>
+  <script async src="js/pdf-assets.js?v=1800430000000"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================

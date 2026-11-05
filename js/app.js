@@ -3467,37 +3467,63 @@ window.FMCUApp = {
     }
 
     this.syncAdminQuixoticLayoutMode();
+    this.initAdminAutoHideTopNavbar();
 
-    // Update Top Navbar Pills (4 Sections: Analytic, Histori Agenda, Metric Profile, Live Loc Maps)
-    const navMap = {
+    // Update Left-Side Icon-Only Navbar Rail Active States
+    const railMap = {
       analytic: 'adm-qx-nav-analytic',
       history: 'adm-qx-nav-history',
       profiles: 'adm-qx-nav-profiles',
-      livemaps: 'adm-qx-nav-livemaps'
+      livemaps: 'adm-qx-nav-livemaps',
+      create: 'adm-qx-nav-create',
+      stores: 'adm-qx-nav-stores',
+      settings: 'adm-qx-nav-settings'
     };
-    Object.entries(navMap).forEach(([key, id]) => {
+    Object.entries(railMap).forEach(([key, id]) => {
       const btn = document.getElementById(id);
       if (btn) btn.classList.toggle('active', key === targetSec);
     });
 
-    // Update Top Right Store / Settings / Create Jadwal active states
-    const storesBtn = document.getElementById('adm-qx-top-stores-btn');
-    if (storesBtn) {
-      storesBtn.className = targetSec === 'stores'
-        ? 'inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-[#0d8247] text-white text-[11px] font-extrabold transition cursor-pointer shadow-2xs'
-        : 'inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-[#F4F6F5] hover:bg-slate-200/70 text-slate-700 text-[11px] font-bold transition cursor-pointer';
+    // Update Active Section Badge in Top Navbar
+    const sectionLabels = {
+      analytic: 'Analytic',
+      history: 'Agenda',
+      create: 'Create Schedule',
+      profiles: 'Metric Profile',
+      livemaps: 'Live Loc Maps',
+      stores: 'Master Store',
+      settings: 'Settings'
+    };
+    const activeBadgeEl = document.getElementById('adm-qx-active-section-badge');
+    if (activeBadgeEl) {
+      activeBadgeEl.textContent = sectionLabels[targetSec] || 'Admin';
     }
-    const settingsBtn = document.getElementById('adm-qx-top-settings-btn');
-    if (settingsBtn) {
-      settingsBtn.className = targetSec === 'settings'
-        ? 'inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-purple-700 text-white border border-purple-700 text-[11px] font-extrabold transition cursor-pointer shadow-2xs'
-        : 'inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 text-[11px] font-bold transition cursor-pointer';
-    }
+
+    // Switch Dynamic Sub-Section Track in Top Auto-Hide Bar
+    const subNavGroups = {
+      analytic: 'adm-qx-subnav-analytic',
+      history: 'adm-qx-subnav-history',
+      create: 'adm-qx-subnav-history',
+      stores: 'adm-qx-subnav-analytic',
+      profiles: 'adm-qx-subnav-profiles',
+      livemaps: 'adm-qx-subnav-livemaps',
+      settings: 'adm-qx-subnav-settings'
+    };
+    const activeSubNavId = subNavGroups[targetSec] || 'adm-qx-subnav-analytic';
+    ['adm-qx-subnav-analytic', 'adm-qx-subnav-history', 'adm-qx-subnav-profiles', 'adm-qx-subnav-livemaps', 'adm-qx-subnav-settings'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('hidden', id !== activeSubNavId);
+    });
+
+    // Ensure Top Navbar is visible when switching sections
+    const topNavEl = document.getElementById('adm-qx-top-navbar');
+    if (topNavEl) topNavEl.classList.remove('qx-nav-hidden');
+
     const createBtn = document.getElementById('adm-qx-btn-create-jadwal');
     if (createBtn) {
       createBtn.className = targetSec === 'create'
-        ? 'inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-900 text-white ring-2 ring-emerald-300 font-extrabold text-xs shadow-sm transition-all duration-200 cursor-pointer'
-        : 'inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[#0d8247] hover:bg-emerald-800 text-white font-extrabold text-xs shadow-xs transition-all duration-200 cursor-pointer active:scale-95';
+        ? 'inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-full bg-emerald-900 text-white ring-2 ring-emerald-300 font-extrabold text-xs shadow-sm transition-all duration-200 cursor-pointer'
+        : 'inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-full bg-[#0d8247] hover:bg-emerald-800 text-white font-extrabold text-xs shadow-xs transition-all duration-200 cursor-pointer active:scale-95';
     }
 
     // Sembunyikan/tampilkan kontainer section
@@ -3584,6 +3610,102 @@ window.FMCUApp = {
     if (!options.fromNavigate) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
+  },
+
+  _adminAutoHideBound: false,
+  _lastAdminScrollY: 0,
+
+  initAdminAutoHideTopNavbar() {
+    if (this._adminAutoHideBound) return;
+    this._adminAutoHideBound = true;
+    this._lastAdminScrollY = window.scrollY || 0;
+
+    window.addEventListener(
+      'scroll',
+      () => {
+        const topNav = document.getElementById('adm-qx-top-navbar');
+        if (!topNav) return;
+        const curY = window.scrollY || 0;
+        const delta = curY - this._lastAdminScrollY;
+
+        if (curY < 56) {
+          topNav.classList.remove('qx-nav-hidden');
+        } else if (delta > 10) {
+          topNav.classList.add('qx-nav-hidden');
+        } else if (delta < -8) {
+          topNav.classList.remove('qx-nav-hidden');
+        }
+        this._lastAdminScrollY = curY;
+      },
+      { passive: true }
+    );
+  },
+
+  scrollToAdminAnalyticPart(part = 'kpi') {
+    if (this.currentAdminQuixoticSection !== 'analytic') {
+      this.switchAdminQuixoticSection('analytic');
+    }
+    const btnMap = {
+      kpi: 'adm-sub-analytic-kpi',
+      chart: 'adm-sub-analytic-chart',
+      table: 'adm-sub-analytic-table'
+    };
+    Object.entries(btnMap).forEach(([k, id]) => {
+      const btn = document.getElementById(id);
+      if (btn) btn.classList.toggle('active', k === part);
+    });
+
+    const targetIdMap = {
+      kpi: 'adm-analytic-part-kpi',
+      chart: 'adm-analytic-part-chart',
+      table: 'adm-analytic-part-table'
+    };
+    const targetEl = document.getElementById(targetIdMap[part] || 'adm-analytic-part-kpi');
+    if (targetEl) {
+      targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  },
+
+  setAdminProfileSubFilter(role = 'ALL') {
+    if (this.currentAdminQuixoticSection !== 'profiles') {
+      this.switchAdminQuixoticSection('profiles');
+    }
+    const sel = document.getElementById('qx-profile-role-filter');
+    if (sel) sel.value = role;
+
+    const btnMap = {
+      ALL: 'adm-sub-prof-all',
+      REGIONAL_BESTIE: 'adm-sub-prof-bestie',
+      TRAINER: 'adm-sub-prof-trainer'
+    };
+    Object.entries(btnMap).forEach(([k, id]) => {
+      const btn = document.getElementById(id);
+      if (btn) btn.classList.toggle('active', k === role);
+    });
+
+    this.closeMemberDetailAgenda(false);
+    this.renderAdminQuixoticMetricProfiles();
+  },
+
+  focusLiveLocMapCanvas() {
+    if (this.currentAdminQuixoticSection !== 'livemaps') {
+      this.switchAdminQuixoticSection('livemaps');
+    }
+    const mapEl = document.getElementById('live-loc-dedicated-map');
+    if (mapEl) {
+      mapEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  },
+
+  selectedAdminBarMonthIdx: null,
+
+  selectAdminBarMonth(monthIdx) {
+    if (this.selectedAdminBarMonthIdx === monthIdx) {
+      this.selectedAdminBarMonthIdx = null;
+    } else {
+      this.selectedAdminBarMonthIdx = monthIdx;
+    }
+    this.renderAdminQuixoticAnalytic();
   },
 
   onAdminQuixoticPeriodChange() {
@@ -3949,64 +4071,130 @@ window.FMCUApp = {
 
     const barsContainer = document.getElementById('qx-monthly-bars-container');
     if (barsContainer) {
-      const scaleMax = Math.max(8, maxMonthTotal);
-      barsContainer.innerHTML = visibleMonths
-        .map((m) => {
+      const scaleMax = Math.max(8, Math.ceil(maxMonthTotal * 1.15 / 4) * 4);
+      const ySteps = [scaleMax, Math.round(scaleMax * 0.75), Math.round(scaleMax * 0.5), Math.round(scaleMax * 0.25), 0];
+      const activeFocusIdx = typeof this.selectedAdminBarMonthIdx === 'number' ? this.selectedAdminBarMonthIdx : curActualMonthIdx;
+
+      const yAxisHtml = ySteps
+        .map(
+          (val) => `
+            <div class="flex items-center gap-2.5 w-full">
+              <span class="w-8 text-right text-[10px] font-bold text-slate-400 font-mono shrink-0">${val}</span>
+              <div class="flex-1 border-b border-dashed border-slate-200/80"></div>
+            </div>
+          `
+        )
+        .join('');
+
+      const columnsHtml = visibleMonths
+        .map((m, colIdx) => {
           const vVal = this.adminQuixoticBarMode === 'NSO' ? 0 : m.effectiveVisit;
           const nVal = this.adminQuixoticBarMode === 'VISIT' ? 0 : m.nso;
           const totalVal = vVal + nVal;
           const isCurrentActualMonth = m.monthIdx === curActualMonthIdx;
-          const isPeak = m.monthIdx === peakMonthIdx || isCurrentActualMonth;
+          const isSelectedMonth = m.monthIdx === activeFocusIdx;
+          const isPeak = m.monthIdx === peakMonthIdx || isSelectedMonth;
 
           const primaryVal = this.adminQuixoticBarMode === 'NSO' ? nVal : vVal;
-          const primaryWidthPct = primaryVal === 0 ? 3 : Math.max(6, Math.round((primaryVal / scaleMax) * 100));
-          const secondaryWidthPct = (this.adminQuixoticBarMode === 'BOTH' && nVal > 0)
-            ? Math.max(5, Math.round((nVal / scaleMax) * 100))
+          const primaryHeightPct = primaryVal === 0 ? 14 : Math.max(22, Math.min(96, Math.round((primaryVal / scaleMax) * 100)));
+          const secondaryHeightPct = (this.adminQuixoticBarMode === 'BOTH' && nVal > 0)
+            ? Math.max(18, Math.min(92, Math.round((nVal / scaleMax) * 100)))
             : 0;
 
           const capsuleClass = this.adminQuixoticBarMode === 'NSO'
             ? 'qx-capsule-bar-nso'
             : (isPeak ? 'qx-capsule-bar-active' : 'qx-capsule-bar-striped');
 
-          const nextMonthVal = m.monthCode === monthFilter ? 'ALL' : m.monthCode;
+          const monthActionable = m.visitScheduled + m.nso;
+          const monthRatePct = monthActionable > 0
+            ? Math.min(100, Math.round(((m.visitDone + (m.nso - Math.max(0, m.pending - (m.visitScheduled - m.visitDone)))) / monthActionable) * 100))
+            : (m.effectiveVisit > 0 ? 100 : 0);
 
           return `
             <div
-              onclick="(function(){var el=document.getElementById('adm-qx-filter-month'); if(el){el.value='${nextMonthVal}'; FMCUApp.onAdminQuixoticPeriodChange();}})()"
-              class="grid grid-cols-[88px_1fr_auto] sm:grid-cols-[120px_1fr_auto] items-center gap-3 group cursor-pointer select-none px-3 py-2 rounded-2xl ${
-                isCurrentActualMonth ? 'bg-emerald-50/60 border border-emerald-200/70' : 'border border-transparent hover:bg-slate-50/80'
-              } transition"
-              title="${m.fullLabel}: ${m.effectiveVisit} Visit Store, ${m.nso} NSO"
+              onclick="FMCUApp.selectAdminBarMonth(${m.monthIdx})"
+              class="qx-bar-col-group relative h-full flex flex-col items-center justify-end cursor-pointer select-none px-1.5 sm:px-3 pt-8 pb-1 rounded-2xl transition ${
+                isSelectedMonth ? 'bg-emerald-50/45 ring-1 ring-emerald-200/80' : 'hover:bg-slate-50/70'
+              }"
             >
-              <div class="flex items-center gap-1.5 min-w-0">
-                <span class="text-[11px] font-black tracking-wide truncate ${
-                  isPeak ? 'text-[#0d8247]' : 'text-slate-600 group-hover:text-slate-900'
-                }">${m.fullLabel}</span>
-                ${isCurrentActualMonth ? `<span class="px-1.5 py-0.5 rounded-full bg-emerald-100 text-[#0d8247] text-[8.5px] font-extrabold shrink-0">Aktual</span>` : ''}
+              <!-- Interactive Hover Breakdown Tooltip -->
+              <div class="qx-bar-tooltip-card absolute -top-2 left-1/2 -translate-x-1/2 z-30 w-44 p-2.5 rounded-2xl bg-slate-900/95 text-white shadow-xl border border-slate-700/80 text-[10px] space-y-1">
+                <div class="flex items-center justify-between font-black border-b border-slate-700/80 pb-1">
+                  <span>${m.fullLabel}</span>
+                  <span class="px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300">${monthRatePct}%</span>
+                </div>
+                <div class="flex items-center justify-between text-slate-300">
+                  <span>Total Visit:</span>
+                  <strong class="text-white">${m.effectiveVisit} Toko</strong>
+                </div>
+                <div class="flex items-center justify-between text-slate-300">
+                  <span>Total NSO:</span>
+                  <strong class="text-teal-300">${m.nso} NSO</strong>
+                </div>
+                <div class="flex items-center justify-between text-slate-300">
+                  <span>Training / Agenda:</span>
+                  <strong class="text-indigo-300">${m.training} / ${m.agenda}</strong>
+                </div>
               </div>
 
-              <div class="flex flex-col justify-center gap-1 min-w-0">
-                <div class="w-full h-4 rounded-full bg-slate-100/80 overflow-hidden">
-                  <div class="${capsuleClass} h-full transition-all duration-500 group-hover:brightness-95" style="width: ${Math.min(100, primaryWidthPct)}%; height: 100%;"></div>
+              <!-- Quixotic Callout Pill Badge Above Bar -->
+              <div class="mb-2 flex flex-col items-center">
+                <span class="px-2.5 py-0.5 rounded-full ${
+                  isPeak
+                    ? 'bg-[#0d8247] text-white shadow-sm'
+                    : 'bg-[#F1F3F2] text-slate-700 group-hover:bg-slate-800 group-hover:text-white'
+                } text-[10px] font-black transition whitespace-nowrap">
+                  ${this.adminQuixoticBarMode === 'NSO' ? `${nVal} NSO` : `${vVal} Visit${nVal > 0 ? ` • +${nVal} NSO` : ''}`}
+                </span>
+              </div>
+
+              <!-- Capsule Bars Stage -->
+              <div class="w-full flex items-end justify-center gap-2 h-[148px] px-1 relative z-10">
+                <div
+                  class="${capsuleClass} relative w-full max-w-[54px] flex items-start justify-center pt-1.5"
+                  style="height: ${primaryHeightPct}%; animation-delay: ${colIdx * 70}ms;"
+                >
+                  ${
+                    isPeak
+                      ? `<span class="w-3.5 h-3.5 rounded-full bg-[#0d8247] border-2 border-white shadow-sm -mt-3"></span>`
+                      : `<span class="w-2.5 h-2.5 rounded-full bg-white/70 opacity-0 group-hover:opacity-100 transition"></span>`
+                  }
                 </div>
                 ${
-                  secondaryWidthPct > 0
-                    ? `<div class="w-full h-2 rounded-full bg-slate-100/80 overflow-hidden">
-                        <div class="qx-capsule-bar-nso h-full transition-all duration-500" style="width: ${Math.min(100, secondaryWidthPct)}%; height: 100%;" title="${nVal} NSO"></div>
-                      </div>`
+                  secondaryHeightPct > 0
+                    ? `<div
+                        class="qx-capsule-bar-nso w-5 sm:w-6"
+                        style="height: ${secondaryHeightPct}%; animation-delay: ${colIdx * 70 + 60}ms;"
+                        title="${nVal} NSO"
+                      ></div>`
                     : ''
                 }
               </div>
 
-              <span class="px-2 py-0.5 rounded-full ${
-                isPeak ? 'bg-[#0d8247] text-white' : 'bg-slate-100 text-slate-700'
-              } text-[10px] font-black shadow-2xs whitespace-nowrap">
-                ${vVal} Visit${nVal > 0 ? ` • ${nVal} NSO` : ''}
-              </span>
+              <!-- Month X-Axis Label -->
+              <div class="mt-2.5 flex items-center gap-1.5">
+                <span class="text-[11px] font-black tracking-wider uppercase ${
+                  isPeak ? 'text-[#0d8247]' : 'text-slate-500 group-hover:text-slate-900'
+                }">${m.label}</span>
+                ${isCurrentActualMonth ? `<span class="px-1.5 py-0.2 rounded-full bg-emerald-100 text-[#0d8247] text-[8.5px] font-extrabold">Aktual</span>` : ''}
+              </div>
             </div>
           `;
         })
         .join('');
+
+      barsContainer.innerHTML = `
+        <div class="relative w-full h-[230px] pt-2">
+          <!-- Y-Axis Scale & Dashed Grid Lines Background -->
+          <div class="absolute inset-x-0 top-8 bottom-8 flex flex-col justify-between pointer-events-none z-0 pr-2">
+            ${yAxisHtml}
+          </div>
+          <!-- 4-Month Interactive Capsule Columns -->
+          <div class="relative z-10 pl-10 pr-1 h-full grid grid-cols-4 gap-2 sm:gap-5 items-end">
+            ${columnsHtml}
+          </div>
+        </div>
+      `;
     }
 
     // 4. Render GRAFIK PERFORMA PER ANGGOTA (#qx-member-perf-chart-body) — Compact Row 2 Card
@@ -4280,6 +4468,17 @@ window.FMCUApp = {
     const searchQ = (document.getElementById('qx-profile-search-input')?.value || '').trim().toLowerCase();
     const roleFilter = document.getElementById('qx-profile-role-filter')?.value || 'ALL';
 
+    // Sync Top Sub-Section Pills for Metric Profile
+    const profTopMap = {
+      ALL: 'adm-sub-prof-all',
+      REGIONAL_BESTIE: 'adm-sub-prof-bestie',
+      TRAINER: 'adm-sub-prof-trainer'
+    };
+    Object.entries(profTopMap).forEach(([k, id]) => {
+      const btn = document.getElementById(id);
+      if (btn) btn.classList.toggle('active', k === roleFilter);
+    });
+
     const reportsMapByScheduleId = new Map();
     const reportsSetByStoreAndDate = new Set();
     reports.forEach((r) => {
@@ -4375,40 +4574,48 @@ window.FMCUApp = {
           .slice(0, 2);
 
         return `
-          <div onclick="FMCUApp.openMemberDetailAgenda('${u.id}')" class="qx-card p-3 flex flex-col justify-between gap-2.5 hover:border-[#0d8247] transition cursor-pointer group">
+          <div onclick="FMCUApp.openMemberDetailAgenda('${u.id}')" class="qx-card qx-card-hover p-3 flex flex-col justify-between gap-2.5 hover:border-[#0d8247] transition cursor-pointer group">
             <div class="space-y-2.5">
-              <!-- Compact Top Profile Header for 6-Col Grid -->
-              <div class="flex items-center gap-2 min-w-0">
-                <div class="w-9 h-9 rounded-xl bg-[#0d8247] text-white font-black text-[11px] flex items-center justify-center shadow-2xs shrink-0">
+              <!-- Top Role & Realization Strip -->
+              <div class="flex items-center justify-between gap-1">
+                <span class="px-2 py-0.5 rounded-full text-[8.5px] font-extrabold uppercase tracking-wider ${
+                  ac === 'TRAINER' ? 'bg-amber-50 text-amber-700 border border-amber-200/70' : 'bg-emerald-50 text-[#0d8247] border border-emerald-200/70'
+                }">${ac === 'TRAINER' ? 'Trainer' : 'Bestie'}</span>
+                <span class="px-2 py-0.5 rounded-full text-[8.5px] font-black ${
+                  ratePct >= 80 ? 'bg-emerald-100 text-emerald-800' : ratePct >= 50 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
+                } shrink-0">${ratePct}%</span>
+              </div>
+
+              <!-- Centered Avatar & Identity for 6-Column Grid -->
+              <div class="flex flex-col items-center text-center pt-0.5">
+                <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#0d8247] to-[#0099A6] text-white font-black text-xs flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
                   ${initials}
                 </div>
-                <div class="min-w-0 flex-1">
-                  <h4 class="font-extrabold text-xs text-slate-900 truncate group-hover:text-[#0d8247] transition" title="${u.name}">${u.name}</h4>
-                  <div class="flex items-center justify-between gap-1 mt-0.5">
-                    <span class="text-[9px] font-bold ${ac === 'TRAINER' ? 'text-amber-700' : 'text-emerald-700'} truncate">${ac === 'TRAINER' ? 'Trainer' : 'Bestie'}</span>
-                    <span class="px-1.5 py-0.2 rounded-full text-[8.5px] font-black ${
-                      ratePct >= 80 ? 'bg-emerald-100 text-emerald-800' : ratePct >= 50 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
-                    } shrink-0">${ratePct}%</span>
-                  </div>
-                </div>
+                <h4 class="font-extrabold text-xs text-slate-900 truncate w-full mt-2 group-hover:text-[#0d8247] transition" title="${u.name}">${u.name}</h4>
+                <div class="text-[9.5px] text-slate-400 font-mono truncate w-full">@${u.nik || u.username || '-'}${u.region ? ` • ${u.region}` : ''}</div>
+              </div>
+
+              <!-- Realization Mini Progress Bar -->
+              <div class="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                <div class="h-full rounded-full bg-[#0d8247] transition-all duration-500" style="width: ${Math.max(4, ratePct)}%"></div>
               </div>
 
               <!-- 2x2 Mini KPI Grid -->
               <div class="grid grid-cols-2 gap-1 text-center">
-                <div class="p-1.5 rounded-lg bg-slate-50 border border-slate-100">
-                  <div class="text-[8.5px] font-bold text-slate-400 uppercase">Agenda</div>
+                <div class="p-1.5 rounded-xl bg-[#F8FAF9] border border-slate-100">
+                  <div class="text-[8px] font-extrabold text-slate-400 uppercase">Agenda</div>
                   <div class="text-xs font-black text-slate-900">${totalAgenda}</div>
                 </div>
-                <div class="p-1.5 rounded-lg bg-emerald-50/70 border border-emerald-100">
-                  <div class="text-[8.5px] font-bold text-emerald-700 uppercase">Visit</div>
+                <div class="p-1.5 rounded-xl bg-emerald-50/70 border border-emerald-100">
+                  <div class="text-[8px] font-extrabold text-emerald-700 uppercase">Visit</div>
                   <div class="text-xs font-black text-[#0d8247]">${effVisitDone}</div>
                 </div>
-                <div class="p-1.5 rounded-lg bg-teal-50/70 border border-teal-100">
-                  <div class="text-[8.5px] font-bold text-teal-700 uppercase">NSO/Trn</div>
+                <div class="p-1.5 rounded-xl bg-teal-50/70 border border-teal-100">
+                  <div class="text-[8px] font-extrabold text-teal-700 uppercase">NSO/Trn</div>
                   <div class="text-xs font-black text-[#0099A6]">${nsoCount + trainingCount}</div>
                 </div>
-                <div class="p-1.5 rounded-lg bg-amber-50/70 border border-amber-100">
-                  <div class="text-[8.5px] font-bold text-amber-700 uppercase">Pending</div>
+                <div class="p-1.5 rounded-xl bg-amber-50/70 border border-amber-100">
+                  <div class="text-[8px] font-extrabold text-amber-700 uppercase">Pending</div>
                   <div class="text-xs font-black text-amber-700">${pendingCount}</div>
                 </div>
               </div>
@@ -4433,10 +4640,10 @@ window.FMCUApp = {
               <button
                 type="button"
                 onclick="event.stopPropagation(); FMCUApp.openCreateScheduleForMember('${u.id}')"
-                class="w-7 h-7 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-[10px] transition flex items-center justify-center shrink-0 cursor-pointer"
-                title="Buat Jadwal Baru untuk ${u.name}"
+                class="w-7 h-7 rounded-xl bg-emerald-50 hover:bg-[#0d8247] text-[#0d8247] hover:text-white font-extrabold text-[10px] transition flex items-center justify-center shrink-0 cursor-pointer"
+                title="Create Schedule untuk ${u.name}"
               >
-                <i class="fa-solid fa-plus text-[#0d8247]"></i>
+                <i class="fa-solid fa-plus"></i>
               </button>
             </div>
           </div>
@@ -4753,11 +4960,28 @@ window.FMCUApp = {
     const activePillCls = 'px-3.5 py-1.5 rounded-full text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer bg-white text-slate-900 shadow-2xs whitespace-nowrap';
     const inactivePillCls = 'px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-900 whitespace-nowrap';
 
-    if (btnCreate) btnCreate.className = 'hidden';
+    if (btnCreate) {
+      btnCreate.className = mode === 'create'
+        ? 'px-4 py-2 rounded-full bg-emerald-950 text-white ring-2 ring-emerald-300 text-xs font-extrabold shadow-sm transition-all duration-200 flex items-center gap-1.5 cursor-pointer whitespace-nowrap'
+        : 'px-4 py-2 rounded-full bg-[#0d8247] hover:bg-emerald-800 text-white text-xs font-extrabold shadow-xs transition-all duration-200 flex items-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap';
+    }
     if (btnCalendar) btnCalendar.className = mode === 'calendar' ? activePillCls : inactivePillCls;
     if (btnList) btnList.className = mode === 'list' ? activePillCls : inactivePillCls;
     if (btnHistoryAgenda) btnHistoryAgenda.className = mode === 'history-agenda' ? activePillCls : inactivePillCls;
     if (btnHistory) btnHistory.className = mode === 'history' ? activePillCls : inactivePillCls;
+
+    // Sync Top Auto-Hide Sub-Section Pills for Agenda
+    const topSubMap = {
+      calendar: 'adm-top-sub-calendar',
+      list: 'adm-top-sub-list',
+      'history-agenda': 'adm-top-sub-history-agenda',
+      history: 'adm-top-sub-history',
+      create: 'adm-top-sub-create'
+    };
+    Object.entries(topSubMap).forEach(([k, id]) => {
+      const topBtn = document.getElementById(id);
+      if (topBtn) topBtn.classList.toggle('active', k === mode);
+    });
 
     if (countPill) {
       countPill.className = 'px-1.5 py-0.2 rounded-full text-[9px] bg-emerald-100 text-emerald-800 font-extrabold';
@@ -14309,24 +14533,37 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     try {
       sessionStorage.setItem('fmcu_active_admin_tab', tabName);
     } catch (e) {}
-    const tabs = ['schedules', 'stores', 'users', 'integrations', 'news'];
+    const tabs = ['schedules', 'stores', 'users', 'integrations', 'news', 'holding-time'];
     tabs.forEach((t) => {
       const panel = document.getElementById(`admin-tab-${t}`);
       if (panel) panel.classList.toggle('hidden', t !== tabName);
 
       const btn = document.getElementById(`admin-tab-btn-${t}`);
       if (btn) {
-        const isAllowed = t === 'news' ? isSuperAdmin : this.hasAuthority(tabAuthMap[t]);
+        const isAllowed = t === 'news' ? isSuperAdmin : (tabAuthMap[t] ? this.hasAuthority(tabAuthMap[t]) : true);
         if (t === tabName) {
-          btn.className = `px-3.5 py-2 rounded-xl text-xs font-bold bg-[#009944] text-white transition cursor-pointer ${isAllowed ? '' : 'hidden'}`;
+          btn.className = `px-3.5 py-2 rounded-full text-xs font-bold bg-[#0d8247] text-white transition cursor-pointer ${isAllowed ? '' : 'hidden'}`;
         } else {
-          btn.className = `px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer ${isAllowed ? '' : 'hidden'}`;
+          btn.className = `px-3.5 py-2 rounded-full text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer ${isAllowed ? '' : 'hidden'}`;
         }
       }
     });
 
+    const topSetMap = {
+      users: 'adm-top-set-users',
+      news: 'adm-top-set-news',
+      integrations: 'adm-top-set-integrations',
+      'holding-time': 'adm-top-set-holding'
+    };
+    Object.entries(topSetMap).forEach(([k, id]) => {
+      const topBtn = document.getElementById(id);
+      if (topBtn) topBtn.classList.toggle('active', k === tabName);
+    });
+
     if (tabName === 'news') {
       this.renderAdminNewsTable();
+    } else if (tabName === 'holding-time' && typeof this.renderAdminHoldingTimeManager === 'function') {
+      this.renderAdminHoldingTimeManager();
     }
   },
 
