@@ -173,6 +173,12 @@ window.FMCUApp = {
         if (e.key === 'ArrowRight') this.nextSlide();
         if (e.key === 'ArrowLeft') this.prevSlide();
       }
+      if (e.key === 'Escape') {
+        const notifModal = document.getElementById('qx-notif-modal');
+        if (notifModal && !notifModal.classList.contains('hidden')) {
+          this.closeNotifModal();
+        }
+      }
     });
 
     // Touch swipe navigation for PDF Slide Preview on Mobile

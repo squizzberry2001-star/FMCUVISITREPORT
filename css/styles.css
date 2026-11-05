@@ -2586,6 +2586,10 @@ body.admin-quixotic-active #main-layout-content-col {
   justify-content: center;
   padding: 16px;
 }
+/* Override Tailwind .hidden — ID selector lebih spesifik dari .hidden */
+#qx-notif-modal.hidden {
+  display: none !important;
+}
 #qx-notif-modal-backdrop {
   position: absolute;
   inset: 0;
