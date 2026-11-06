@@ -5020,8 +5020,8 @@ service cloud.firestore {
     <!-- ============================================================
          MODAL BUAT / ATUR AGENDA & JADWAL KARYAWAN (MULTI-SELECT KATEGORI)
          ============================================================ -->
-    <div id="modal-manual-agenda" class="fixed inset-0 z-50 bg-slate-900/45 backdrop-blur-md flex items-center justify-center p-4 hidden animate-in fade-in duration-200">
-      <div class="w-full max-w-xl max-h-[86vh] flex flex-col bg-white rounded-[28px] shadow-2xl border border-white/80 overflow-hidden animate-in zoom-in-95 duration-200">
+    <div id="modal-manual-agenda" class="fixed inset-0 z-50 bg-slate-900/45 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 hidden animate-in fade-in duration-200">
+      <div class="w-full max-w-xl max-h-[90vh] flex flex-col bg-white rounded-[28px] shadow-2xl border border-white/80 overflow-hidden animate-in zoom-in-95 duration-200">
         <!-- Header Rounded Modal -->
         <div class="px-5 py-4 bg-gradient-to-r from-[#0d8247] to-[#0099A6] text-white flex items-center justify-between shrink-0">
           <div class="flex items-center gap-3">
@@ -5039,213 +5039,213 @@ service cloud.firestore {
         </div>
 
         <!-- Body Form Centered Modal -->
-        <form onsubmit="event.preventDefault(); FMCUApp.submitManualAgendaForm();" class="flex-1 overflow-y-auto bg-slate-50/60 p-4 sm:p-5 w-full flex flex-col">
-          <div class="w-full space-y-3.5 flex-1">
-          <input type="hidden" id="agenda-target-auditor-id" value="" />
-          <input type="hidden" id="agenda-target-day-index" value="" />
+        <form onsubmit="event.preventDefault(); FMCUApp.submitManualAgendaForm();" class="flex-1 min-h-0 flex flex-col overflow-hidden bg-slate-50/60 w-full">
+          <!-- Scrollable Form Inputs -->
+          <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-3.5">
+            <input type="hidden" id="agenda-target-auditor-id" value="" />
+            <input type="hidden" id="agenda-target-day-index" value="" />
 
-          <!-- Target Info Banner -->
-          <div class="p-3 rounded-2xl bg-white border border-slate-200 flex items-center justify-between text-xs shadow-2xs">
+            <!-- Target Info Banner -->
+            <div class="p-3 rounded-2xl bg-white border border-slate-200 flex items-center justify-between text-xs shadow-2xs">
+              <div>
+                <span class="text-[10px] font-bold text-slate-400 block uppercase">Karyawan Ditugaskan</span>
+                <span id="agenda-target-auditor-name" class="font-extrabold text-slate-800 text-xs sm:text-sm">-</span>
+              </div>
+              <div class="text-right">
+                <span class="text-[10px] font-bold text-slate-400 block uppercase">Hari & Tanggal</span>
+                <span id="agenda-target-day-label" class="font-extrabold text-[#009944] text-xs sm:text-sm">-</span>
+              </div>
+            </div>
+
+            <!-- Kategori Kegiatan (Multiple Select) -->
             <div>
-              <span class="text-[10px] font-bold text-slate-400 block uppercase">Karyawan Ditugaskan</span>
-              <span id="agenda-target-auditor-name" class="font-extrabold text-slate-800 text-xs sm:text-sm">-</span>
+              <div class="flex items-center justify-between mb-1.5">
+                <label class="block text-[11px] font-extrabold text-slate-700 uppercase">
+                  Kategori Kegiatan <span class="text-slate-400 text-[10px] font-medium lowercase">(bisa pilih lebih dari satu)</span>
+                </label>
+                <span id="agenda-category-selected-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">1 Terpilih</span>
+              </div>
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-xs" id="agenda-category-chips">
+                <!-- Dynamically populated / interactive toggle chips -->
+              </div>
             </div>
-            <div class="text-right">
-              <span class="text-[10px] font-bold text-slate-400 block uppercase">Hari & Tanggal</span>
-              <span id="agenda-target-day-label" class="font-extrabold text-[#009944] text-xs sm:text-sm">-</span>
-            </div>
-          </div>
 
-          <!-- Kategori Kegiatan (Multiple Select) -->
-          <div>
-            <div class="flex items-center justify-between mb-1.5">
+            <!-- Section A: Pemilih Toko Master Toko (Muncul jika VISIT STORE aktif) -->
+            <div id="agenda-store-picker-container" class="p-3 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-2">
+              <div class="flex items-center justify-between">
+                <label class="block text-[11px] font-extrabold text-emerald-900 uppercase">
+                  <i class="fa-solid fa-store mr-1 text-emerald-600"></i>Pilih Toko dari Master Toko
+                </label>
+                <span id="agenda-store-count-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-900">0 Toko Terpilih</span>
+              </div>
+
+              <!-- Tab Filter Scope: Semua Master Toko vs Toko Kepemilikan Bestie Ini -->
+              <div class="flex items-center justify-between gap-2 flex-wrap">
+                <div class="inline-flex rounded-xl bg-slate-200/80 p-0.5 border border-slate-300 text-xs shadow-2xs" id="agenda-store-scope-controls">
+                  <button
+                    type="button"
+                    id="agenda-store-scope-all"
+                    onclick="FMCUApp.setAgendaStoreFilterScope('ALL')"
+                    class="px-2.5 py-1 rounded-lg font-extrabold text-[11px] transition cursor-pointer flex items-center gap-1 bg-white text-slate-900 shadow-xs"
+                  >
+                    <i class="fa-solid fa-store text-emerald-600 text-[10px]"></i>
+                    <span>Semua Master Toko</span>
+                  </button>
+                  <button
+                    type="button"
+                    id="agenda-store-scope-owned"
+                    onclick="FMCUApp.setAgendaStoreFilterScope('OWNED')"
+                    class="px-2.5 py-1 rounded-lg font-extrabold text-[11px] transition cursor-pointer flex items-center gap-1 text-slate-600 hover:text-slate-900"
+                  >
+                    <i class="fa-solid fa-star text-amber-600 text-[10px]"></i>
+                    <span>Milik Bestie Ini</span>
+                  </button>
+                </div>
+                <div id="agenda-store-dropdown-info" class="text-[10.5px] text-slate-600 font-medium">
+                  <i class="fa-solid fa-database text-emerald-600 mr-1"></i>Menampilkan semua Master Toko beserta data kepemilikan Bestie
+                </div>
+              </div>
+
+              <!-- Search Toko Cepat -->
+              <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                <input
+                  type="text"
+                  id="agenda-store-search"
+                  oninput="FMCUApp.filterAgendaStoreDropdown(this.value)"
+                  onkeydown="FMCUApp.handleAgendaStoreSearchKeydown(event)"
+                  placeholder="Ketik kode, nama toko, kota, atau nama Bestie pemilik toko..."
+                  class="fm-input text-xs pl-8 pr-7 w-full font-semibold"
+                  aria-label="Cari toko FamilyMart"
+                />
+                <button type="button" onclick="document.getElementById('agenda-store-search').value=''; FMCUApp.filterAgendaStoreDropdown('');" class="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+
+              <!-- Dropdown Toko -->
+              <div class="flex items-center gap-1.5">
+                <select
+                  id="agenda-store-select"
+                  class="fm-input text-xs font-bold text-slate-800 w-full"
+                  aria-label="Daftar Master Toko FamilyMart"
+                >
+                  <option value="">-- Pilih Toko FamilyMart --</option>
+                </select>
+                <button
+                  type="button"
+                  onclick="FMCUApp.addSelectedStoreToAgenda()"
+                  class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-2xs transition flex items-center gap-1 shrink-0 cursor-pointer"
+                  title="Tambahkan toko ini ke jadwal"
+                >
+                  <i class="fa-solid fa-plus"></i>
+                  <span class="hidden sm:inline">Pilih</span>
+                </button>
+              </div>
+
+              <!-- Daftar Toko Terpilih (Pills) -->
+              <div id="agenda-selected-stores-pills" class="flex flex-wrap gap-1.5 min-h-[28px] p-1.5 rounded-xl bg-white border border-emerald-200/80">
+                <span class="text-[11px] text-slate-400 font-medium italic">Belum ada toko yang dipilih. Silakan pilih toko di atas.</span>
+              </div>
+            </div>
+
+            <!-- Section B: Dropdown Lokasi Kegiatan Non-Visit & Tombol (+) Tambah Lokasi Manual -->
+            <div id="agenda-location-container" class="space-y-1">
               <label class="block text-[11px] font-extrabold text-slate-700 uppercase">
-                Kategori Kegiatan <span class="text-slate-400 text-[10px] font-medium lowercase">(bisa pilih lebih dari satu)</span>
+                <i class="fa-solid fa-location-dot mr-1 text-purple-600"></i>Lokasi Kegiatan
               </label>
-              <span id="agenda-category-selected-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">1 Terpilih</span>
-            </div>
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-xs" id="agenda-category-chips">
-              <!-- Dynamically populated / interactive toggle chips -->
-            </div>
-          </div>
-
-          <!-- Section A: Pemilih Toko Master Toko (Muncul jika VISIT STORE aktif) -->
-          <div id="agenda-store-picker-container" class="p-3 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-2">
-            <div class="flex items-center justify-between">
-              <label class="block text-[11px] font-extrabold text-emerald-900 uppercase">
-                <i class="fa-solid fa-store mr-1 text-emerald-600"></i>Pilih Toko dari Master Toko
-              </label>
-              <span id="agenda-store-count-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-900">0 Toko Terpilih</span>
-            </div>
-
-            <!-- Tab Filter Scope: Semua Master Toko vs Toko Kepemilikan Bestie Ini -->
-            <div class="flex items-center justify-between gap-2 flex-wrap">
-              <div class="inline-flex rounded-xl bg-slate-200/80 p-0.5 border border-slate-300 text-xs shadow-2xs" id="agenda-store-scope-controls">
+              <div class="flex items-center gap-1.5">
+                <select
+                  id="agenda-location-select"
+                  class="fm-input text-xs font-bold text-slate-800 w-full"
+                  aria-label="Pilih Lokasi Kegiatan"
+                >
+                  <option value="FMCU Lapangan Roos">FMCU Lapangan Roos</option>
+                  <option value="FMCU Tanjung Duren">FMCU Tanjung Duren</option>
+                  <option value="FMCU Sultan Iskandar Muda">FMCU Sultan Iskandar Muda</option>
+                  <option value="FMCU Jatimulya">FMCU Jatimulya</option>
+                  <option value="FMCU Cihampelas">FMCU Cihampelas</option>
+                </select>
                 <button
                   type="button"
-                  id="agenda-store-scope-all"
-                  onclick="FMCUApp.setAgendaStoreFilterScope('ALL')"
-                  class="px-2.5 py-1 rounded-lg font-extrabold text-[11px] transition cursor-pointer flex items-center gap-1 bg-white text-slate-900 shadow-xs"
+                  onclick="FMCUApp.promptAddCustomAgendaLocation()"
+                  class="w-9 h-9 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-300 flex items-center justify-center shrink-0 transition cursor-pointer shadow-2xs"
+                  title="Tambah Lokasi Baru secara Manual (+)"
+                  aria-label="Tambah Lokasi Manual"
                 >
-                  <i class="fa-solid fa-store text-emerald-600 text-[10px]"></i>
-                  <span>Semua Master Toko</span>
+                  <i class="fa-solid fa-plus text-xs"></i>
                 </button>
-                <button
-                  type="button"
-                  id="agenda-store-scope-owned"
-                  onclick="FMCUApp.setAgendaStoreFilterScope('OWNED')"
-                  class="px-2.5 py-1 rounded-lg font-extrabold text-[11px] transition cursor-pointer flex items-center gap-1 text-slate-600 hover:text-slate-900"
-                >
-                  <i class="fa-solid fa-star text-amber-600 text-[10px]"></i>
-                  <span>Milik Bestie Ini</span>
-                </button>
-              </div>
-              <div id="agenda-store-dropdown-info" class="text-[10.5px] text-slate-600 font-medium">
-                <i class="fa-solid fa-database text-emerald-600 mr-1"></i>Menampilkan semua Master Toko beserta data kepemilikan Bestie
               </div>
             </div>
 
-            <!-- Search Toko Cepat -->
-            <div class="relative">
-              <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+            <!-- Section C: Input Box Jam Kerja 2 Kolom (IN & OUT) -->
+            <div id="agenda-time-container" class="p-3.5 rounded-2xl bg-slate-100/90 border border-slate-200 space-y-2">
+              <div class="flex items-center justify-between">
+                <label class="block text-[11px] font-extrabold text-slate-700 uppercase">
+                  <i class="fa-regular fa-clock mr-1 text-slate-500"></i>Jam Kerja / Window Waktu
+                </label>
+                <span class="text-[10px] font-semibold text-slate-500">Default: 08:30 &ndash; 17:30</span>
+              </div>
+              <div class="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label class="block text-[10px] font-bold text-slate-600 mb-0.5">Jam Masuk (IN)</label>
+                  <div class="relative">
+                    <i class="fa-solid fa-arrow-right-to-bracket absolute left-3 top-2.5 text-emerald-600 text-xs"></i>
+                    <input
+                      type="time"
+                      id="agenda-time-in"
+                      value="08:30"
+                      class="fm-input text-xs font-mono font-bold pl-8 w-full text-center"
+                      aria-label="Jam Masuk IN"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold text-slate-600 mb-0.5">Jam Pulang (OUT)</label>
+                  <div class="relative">
+                    <i class="fa-solid fa-arrow-right-from-bracket absolute left-3 top-2.5 text-rose-600 text-xs"></i>
+                    <input
+                      type="time"
+                      id="agenda-time-out"
+                      value="17:30"
+                      class="fm-input text-xs font-mono font-bold pl-8 w-full text-center"
+                      aria-label="Jam Pulang OUT"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Judul / Nama Agenda -->
+            <div>
+              <label class="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                Judul / Keterangan Agenda <span class="text-rose-500">*</span>
+              </label>
               <input
                 type="text"
-                id="agenda-store-search"
-                oninput="FMCUApp.filterAgendaStoreDropdown(this.value)"
-                onkeydown="FMCUApp.handleAgendaStoreSearchKeydown(event)"
-                placeholder="Ketik kode, nama toko, kota, atau nama Bestie pemilik toko..."
-                class="fm-input text-xs pl-8 pr-7 w-full font-semibold"
-                aria-label="Cari toko FamilyMart"
+                id="agenda-title-input"
+                required
+                placeholder="Otomatis atau ketik judul kegiatan..."
+                class="fm-input text-xs font-bold text-slate-800 w-full"
+                aria-label="Judul Agenda"
               />
-              <button type="button" onclick="document.getElementById('agenda-store-search').value=''; FMCUApp.filterAgendaStoreDropdown('');" class="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer">
-                <i class="fa-solid fa-xmark"></i>
-              </button>
             </div>
 
-            <!-- Dropdown Toko -->
-            <div class="flex items-center gap-1.5">
-              <select
-                id="agenda-store-select"
-                class="fm-input text-xs font-bold text-slate-800 w-full"
-                aria-label="Daftar Master Toko FamilyMart"
-              >
-                <option value="">-- Pilih Toko FamilyMart --</option>
-              </select>
-              <button
-                type="button"
-                onclick="FMCUApp.addSelectedStoreToAgenda()"
-                class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-2xs transition flex items-center gap-1 shrink-0 cursor-pointer"
-                title="Tambahkan toko ini ke jadwal"
-              >
-                <i class="fa-solid fa-plus"></i>
-                <span class="hidden sm:inline">Pilih</span>
-              </button>
-            </div>
-
-            <!-- Daftar Toko Terpilih (Pills) -->
-            <div id="agenda-selected-stores-pills" class="flex flex-wrap gap-1.5 min-h-[28px] p-1.5 rounded-xl bg-white border border-emerald-200/80">
-              <span class="text-[11px] text-slate-400 font-medium italic">Belum ada toko yang dipilih. Silakan pilih toko di atas.</span>
+            <!-- Catatan / Keterangan Penugasan -->
+            <div>
+              <label class="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">Catatan Khusus (Opsional)</label>
+              <textarea
+                id="agenda-notes-input"
+                rows="2"
+                placeholder="Instruksi kegiatan atau catatan penugasan untuk karyawan..."
+                class="fm-input text-xs text-slate-800 w-full resize-none"
+                aria-label="Catatan Khusus"
+              ></textarea>
             </div>
           </div>
 
-          <!-- Section B: Dropdown Lokasi Kegiatan Non-Visit & Tombol (+) Tambah Lokasi Manual -->
-          <div id="agenda-location-container" class="space-y-1">
-            <label class="block text-[11px] font-extrabold text-slate-700 uppercase">
-              <i class="fa-solid fa-location-dot mr-1 text-purple-600"></i>Lokasi Kegiatan
-            </label>
-            <div class="flex items-center gap-1.5">
-              <select
-                id="agenda-location-select"
-                class="fm-input text-xs font-bold text-slate-800 w-full"
-                aria-label="Pilih Lokasi Kegiatan"
-              >
-                <option value="FMCU Lapangan Roos">FMCU Lapangan Roos</option>
-                <option value="FMCU Tanjung Duren">FMCU Tanjung Duren</option>
-                <option value="FMCU Sultan Iskandar Muda">FMCU Sultan Iskandar Muda</option>
-                <option value="FMCU Jatimulya">FMCU Jatimulya</option>
-                <option value="FMCU Cihampelas">FMCU Cihampelas</option>
-              </select>
-              <button
-                type="button"
-                onclick="FMCUApp.promptAddCustomAgendaLocation()"
-                class="w-9 h-9 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-300 flex items-center justify-center shrink-0 transition cursor-pointer shadow-2xs"
-                title="Tambah Lokasi Baru secara Manual (+)"
-                aria-label="Tambah Lokasi Manual"
-              >
-                <i class="fa-solid fa-plus text-xs"></i>
-              </button>
-            </div>
-          </div>
-
-          <!-- Section C: Input Box Jam Kerja 2 Kolom (IN & OUT) -->
-          <div id="agenda-time-container" class="p-3.5 rounded-2xl bg-slate-100/90 border border-slate-200 space-y-2">
-            <div class="flex items-center justify-between">
-              <label class="block text-[11px] font-extrabold text-slate-700 uppercase">
-                <i class="fa-regular fa-clock mr-1 text-slate-500"></i>Jam Kerja / Window Waktu
-              </label>
-              <span class="text-[10px] font-semibold text-slate-500">Default: 08:30 &ndash; 17:30</span>
-            </div>
-            <div class="grid grid-cols-2 gap-2.5">
-              <div>
-                <label class="block text-[10px] font-bold text-slate-600 mb-0.5">Jam Masuk (IN)</label>
-                <div class="relative">
-                  <i class="fa-solid fa-arrow-right-to-bracket absolute left-3 top-2.5 text-emerald-600 text-xs"></i>
-                  <input
-                    type="time"
-                    id="agenda-time-in"
-                    value="08:30"
-                    class="fm-input text-xs font-mono font-bold pl-8 w-full text-center"
-                    aria-label="Jam Masuk IN"
-                  />
-                </div>
-              </div>
-              <div>
-                <label class="block text-[10px] font-bold text-slate-600 mb-0.5">Jam Pulang (OUT)</label>
-                <div class="relative">
-                  <i class="fa-solid fa-arrow-right-from-bracket absolute left-3 top-2.5 text-rose-600 text-xs"></i>
-                  <input
-                    type="time"
-                    id="agenda-time-out"
-                    value="17:30"
-                    class="fm-input text-xs font-mono font-bold pl-8 w-full text-center"
-                    aria-label="Jam Pulang OUT"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Judul / Nama Agenda -->
-          <div>
-            <label class="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-              Judul / Keterangan Agenda <span class="text-rose-500">*</span>
-            </label>
-            <input
-              type="text"
-              id="agenda-title-input"
-              required
-              placeholder="Otomatis atau ketik judul kegiatan..."
-              class="fm-input text-xs font-bold text-slate-800 w-full"
-              aria-label="Judul Agenda"
-            />
-          </div>
-
-          <!-- Catatan / Keterangan Penugasan -->
-          <div>
-            <label class="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">Catatan Khusus (Opsional)</label>
-            <textarea
-              id="agenda-notes-input"
-              rows="2"
-              placeholder="Instruksi kegiatan atau catatan penugasan untuk karyawan..."
-              class="fm-input text-xs text-slate-800 w-full resize-none"
-              aria-label="Catatan Khusus"
-            ></textarea>
-          </div>
-
-          </div>
-
-          <!-- Sticky Bottom Action Footer -->
-          <div class="sticky bottom-0 bg-white border-t border-slate-200 px-4 py-3 sm:px-6 sm:py-3.5 flex items-center justify-end gap-2.5 shrink-0 -mx-4 -mb-4 sm:-mx-6 sm:-mb-6 mt-6 shadow-sm z-10">
+          <!-- Fixed Bottom Action Footer -->
+          <div class="bg-white border-t border-slate-200 px-4 py-3 sm:px-6 sm:py-3.5 flex items-center justify-end gap-2.5 shrink-0 shadow-sm z-10">
             <button
               type="button"
               onclick="FMCUApp.closeManualAgendaModal()"
@@ -5268,8 +5268,8 @@ service cloud.firestore {
     <!-- ============================================================
          MODAL: EDIT JADWAL KERJA & AGENDA TIM (CENTER SQUARE ROUNDED BLURRY BACKGROUND)
          ============================================================ -->
-    <div id="modal-edit-schedule" class="fixed inset-0 z-50 bg-slate-900/45 backdrop-blur-md flex items-center justify-center p-4 hidden animate-in fade-in duration-200">
-      <div class="w-full max-w-lg max-h-[85vh] flex flex-col bg-white rounded-[28px] shadow-2xl border border-white/80 overflow-hidden animate-in zoom-in-95 duration-200">
+    <div id="modal-edit-schedule" class="fixed inset-0 z-50 bg-slate-900/45 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 hidden animate-in fade-in duration-200">
+      <div class="w-full max-w-lg max-h-[90vh] flex flex-col bg-white rounded-[28px] shadow-2xl border border-white/80 overflow-hidden animate-in zoom-in-95 duration-200">
         <!-- Header Rounded Modal -->
         <div class="px-5 py-4 bg-gradient-to-r from-[#0d8247] to-[#0099A6] text-white flex items-center justify-between shrink-0">
           <div class="flex items-center gap-3">
@@ -5287,7 +5287,7 @@ service cloud.firestore {
         </div>
 
         <!-- Body Centered Square Modal -->
-        <div class="p-4 sm:p-5 bg-slate-50/60 flex-1 overflow-y-auto">
+        <div class="p-4 sm:p-5 bg-slate-50/60 flex-1 min-h-0 overflow-y-auto overscroll-contain">
           <div class="w-full space-y-3.5">
           <input type="hidden" id="edit-sch-id" />
 
@@ -5911,7 +5911,7 @@ service cloud.firestore {
       </div>
 
       <!-- Scrollable Form Body -->
-      <div class="overflow-y-auto space-y-3.5 pr-1 flex-1 text-xs">
+      <div class="overflow-y-auto overscroll-contain space-y-3.5 pr-1 flex-1 min-h-0 text-xs">
         <input type="hidden" id="feedback-sch-id" value="" />
 
         <!-- Target Schedule Banner -->

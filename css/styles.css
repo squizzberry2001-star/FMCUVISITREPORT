@@ -2658,3 +2658,19 @@ body.admin-quixotic-active #main-layout-content-col {
   flex: 1;
   padding: 12px 16px 16px;
 }
+
+/* Modal Agenda & Schedule Smooth Scrollability */
+#modal-manual-agenda .overflow-y-auto,
+#modal-edit-schedule .overflow-y-auto,
+#modal-agenda-feedback .overflow-y-auto {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+#modal-manual-agenda form,
+#modal-manual-agenda .overflow-y-auto,
+#modal-edit-schedule > div,
+#modal-edit-schedule .overflow-y-auto,
+#modal-agenda-feedback > div,
+#modal-agenda-feedback .overflow-y-auto {
+  min-height: 0;
+}
