@@ -3661,11 +3661,43 @@ window.FMCUApp = {
   _lastAdminScrollY: 0,
 
   initAdminAutoHideTopNavbar() {
-    // Top Navbar strictly sticky at top:0 without disappearing or autohiding
-    const topNav = document.getElementById('adm-qx-top-navbar');
     const topRow = document.getElementById('adm-qx-top-header-row');
-    if (topNav) topNav.classList.remove('qx-nav-hidden');
     if (topRow) topRow.classList.remove('qx-nav-hidden');
+
+    if (this._adminAutoHideBound) return;
+    this._adminAutoHideBound = true;
+    this._lastAdminScrollY = window.scrollY || 0;
+
+    let ticking = false;
+    window.addEventListener(
+      'scroll',
+      () => {
+        if (!ticking) {
+          window.requestAnimationFrame(() => {
+            const row = document.getElementById('adm-qx-top-header-row');
+            if (row) {
+              const curY = window.scrollY || 0;
+              const delta = curY - this._lastAdminScrollY;
+
+              if (curY <= 25) {
+                // Di paling atas viewport: selalu tampil menempel di top:0
+                row.classList.remove('qx-nav-hidden');
+              } else if (delta > 8 && curY > 55) {
+                // Scroll ke bawah: auto hide meluncur ke atas
+                row.classList.add('qx-nav-hidden');
+              } else if (delta < -6) {
+                // Scroll ke atas: muncul kembali dengan mulus
+                row.classList.remove('qx-nav-hidden');
+              }
+              this._lastAdminScrollY = curY;
+            }
+            ticking = false;
+          });
+          ticking = true;
+        }
+      },
+      { passive: true }
+    );
   },
 
   scrollToAdminAnalyticPart(part = 'kpi') {

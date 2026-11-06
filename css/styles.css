@@ -1922,7 +1922,7 @@ body.admin-quixotic-active #main-layout-content-col {
 #adm-qx-top-header-row,
 #adm-qx-top-navbar,
 .qx-autohide-navbar {
-  transition: transform 0.36s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.28s ease, box-shadow 0.3s ease;
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.24s ease, box-shadow 0.28s ease !important;
   will-change: transform, opacity;
 }
 
@@ -1943,19 +1943,20 @@ body.admin-quixotic-active #main-layout-content-col {
     z-index: 40 !important;
     border-radius: 0 !important;
     margin: 0 !important;
-    transform: none !important;
-    opacity: 1 !important;
-    pointer-events: auto !important;
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
     box-sizing: border-box !important;
   }
 }
 
-/* Matikan auto-hide agar top navbar selalu sticky permanen di atas */
+/* AUTO-HIDE saat scroll ke bawah: Meluncur mulus ke atas keluar layar */
 .qx-autohide-navbar.qx-nav-hidden,
 #adm-qx-top-header-row.qx-nav-hidden {
-  transform: none !important;
-  opacity: 1 !important;
-  pointer-events: auto !important;
+  transform: translateY(-115%) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  box-shadow: none !important;
 }
 
 .qx-workspace-layout {
