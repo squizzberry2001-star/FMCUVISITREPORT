@@ -18995,224 +18995,945 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     }
   },
 
-  handleTemplateJadwalFileImport(event) {
+  // ==========================================================================
+  // FITUR: UPLOAD & AUTO EKSTRAK JADWAL EXCEL (TEMPLET EXCEL JADWAL)
+  // Aturan kolom:
+  // Col A: Nama (Auto klasifikasi cocokan nama case-insensitive)
+  // Col B & D: Start Date & End Date (Auto ekstrak Day-Month-Years)
+  // Col C & E: Start Time & End Time (Format 24 jam)
+  // Col F: Agenda (Jika tertulis Visit -> Visit Store)
+  // Col G: Lokasi (Jika nama store -> cocokan master toko; jika ada FMCU -> non-store; jika ada & -> lebih dari 1 toko)
+  // Missing Dates / Weekend: Auto read OFF agenda
+  // ==========================================================================
+  openScheduleExcelUploadModal() {
+    this.ensureXLSXLoaded().catch(() => {});
+    const modal = document.getElementById('modal-upload-schedule-excel');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+
+    const dropzone = document.getElementById('excel-upload-dropzone');
+    const dashboard = document.getElementById('excel-extracted-dashboard');
+    const btnOther = document.getElementById('excel-btn-choose-other');
+    const btnPlanner = document.getElementById('excel-btn-load-planner');
+    const btnApply = document.getElementById('excel-btn-apply-direct');
+
+    if (!this._currentExtractedExcelData) {
+      if (dropzone) dropzone.classList.remove('hidden');
+      if (dashboard) dashboard.classList.add('hidden');
+      if (btnOther) btnOther.classList.add('hidden');
+      if (btnPlanner) btnPlanner.disabled = true;
+      if (btnApply) btnApply.disabled = true;
+    } else {
+      if (dropzone) dropzone.classList.add('hidden');
+      if (dashboard) dashboard.classList.remove('hidden');
+      if (btnOther) btnOther.classList.remove('hidden');
+      if (btnPlanner) btnPlanner.disabled = false;
+      if (btnApply) btnApply.disabled = false;
+      this.renderScheduleExcelDashboard(this._currentExtractedExcelData);
+    }
+  },
+
+  closeScheduleExcelUploadModal() {
+    const modal = document.getElementById('modal-upload-schedule-excel');
+    if (modal) modal.classList.add('hidden');
+  },
+
+  triggerScheduleExcelFileInput() {
+    const input = document.getElementById('input-schedule-excel-file');
+    if (input) {
+      input.value = '';
+      input.click();
+    }
+  },
+
+  onScheduleExcelFileSelected(event) {
     const file = event.target?.files?.[0];
     if (!file) return;
     this.triggerHaptic('medium');
     this.showToast(`Membaca file ${file.name}...`, 'info');
+
     const reader = new FileReader();
     reader.onload = (e) => {
-      this.parseAndApplyTemplateJadwalWorkbook(e.target.result, file.name);
+      this.processScheduleExcelBuffer(e.target.result, file.name);
+    };
+    reader.onerror = () => {
+      this.showToast('Gagal membaca file dari penyimpanan perangkat.', 'error');
     };
     reader.readAsArrayBuffer(file);
     event.target.value = '';
   },
 
-  parseAndApplyTemplateJadwalWorkbook(arrayBuffer, sourceName = 'Excel') {
-    if (typeof XLSX === 'undefined') {
-      this.showToast('Library Excel belum termuat.', 'error');
+  handleTemplateJadwalFileImport(event) {
+    this.onScheduleExcelFileSelected(event);
+  },
+
+  ensureXLSXLoaded() {
+    if (typeof window.XLSX !== 'undefined') {
+      return Promise.resolve(window.XLSX);
+    }
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+      script.onload = () => resolve(window.XLSX);
+      script.onerror = () => reject(new Error('Gagal memuat library Excel (SheetJS). Periksa koneksi internet Anda.'));
+      document.head.appendChild(script);
+    });
+  },
+
+  async processScheduleExcelBuffer(arrayBuffer, fileName = 'TEMPLET EXCEL JADWAL.xlsx') {
+    try {
+      await this.ensureXLSXLoaded();
+      if (typeof XLSX === 'undefined') {
+        throw new Error('Library Excel (SheetJS) tidak tersedia.');
+      }
+
+      const wb = XLSX.read(arrayBuffer, { type: 'array', cellDates: true, cellNF: false });
+      if (!wb || !wb.SheetNames || wb.SheetNames.length === 0) {
+        throw new Error('File Excel tidak memiliki lembar kerja (Sheet) yang valid.');
+      }
+
+      this._currentExcelWorkbook = wb;
+      this._currentExcelFileName = fileName;
+
+      // Populate sheet selector
+      const sheetSelector = document.getElementById('excel-sheet-selector');
+      if (sheetSelector) {
+        sheetSelector.innerHTML = wb.SheetNames.map((name, idx) => {
+          const ws = wb.Sheets[name];
+          const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:A1');
+          const rowCount = range.e.r + 1;
+          return `<option value="${name}" ${idx === 0 ? 'selected' : ''}>${name} (${rowCount} baris)</option>`;
+        }).join('');
+      }
+
+      const activeSheet = wb.SheetNames[0];
+      const extracted = this.parseScheduleExcelSheet(wb, activeSheet);
+      this._currentExtractedExcelData = extracted;
+
+      this.openScheduleExcelUploadModal();
+      this.renderScheduleExcelDashboard(extracted);
+      this.showToast(`🎉 File ${fileName} berhasil dibaca! Terdeteksi ${extracted.totalExtracted} jadwal untuk ${extracted.personCount} personil.`, 'success', 4000);
+    } catch (err) {
+      console.error('Error processing Excel schedule:', err);
+      this.showToast(`Gagal memproses file Excel: ${err.message}`, 'error', 5000);
+    }
+  },
+
+  onScheduleExcelSheetChanged(sheetName) {
+    if (!this._currentExcelWorkbook || !sheetName) return;
+    try {
+      const extracted = this.parseScheduleExcelSheet(this._currentExcelWorkbook, sheetName);
+      this._currentExtractedExcelData = extracted;
+      this.renderScheduleExcelDashboard(extracted);
+      this.showToast(`Memuat sheet "${sheetName}": ${extracted.totalExtracted} jadwal terdeteksi.`, 'info');
+    } catch (err) {
+      console.error('Error switching Excel sheet:', err);
+      this.showToast(`Gagal memuat sheet: ${err.message}`, 'error');
+    }
+  },
+
+  _parseExcelSerialDate(val) {
+    if (typeof val === 'number') {
+      const utcDays = Math.round(val - 25569);
+      const ms = utcDays * 86400 * 1000;
+      const d = new Date(ms);
+      const y = d.getUTCFullYear();
+      const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(d.getUTCDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+    if (val instanceof Date) {
+      const y = val.getFullYear();
+      const m = String(val.getMonth() + 1).padStart(2, '0');
+      const day = String(val.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+    if (typeof val === 'string') {
+      const s = val.trim();
+      const m1 = s.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+      if (m1) {
+        return `${m1[1]}-${String(m1[2]).padStart(2, '0')}-${String(m1[3]).padStart(2, '0')}`;
+      }
+      const m2 = s.match(/(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+      if (m2) {
+        return `${m2[3]}-${String(m2[2]).padStart(2, '0')}-${String(m2[1]).padStart(2, '0')}`;
+      }
+    }
+    return '';
+  },
+
+  _parseExcelTime24(val, defaultTime = '08:30') {
+    if (typeof val === 'number') {
+      const totalSec = Math.round(val * 86400);
+      const h = Math.floor(totalSec / 3600) % 24;
+      const mi = Math.floor((totalSec % 3600) / 60);
+      return `${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}`;
+    }
+    if (val instanceof Date) {
+      return `${String(val.getHours()).padStart(2, '0')}:${String(val.getMinutes()).padStart(2, '0')}`;
+    }
+    if (typeof val === 'string') {
+      const s = val.trim();
+      const m = s.match(/(\d{1,2})[:.](\d{2})/);
+      if (m) {
+        let h = parseInt(m[1], 10);
+        const mi = m[2];
+        if (/PM/i.test(s) && h < 12) h += 12;
+        if (/AM/i.test(s) && h === 12) h = 0;
+        return `${String(h).padStart(2, '0')}:${mi}`;
+      }
+    }
+    return defaultTime;
+  },
+
+  _matchStoreFromLocationPart(locPart, masterStores) {
+    if (!locPart) return { store: null, isFmcuNonStore: false };
+
+    // Aturan 5: Jika ada tulisan FMCU maka itu BUKAN store!
+    if (/FMCU/i.test(locPart)) {
+      return { store: null, isFmcuNonStore: true };
+    }
+
+    const normalizeStoreStr = (s) => {
+      if (!s) return '';
+      let str = String(s).toUpperCase().trim();
+      str = str.replace(/^(FM|FAMILYMART|STORE|TOKO)\s+/i, '');
+      str = str.replace(/[()\-.,\/]/g, ' ');
+      return str.replace(/\s+/g, ' ').trim();
+    };
+
+    const norm = normalizeStoreStr(locPart);
+    if (!norm) return { store: null, isFmcuNonStore: false };
+
+    // Kamus alias nama toko umum FamilyMart
+    const aliases = {
+      'BDG RIAU': '3006', // BDG R.E MARTADINATA
+      'RIAU': '3006',
+      'BDG GATSU': '3007',
+      'PASTEUR': '3019',
+      'SURYA SUMANTRI': '3002',
+      'BRAGA': '3004',
+      'DUREN TIGA': '0410',
+      'STORE BDG': '3001'
+    };
+    if (aliases[norm]) {
+      const st = masterStores.find((s) => String(s.code) === String(aliases[norm]));
+      if (st) return { store: st, isFmcuNonStore: false, matchType: 'ALIAS' };
+    }
+
+    // 1. Exact match pada normalized store name
+    for (const st of masterStores) {
+      const stNorm = normalizeStoreStr(st.name);
+      if (stNorm === norm) {
+        return { store: st, isFmcuNonStore: false, matchType: 'EXACT' };
+      }
+    }
+
+    // 2. Prefiks BDG
+    if (norm.startsWith('BDG ')) {
+      const sub = norm.slice(4).trim();
+      for (const st of masterStores) {
+        const stNorm = normalizeStoreStr(st.name);
+        if (stNorm === sub || stNorm === `BDG ${sub}`) {
+          return { store: st, isFmcuNonStore: false, matchType: 'BDG_PREFIX' };
+        }
+      }
+    }
+
+    // 3. Whole word containment (\b ... \b)
+    for (const st of masterStores) {
+      const stNorm = normalizeStoreStr(st.name);
+      if (stNorm.length >= 4) {
+        const rx = new RegExp(`\\b${stNorm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+        if (rx.test(norm)) {
+          return { store: st, isFmcuNonStore: false, matchType: 'WORD' };
+        }
+      }
+    }
+
+    // 4. Token overlap score (>= 0.5)
+    const normWords = new Set(norm.split(' ').filter(Boolean));
+    let bestSt = null;
+    let bestScore = 0;
+    for (const st of masterStores) {
+      const stWords = new Set(normalizeStoreStr(st.name).split(' ').filter(Boolean));
+      let common = 0;
+      for (const w of normWords) {
+        if (stWords.has(w)) common++;
+      }
+      if (common > 0) {
+        const score = common / Math.max(normWords.size, stWords.size);
+        if (score > bestScore && score >= 0.5) {
+          bestScore = score;
+          bestSt = st;
+        }
+      }
+    }
+    if (bestSt) {
+      return { store: bestSt, isFmcuNonStore: false, matchType: 'TOKEN' };
+    }
+
+    return { store: null, isFmcuNonStore: false };
+  },
+
+  _matchUserByName(rawName, allUsers) {
+    if (!rawName) return null;
+    const clean = String(rawName).trim();
+    const cleanLower = clean.toLowerCase();
+
+    // 1. Exact match by name
+    let found = allUsers.find((u) => (u.name || '').toLowerCase().trim() === cleanLower);
+    if (found) return found;
+
+    // 2. Match by username or nik
+    found = allUsers.find(
+      (u) =>
+        (u.username && u.username.toLowerCase().trim() === cleanLower) ||
+        (u.nik && String(u.nik).trim() === clean)
+    );
+    if (found) return found;
+
+    // 3. Match ignoring punctuation & dots (e.g. M. Ghifary vs M Ghifary)
+    const stripPunct = (s) => s.replace(/[^a-z0-9]/g, '');
+    const cleanStripped = stripPunct(cleanLower);
+    found = allUsers.find((u) => stripPunct((u.name || '').toLowerCase()) === cleanStripped);
+    if (found) return found;
+
+    // 4. Token overlap
+    const tokens = new Set(cleanLower.split(/\s+/).filter(Boolean));
+    for (const u of allUsers) {
+      const uTokens = new Set((u.name || '').toLowerCase().split(/\s+/).filter(Boolean));
+      let common = 0;
+      for (const t of tokens) {
+        if (uTokens.has(t)) common++;
+      }
+      if (common >= 2 || (tokens.size === 1 && common === 1)) {
+        return u;
+      }
+    }
+
+    // 5. Auto-register jika belum terdaftar agar jadwal tidak terbuang
+    const newId = `usr-${cleanStripped || Math.random().toString(36).slice(2, 8)}`;
+    const newUser = {
+      id: newId,
+      name: clean,
+      username: cleanStripped || newId,
+      role: 'AUDITOR',
+      roleBadge: 'Visitor / Regional Bestie',
+      active: true
+    };
+    allUsers.push(newUser);
+    if (window.FMCUData && typeof window.FMCUData.saveUsers === 'function') {
+      window.FMCUData.saveUsers(allUsers);
+    }
+    return newUser;
+  },
+
+  parseScheduleExcelSheet(wb, sheetName) {
+    const ws = wb.Sheets[sheetName];
+    if (!ws) throw new Error(`Sheet "${sheetName}" tidak ditemukan.`);
+
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
+    if (!rows || rows.length <= 1) {
+      throw new Error(`Sheet "${sheetName}" kosong atau tidak memiliki data.`);
+    }
+
+    const allUsers = window.FMCUData.getUsers();
+    const stores = window.FMCUData.getStores();
+
+    const assignedBy = this.currentUser ? `${this.currentUser.name} (${this.currentUser.role})` : 'System Excel Import';
+
+    const extractedSchedules = [];
+    const personMap = new Map(); // personId -> { user, datesCovered: Set<string> }
+    const allDates = new Set();
+    let storeVisitsCount = 0;
+    let agendasCount = 0;
+    let manualOffCutiCount = 0;
+
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r];
+      const rawName = String(row[0] || '').trim();
+      if (!rawName) continue;
+
+      // 1. Column A: Match user
+      const user = this._matchUserByName(rawName, allUsers);
+      if (!user) continue;
+
+      // 2. Column B & D: Dates
+      const startDate = this._parseExcelSerialDate(row[1]);
+      const endDate = this._parseExcelSerialDate(row[3]) || startDate;
+      if (!startDate) continue;
+
+      allDates.add(startDate);
+      if (!personMap.has(user.id)) {
+        personMap.set(user.id, { user, datesCovered: new Set() });
+      }
+      personMap.get(user.id).datesCovered.add(startDate);
+
+      // 3. Column C & E: Times (24h)
+      const startTime = this._parseExcelTime24(row[2], '08:30');
+      const endTime = this._parseExcelTime24(row[4], '17:30');
+      const shiftWindow = `${startTime} - ${endTime}`;
+
+      // 4. Column F: Agenda
+      const desc = String(row[5] || '').trim();
+      const descLower = desc.toLowerCase();
+      const isExplicitVisit = /visit/i.test(desc);
+
+      // 5. Column G: Location
+      const loc = String(row[6] || '').trim();
+
+      // Cek CUTI
+      if (descLower === 'cuti' || /cuti/i.test(descLower)) {
+        extractedSchedules.push({
+          id: `sch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${r}`,
+          storeCode: 'CUTI',
+          storeName: 'CUTI TAHUNAN / KHUSUS',
+          storeType: 'NON_STORE',
+          auditorId: user.id,
+          auditorName: user.name,
+          auditorUsername: user.username || '',
+          auditorNik: user.nik || user.username || '',
+          scheduledDate: startDate,
+          shiftWindow: '-',
+          priority: 'NORMAL',
+          auditFocus: 'Cuti Resmi',
+          status: 'CUTI',
+          actualIn: null,
+          actualOut: null,
+          reportId: null,
+          assignedBy,
+          _rawDesc: desc,
+          _rawLoc: loc,
+          _categoryType: 'OFF_CUTI'
+        });
+        manualOffCutiCount++;
+        continue;
+      }
+
+      // Cek OFF
+      if (descLower === 'off' || /^ganti off/i.test(descLower)) {
+        extractedSchedules.push({
+          id: `sch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${r}`,
+          storeCode: 'OFF',
+          storeName: 'HARI OFF / LIBUR MINGGUAN',
+          storeType: 'NON_STORE',
+          auditorId: user.id,
+          auditorName: user.name,
+          auditorUsername: user.username || '',
+          auditorNik: user.nik || user.username || '',
+          scheduledDate: startDate,
+          shiftWindow: '-',
+          priority: 'NORMAL',
+          auditFocus: 'Hari Off / Libur',
+          status: 'OFF',
+          actualIn: null,
+          actualOut: null,
+          reportId: null,
+          assignedBy,
+          _rawDesc: desc,
+          _rawLoc: loc,
+          _categoryType: 'OFF_CUTI'
+        });
+        manualOffCutiCount++;
+        continue;
+      }
+
+      // Pisahkan lokasi jika terdapat pemisah simbol & atau baris baru \n (Aturan 5)
+      const locParts = loc ? loc.split(/[&\n]+/).map((s) => s.trim()).filter(Boolean) : [];
+
+      if (locParts.length === 0) {
+        // Tanpa lokasi -> default agenda
+        const cleanAgenda = desc.replace(/^agenda\s*:\s*/i, '').trim() || 'AGENDA INTERNAL';
+        extractedSchedules.push({
+          id: `sch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${r}`,
+          storeCode: 'AGENDA',
+          storeName: cleanAgenda,
+          storeType: 'NON_STORE',
+          auditorId: user.id,
+          auditorName: user.name,
+          auditorUsername: user.username || '',
+          auditorNik: user.nik || user.username || '',
+          scheduledDate: startDate,
+          shiftWindow,
+          priority: 'NORMAL',
+          auditFocus: `Agenda: ${cleanAgenda}`,
+          agendaCategory: /training/i.test(desc) ? 'TRAINING' : (/nso|simulasi/i.test(desc) ? 'NSO' : (/meeting/i.test(desc) ? 'MEETING' : 'OFFICE_DUTY')),
+          agendaLocation: '',
+          notes: desc,
+          status: 'AGENDA',
+          isAgenda: true,
+          actualIn: null,
+          actualOut: null,
+          reportId: null,
+          assignedBy,
+          _rawDesc: desc,
+          _rawLoc: '',
+          _categoryType: 'AGENDA'
+        });
+        agendasCount++;
+        continue;
+      }
+
+      // Proses setiap bagian lokasi (lebih dari 1 toko jika ada pemisah &)
+      locParts.forEach((part, pIdx) => {
+        const { store, isFmcuNonStore } = this._matchStoreFromLocationPart(part, stores);
+
+        if (store) {
+          // Cocok dengan master store!
+          extractedSchedules.push({
+            id: `sch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${r}-${pIdx}`,
+            storeCode: store.code,
+            storeName: store.name,
+            storeType: store.type || 'CVS',
+            auditorId: user.id,
+            auditorName: user.name,
+            auditorUsername: user.username || '',
+            auditorNik: user.nik || user.username || '',
+            scheduledDate: startDate,
+            shiftWindow,
+            priority: 'NORMAL',
+            auditFocus: isExplicitVisit ? (desc || 'Visit Store') : `Visit: ${desc || 'Audit QSC Toko'}`,
+            status: 'PENDING',
+            actualIn: null,
+            actualOut: null,
+            reportId: null,
+            assignedBy,
+            _rawDesc: desc,
+            _rawLoc: part,
+            _categoryType: 'STORE_VISIT'
+          });
+          storeVisitsCount++;
+        } else if (isFmcuNonStore) {
+          // Ada tulisan FMCU -> BUKAN STORE
+          const cleanAgenda = desc.replace(/^agenda\s*:\s*/i, '').trim() || `Kegiatan ${part}`;
+          extractedSchedules.push({
+            id: `sch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${r}-${pIdx}`,
+            storeCode: 'AGENDA',
+            storeName: cleanAgenda,
+            storeType: 'NON_STORE',
+            auditorId: user.id,
+            auditorName: user.name,
+            auditorUsername: user.username || '',
+            auditorNik: user.nik || user.username || '',
+            scheduledDate: startDate,
+            shiftWindow,
+            priority: 'NORMAL',
+            auditFocus: `Agenda: ${cleanAgenda}`,
+            agendaCategory: /training/i.test(desc) ? 'TRAINING' : (/nso|simulasi/i.test(desc) ? 'NSO' : (/meeting/i.test(desc) ? 'MEETING' : 'OFFICE_DUTY')),
+            agendaLocation: part,
+            notes: desc,
+            status: 'AGENDA',
+            isAgenda: true,
+            actualIn: null,
+            actualOut: null,
+            reportId: null,
+            assignedBy,
+            _rawDesc: desc,
+            _rawLoc: part,
+            _categoryType: 'AGENDA'
+          });
+          agendasCount++;
+        } else {
+          // Tidak ada FMCU dan tidak ada di master store:
+          if (isExplicitVisit) {
+            extractedSchedules.push({
+              id: `sch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${r}-${pIdx}`,
+              storeCode: 'STORE-NEW',
+              storeName: part,
+              storeType: 'CVS',
+              auditorId: user.id,
+              auditorName: user.name,
+              auditorUsername: user.username || '',
+              auditorNik: user.nik || user.username || '',
+              scheduledDate: startDate,
+              shiftWindow,
+              priority: 'NORMAL',
+              auditFocus: desc || 'Visit Store',
+              status: 'PENDING',
+              actualIn: null,
+              actualOut: null,
+              reportId: null,
+              assignedBy,
+              _rawDesc: desc,
+              _rawLoc: part,
+              _categoryType: 'STORE_VISIT'
+            });
+            storeVisitsCount++;
+          } else {
+            const cleanAgenda = desc.replace(/^agenda\s*:\s*/i, '').trim() || part;
+            extractedSchedules.push({
+              id: `sch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${r}-${pIdx}`,
+              storeCode: 'AGENDA',
+              storeName: cleanAgenda,
+              storeType: 'NON_STORE',
+              auditorId: user.id,
+              auditorName: user.name,
+              auditorUsername: user.username || '',
+              auditorNik: user.nik || user.username || '',
+              scheduledDate: startDate,
+              shiftWindow,
+              priority: 'NORMAL',
+              auditFocus: `Agenda: ${cleanAgenda}`,
+              agendaCategory: /training/i.test(desc) ? 'TRAINING' : (/nso|simulasi/i.test(desc) ? 'NSO' : (/meeting/i.test(desc) ? 'MEETING' : 'OFFICE_DUTY')),
+              agendaLocation: part,
+              notes: desc,
+              status: 'AGENDA',
+              isAgenda: true,
+              actualIn: null,
+              actualOut: null,
+              reportId: null,
+              assignedBy,
+              _rawDesc: desc,
+              _rawLoc: part,
+              _categoryType: 'AGENDA'
+            });
+            agendasCount++;
+          }
+        }
+      });
+    }
+
+    // 6. Aturan Tanggal Aktual & Weekend / OFF:
+    // "dengan aturan cocokan tanggal aktual di colomn B jika ada tanggal yang tidak tercantum biasanya itu tanggal weekend atau auto read OFF agenda"
+    let autoOffCount = 0;
+    const sortedDates = Array.from(allDates).sort();
+    let weekMonday = this.getMondayOfWeek();
+    let weekSunday = '';
+
+    if (sortedDates.length > 0) {
+      weekMonday = this.getMondayOfWeek(sortedDates[0]);
+    }
+    const weekDays = this.getFiveWorkDays(weekMonday); // 7 hari (Senin s/d Minggu)
+    if (weekDays.length > 6) {
+      weekSunday = weekDays[6].dateStr;
+    }
+
+    personMap.forEach(({ user, datesCovered }) => {
+      weekDays.forEach((wd) => {
+        if (!datesCovered.has(wd.dateStr)) {
+          const isWeekend = wd.dayIndex === 5 || wd.dayIndex === 6;
+          extractedSchedules.push({
+            id: `sch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-autooff-${wd.dayIndex}`,
+            storeCode: 'OFF',
+            storeName: isWeekend ? 'WEEKEND / OFF' : 'HARI LIBUR / OFF',
+            storeType: 'NON_STORE',
+            auditorId: user.id,
+            auditorName: user.name,
+            auditorUsername: user.username || '',
+            auditorNik: user.nik || user.username || '',
+            scheduledDate: wd.dateStr,
+            shiftWindow: '-',
+            priority: 'NORMAL',
+            auditFocus: isWeekend ? 'Libur Weekend' : 'Hari Off Mingguan',
+            status: 'OFF',
+            actualIn: null,
+            actualOut: null,
+            reportId: null,
+            assignedBy,
+            _rawDesc: isWeekend ? 'Auto-fill Weekend' : 'Auto-fill Off',
+            _rawLoc: '-',
+            _categoryType: 'OFF_CUTI',
+            _isAutoOff: true
+          });
+          autoOffCount++;
+        }
+      });
+    });
+
+    return {
+      sheetName,
+      weekMonday,
+      weekSunday,
+      weekDays,
+      totalExtracted: extractedSchedules.length,
+      personCount: personMap.size,
+      persons: Array.from(personMap.values()).map((p) => p.user),
+      schedules: extractedSchedules,
+      stats: {
+        storeVisitsCount,
+        agendasCount,
+        offCutiCount: manualOffCutiCount + autoOffCount,
+        autoOffCount
+      }
+    };
+  },
+
+  renderScheduleExcelDashboard(extracted) {
+    if (!extracted) return;
+    const dropzone = document.getElementById('excel-upload-dropzone');
+    const dashboard = document.getElementById('excel-extracted-dashboard');
+    const btnOther = document.getElementById('excel-btn-choose-other');
+    const btnPlanner = document.getElementById('excel-btn-load-planner');
+    const btnApply = document.getElementById('excel-btn-apply-direct');
+
+    if (dropzone) dropzone.classList.add('hidden');
+    if (dashboard) dashboard.classList.remove('hidden');
+    if (btnOther) btnOther.classList.remove('hidden');
+    if (btnPlanner) btnPlanner.disabled = false;
+    if (btnApply) btnApply.disabled = false;
+
+    const elTotal = document.getElementById('stat-excel-total-schedules');
+    const elPersons = document.getElementById('stat-excel-total-persons');
+    const elVisits = document.getElementById('stat-excel-store-visits');
+    const elAgendas = document.getElementById('stat-excel-agendas');
+    const elOff = document.getElementById('stat-excel-off-count');
+    const elAutoOff = document.getElementById('stat-excel-auto-off');
+    const elPeriod = document.getElementById('excel-detected-period');
+    const elFile = document.getElementById('excel-source-filename');
+    const elSheetInfo = document.getElementById('excel-sheet-info');
+
+    if (elTotal) elTotal.textContent = extracted.totalExtracted;
+    if (elPersons) elPersons.textContent = `${extracted.personCount} Personil Bestie/Trainer`;
+    if (elVisits) elVisits.textContent = extracted.stats.storeVisitsCount;
+    if (elAgendas) elAgendas.textContent = extracted.stats.agendasCount;
+    if (elOff) elOff.textContent = extracted.stats.offCutiCount;
+    if (elAutoOff) elAutoOff.textContent = `${extracted.stats.autoOffCount} auto-fill weekend`;
+    if (elPeriod) elPeriod.textContent = `${extracted.weekMonday} s/d ${extracted.weekSunday}`;
+    if (elFile) elFile.textContent = this._currentExcelFileName || 'TEMPLET EXCEL JADWAL.xlsx';
+    if (elSheetInfo) elSheetInfo.textContent = `Sheet: ${extracted.sheetName} (${extracted.totalExtracted} jadwal siap terapkan)`;
+
+    this._excelPreviewScope = 'ALL';
+    this._excelPreviewQuery = '';
+    this.renderScheduleExcelPreviewTable();
+  },
+
+  renderScheduleExcelPreviewTable() {
+    const tbody = document.getElementById('excel-preview-tbody');
+    if (!tbody || !this._currentExtractedExcelData) return;
+
+    const query = (this._excelPreviewQuery || '').toLowerCase().trim();
+    const scope = this._excelPreviewScope || 'ALL';
+
+    const filtered = this._currentExtractedExcelData.schedules.filter((item) => {
+      if (scope === 'VISIT' && item._categoryType !== 'STORE_VISIT') return false;
+      if (scope === 'AGENDA' && item._categoryType !== 'AGENDA') return false;
+      if (scope === 'OFF' && item._categoryType !== 'OFF_CUTI') return false;
+
+      if (query) {
+        const text = `${item.auditorName} ${item.scheduledDate} ${item.storeName} ${item.storeCode} ${item._rawDesc} ${item._rawLoc}`.toLowerCase();
+        return text.includes(query);
+      }
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="p-6 text-center text-slate-400 italic">
+            Tidak ada baris jadwal yang cocok dengan filter pencarian.
+          </td>
+        </tr>
+      `;
       return;
     }
-    try {
-      const wb = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
-      const sheetName = wb.SheetNames[0];
-      const ws = wb.Sheets[sheetName];
-      const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
-      if (data.length <= 1) {
-        this.showToast(`File ${sourceName} kosong atau tidak memiliki data jadwal.`, 'warning');
-        return;
+    // Tampilkan 150 baris pertama untuk performa rendering optimal
+    const displayList = filtered.slice(0, 150);
+    tbody.innerHTML = displayList.map((item) => {
+      let typeBadge = '';
+      if (item._categoryType === 'STORE_VISIT') {
+        typeBadge = `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-teal-100 text-teal-800">Visit Store</span>`;
+      } else if (item._categoryType === 'AGENDA') {
+        typeBadge = `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-indigo-100 text-indigo-800">Agenda FMCU</span>`;
+      } else {
+        typeBadge = item._isAutoOff
+          ? `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-amber-100 text-amber-800">Auto OFF</span>`
+          : `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-slate-200 text-slate-700">${item.status}</span>`;
       }
 
-      this.ensureWeeklyPlannerInitialized();
-      const allUsers = window.FMCUData.getUsers();
-      const userMap = new Map();
-      allUsers.forEach((u) => {
-        userMap.set(String(u.name).toLowerCase().trim(), u);
-        if (u.username) userMap.set(String(u.username).toLowerCase().trim(), u);
-        if (u.nik) userMap.set(String(u.nik).toLowerCase().trim(), u);
-      });
-
-      const stores = window.FMCUData.getStores();
-      const storeMap = new Map();
-      stores.forEach((st) => {
-        storeMap.set(String(st.name).toLowerCase().trim(), st);
-        storeMap.set(String(st.code).toLowerCase().trim(), st);
-      });
-
-      // 1. Ekstraksi dan deteksi tanggal secara aman menggunakan UTC getters
-      const formatExcelDate = (val) => {
-        if (val instanceof Date) {
-          const y = val.getUTCFullYear();
-          const m = String(val.getUTCMonth() + 1).padStart(2, '0');
-          const d = String(val.getUTCDate()).padStart(2, '0');
-          return `${y}-${m}-${d}`;
-        }
-        if (typeof val === 'string') {
-          const match = val.match(/\d{4}-\d{2}-\d{2}/);
-          if (match) return match[0];
-        }
-        return '';
-      };
-
-      // Cari tanggal paling awal yang valid di Excel untuk auto-menyesuaikan awal minggu (Senin)
-      const validDates = [];
-      for (let r = 1; r < data.length; r++) {
-        const dStr = formatExcelDate(data[r][1]);
-        if (dStr) validDates.push(dStr);
-      }
-      validDates.sort();
-
-      if (validDates.length > 0) {
-        const earliestDate = validDates[0];
-        this.weeklyMondayDate = this.getMondayOfWeek(earliestDate);
-        const monInput = document.getElementById('weekly-monday-input');
-        if (monInput) monInput.value = this.weeklyMondayDate;
+      let storeDisplay = '';
+      if (item._categoryType === 'STORE_VISIT') {
+        storeDisplay = `
+          <div class="font-bold text-slate-900 truncate">FM ${item.storeName}</div>
+          <div class="text-[10px] text-slate-400 font-mono">Kode: ${item.storeCode} ${item._rawLoc ? `• Asal: ${item._rawLoc}` : ''}</div>
+        `;
+      } else if (item._categoryType === 'AGENDA') {
+        storeDisplay = `
+          <div class="font-bold text-slate-800 truncate">${item.storeName}</div>
+          <div class="text-[10px] text-slate-500 truncate">${item.agendaLocation || item._rawLoc || 'Internal FMCU'}</div>
+        `;
+      } else {
+        storeDisplay = `
+          <div class="font-semibold text-slate-500 truncate">${item.storeName}</div>
+        `;
       }
 
-      const fiveDays = this.getFiveWorkDays(this.weeklyMondayDate);
-      const dateToIdxMap = new Map();
-      fiveDays.forEach((d) => dateToIdxMap.set(d.dateStr, d.dayIndex));
+      return `
+        <tr class="hover:bg-slate-50 transition">
+          <td class="p-2.5 min-w-[140px]">
+            <div class="font-bold text-slate-900 truncate">${item.auditorName}</div>
+            <div class="text-[10px] text-slate-400 font-mono">NIK: ${item.auditorNik || '-'}</div>
+          </td>
+          <td class="p-2.5 font-mono text-[11px] text-slate-700 whitespace-nowrap">
+            ${item.scheduledDate}
+          </td>
+          <td class="p-2.5 font-mono text-[11px] text-slate-600 whitespace-nowrap">
+            ${item.shiftWindow}
+          </td>
+          <td class="p-2.5">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              ${typeBadge}
+              <span class="truncate max-w-[150px] text-[10.5px] text-slate-600" title="${item._rawDesc || item.auditFocus}">${item._rawDesc || item.auditFocus}</span>
+            </div>
+          </td>
+          <td class="p-2.5 max-w-[200px]">
+            ${storeDisplay}
+          </td>
+        </tr>
+      `;
+    }).join('') + (filtered.length > 150 ? `
+      <tr>
+        <td colspan="5" class="p-2 text-center text-slate-400 text-[10.5px] italic bg-slate-50">
+          ... Menampilkan 150 dari total ${filtered.length} baris jadwal.
+        </td>
+      </tr>
+    ` : '');
+  },
 
-      const involvedAuditorIds = new Set();
-      const resetSlotKeys = new Set();
-      let importedCount = 0;
+  filterExtractedExcelPreview(query) {
+    this._excelPreviewQuery = query;
+    this.renderScheduleExcelPreviewTable();
+  },
 
-      for (let r = 1; r < data.length; r++) {
-        const row = data[r];
-        const rawNama = String(row[0] || '').trim();
-        if (!rawNama) continue;
+  setExtractedPreviewScope(scope) {
+    this._excelPreviewScope = scope;
+    ['all', 'visit', 'agenda', 'off'].forEach((k) => {
+      const btn = document.getElementById(`btn-prev-scope-${k}`);
+      if (!btn) return;
+      const isActive = k.toUpperCase() === scope;
+      btn.className = isActive
+        ? 'px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-900 text-white shadow-2xs cursor-pointer'
+        : 'px-2.5 py-1 rounded-full text-[10px] font-bold text-slate-600 hover:bg-slate-100 cursor-pointer';
+    });
+    this.renderScheduleExcelPreviewTable();
+  },
 
-        let u = userMap.get(rawNama.toLowerCase());
-        if (!u) {
-          u = {
-            id: `usr-${rawNama.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
-            name: rawNama,
-            username: rawNama.toLowerCase().replace(/[^a-z0-9]/g, ''),
-            role: 'AUDITOR',
-            roleBadge: 'Visitor / Regional Bestie',
-            active: true
-          };
-          allUsers.push(u);
-          userMap.set(rawNama.toLowerCase(), u);
-          window.FMCUData.saveUsers(allUsers);
-        }
+  applyExtractedExcelToPlannerDraft() {
+    if (!this._currentExtractedExcelData) return;
+    const extracted = this._currentExtractedExcelData;
 
-        involvedAuditorIds.add(u.id);
+    this.ensureWeeklyPlannerInitialized();
+    this.weeklyMondayDate = extracted.weekMonday;
+    const monInput = document.getElementById('weekly-monday-input');
+    if (monInput) monInput.value = this.weeklyMondayDate;
 
-        const dateStr = formatExcelDate(row[1]);
-        if (!dateStr) continue;
+    // Reset draft matrix
+    this.weeklyDraftMatrix = {};
+    const weekDays = this.getFiveWorkDays(this.weeklyMondayDate);
+    const dateToIdxMap = new Map();
+    weekDays.forEach((wd) => dateToIdxMap.set(wd.dateStr, wd.dayIndex));
 
-        const dayIdx = dateToIdxMap.get(dateStr);
-        if (dayIdx === undefined) continue;
-
-        const startTime = String(row[2] || '08:30').slice(0, 5);
-        const endTime = String(row[4] || '17:30').slice(0, 5);
-        const shiftWindow = `${startTime} - ${endTime}`;
-        const desc = String(row[5] || '').trim();
-        const loc = String(row[6] || '').trim();
-        const descLower = desc.toLowerCase();
-
-        const slotKey = this.getWeeklySlotKey(u.id, dayIdx);
-        if (!resetSlotKeys.has(slotKey)) {
-          this.weeklyDraftMatrix[slotKey] = [];
-          resetSlotKeys.add(slotKey);
-        }
-
-        if (descLower === 'cuti' || descLower.includes('cuti')) {
-          this.weeklyDraftMatrix[slotKey].push({
-            storeCode: 'CUTI',
-            storeName: 'CUTI TAHUNAN / KHUSUS',
-            priority: 'NORMAL',
-            isCuti: true,
-            isOff: false,
-            isStatusBadge: true,
-            shiftWindow: '-'
-          });
-          importedCount++;
-        } else if (descLower === 'off' || descLower.includes('off')) {
-          this.weeklyDraftMatrix[slotKey].push({
-            storeCode: 'OFF',
-            storeName: 'HARI LIBUR / OFF',
-            priority: 'NORMAL',
-            isCuti: false,
-            isOff: true,
-            isStatusBadge: true,
-            shiftWindow: '-'
-          });
-          importedCount++;
-        } else if (descLower.includes('agenda') || descLower.includes('nso') || descLower.includes('training') || descLower.includes('simulasi')) {
-          this.weeklyDraftMatrix[slotKey].push({
-            storeCode: 'AGENDA',
-            storeName: desc.replace(/^agenda\s*:\s*/i, '').trim() || 'AGENDA INTERNAL',
-            agendaLocation: loc || 'HEAD OFFICE',
-            notes: desc,
-            isAgenda: true,
-            priority: 'NORMAL',
-            shiftWindow
-          });
-          importedCount++;
-        } else if (descLower.includes('visit store') || loc) {
-          const matchedStore = storeMap.get(loc.toLowerCase());
-          if (matchedStore) {
-            this.weeklyDraftMatrix[slotKey].push({
-              storeCode: matchedStore.code,
-              storeName: matchedStore.name,
-              priority: 'NORMAL',
-              shiftWindow
-            });
-          } else {
-            this.weeklyDraftMatrix[slotKey].push({
-              storeCode: 'AGENDA',
-              storeName: desc.replace(/^agenda\s*:\s*/i, '').trim() || loc,
-              agendaLocation: loc,
-              notes: desc,
-              isAgenda: true,
-              priority: 'NORMAL',
-              shiftWindow
-            });
-          }
-          importedCount++;
-        }
+    extracted.schedules.forEach((sch) => {
+      const dayIdx = dateToIdxMap.get(sch.scheduledDate);
+      if (dayIdx === undefined) return;
+      const slotKey = this.getWeeklySlotKey(sch.auditorId, dayIdx);
+      if (!Array.isArray(this.weeklyDraftMatrix[slotKey])) {
+        this.weeklyDraftMatrix[slotKey] = [];
       }
 
-      // 2. KELENGKAPAN HARI:
-      // "jika cuma ada 4 hari maka sisa harinya adalah weekend atau off, jika di hari weekend ada agenda juga tercatat"
-      involvedAuditorIds.forEach((audId) => {
-        for (let d = 0; d < 7; d++) {
-          const slotItems = this.getWeeklySlotItems(audId, d);
-          if (slotItems.length === 0) {
-            const isWeekend = d === 5 || d === 6;
-            this.weeklyDraftMatrix[this.getWeeklySlotKey(audId, d)] = [{
-              storeCode: 'OFF',
-              storeName: isWeekend ? 'WEEKEND / OFF' : 'HARI LIBUR / OFF',
-              priority: 'NORMAL',
-              isCuti: false,
-              isOff: true,
-              isStatusBadge: true,
-              shiftWindow: '-'
-            }];
-            importedCount++;
-          }
-        }
-      });
+      if (sch.storeCode === 'CUTI') {
+        this.weeklyDraftMatrix[slotKey].push({
+          storeCode: 'CUTI',
+          storeName: 'CUTI TAHUNAN / KHUSUS',
+          priority: 'NORMAL',
+          isCuti: true,
+          isOff: false,
+          isStatusBadge: true,
+          shiftWindow: '-'
+        });
+      } else if (sch.storeCode === 'OFF') {
+        this.weeklyDraftMatrix[slotKey].push({
+          storeCode: 'OFF',
+          storeName: sch.storeName || 'HARI LIBUR / OFF',
+          priority: 'NORMAL',
+          isCuti: false,
+          isOff: true,
+          isStatusBadge: true,
+          shiftWindow: '-'
+        });
+      } else if (sch.isAgenda) {
+        this.weeklyDraftMatrix[slotKey].push({
+          storeCode: 'AGENDA',
+          storeName: sch.storeName,
+          agendaLocation: sch.agendaLocation || '',
+          agendaCategory: sch.agendaCategory || 'OFFICE_DUTY',
+          notes: sch.notes || '',
+          isAgenda: true,
+          priority: 'NORMAL',
+          shiftWindow: sch.shiftWindow
+        });
+      } else {
+        this.weeklyDraftMatrix[slotKey].push({
+          storeCode: sch.storeCode,
+          storeName: sch.storeName,
+          storeType: sch.storeType || 'CVS',
+          priority: 'NORMAL',
+          shiftWindow: sch.shiftWindow
+        });
+      }
 
-      involvedAuditorIds.forEach((audId) => {
-        if (!audId.includes('__') && !this.weeklySelectedAuditors.includes(audId)) {
-          this.weeklySelectedAuditors.push(audId);
-        }
-      });
+      if (!this.weeklySelectedAuditors.includes(sch.auditorId)) {
+        this.weeklySelectedAuditors.push(sch.auditorId);
+      }
+    });
 
-      this.renderWeeklySchedulePlanner();
-      this.showToast(
-        `Berhasil memuat & menerapkan ${importedCount} jadwal dari file ${sourceName}! Hari tanpa agenda otomatis disetel Weekend / OFF.`,
-        'success',
-        6000
-      );
-    } catch (err) {
-      console.error('Error parse template excel:', err);
-      this.showToast(`Gagal membaca format jadwal dari file ${sourceName}: ${err.message}`, 'error');
-    }
+    this.closeScheduleExcelUploadModal();
+    this.switchScheduleSubSection('create');
+    this.renderWeeklySchedulePlanner();
+    this.showToast(
+      `🎉 Berhasil memuat ${extracted.totalExtracted} jadwal ke Planner 1 Week untuk periode minggu ${this.weeklyMondayDate}! Silakan tinjau sebelum disimpan.`,
+      'success',
+      6000
+    );
+  },
+
+  applyExtractedExcelDirectlyToDatabase() {
+    if (!this._currentExtractedExcelData) return;
+    const extracted = this._currentExtractedExcelData;
+    const newSchedules = extracted.schedules.map((s) => {
+      const clean = { ...s };
+      delete clean._rawDesc;
+      delete clean._rawLoc;
+      delete clean._categoryType;
+      delete clean._isAutoOff;
+      return clean;
+    });
+
+    const currentSchedules = window.FMCUData.getSchedules() || [];
+    // Gantikan jadwal visitor pada rentang tanggal minggu tersebut agar tidak duplikat
+    const startDate = extracted.weekMonday;
+    const endDate = extracted.weekSunday;
+    const involvedIds = new Set(extracted.persons.map((p) => p.id));
+
+    const remainingSchedules = currentSchedules.filter((s) => {
+      if (involvedIds.has(s.auditorId) && s.scheduledDate >= startDate && s.scheduledDate <= endDate) {
+        return false;
+      }
+      return true;
+    });
+
+    const merged = [...newSchedules, ...remainingSchedules];
+    window.FMCUData.saveSchedules(merged, newSchedules);
+
+    this.logScheduleAction(
+      'EXCEL_IMPORT',
+      `Import ${newSchedules.length} jadwal via Excel (${extracted.sheetName}) untuk periode ${startDate} s/d ${endDate}`,
+      'Upload Excel Schedule'
+    );
+
+    this.closeScheduleExcelUploadModal();
+    this.switchScheduleSubSection('list');
+    this.renderAdminView();
+    this.showToast(
+      `🎉 Sukses! ${newSchedules.length} jadwal mingguan (${extracted.sheetName}) berhasil diekstrak dan disimpan langsung ke database!`,
+      'success',
+      6000
+    );
+  },
+
+  parseAndApplyTemplateJadwalWorkbook(arrayBuffer, sourceName = 'Excel') {
+    this.processScheduleExcelBuffer(arrayBuffer, sourceName);
   },
 
   exportSchedulesAndAuditorRecapExcel() {
