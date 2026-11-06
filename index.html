@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1793948760049" as="style" />
-  <link rel="preload" href="css/styles.css?v=1793948760049" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1793950445671" as="style" />
+  <link rel="preload" href="css/styles.css?v=1793950445671" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1793948760049" />
-  <link rel="stylesheet" href="css/styles.css?v=1793948760049" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1793950445671" />
+  <link rel="stylesheet" href="css/styles.css?v=1793950445671" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -2024,7 +2024,7 @@
             </div>
           </div>
 
-          <div id="adm-qx-top-header-row" class="qx-autohide-navbar sticky top-2 z-40 grid gap-2 sm:gap-3" style="grid-template-columns: auto 1fr auto; align-items: center;">
+          <div id="adm-qx-top-header-row" class="qx-autohide-navbar sticky top-0 z-40 grid gap-2 sm:gap-3" style="grid-template-columns: auto 1fr auto; align-items: center;">
 
             <!-- KIRI: LOGO FMCU & PROFIL ADMIN -->
             <div
@@ -2153,7 +2153,10 @@
 
             <!-- STICKY & VERTICALLY CENTERED LEFT SIDE ICON-ONLY NAVBAR (Tanpa Create Jadwal, Master Toko & Export Ringkasan) -->
             <aside id="adm-qx-left-rail" aria-label="Navigasi Utama Admin (Icon Rail)" class="qx-left-icon-rail">
-              <!-- Main 4 Sections Group -->
+              <!-- Top Spacer to help center the 4 main icons -->
+              <div class="hidden md:block w-full h-8 shrink-0 pointer-events-none" aria-hidden="true"></div>
+
+              <!-- Main 4 Sections Group (Centered on Screen) -->
               <div class="qx-rail-group" id="qx-rail-main-group">
                 <span class="qx-rail-active-pill" id="qx-rail-main-pill" aria-hidden="true"></span>
                 <button
@@ -2162,6 +2165,7 @@
                   onclick="FMCUApp.switchAdminQuixoticSection('analytic')"
                   class="qx-rail-btn active"
                   data-tip="Analytic"
+                  title="Analytic"
                   aria-label="Analytic Dashboard"
                 >
                   <i class="fa-solid fa-table-cells-large"></i>
@@ -2172,6 +2176,7 @@
                   onclick="FMCUApp.switchAdminQuixoticSection('history')"
                   class="qx-rail-btn"
                   data-tip="Agenda"
+                  title="Agenda"
                   aria-label="Agenda & Jadwal"
                 >
                   <i class="fa-regular fa-calendar-check"></i>
@@ -2182,6 +2187,7 @@
                   onclick="FMCUApp.switchAdminQuixoticSection('profiles')"
                   class="qx-rail-btn"
                   data-tip="Metric Profile"
+                  title="Metric Profile"
                   aria-label="Metric Profile"
                 >
                   <i class="fa-solid fa-id-card-clip"></i>
@@ -2192,6 +2198,7 @@
                   onclick="FMCUApp.switchAdminQuixoticSection('livemaps')"
                   class="qx-rail-btn relative"
                   data-tip="Live Loc Maps"
+                  title="Live Loc Maps"
                   aria-label="Live Loc Maps"
                 >
                   <i class="fa-solid fa-location-dot"></i>
@@ -2208,6 +2215,7 @@
                   onclick="FMCUApp.switchAdminQuixoticSection('settings')"
                   class="qx-rail-btn"
                   data-tip="Pengaturan Sistem & Master Toko"
+                  title="Pengaturan Sistem & Master Toko"
                   aria-label="Pengaturan Sistem & Master Toko"
                 >
                   <i class="fa-solid fa-gear"></i>
@@ -2217,6 +2225,7 @@
                   onclick="FMCUApp.handleLogout()"
                   class="qx-rail-btn hover:!bg-rose-50 hover:!text-rose-600"
                   data-tip="Keluar / Logout"
+                  title="Keluar / Logout"
                   aria-label="Logout"
                 >
                   <i class="fa-solid fa-right-from-bracket"></i>
@@ -4517,16 +4526,16 @@ service cloud.firestore {
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js" crossorigin="anonymous"></script>
 
   <!-- Core Application Scripts (Fast Startup & Auth Priority) -->
-  <script defer src="js/holding-time-standards.js?v=1793948760049"></script>
-  <script defer src="js/master-stores-seed.js?v=1793948760049"></script>
-  <script defer src="js/bestie-in-charge-seed.js?v=1793948760049"></script>
-  <script defer src="js/data.js?v=1793948760049"></script>
-  <script defer src="js/pdf-generator.js?v=1793948760049"></script>
-  <script defer src="js/app.js?v=1793948760049"></script>
+  <script defer src="js/holding-time-standards.js?v=1793950445671"></script>
+  <script defer src="js/master-stores-seed.js?v=1793950445671"></script>
+  <script defer src="js/bestie-in-charge-seed.js?v=1793950445671"></script>
+  <script defer src="js/data.js?v=1793950445671"></script>
+  <script defer src="js/pdf-generator.js?v=1793950445671"></script>
+  <script defer src="js/app.js?v=1793950445671"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1793948760049"></script>
+  <script async src="js/pdf-assets.js?v=1793950445671"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================

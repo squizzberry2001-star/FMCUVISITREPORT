@@ -1812,9 +1812,19 @@ body.admin-quixotic-active #mobile-bottom-nav {
 }
 
 body.admin-quixotic-active #view-admin {
+  padding-top: 0 !important;
   padding-bottom: 8px !important;
+  margin-top: 0 !important;
   max-w-none !important;
   width: 100% !important;
+}
+
+body.admin-quixotic-active .flex.flex-1.pt-\[5px\] {
+  padding-top: 0 !important;
+}
+
+body.admin-quixotic-active .fm-top-stripe {
+  display: none !important;
 }
 
 body.admin-quixotic-active #main-layout-content-col {
@@ -1901,11 +1911,11 @@ body.admin-quixotic-active #main-layout-content-col {
   pointer-events: none;
 }
 
-/* TOP NAVBAR: Membentang penuh dari kiri ke kanan di desktop */
+/* TOP NAVBAR: Membentang penuh dari kiri ke kanan di desktop, langsung sticky rapat di atas */
 @media (min-width: 768px) {
   #adm-qx-top-header-row {
     position: sticky;
-    top: 5px; /* right below top stripe */
+    top: 0 !important; /* Rapat menempel ke atas tanpa gap/space kosong */
     left: 0;
     right: 0;
     width: 100%;
@@ -1935,6 +1945,7 @@ body.admin-quixotic-active #main-layout-content-col {
     gap: 16px;
     padding-left: 84px; /* Room for full height 72px left side navbar */
     padding-right: 20px;
+    padding-top: 14px;
   }
 }
 
@@ -1947,11 +1958,11 @@ body.admin-quixotic-active #main-layout-content-col {
   overflow-x: auto;
   padding: 4px 0;
   position: sticky;
-  top: 8px;
+  top: 0;
   z-index: 45;
 }
 
-/* SIDE NAVBAR: Membentang langsung dari atas ke bawah (full-height 100vh) */
+/* SIDE NAVBAR: Membentang langsung dari atas ke bawah (full-height 100vh) dan ikon di-center */
 @media (min-width: 768px) {
   .qx-left-icon-rail {
     flex-direction: column;
@@ -1959,15 +1970,15 @@ body.admin-quixotic-active #main-layout-content-col {
     align-items: center;
     position: fixed;
     left: 0;
-    top: 5px; /* Flush right under top stripe */
-    bottom: 0;
-    height: calc(100vh - 5px);
+    top: 0 !important;
+    bottom: 0 !important;
+    height: 100vh !important;
     width: 72px;
     min-height: 100vh;
     background: #ffffff;
     border-right: 1px solid rgba(226, 232, 240, 0.9);
     box-shadow: 2px 0 16px rgba(15, 23, 42, 0.04);
-    padding: 16px 0 20px 0;
+    padding: 24px 0 20px 0;
     overflow-y: auto;
     overflow-x: hidden;
     flex-shrink: 0;
