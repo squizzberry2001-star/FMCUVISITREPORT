@@ -5231,9 +5231,11 @@ window.FMCUApp = {
     const inactivePillCls = 'px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-900 whitespace-nowrap';
 
     if (btnCreate) {
-      btnCreate.className = mode === 'create'
-        ? 'px-4 py-2 rounded-full bg-emerald-950 text-white ring-2 ring-emerald-300 text-xs font-extrabold shadow-sm transition-all duration-200 flex items-center gap-1.5 cursor-pointer whitespace-nowrap'
-        : 'px-4 py-2 rounded-full bg-[#0d8247] hover:bg-emerald-800 text-white text-xs font-extrabold shadow-xs transition-all duration-200 flex items-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap';
+      if (mode === 'create') {
+        btnCreate.classList.add('is-active-mode');
+      } else {
+        btnCreate.classList.remove('is-active-mode');
+      }
     }
     if (btnCalendar) btnCalendar.className = mode === 'calendar' ? activePillCls : inactivePillCls;
     if (btnList) btnList.className = mode === 'list' ? activePillCls : inactivePillCls;

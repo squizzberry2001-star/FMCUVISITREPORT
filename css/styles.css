@@ -2596,6 +2596,31 @@ body.admin-quixotic-active #main-layout-content-col {
 #qx-notif-modal.hidden {
   display: none !important;
 }
+
+/* Tombol Create Schedule di Section Agenda */
+#sch-subtab-btn-create {
+  background: linear-gradient(135deg, #0d8247 0%, #10b981 100%) !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  box-shadow: 0 4px 14px -2px rgba(13, 130, 71, 0.45), 0 2px 6px -1px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+#sch-subtab-btn-create:hover {
+  background: linear-gradient(135deg, #096636 0%, #059669 100%) !important;
+  transform: translateY(-1px) scale(1.02) !important;
+  box-shadow: 0 6px 18px -2px rgba(13, 130, 71, 0.55) !important;
+}
+
+#sch-subtab-btn-create:active {
+  transform: scale(0.97) !important;
+}
+
+#sch-subtab-btn-create.is-active-mode {
+  background: #064e3b !important;
+  box-shadow: 0 0 0 2px #6ee7b7, 0 4px 12px rgba(6, 78, 59, 0.5) !important;
+}
 #qx-notif-modal-backdrop {
   position: absolute;
   inset: 0;
