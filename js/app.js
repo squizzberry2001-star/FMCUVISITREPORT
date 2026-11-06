@@ -1737,14 +1737,16 @@ window.FMCUApp = {
   renderOneGateRoleHubUI() {
     const banner = document.getElementById('one-gate-role-hub-banner');
     if (!banner) return;
-    if (!this.currentUser || this.currentView === 'form') {
+    const realActor = this.getActorClass(this.currentUser);
+    const effActor = this.getEffectiveActorClass(this.currentUser);
+
+    // Di sisi user Regional Bestie / Trainer, sembunyikan section banner paling atas
+    // agar tidak duplikasi dengan navigasi sub-tab Home (News & Maps, JADWAL, History)
+    if (!this.currentUser || this.currentView === 'form' || (effActor === 'REGIONAL_BESTIE' && realActor !== 'SUPER_USER')) {
       banner.classList.add('hidden');
       return;
     }
     banner.classList.remove('hidden');
-
-    const realActor = this.getActorClass(this.currentUser);
-    const effActor = this.getEffectiveActorClass(this.currentUser);
     const simBox = document.getElementById('role-hub-superuser-simulator');
     if (simBox) {
       if (realActor === 'SUPER_USER') {
