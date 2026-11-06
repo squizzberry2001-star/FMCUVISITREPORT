@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1793960308180" as="style" />
-  <link rel="preload" href="css/styles.css?v=1793960308180" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1793961649730" as="style" />
+  <link rel="preload" href="css/styles.css?v=1793961649730" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1793960308180" />
-  <link rel="stylesheet" href="css/styles.css?v=1793960308180" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1793961649730" />
+  <link rel="stylesheet" href="css/styles.css?v=1793961649730" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -3935,134 +3935,146 @@ service cloud.firestore {
            HALAMAN KHUSUS: LIVE LOCATION MAPS (KHUSUS ADMIN JADWAL & SUPER ADMIN)
            (MAP-FIRST DESIGN: LARGE INTERACTIVE MAP IMMEDIATELY AT TOP)
            ==================================================================== -->
-      <section id="view-live-maps" aria-label="Peta Live Location Tim Regional Bestie" class="view-section p-3 sm:p-5 max-w-[1440px] w-full mx-auto space-y-4 hidden">
-        <!-- 1. LARGE INTERACTIVE MAP IMMEDIATELY PRESENTED AT TOP -->
-        <div class="qx-card p-3 sm:p-4 space-y-3 flex flex-col relative">
-          <!-- Compact Map Header + Action Buttons Adjusted Cleanly in One Bar -->
-          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 pb-2 border-b border-slate-100">
-            <div class="flex flex-wrap items-center gap-2">
-              <div class="w-8 h-8 rounded-full bg-emerald-50 text-[#0d8247] flex items-center justify-center text-sm shrink-0">
-                <i class="fa-solid fa-map-location-dot"></i>
+      <section id="view-live-maps" aria-label="Peta Live Location Tim Regional Bestie" class="view-section p-0 w-full hidden">
+        <div class="flex flex-col lg:flex-row gap-3.5 items-stretch w-full">
+          <!-- LEFT: LARGE INTERACTIVE MAP IMMEDIATELY EXPANDED & STRETCHED -->
+          <div class="flex-1 min-w-0 qx-card p-3 sm:p-4 flex flex-col relative overflow-hidden h-[540px] sm:h-[620px] lg:h-[calc(100vh-140px)] min-h-[500px]">
+            <!-- Compact Map Header + Action Buttons Adjusted Cleanly in One Bar -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-100 shrink-0">
+              <div class="flex flex-wrap items-center gap-2">
+                <div class="w-8 h-8 rounded-full bg-emerald-50 text-[#0d8247] flex items-center justify-center text-sm shrink-0">
+                  <i class="fa-solid fa-map-location-dot"></i>
+                </div>
+                <h2 class="text-sm sm:text-base font-extrabold text-slate-900 leading-tight">Live Location Maps FMCU</h2>
+                <span class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 flex items-center gap-1.5 shrink-0">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 gps-pulse"></span>Real-Time GPS
+                </span>
+                <span id="live-loc-map-coords-indicator" class="text-[10.5px] text-slate-400 font-mono hidden xl:inline pl-1">Lat, Lng Real-time</span>
               </div>
-              <h2 class="text-sm sm:text-base font-extrabold text-slate-900">Live Location Maps FMCU</h2>
-              <span class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 flex items-center gap-1.5">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 gps-pulse"></span>Real-Time GPS
-              </span>
-              <span id="live-loc-map-coords-indicator" class="text-[10.5px] text-slate-400 font-mono hidden xl:inline pl-1">Lat, Lng Real-time</span>
+
+              <!-- Action Buttons Adjusted Cleanly to Top-Right of Map -->
+              <div class="flex flex-wrap items-center gap-1.5 shrink-0">
+                <button type="button" onclick="FMCUApp.refreshLiveLocMap()" class="px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-[#F4F6F5] text-slate-700 hover:bg-slate-200 transition cursor-pointer flex items-center gap-1.5" title="Refresh data GPS">
+                  <i class="fa-solid fa-arrows-rotate text-[#0099A6]"></i>
+                  <span>Refresh GPS</span>
+                </button>
+                <button type="button" onclick="FMCUApp.fitLiveLocMapToAllBesties()" class="px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-[#0099A6] text-white hover:bg-teal-700 transition cursor-pointer flex items-center gap-1.5" title="Fokus semua Bestie">
+                  <i class="fa-solid fa-users"></i>
+                  <span>Bestie (18)</span>
+                </button>
+                <button type="button" onclick="FMCUApp.fitLiveLocMapToAllStores()" class="px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-[#0d8247] text-white hover:bg-[#096636] transition cursor-pointer flex items-center gap-1.5" title="Fokus semua Toko">
+                  <i class="fa-solid fa-store"></i>
+                  <span>Toko (610)</span>
+                </button>
+                <button type="button" onclick="FMCUApp.focusLiveLocMapOnMe()" class="px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-[#F4F6F5] hover:bg-slate-200 text-slate-700 transition cursor-pointer flex items-center gap-1.5" title="Posisi Saya">
+                  <i class="fa-solid fa-location-crosshairs text-emerald-600"></i>
+                  <span class="hidden sm:inline">Posisi Saya</span>
+                </button>
+                <button type="button" onclick="FMCUApp.toggleLiveLocMapExpand()" id="btn-toggle-live-loc-map" class="px-2.5 py-1.5 rounded-full text-[11px] font-extrabold text-slate-700 hover:text-emerald-700 bg-white border border-slate-200 transition flex items-center gap-1 cursor-pointer" title="Perbesar atau perkecil tampilan peta">
+                  <i id="icon-toggle-live-loc-map" class="fa-solid fa-maximize text-[#0099A6]"></i>
+                  <span id="text-toggle-live-loc-map" class="hidden sm:inline">Perbesar</span>
+                </button>
+                <button type="button" onclick="FMCUApp.openHomeMapModal()" class="w-7 h-7 rounded-full text-[11px] font-extrabold text-[#0099A6] hover:bg-teal-50 bg-white border border-slate-200 transition flex items-center justify-center cursor-pointer" title="Buka Peta Interaktif Layar Penuh" aria-label="Buka Peta Interaktif Layar Penuh">
+                  <i class="fa-solid fa-expand"></i>
+                </button>
+              </div>
             </div>
 
-            <!-- Action Buttons Adjusted Cleanly to Top-Right of Map -->
-            <div class="flex flex-wrap items-center gap-1.5">
-              <button type="button" onclick="FMCUApp.refreshLiveLocMap()" class="px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-[#F4F6F5] text-slate-700 hover:bg-slate-200 transition cursor-pointer flex items-center gap-1.5">
-                <i class="fa-solid fa-arrows-rotate text-[#0099A6]"></i>
-                <span>Refresh GPS</span>
-              </button>
-              <button type="button" onclick="FMCUApp.fitLiveLocMapToAllBesties()" class="px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-[#0099A6] text-white hover:bg-teal-700 transition cursor-pointer flex items-center gap-1.5">
-                <i class="fa-solid fa-users"></i>
-                <span>Bestie (18)</span>
-              </button>
-              <button type="button" onclick="FMCUApp.fitLiveLocMapToAllStores()" class="px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-[#0d8247] text-white hover:bg-[#096636] transition cursor-pointer flex items-center gap-1.5">
-                <i class="fa-solid fa-store"></i>
-                <span>Toko (610)</span>
-              </button>
-              <button type="button" onclick="FMCUApp.focusLiveLocMapOnMe()" class="px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-[#F4F6F5] hover:bg-slate-200 text-slate-700 transition cursor-pointer flex items-center gap-1.5">
-                <i class="fa-solid fa-location-crosshairs text-emerald-600"></i>
-                <span>Posisi Saya</span>
-              </button>
-              <button type="button" onclick="FMCUApp.toggleLiveLocMapExpand()" id="btn-toggle-live-loc-map" class="px-2.5 py-1.5 rounded-full text-[11px] font-extrabold text-slate-700 hover:text-emerald-700 bg-white border border-slate-200 transition flex items-center gap-1 cursor-pointer" title="Perbesar atau perkecil tampilan peta">
-                <i id="icon-toggle-live-loc-map" class="fa-solid fa-maximize text-[#0099A6]"></i>
-                <span id="text-toggle-live-loc-map" class="hidden sm:inline">Perbesar</span>
-              </button>
-              <button type="button" onclick="FMCUApp.openHomeMapModal()" class="w-7 h-7 rounded-full text-[11px] font-extrabold text-[#0099A6] hover:bg-teal-50 bg-white border border-slate-200 transition flex items-center justify-center cursor-pointer" title="Buka Peta Interaktif Layar Penuh" aria-label="Buka Peta Interaktif Layar Penuh">
-                <i class="fa-solid fa-expand"></i>
-              </button>
-            </div>
-          </div>
+            <!-- LARGE LEAFLET MAP CANVAS (FULL FLEX EXPANDED) -->
+            <div id="live-loc-dedicated-map" class="w-full flex-1 rounded-2xl border border-slate-200 overflow-hidden relative z-0 mt-2 min-h-[380px]"></div>
 
-          <!-- LARGE LEAFLET MAP CANVAS -->
-          <div id="live-loc-dedicated-map" class="w-full h-[460px] sm:h-[540px] lg:h-[600px] rounded-2xl border border-slate-200 overflow-hidden relative z-0 transition-all duration-300"></div>
+            <!-- Compact Bottom Map Bar: Layer Toggles + Legend -->
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-2.5 mt-auto text-[11px] shrink-0">
+              <!-- Layer Switches -->
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mr-0.5">Layer:</span>
+                <label class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-800 font-bold border border-teal-200 cursor-pointer text-[10.5px]">
+                  <input type="checkbox" id="layer-toggle-besties" checked onchange="FMCUApp.toggleLiveLocLayer('besties', this.checked)" class="accent-[#0099A6] w-3 h-3" aria-label="Layer Toggle Besties" />
+                  <span>Bestie (18)</span>
+                </label>
+                <label class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 font-bold border border-emerald-200 cursor-pointer text-[10.5px]">
+                  <input type="checkbox" id="layer-toggle-stores" checked onchange="FMCUApp.toggleLiveLocLayer('stores', this.checked)" class="accent-[#009944] w-3 h-3" aria-label="Layer Toggle Stores" />
+                  <span>Toko FM (610)</span>
+                </label>
+                <label class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 font-bold border border-amber-200 cursor-pointer text-[10.5px]">
+                  <input type="checkbox" id="layer-toggle-geofence" checked onchange="FMCUApp.toggleLiveLocLayer('geofence', this.checked)" class="accent-amber-600 w-3 h-3" aria-label="Layer Toggle Geofence" />
+                  <span>Geofence 50m</span>
+                </label>
+                <label class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-800 font-bold border border-indigo-200 cursor-pointer text-[10.5px]">
+                  <input type="checkbox" id="layer-toggle-routes" checked onchange="FMCUApp.toggleLiveLocLayer('routes', this.checked)" class="accent-indigo-600 w-3 h-3" aria-label="Layer Toggle Routes" />
+                  <span>Rute</span>
+                </label>
+              </div>
 
-          <!-- Compact Bottom Map Bar: Layer Toggles + Legend -->
-          <div class="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px]">
-            <!-- Layer Switches -->
-            <div class="flex flex-wrap items-center gap-1.5">
-              <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mr-0.5">Layer:</span>
-              <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-50 text-teal-800 font-bold border border-teal-200 cursor-pointer text-[11px]">
-                <input type="checkbox" id="layer-toggle-besties" checked onchange="FMCUApp.toggleLiveLocLayer('besties', this.checked)" class="accent-[#0099A6] w-3 h-3" aria-label="Layer Toggle Besties" />
-                <span>Bestie (18)</span>
-              </label>
-              <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 font-bold border border-emerald-200 cursor-pointer text-[11px]">
-                <input type="checkbox" id="layer-toggle-stores" checked onchange="FMCUApp.toggleLiveLocLayer('stores', this.checked)" class="accent-[#009944] w-3 h-3" aria-label="Layer Toggle Stores" />
-                <span>Toko FM (610)</span>
-              </label>
-              <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 font-bold border border-amber-200 cursor-pointer text-[11px]">
-                <input type="checkbox" id="layer-toggle-geofence" checked onchange="FMCUApp.toggleLiveLocLayer('geofence', this.checked)" class="accent-amber-600 w-3 h-3" aria-label="Layer Toggle Geofence" />
-                <span>Geofence 50m</span>
-              </label>
-              <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-800 font-bold border border-indigo-200 cursor-pointer text-[11px]">
-                <input type="checkbox" id="layer-toggle-routes" checked onchange="FMCUApp.toggleLiveLocLayer('routes', this.checked)" class="accent-indigo-600 w-3 h-3" aria-label="Layer Toggle Routes" />
-                <span>Rute</span>
-              </label>
-            </div>
-
-            <!-- Compact Legend -->
-            <div class="flex flex-wrap items-center gap-3 text-[10.5px] text-slate-500">
-              <span class="inline-flex items-center gap-1 font-semibold">
-                <span class="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>Bestie
-              </span>
-              <span class="inline-flex items-center gap-1 font-semibold">
-                <span class="w-2.5 h-2.5 rounded-full bg-[#009944]"></span>Toko (610)
-              </span>
-              <span class="inline-flex items-center gap-1 font-semibold">
-                <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>Dikunjungi Hari Ini
-              </span>
+              <!-- Compact Legend -->
+              <div class="flex flex-wrap items-center gap-2.5 text-[10px] text-slate-500">
+                <span class="inline-flex items-center gap-1 font-semibold">
+                  <span class="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>Bestie
+                </span>
+                <span class="inline-flex items-center gap-1 font-semibold">
+                  <span class="w-2.5 h-2.5 rounded-full bg-[#009944]"></span>Toko
+                </span>
+                <span class="inline-flex items-center gap-1 font-semibold">
+                  <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>Dikunjungi
+                </span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- 2. COMPACT FILTER & SCROLLABLE BESTIE STATUS DRAWER BELOW MAP -->
-        <div class="qx-card p-3.5 sm:p-4 space-y-3">
-          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-100">
-            <div class="flex items-center gap-2">
-              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 gps-pulse"></span>
-              <h3 class="font-extrabold text-xs sm:text-sm text-slate-900">Filter &amp; Status Tim Regional Bestie</h3>
-              <span id="live-loc-bestie-count-badge" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800">18 Personil</span>
-            </div>
+          <!-- RIGHT: MINIMALIST PINPOINT & TEAM STATUS LIST PANEL -->
+          <div class="w-full lg:w-[380px] xl:w-[420px] shrink-0 qx-card p-3.5 flex flex-col h-[540px] sm:h-[620px] lg:h-[calc(100vh-140px)] min-h-[500px]">
+            <!-- Panel Header: Title + Bestie Count + Search -->
+            <div class="space-y-2.5 pb-2.5 border-b border-slate-100 shrink-0">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="w-2 h-2 rounded-full bg-emerald-500 gps-pulse"></span>
+                  <h3 class="font-extrabold text-xs sm:text-sm text-slate-900 truncate">Daftar Pinpoint &amp; Status Tim</h3>
+                </div>
+                <span id="live-loc-bestie-count-badge" class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-teal-100 text-teal-800 shrink-0">18 Personil</span>
+              </div>
 
-            <!-- Search + Select + Scope Filter Chips -->
-            <div class="flex flex-wrap items-center gap-2">
-              <div class="relative min-w-[200px] flex-1 sm:flex-initial">
+              <!-- Minimalist Search Input -->
+              <div class="relative w-full">
                 <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                <input type="text" id="live-loc-search-input" oninput="FMCUApp.onLiveLocSearchInput(this.value)" placeholder="Cari Bestie / NIK / Toko..." class="w-full pl-8 pr-3 py-1.5 rounded-full border border-slate-200 bg-[#F4F6F5] text-xs font-semibold focus:outline-none focus:bg-white" aria-label="Cari Nama Bestie, NIK, Toko FamilyMart, atau Kode Toko..." />
+                <input
+                  type="text"
+                  id="live-loc-search-input"
+                  oninput="FMCUApp.onLiveLocSearchInput(this.value)"
+                  placeholder="Cari Bestie, NIK, atau Toko..."
+                  class="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 bg-[#F4F6F5] text-xs font-semibold focus:outline-none focus:bg-white focus:border-[#0d8247] transition-all"
+                  aria-label="Cari Nama Bestie, NIK, Toko FamilyMart..."
+                />
               </div>
 
-              <select id="live-loc-bestie-select" onchange="FMCUApp.onLiveLocBestieFilterChange(this.value)" class="px-3 py-1.5 rounded-full border border-slate-200 bg-[#F4F6F5] text-xs font-semibold text-slate-700 cursor-pointer" aria-label="Live Loc Bestie Select">
-                <option value="ALL">Semua Bestie (18)</option>
-              </select>
-
-              <div class="flex flex-wrap items-center gap-1 bg-[#F1F3F2] p-1 rounded-full">
-                <button type="button" id="btn-bestie-scope-all" onclick="FMCUApp.filterLiveLocBestieScope('ALL')" class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-900 text-white shadow-2xs cursor-pointer">
+              <!-- Horizontal Scrollable Scope Chips -->
+              <div class="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
+                <button type="button" id="btn-bestie-scope-all" onclick="FMCUApp.filterLiveLocBestieScope('ALL')" class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-900 text-white shadow-2xs whitespace-nowrap cursor-pointer">
                   Semua (18)
                 </button>
-                <button type="button" id="btn-bestie-scope-visiting" onclick="FMCUApp.filterLiveLocBestieScope('VISITING')" class="px-2.5 py-1 rounded-full text-[10px] font-bold text-emerald-800 hover:bg-white transition cursor-pointer">
+                <button type="button" id="btn-bestie-scope-visiting" onclick="FMCUApp.filterLiveLocBestieScope('VISITING')" class="px-2.5 py-1 rounded-full text-[10px] font-bold text-emerald-800 hover:bg-emerald-50 transition whitespace-nowrap cursor-pointer">
                   Sedang Visit
                 </button>
-                <button type="button" id="btn-bestie-scope-outside" onclick="FMCUApp.filterLiveLocBestieScope('OUTSIDE_RADIUS')" class="px-2.5 py-1 rounded-full text-[10px] font-bold text-amber-800 hover:bg-white transition cursor-pointer">
+                <button type="button" id="btn-bestie-scope-outside" onclick="FMCUApp.filterLiveLocBestieScope('OUTSIDE_RADIUS')" class="px-2.5 py-1 rounded-full text-[10px] font-bold text-amber-800 hover:bg-amber-50 transition whitespace-nowrap cursor-pointer">
                   Diluar Radius
                 </button>
-                <button type="button" id="btn-bestie-scope-exited" onclick="FMCUApp.filterLiveLocBestieScope('EXITED')" class="px-2.5 py-1 rounded-full text-[10px] font-bold text-slate-700 hover:bg-white transition cursor-pointer">
+                <button type="button" id="btn-bestie-scope-exited" onclick="FMCUApp.filterLiveLocBestieScope('EXITED')" class="px-2.5 py-1 rounded-full text-[10px] font-bold text-slate-700 hover:bg-slate-100 transition whitespace-nowrap cursor-pointer">
                   Keluar App
                 </button>
-                <button type="button" id="btn-bestie-scope-not-accessed" onclick="FMCUApp.filterLiveLocBestieScope('NOT_ACCESSED')" class="px-2.5 py-1 rounded-full text-[10px] font-bold text-slate-500 hover:bg-white transition cursor-pointer">
+                <button type="button" id="btn-bestie-scope-not-accessed" onclick="FMCUApp.filterLiveLocBestieScope('NOT_ACCESSED')" class="px-2.5 py-1 rounded-full text-[10px] font-bold text-slate-500 hover:bg-slate-100 transition whitespace-nowrap cursor-pointer">
                   Belum Akses
                 </button>
               </div>
-            </div>
-          </div>
 
-          <!-- Compact Scrollable Multi-Column Bestie List -->
-          <div id="live-loc-bestie-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-[300px] overflow-y-auto pr-1">
-            <!-- Rendered dynamically by FMCUApp.renderLiveLocView() -->
+              <!-- Select Filter (Hidden Fallback for Compatibility) -->
+              <select id="live-loc-bestie-select" onchange="FMCUApp.onLiveLocBestieFilterChange(this.value)" class="hidden" aria-label="Live Loc Bestie Select">
+                <option value="ALL">Semua Bestie (18)</option>
+              </select>
+            </div>
+
+            <!-- Minimalist List of Besties & Pinpoints (Scrollable) -->
+            <div id="live-loc-bestie-list-container" class="flex-1 overflow-y-auto no-scrollbar space-y-2 pr-0.5 mt-2">
+              <!-- Rendered dynamically by FMCUApp.renderLiveLocView() -->
+            </div>
           </div>
         </div>
       </section>
@@ -4536,16 +4548,16 @@ service cloud.firestore {
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js" crossorigin="anonymous"></script>
 
   <!-- Core Application Scripts (Fast Startup & Auth Priority) -->
-  <script defer src="js/holding-time-standards.js?v=1793960308180"></script>
-  <script defer src="js/master-stores-seed.js?v=1793960308180"></script>
-  <script defer src="js/bestie-in-charge-seed.js?v=1793960308180"></script>
-  <script defer src="js/data.js?v=1793960308180"></script>
-  <script defer src="js/pdf-generator.js?v=1793960308180"></script>
-  <script defer src="js/app.js?v=1793960308180"></script>
+  <script defer src="js/holding-time-standards.js?v=1793961649730"></script>
+  <script defer src="js/master-stores-seed.js?v=1793961649730"></script>
+  <script defer src="js/bestie-in-charge-seed.js?v=1793961649730"></script>
+  <script defer src="js/data.js?v=1793961649730"></script>
+  <script defer src="js/pdf-generator.js?v=1793961649730"></script>
+  <script defer src="js/app.js?v=1793961649730"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1793960308180"></script>
+  <script async src="js/pdf-assets.js?v=1793961649730"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================

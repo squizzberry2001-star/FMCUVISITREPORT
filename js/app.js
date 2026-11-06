@@ -3623,25 +3623,14 @@ window.FMCUApp = {
       }
       if (liveMapsEl) {
         liveMapsEl.classList.remove('hidden');
-        liveMapsEl.classList.remove('p-4', 'sm:p-6', 'max-w-7xl');
+        liveMapsEl.classList.remove('p-4', 'sm:p-6', 'max-w-7xl', 'p-3', 'sm:p-5');
       }
       if (window.FMCUData && typeof window.FMCUData.syncAllFromGasDatabase === 'function') {
         window.FMCUData.syncAllFromGasDatabase().catch(() => {});
       }
       this.renderLiveLocView();
-      // Pastikan Leaflet container segera terupdate ukurannya dan auto-center
-      [50, 150, 300].forEach((delay) => {
-        setTimeout(() => {
-          if (this.liveLocMap) {
-            this.liveLocMap.invalidateSize();
-            if (delay === 150) {
-              const centerLat = this.liveGps.lat !== null ? this.liveGps.lat : -6.2088;
-              const centerLng = this.liveGps.lng !== null ? this.liveGps.lng : 106.8456;
-              this.liveLocMap.setView([centerLat, centerLng], 12);
-            }
-          }
-        }, delay);
-      });
+      // Pastikan Leaflet container langsung terbentang seketika
+      this._ensureLiveLocMapStretched();
     } else if (targetSec === 'settings') {
       if (ctrlHeader) ctrlHeader.classList.remove('hidden');
       if (syncBanner) syncBanner.classList.remove('hidden');
@@ -3757,6 +3746,47 @@ window.FMCUApp = {
       setTimeout(() => {
         if (this.liveLocMap) this.liveLocMap.invalidateSize();
       }, 300);
+    }
+  },
+
+  _ensureLiveLocMapStretched() {
+    const doInvalidate = () => {
+      if (this.liveLocMap) {
+        this.liveLocMap.invalidateSize(true);
+      }
+    };
+
+    // Frame 0 & Frame 1 render pass
+    requestAnimationFrame(doInvalidate);
+    requestAnimationFrame(() => requestAnimationFrame(doInvalidate));
+
+    // Multi-tier timer checks
+    [30, 80, 160, 320, 500].forEach((ms) => {
+      setTimeout(doInvalidate, ms);
+    });
+
+    // Auto-fit to all besties after layout settles
+    setTimeout(() => {
+      if (this.liveLocMap) {
+        if (typeof this.fitLiveLocMapToAllBesties === 'function') {
+          this.fitLiveLocMapToAllBesties();
+        } else {
+          const centerLat = this.liveGps.lat !== null ? this.liveGps.lat : -6.2088;
+          const centerLng = this.liveGps.lng !== null ? this.liveGps.lng : 106.8456;
+          this.liveLocMap.setView([centerLat, centerLng], 12);
+        }
+      }
+    }, 180);
+
+    // Attach ResizeObserver to container
+    const container = document.getElementById('live-loc-dedicated-map');
+    if (container && window.ResizeObserver && !this._liveMapResizeObs) {
+      this._liveMapResizeObs = new ResizeObserver(() => {
+        if (this.liveLocMap) {
+          this.liveLocMap.invalidateSize();
+        }
+      });
+      this._liveMapResizeObs.observe(container);
     }
   },
 
@@ -5629,31 +5659,24 @@ window.FMCUApp = {
   },
 
   toggleLiveLocMapExpand() {
-    const mapEl = document.getElementById('live-loc-dedicated-map');
+    const rightPanel = document.getElementById('live-loc-bestie-list-container')?.closest('.qx-card');
     const iconEl = document.getElementById('icon-toggle-live-loc-map');
     const textEl = document.getElementById('text-toggle-live-loc-map');
-    if (!mapEl) return;
 
     this.isLiveLocMapExpanded = !this.isLiveLocMapExpanded;
 
     if (this.isLiveLocMapExpanded) {
-      mapEl.classList.remove('h-[380px]', 'sm:h-[480px]', 'lg:h-[640px]');
-      mapEl.classList.add('h-[80vh]', 'min-h-[580px]');
+      if (rightPanel) rightPanel.classList.add('hidden');
       if (iconEl) iconEl.className = 'fa-solid fa-compress text-rose-500';
-      if (textEl) textEl.textContent = 'Perkecil Maps';
-      this.showToast('Tampilan peta diperbesar (Tekan tombol perkecil untuk kembali)', 'info', 2500);
+      if (textEl) textEl.textContent = 'Perkecil';
+      this.showToast('Peta dimaksimalkan penuh (Klik kembali untuk menampilkan daftar)', 'info', 2500);
     } else {
-      mapEl.classList.remove('h-[80vh]', 'min-h-[580px]');
-      mapEl.classList.add('h-[380px]', 'sm:h-[480px]', 'lg:h-[640px]');
+      if (rightPanel) rightPanel.classList.remove('hidden');
       if (iconEl) iconEl.className = 'fa-solid fa-maximize text-[#0099A6]';
-      if (textEl) textEl.textContent = 'Perbesar Maps';
+      if (textEl) textEl.textContent = 'Perbesar';
     }
 
-    setTimeout(() => {
-      if (this.liveLocMap) {
-        this.liveLocMap.invalidateSize();
-      }
-    }, 250);
+    this._ensureLiveLocMapStretched();
   },
 
   openHomeMapModal() {
@@ -22411,6 +22434,9 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
 
     // 4. Render Responsive Bestie Cards Side List
     this.renderLiveLocBestieList();
+
+    // 5. Pastikan Leaflet terbentang 100% tanpa delay
+    this._ensureLiveLocMapStretched();
   },
 
   initOrUpdateLiveLocMap() {
@@ -22793,74 +22819,75 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
           avatarBgClass = isMe ? 'bg-gradient-to-tr from-[#0099A6] to-teal-400 ring-4 ring-teal-300/60 shadow-lg animate-pulse' : 'bg-gradient-to-tr from-[#009944] to-emerald-600 shadow-md';
         } else {
           avatarDotClass = 'bg-amber-400 border border-white';
-          avatarBgClass = isMe ? 'bg-gradient-to-tr from-[#0099A6] to-teal-400 ring-4 ring-teal-300/60 shadow-lg animate-pulse' : 'bg-gradient-to-tr from-indigo-600 to-purple-600 shadow-md';
+          avatarBgClass = isMe ? 'bg-gradient-to-tr from-[#0099A6] to-teal-400 ring-4 ring-teal-300/60 shadow-lg animate-pulse' : 'bg-gradient-to-tr from-amber-500 to-orange-500 shadow-md';
         }
 
-        // Baris Info Toko
+        // Minimalist Store Row
         let storeRowHtml = '';
         if (myTodaySch) {
           let storeDistBadge = '';
           if (statusKey === 'VISITING') {
-            storeDistBadge = `<span class="text-[10px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">Radius 1m-50m</span>`;
+            storeDistBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold shrink-0">Radius 1-50m</span>`;
           } else if (statusKey === 'OUTSIDE_RADIUS') {
-            storeDistBadge = `<span class="text-[10px] px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">${distTextToStore ? `${distTextToStore} dari toko` : '>50m'}</span>`;
+            storeDistBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold shrink-0">${distTextToStore ? `${distTextToStore}` : '>50m'}</span>`;
           } else if (statusKey === 'EXITED') {
-            storeDistBadge = `<span class="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-bold">Keluar (${stInfo.exitTimeStr})</span>`;
+            storeDistBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 font-bold shrink-0">Keluar (${stInfo.exitTimeStr || ''})</span>`;
           } else {
-            storeDistBadge = `<span class="text-[10px] text-slate-400 font-mono">Jadwal Hari Ini</span>`;
+            storeDistBadge = `<span class="text-[9px] text-slate-400 font-mono shrink-0">Jadwal</span>`;
           }
           storeRowHtml = `
-            <div class="p-2 rounded-lg bg-slate-50 border border-slate-100 text-[11px] text-slate-700 flex items-center justify-between gap-2">
-              <div class="truncate flex items-center gap-1.5">
-                <i class="fa-solid fa-store text-emerald-600 text-xs shrink-0"></i>
-                <span class="font-bold truncate">FM ${myTodaySch.storeName} (${myTodaySch.storeCode})</span>
+            <div class="px-2 py-1 rounded-lg bg-slate-50 border border-slate-100/90 text-[10.5px] text-slate-700 flex items-center justify-between gap-1.5">
+              <div class="truncate flex items-center gap-1.5 min-w-0">
+                <i class="fa-solid fa-store text-emerald-600 text-[10px] shrink-0"></i>
+                <span class="font-bold truncate text-slate-800">FM ${myTodaySch.storeName}</span>
+                <span class="text-[9.5px] text-slate-400 font-mono shrink-0">(${myTodaySch.storeCode})</span>
               </div>
               ${storeDistBadge}
             </div>
           `;
         } else {
           storeRowHtml = `
-            <div class="p-2 rounded-lg bg-slate-50 border border-slate-100 text-[11px] text-slate-400 flex items-center justify-between gap-2">
+            <div class="px-2 py-1 rounded-lg bg-slate-50/60 border border-slate-100/80 text-[10px] text-slate-400 flex items-center justify-between gap-1.5">
               <div class="truncate flex items-center gap-1.5">
-                <i class="fa-solid fa-store-slash text-slate-400 text-xs shrink-0"></i>
+                <i class="fa-solid fa-store-slash text-slate-300 text-[10px] shrink-0"></i>
                 <span class="truncate">Belum ada jadwal toko hari ini</span>
               </div>
-              <span class="text-[10px] text-slate-400 font-mono shrink-0">${b.region || '-'}</span>
+              <span class="text-[9px] text-slate-400 font-mono shrink-0">${b.region || '-'}</span>
             </div>
           `;
         }
 
-        // Baris Bawah: Status Lokasi Terakhir & Tombol Aksi
+        // Minimalist Bottom Row: Lokasi Terakhir & Action Buttons
         let bottomRowHtml = '';
         if (hasActualLocation) {
           const gmapUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
           const isEx = statusKey === 'EXITED';
           bottomRowHtml = `
-            <div class="flex flex-wrap sm:flex-nowrap items-center justify-between gap-1.5 pt-1 border-t border-slate-100">
-              <div class="text-[10px] font-mono ${isEx ? 'text-slate-500' : 'text-slate-700'} font-semibold truncate flex items-center gap-1">
-                <i class="fa-solid ${isEx ? 'fa-location-dot text-slate-400' : 'fa-satellite-dish text-emerald-600'} text-[9px]"></i>
-                <span>${lat.toFixed(4)}, ${lng.toFixed(4)} ${isEx ? `(Keluar ${stInfo.exitTimeStr})` : ''}</span>
+            <div class="flex items-center justify-between gap-1.5 pt-1 border-t border-slate-100 text-[9.5px]">
+              <div class="font-mono ${isEx ? 'text-slate-500' : 'text-slate-600'} font-semibold truncate flex items-center gap-1">
+                <i class="fa-solid ${isEx ? 'fa-location-dot text-slate-400' : 'fa-satellite-dish text-emerald-600'} text-[8.5px]"></i>
+                <span class="truncate">${lat.toFixed(4)}, ${lng.toFixed(4)}</span>
               </div>
-              <div class="flex items-center gap-1.5 shrink-0">
-                <button type="button" onclick="FMCUApp.focusLiveLocOnBestie('${bKey}')" class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-teal-50 text-teal-800 hover:bg-teal-100 transition cursor-pointer flex items-center gap-1">
-                  <i class="fa-solid fa-crosshairs text-teal-600"></i> Fokus Peta
+              <div class="flex items-center gap-1 shrink-0">
+                <button type="button" onclick="event.stopPropagation(); FMCUApp.focusLiveLocOnBestie('${bKey}')" class="px-2 py-0.5 rounded-md text-[9.5px] font-bold bg-teal-50 hover:bg-[#0099A6] text-teal-800 hover:text-white transition cursor-pointer flex items-center gap-1">
+                  <i class="fa-solid fa-crosshairs text-[8.5px]"></i> Fokus
                 </button>
-                <a href="${gmapUrl}" target="_blank" rel="noopener noreferrer" class="px-2 py-1 rounded-lg text-[10px] font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition" title="Buka Rute Google Maps">
-                  <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                <a href="${gmapUrl}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition" title="Buka Rute Google Maps">
+                  <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
                 </a>
               </div>
             </div>
           `;
         } else {
           bottomRowHtml = `
-            <div class="flex flex-wrap sm:flex-nowrap items-center justify-between gap-1.5 pt-1 border-t border-slate-100">
-              <div class="text-[10px] font-mono text-slate-400 italic truncate flex items-center gap-1">
-                <i class="fa-solid fa-location-slash text-slate-300 text-[9px]"></i>
+            <div class="flex items-center justify-between gap-1.5 pt-1 border-t border-slate-100 text-[9.5px]">
+              <div class="font-mono text-slate-400 italic truncate flex items-center gap-1">
+                <i class="fa-solid fa-location-slash text-slate-300 text-[8.5px]"></i>
                 <span>GPS Belum Terdeteksi</span>
               </div>
-              <div class="flex items-center gap-1.5 shrink-0">
-                <button type="button" onclick="FMCUApp.showToast('Lokasi ${b.name} belum terdeteksi karena personil belum mengakses web app.', 'info')" class="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-slate-100 text-slate-400 hover:bg-slate-200 transition cursor-pointer flex items-center gap-1">
-                  <i class="fa-solid fa-crosshairs text-slate-400"></i> Fokus Peta
+              <div class="flex items-center gap-1 shrink-0">
+                <button type="button" onclick="event.stopPropagation(); FMCUApp.showToast('Lokasi ${b.name} belum terdeteksi karena personil belum mengakses web app.', 'info')" class="px-2 py-0.5 rounded-md text-[9.5px] font-semibold bg-slate-100 text-slate-400 hover:bg-slate-200 transition cursor-pointer flex items-center gap-1">
+                  <i class="fa-solid fa-crosshairs text-slate-400 text-[8.5px]"></i> Fokus
                 </button>
               </div>
             </div>
@@ -22868,19 +22895,21 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
         }
 
         return `
-          <div class="p-3 rounded-xl border border-slate-200 bg-white hover:border-[#0099A6] hover:shadow-xs transition space-y-2">
+          <div onclick="FMCUApp.focusLiveLocOnBestie('${bKey}')" class="qx-pinpoint-item group p-2.5 rounded-xl border border-slate-200/80 bg-white hover:bg-emerald-50/20 hover:border-emerald-500/50 shadow-[0_1px_2px_rgba(0,0,0,0.04)] cursor-pointer transition-all space-y-1.5">
+            <!-- Header: Avatar, Name & Role, Badge -->
             <div class="flex items-center justify-between gap-2">
-              <div class="flex items-center gap-2.5 min-w-0">
-                <div class="relative w-8 h-8 rounded-full ${avatarBgClass} text-white font-extrabold text-xs flex items-center justify-center shrink-0">
+              <div class="flex items-center gap-2 min-w-0">
+                <div class="relative w-7 h-7 rounded-full ${avatarBgClass} text-white font-extrabold text-[10px] flex items-center justify-center shrink-0 shadow-xs">
                   ${initials}
                   <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ${avatarDotClass}"></span>
                 </div>
                 <div class="min-w-0">
-                  <div class="font-extrabold text-xs text-slate-900 truncate">
-                    ${b.name} ${isMe ? '<span class="text-[10px] text-teal-600 font-bold">(Anda)</span>' : ''}
+                  <div class="font-bold text-xs text-slate-800 group-hover:text-[#0d8247] transition-colors truncate flex items-center gap-1">
+                    <span>${b.name}</span>
+                    ${isMe ? '<span class="text-[9px] px-1 py-0.2 rounded bg-teal-50 text-teal-700 font-bold shrink-0">Anda</span>' : ''}
                   </div>
-                  <div class="text-[10px] text-slate-400 font-mono truncate">
-                    NIK: ${b.nik || '-'} • ${stInfo.subtitleHtml}
+                  <div class="text-[9.5px] text-slate-400 font-mono truncate">
+                    ${b.nik ? `NIK: ${b.nik}` : (b.region || 'Regional Bestie')} • <span class="text-slate-500">${stInfo.timeAgoText || 'Aktif'}</span>
                   </div>
                 </div>
               </div>
@@ -22889,10 +22918,10 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
               </div>
             </div>
 
-            <!-- Store Info -->
+            <!-- Middle: Jadwal Toko & Jarak -->
             ${storeRowHtml}
 
-            <!-- Bottom Row: Lokasi Terakhir -->
+            <!-- Bottom: Koordinat & Action Buttons -->
             ${bottomRowHtml}
           </div>
         `;
@@ -23043,8 +23072,8 @@ function cleanupSpamStoreFoldersFromRoot_(rootFolder) {
     const setBtn = (btn, isActive, activeColor, inactiveText) => {
       if (!btn) return;
       btn.className = isActive
-        ? `flex-1 sm:flex-initial text-center justify-center px-2 sm:px-2.5 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold ${activeColor} text-white shadow-xs cursor-pointer`
-        : `flex-1 sm:flex-initial text-center justify-center px-2 sm:px-2.5 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold ${inactiveText} hover:bg-white transition cursor-pointer`;
+        ? `px-2.5 py-1 rounded-full text-[10px] font-bold ${activeColor} text-white shadow-2xs whitespace-nowrap cursor-pointer transition`
+        : `px-2.5 py-1 rounded-full text-[10px] font-bold ${inactiveText} hover:bg-slate-100 whitespace-nowrap cursor-pointer transition`;
     };
 
     setBtn(btnAll, scope === 'ALL', 'bg-slate-900', 'text-slate-600');
