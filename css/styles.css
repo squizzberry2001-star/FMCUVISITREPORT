@@ -1561,9 +1561,8 @@ div#form-top-geofence-banner,
     z-index: 50 !important;
   }
 
-  /* Padding bawah luas agar konten paling bawah bisa di-scroll bebas melewati FAB & Navbar */
-  #view-form,
-  main > .view-section {
+  /* Padding bawah pada mobile agar form dan konten dapat di-scroll bebas melewati FAB & Navbar */
+  #view-form {
     padding-bottom: 165px !important;
   }
 }
@@ -1729,9 +1728,8 @@ div#form-top-geofence-banner,
   transform: scale(0.88) !important;
 }
 
-/* Padding bawah luas agar konten paling bawah bisa di-scroll bebas melewati FAB & Navbar */
-#view-form,
-main > .view-section {
+/* Padding bawah pada form visit agar FAB camera/observasi tidak menutupi tombol simpan */
+#view-form {
   padding-bottom: 165px !important;
 }
 
@@ -1811,6 +1809,10 @@ body.admin-quixotic-active #sticky-top-header-wrapper,
 body.admin-quixotic-active #one-gate-role-hub-banner,
 body.admin-quixotic-active #mobile-bottom-nav {
   display: none !important;
+}
+
+body.admin-quixotic-active #view-admin {
+  padding-bottom: 8px !important;
 }
 
 body.admin-quixotic-active #main-layout-content-col {
