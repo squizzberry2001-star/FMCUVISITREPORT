@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1793972918454" as="style" />
-  <link rel="preload" href="css/styles.css?v=1793972918454" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1793974304548" as="style" />
+  <link rel="preload" href="css/styles.css?v=1793974304548" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1793972918454" />
-  <link rel="stylesheet" href="css/styles.css?v=1793972918454" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1793974304548" />
+  <link rel="stylesheet" href="css/styles.css?v=1793974304548" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -3034,6 +3034,59 @@ service cloud.firestore {
                     <span id="admin-schedule-count" class="hidden">0 Jadwal</span>
                     <span id="sch-auditor-count-badge" class="hidden">0</span>
 
+                    <!-- WEEKLY NAVIGATION BAR: Auto Default Fokus Minggu yang Berjalan + Tombol Kiri Kanan -->
+                    <div class="p-2 sm:p-2.5 rounded-2xl bg-slate-50 border border-slate-200/90 flex flex-wrap items-center justify-between gap-2 shadow-2xs">
+                      <div class="flex items-center gap-1.5 flex-wrap">
+                        <button
+                          type="button"
+                          onclick="FMCUApp.shiftScheduleListWeek(-7)"
+                          class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center justify-center cursor-pointer active:scale-95 transition shadow-2xs"
+                          title="Lihat Minggu Sebelumnya"
+                          aria-label="Minggu Sebelumnya"
+                        >
+                          <i class="fa-solid fa-chevron-left text-[11px]"></i>
+                        </button>
+                        <div class="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                          <i class="fa-solid fa-calendar-week text-[#0d8247] text-xs"></i>
+                          <span id="sch-list-week-range-label" class="text-xs font-extrabold text-slate-800 font-mono">Memuat Periode Minggu...</span>
+                          <span id="sch-list-current-week-badge" class="text-[9.5px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-[#0d8247]">Minggu Ini</span>
+                        </div>
+                        <button
+                          type="button"
+                          onclick="FMCUApp.shiftScheduleListWeek(7)"
+                          class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center justify-center cursor-pointer active:scale-95 transition shadow-2xs"
+                          title="Lihat Minggu Berikutnya"
+                          aria-label="Minggu Berikutnya"
+                        >
+                          <i class="fa-solid fa-chevron-right text-[11px]"></i>
+                        </button>
+                        <button
+                          type="button"
+                          onclick="FMCUApp.setScheduleListWeekToCurrent()"
+                          class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#0d8247] border border-emerald-200 text-xs font-extrabold cursor-pointer active:scale-95 transition"
+                          title="Kembali ke Minggu yang Sedang Berjalan"
+                        >
+                          Minggu Ini
+                        </button>
+                      </div>
+
+                      <div class="flex items-center gap-2">
+                        <button
+                          type="button"
+                          id="sch-list-btn-toggle-all-weeks"
+                          onclick="FMCUApp.toggleScheduleListAllWeeks()"
+                          class="px-2.5 py-1 sm:py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 text-[11px] font-bold cursor-pointer transition shadow-2xs flex items-center gap-1"
+                          title="Tampilkan seluruh jadwal tanpa batasan minggu"
+                        >
+                          <i class="fa-solid fa-calendar-days text-slate-400"></i>
+                          <span id="sch-list-toggle-all-weeks-text">Lihat Semua Periode</span>
+                        </button>
+                        <span id="sch-list-active-count-badge" class="px-2.5 py-1 rounded-xl bg-slate-900 text-white text-[11px] font-bold">
+                          0 Agenda
+                        </span>
+                      </div>
+                    </div>
+
                     <!-- Compact Single-Row Filter, Search & Action Bar -->
                     <div class="flex flex-wrap items-center gap-2">
                       <div class="relative" style="flex:2 1 220px;min-width:180px">
@@ -4569,16 +4622,16 @@ service cloud.firestore {
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js" crossorigin="anonymous"></script>
 
   <!-- Core Application Scripts (Fast Startup & Auth Priority) -->
-  <script defer src="js/holding-time-standards.js?v=1793972918454"></script>
-  <script defer src="js/master-stores-seed.js?v=1793972918454"></script>
-  <script defer src="js/bestie-in-charge-seed.js?v=1793972918454"></script>
-  <script defer src="js/data.js?v=1793972918454"></script>
-  <script defer src="js/pdf-generator.js?v=1793972918454"></script>
-  <script defer src="js/app.js?v=1793972918454"></script>
+  <script defer src="js/holding-time-standards.js?v=1793974304548"></script>
+  <script defer src="js/master-stores-seed.js?v=1793974304548"></script>
+  <script defer src="js/bestie-in-charge-seed.js?v=1793974304548"></script>
+  <script defer src="js/data.js?v=1793974304548"></script>
+  <script defer src="js/pdf-generator.js?v=1793974304548"></script>
+  <script defer src="js/app.js?v=1793974304548"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1793972918454"></script>
+  <script async src="js/pdf-assets.js?v=1793974304548"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================
@@ -5867,7 +5920,7 @@ service cloud.firestore {
                 <h3 class="font-extrabold text-sm sm:text-base text-slate-900 leading-tight">Upload &amp; Auto Ekstrak Jadwal Excel</h3>
                 <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 shrink-0">Auto Classify</span>
               </div>
-              <p class="text-[11px] text-slate-400 truncate">Col A (Nama), Col B/D (Tanggal), Col C/E (Jam 24h), Col F (Visit / NSO / Agenda), Col G (Lokasi / Toko &amp; &amp;)</p>
+              <p class="text-[11px] text-slate-400 truncate">Col A (Nama), Col B/D (Tanggal), Col C/E (Jam 24h), Col F (Visit / Refreshment QSC / NSO / Agenda), Col G (Lokasi / Toko &amp; &amp;)</p>
             </div>
           </div>
           <button type="button" onclick="FMCUApp.closeScheduleExcelUploadModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition cursor-pointer shrink-0" aria-label="Tutup Dialog">
@@ -5922,7 +5975,7 @@ service cloud.firestore {
               <div class="p-3 rounded-xl bg-teal-50 border border-teal-200/80 flex flex-col justify-between">
                 <div class="text-[10px] font-extrabold text-teal-800 uppercase tracking-wider">Visit Store Toko</div>
                 <div class="text-xl font-black text-teal-950 mt-1" id="stat-excel-store-visits">0</div>
-                <div class="text-[9.5px] text-teal-700 font-semibold" id="stat-excel-stores-matched">Keyword: Visit / Visit Store</div>
+                <div class="text-[9.5px] text-teal-700 font-semibold" id="stat-excel-stores-matched">Keyword: Visit / Refreshment QSC</div>
               </div>
               <div class="p-3 rounded-xl bg-indigo-50 border border-indigo-200/80 flex flex-col justify-between">
                 <div class="text-[10px] font-extrabold text-indigo-800 uppercase tracking-wider">Agenda Non-Store</div>

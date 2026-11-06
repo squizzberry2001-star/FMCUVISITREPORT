@@ -3900,6 +3900,7 @@ window.FMCUApp = {
 
     if (s.isCuti || code === 'CUTI' || s.status === 'CUTI' || cat.includes('CUTI')) return 'CUTI';
     if (s.isOff || code === 'OFF' || s.status === 'OFF' || cat.includes('OFF') || cat.includes('LIBUR')) return 'OFF';
+    if (focus.includes('REFRESHMENT QSC') || focus.includes('REFERSHMENT QSC')) return 'VISIT_STORE';
     if (cat.includes('TRAINING') || name.includes('TRAINING') || focus.includes('TRAINING') || cat.includes('KELAS')) return 'TRAINING';
     if (s.isNso || code === 'NSO' || cat.includes('NSO') || name.includes('NSO') || focus.includes('NSO')) return 'NSO';
     if (s.isAgenda || code === 'AGENDA' || s.status === 'AGENDA' || s.storeType === 'NON_STORE') return 'OFFICE';
@@ -14973,6 +14974,8 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     if (audSel) audSel.value = 'ALL';
     if (catSel) catSel.value = 'ALL';
     if (statSel) statSel.value = 'ALL';
+    this.scheduleListWeekMonday = this.getScheduleListCurrentMonday();
+    this.scheduleListShowAllWeeks = false;
     this.renderAdminView();
   },
 
@@ -15449,6 +15452,96 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     }
   },
 
+  scheduleListWeekMonday: null,
+  scheduleListShowAllWeeks: false,
+
+  getScheduleListCurrentMonday(dateInput) {
+    const d = dateInput ? new Date(dateInput + 'T00:00:00') : new Date();
+    if (isNaN(d.getTime())) return this.getLocalDateISO();
+    const day = d.getDay(); // 0=Minggu, 1=Senin, ..., 6=Sabtu
+    const diff = (day === 0 ? -6 : 1 - day); // Senin kalender minggu berjalan
+    const monday = new Date(d);
+    monday.setDate(d.getDate() + diff);
+    return this.getLocalDateISO(monday);
+  },
+
+  shiftScheduleListWeek(offsetDays = 0) {
+    this.scheduleListShowAllWeeks = false;
+    if (!this.scheduleListWeekMonday) {
+      this.scheduleListWeekMonday = this.getScheduleListCurrentMonday();
+    }
+    const cur = new Date(this.scheduleListWeekMonday + 'T00:00:00');
+    cur.setDate(cur.getDate() + Number(offsetDays || 0));
+    this.scheduleListWeekMonday = this.getLocalDateISO(cur);
+    this.renderAdminView();
+  },
+
+  setScheduleListWeekToCurrent() {
+    this.scheduleListShowAllWeeks = false;
+    this.scheduleListWeekMonday = this.getScheduleListCurrentMonday();
+    this.renderAdminView();
+  },
+
+  toggleScheduleListAllWeeks() {
+    this.scheduleListShowAllWeeks = !this.scheduleListShowAllWeeks;
+    this.renderAdminView();
+  },
+
+  updateScheduleListWeekBar(filteredCount = 0) {
+    if (!this.scheduleListWeekMonday) {
+      this.scheduleListWeekMonday = this.getScheduleListCurrentMonday();
+    }
+    const currentMonday = this.getScheduleListCurrentMonday();
+    const isCurrentWeek = this.scheduleListWeekMonday === currentMonday;
+
+    const monDate = new Date(this.scheduleListWeekMonday + 'T00:00:00');
+    const sunDate = new Date(monDate);
+    sunDate.setDate(monDate.getDate() + 6);
+
+    const shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    const rangeLabel = `${monDate.getDate()} ${shortMonths[monDate.getMonth()]} – ${sunDate.getDate()} ${shortMonths[sunDate.getMonth()]} ${sunDate.getFullYear()}`;
+
+    const labelEl = document.getElementById('sch-list-week-range-label');
+    if (labelEl) {
+      labelEl.textContent = this.scheduleListShowAllWeeks ? 'Semua Periode Jadwal (Tanpa Batasan Minggu)' : rangeLabel;
+    }
+
+    const badgeEl = document.getElementById('sch-list-current-week-badge');
+    if (badgeEl) {
+      if (this.scheduleListShowAllWeeks) {
+        badgeEl.className = 'text-[9.5px] font-black px-2 py-0.5 rounded-full bg-slate-200 text-slate-700';
+        badgeEl.textContent = 'Semua Periode';
+      } else if (isCurrentWeek) {
+        badgeEl.className = 'text-[9.5px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-[#0d8247]';
+        badgeEl.textContent = 'Minggu Ini';
+      } else {
+        const todayStr = this.getLocalDateISO();
+        const monStr = this.scheduleListWeekMonday;
+        badgeEl.className = 'text-[9.5px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-800';
+        badgeEl.textContent = monStr < todayStr ? 'Minggu Lalu' : 'Minggu Depan';
+      }
+    }
+
+    const toggleBtn = document.getElementById('sch-list-btn-toggle-all-weeks');
+    const toggleText = document.getElementById('sch-list-toggle-all-weeks-text');
+    if (toggleBtn && toggleText) {
+      if (this.scheduleListShowAllWeeks) {
+        toggleText.textContent = 'Fokus Minggu Ini';
+        toggleBtn.classList.add('bg-emerald-50', 'text-emerald-800', 'border-emerald-300');
+        toggleBtn.classList.remove('bg-white', 'text-slate-600', 'border-slate-200');
+      } else {
+        toggleText.textContent = 'Lihat Semua Periode';
+        toggleBtn.classList.remove('bg-emerald-50', 'text-emerald-800', 'border-emerald-300');
+        toggleBtn.classList.add('bg-white', 'text-slate-600', 'border-slate-200');
+      }
+    }
+
+    const countBadge = document.getElementById('sch-list-active-count-badge');
+    if (countBadge) {
+      countBadge.textContent = `${filteredCount} Agenda`;
+    }
+  },
+
   getFilteredAdminSchedules(schedules) {
     if (!schedules) schedules = window.FMCUData.getSchedules() || [];
     const listSearchQ = (document.getElementById('adm-sch-list-search')?.value || '').trim().toLowerCase();
@@ -15456,10 +15549,35 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     const listCategoryFilter = document.getElementById('adm-sch-list-category')?.value || 'ALL';
     const listStatusFilter = document.getElementById('adm-sch-list-status')?.value || 'ALL';
 
+    // Auto Default fokus pada minggu yang berjalan (Senin s/d Minggu) kecuali opsi 'Semua Periode' diaktifkan
+    if (!this.scheduleListWeekMonday) {
+      this.scheduleListWeekMonday = this.getScheduleListCurrentMonday();
+    }
+    let weekStart = null;
+    let weekEnd = null;
+    if (!this.scheduleListShowAllWeeks && this.scheduleListWeekMonday) {
+      weekStart = this.scheduleListWeekMonday;
+      const sun = new Date(this.scheduleListWeekMonday + 'T00:00:00');
+      sun.setDate(sun.getDate() + 6);
+      weekEnd = this.getLocalDateISO(sun);
+    }
+
     const filtered = schedules.filter((s) => {
+      // 1. Filter rentang tanggal minggu berjalan (Senin s/d Minggu)
+      if (weekStart && weekEnd) {
+        const schDate = String(s.scheduledDate || '').slice(0, 10);
+        if (!schDate || schDate < weekStart || schDate > weekEnd) {
+          return false;
+        }
+      }
+
+      // 2. Filter Auditor
       if (listAuditorFilter !== 'ALL' && s.auditorId !== listAuditorFilter) return false;
+
+      // 3. Filter Status
       if (listStatusFilter !== 'ALL' && s.status !== listStatusFilter) return false;
 
+      // 4. Filter Kategori
       if (listCategoryFilter !== 'ALL') {
         const classifiedCat = this.classifyScheduleCategory(s);
         const isCuti = classifiedCat === 'CUTI';
@@ -15478,6 +15596,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
         if (listCategoryFilter === 'OFF' && !isOff) return false;
       }
 
+      // 5. Pencarian Teks
       if (!listSearchQ) return true;
       return (
         String(s.storeName || '').toLowerCase().includes(listSearchQ) ||
@@ -15584,6 +15703,10 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     }
 
     const filteredSchedules = this.getFilteredAdminSchedules(schedules);
+
+    // Update status weekly navigation bar & pill counter:
+    this.updateScheduleListWeekBar(filteredSchedules.length);
+    if (schPillEl) schPillEl.textContent = String(filteredSchedules.length);
 
     const schCountEl = document.getElementById('admin-schedule-count');
     if (schCountEl) {
@@ -19496,8 +19619,9 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
         const ptDesc = pair.ptDesc || '';
         const ptLoc = pair.ptLoc || '';
 
-        // Jika ptLoc mengandung pemisah '&' DAN ptDesc adalah Visit Store, pecah per toko:
-        const isPtVisit = /\b(visit|visit\s+store)\b/i.test(ptDesc);
+        // Jika ptLoc mengandung pemisah '&' DAN ptDesc adalah Visit Store / Refreshment QSC, pecah per toko:
+        // ATURAN 1: jika kolom F tertulis Refreshment QSC (atau Refershment QSC) maka itu adalah Visit Store
+        const isPtVisit = /\b(visit|visit\s+store)\b|ref[er]*shment\s*qsc/i.test(ptDesc);
         const subLocs = (ptLoc.includes('&') && isPtVisit)
           ? ptLoc.split('&').map((s) => s.trim()).filter(Boolean)
           : [ptLoc];
@@ -19509,17 +19633,20 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
           const hasFmcu = /FMCU/i.test(part);
 
           // ATURAN RESMI:
-          // 1. Visit Store = Visit, Visit Store (diluar keyword ini BUKAN visit store)
+          // 1. Visit Store = Visit, Visit Store, Refreshment QSC (diluar keyword ini BUKAN visit store)
           // 2. NSO = NSO, New Store Opening, Reopening (Diluar ini BUKAN NSO)
-          // 3. Jika kolom G ada nama store tapi di kolom F tidak ada kata visit maka BUKAN visit
+          // 3. Jika kolom G ada nama store tapi di kolom F tidak ada kata visit / refreshment qsc maka BUKAN visit
           // 4. Jika kolom F tertulis nama store tapi kolom G tertulis NSO, maka itu BUKAN visit
           // 5. Jika ada tulisan FMCU maka itu BUKAN store (Non-Store)
           const isStrictVisit = isPtVisit && !isNsoLoc && !hasFmcu;
 
           if (isStrictVisit && part) {
             // ==================================================================
-            // VISIT STORE (Col F per-poin ada kata visit, Col G bukan NSO, bukan FMCU)
+            // VISIT STORE (Col F per-poin ada kata visit / refreshment qsc, Col G bukan NSO, bukan FMCU)
             // ==================================================================
+            const isRefreshment = /ref[er]*shment\s*qsc/i.test(ptDesc);
+            const focusText = isRefreshment ? 'Refreshment QSC' : 'Visit Store';
+
             const { store } = this._matchStoreFromLocationPart(part, stores);
             if (store) {
               extractedSchedules.push({
@@ -19534,7 +19661,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                 scheduledDate: startDate,
                 shiftWindow,
                 priority: 'NORMAL',
-                auditFocus: 'Visit Store',
+                auditFocus: focusText,
                 status: 'PENDING',
                 actualIn: null,
                 actualOut: null,
@@ -19558,7 +19685,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
                 scheduledDate: startDate,
                 shiftWindow,
                 priority: 'NORMAL',
-                auditFocus: 'Visit Store',
+                auditFocus: focusText,
                 status: 'PENDING',
                 actualIn: null,
                 actualOut: null,
