@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1793968831710" as="style" />
-  <link rel="preload" href="css/styles.css?v=1793968831710" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1793969910079" as="style" />
+  <link rel="preload" href="css/styles.css?v=1793969910079" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1793968831710" />
-  <link rel="stylesheet" href="css/styles.css?v=1793968831710" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1793969910079" />
+  <link rel="stylesheet" href="css/styles.css?v=1793969910079" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -4569,16 +4569,16 @@ service cloud.firestore {
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js" crossorigin="anonymous"></script>
 
   <!-- Core Application Scripts (Fast Startup & Auth Priority) -->
-  <script defer src="js/holding-time-standards.js?v=1793968831710"></script>
-  <script defer src="js/master-stores-seed.js?v=1793968831710"></script>
-  <script defer src="js/bestie-in-charge-seed.js?v=1793968831710"></script>
-  <script defer src="js/data.js?v=1793968831710"></script>
-  <script defer src="js/pdf-generator.js?v=1793968831710"></script>
-  <script defer src="js/app.js?v=1793968831710"></script>
+  <script defer src="js/holding-time-standards.js?v=1793969910079"></script>
+  <script defer src="js/master-stores-seed.js?v=1793969910079"></script>
+  <script defer src="js/bestie-in-charge-seed.js?v=1793969910079"></script>
+  <script defer src="js/data.js?v=1793969910079"></script>
+  <script defer src="js/pdf-generator.js?v=1793969910079"></script>
+  <script defer src="js/app.js?v=1793969910079"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1793968831710"></script>
+  <script async src="js/pdf-assets.js?v=1793969910079"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================
@@ -5460,6 +5460,7 @@ service cloud.firestore {
         </div>
       </div>
     </div>
+  </div>
 
     <div id="modal-delete-authority-auth" class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 hidden">
       <div class="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
@@ -5853,7 +5854,7 @@ service cloud.firestore {
     <!-- =====================================================================
          MODAL: UPLOAD SCHEDULE BY EXCEL (AUTO EKSTRAK EXCEL KE WEB)
          ===================================================================== -->
-    <div id="modal-upload-schedule-excel" class="hidden fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
+    <div id="modal-upload-schedule-excel" class="hidden fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5" onclick="if(event.target === this) FMCUApp.closeScheduleExcelUploadModal()">
       <div class="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
         <!-- Header -->
         <div class="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between gap-3 shrink-0 bg-white">

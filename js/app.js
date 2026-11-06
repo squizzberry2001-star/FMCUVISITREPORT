@@ -19008,8 +19008,12 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
   openScheduleExcelUploadModal() {
     this.ensureXLSXLoaded().catch(() => {});
     const modal = document.getElementById('modal-upload-schedule-excel');
-    if (!modal) return;
+    if (!modal) {
+      console.warn('Modal upload schedule excel tidak ditemukan di DOM.');
+      return;
+    }
     modal.classList.remove('hidden');
+    modal.style.display = 'flex';
 
     const dropzone = document.getElementById('excel-upload-dropzone');
     const dashboard = document.getElementById('excel-extracted-dashboard');
@@ -19035,7 +19039,10 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
 
   closeScheduleExcelUploadModal() {
     const modal = document.getElementById('modal-upload-schedule-excel');
-    if (modal) modal.classList.add('hidden');
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.style.display = 'none';
+    }
   },
 
   triggerScheduleExcelFileInput() {
