@@ -731,14 +731,14 @@ window.FMCUApp = {
   },
 
   requestMandatoryGps(silent = false) {
-    // Matikan GPS jika user bukan karyawan yang terjadwal Visit / NSO hari ini
-    if (this.currentUser && !this.isUserScheduledForVisitOrNsoToday(this.currentUser)) {
+    // Matikan GPS jika user adalah akun manajemen yang dikecualikan (Super Admin / Admin Jadwal)
+    if (this.currentUser && !this.isLocationTrackingRequired(this.currentUser)) {
       this.unlockWebWithGps(null, null, null);
       this.stopContinuousGpsWatch();
       const headEl = document.getElementById('header-gps-text');
       if (headEl) headEl.textContent = 'GPS: Standby';
       const sideEl = document.getElementById('sidebar-gps-coords');
-      if (sideEl) sideEl.textContent = 'Nonaktif (Khusus Visit/NSO)';
+      if (sideEl) sideEl.textContent = 'Nonaktif (Mode Admin)';
       const sideDot = document.getElementById('sidebar-gps-dot');
       if (sideDot) {
         sideDot.className = 'w-2.5 h-2.5 rounded-full bg-slate-400';
@@ -761,36 +761,43 @@ window.FMCUApp = {
       return;
     }
 
-    // Ambil posisi dengan toleransi cache browser (0ms response jika ada cache)
+    // Ambil posisi akurat dan trigger prompt izin lokasi browser
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         this.unlockWebWithGps(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+        this.startContinuousGpsWatch();
       },
       (err) => {
-        // Cek apakah browser sebenarnya sudah mengizinkan via Permissions API
+        // Cek status izin via Permissions API
         if (navigator.permissions && navigator.permissions.query) {
           navigator.permissions.query({ name: 'geolocation' }).then((p) => {
             if (p.state === 'granted') {
-              // Izin SUDAH AKTIF di browser, hanya saja sinyal satelit lambat terkunci
-              this.unlockWebWithGps(this.liveGps?.lat || -6.2088, this.liveGps?.lng || 106.8456, 150);
+              // Izin sudah granted, coba fallback ke last known GPS atau koordinat terkunci
+              const cached = this.liveGps?.lat ? this.liveGps : null;
+              if (cached && cached.lat) {
+                this.unlockWebWithGps(cached.lat, cached.lng, cached.accuracy || 50);
+              } else {
+                this.lockWebForGps('Sedang mencari sinyal satelit GPS. Pastikan toggle Lokasi / GPS perangkat menyala.');
+              }
               return;
             }
-            if (this.currentUser) {
-              this.lockWebForGps('Pastikan izin lokasi browser disetel ke "Allow / Izinkan".');
+            if (this.currentUser && this.isLocationTrackingRequired(this.currentUser)) {
+              this.lockWebForGps('Izin lokasi browser belum diizinkan atau ditolak. Silakan klik ikon gembok di sebelah URL dan pilih "Izinkan / Allow".');
             }
           }).catch(() => {
-            if (this.currentUser) this.lockWebForGps('Pastikan GPS perangkat Anda aktif.');
+            if (this.currentUser && this.isLocationTrackingRequired(this.currentUser)) {
+              this.lockWebForGps('Pastikan GPS perangkat Anda aktif dan izin lokasi telah disetujui.');
+            }
           });
         } else {
-          // Fallback tanpa Permissions API: Jangan gembok layar login
           if (!this.currentUser) {
             this.unlockWebWithGps(this.liveGps?.lat || -6.2088, this.liveGps?.lng || 106.8456, 150);
-          } else {
-            this.lockWebForGps('Pastikan GPS perangkat Anda aktif.');
+          } else if (this.isLocationTrackingRequired(this.currentUser)) {
+            this.lockWebForGps('Pastikan GPS perangkat Anda aktif dan diizinkan pada browser.');
           }
         }
       },
-      { enableHighAccuracy: false, timeout: 15000, maximumAge: 600000 }
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
     );
   },
 
@@ -871,24 +878,31 @@ window.FMCUApp = {
     }, { passive: true });
   },
 
-  // Helper: GPS hanya bekerja jika user di agendakan VISIT atau NSO hari ini (Admin Jadwal, Super Admin, dan user lain dimatikan)
-  isUserScheduledForVisitOrNsoToday(user = this.currentUser) {
+  // Helper: Cek apakah user wajib terdeteksi GPS (Visitor, Auditor, Trainer, Bestie lapangan)
+  isLocationTrackingRequired(user = this.currentUser) {
     if (!user) return false;
     const role = String(user.role || '').toUpperCase();
     const username = String(user.username || '').toLowerCase();
-    // Matikan GPS secara permanen untuk Admin Jadwal, Super Admin, dan akun non-visitor
+    const name = String(user.name || '').toLowerCase();
+    // Pengecualian mutlak: Hanya Super Admin root & Admin Jadwal operasional yang tidak wajib GPS
     if (
+      user.id === 'usr-admin' ||
+      username === 'admin' ||
+      name === 'admin fmcu' ||
       role === 'SUPER_ADMIN' ||
       role === 'ADMIN_SCHEDULE' ||
-      role === 'SCHEDULE_ADMIN' ||
-      role === 'AREA_MANAGER' ||
-      role === 'REGIONAL_MANAGER' ||
-      username === 'admin' ||
-      user.id === 'usr-admin' ||
-      user.name === 'Admin FMCU'
+      role === 'SCHEDULE_ADMIN'
     ) {
       return false;
     }
+    // Semua user lapangan / visitor / auditor / trainer / bestie WAJIB menyalakan GPS
+    return true;
+  },
+
+  // Helper: GPS aktif jika user terjadwal VISIT/NSO hari ini ATAU user adalah personel visitor/auditor aktif
+  isUserScheduledForVisitOrNsoToday(user = this.currentUser) {
+    if (!user) return false;
+    if (!this.isLocationTrackingRequired(user)) return false;
     const todayStr = this.getLocalDateISO();
     const schedules = window.FMCUData ? window.FMCUData.getSchedules() : [];
     const myToday = schedules.filter(
@@ -908,22 +922,20 @@ window.FMCUApp = {
     });
   },
 
-  // POINT BATTERY-SAVER: GPS High-Accuracy HANYA aktif saat dibutuhkan (Live Maps / Check-In)
+  // POINT: GPS High-Accuracy Continuous Watch untuk deteksi pergerakan & posisi live visitor
   startContinuousGpsWatch() {
-    // Matikan GPS jika user bukan karyawan yang terjadwal Visit / NSO hari ini
-    if (!this.isUserScheduledForVisitOrNsoToday(this.currentUser)) {
+    // Matikan GPS jika user adalah akun yang dikecualikan (Super Admin / Admin Jadwal)
+    if (this.currentUser && !this.isLocationTrackingRequired(this.currentUser)) {
       this.stopContinuousGpsWatch();
       return;
     }
-    // Hanya aktif saat user membuka halaman Live Maps untuk menghemat baterai
-    if (this.currentView !== 'live-maps') return;
     if (this.gpsWatchId !== null || !('geolocation' in navigator)) return;
     this.gpsWatchId = navigator.geolocation.watchPosition(
       (pos) => {
         this.unlockWebWithGps(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
       },
       (err) => {
-        if (err.code === 1 && this.currentUser && this.isUserScheduledForVisitOrNsoToday(this.currentUser)) {
+        if (err.code === 1 && this.currentUser && this.isLocationTrackingRequired(this.currentUser)) {
           this.lockWebForGps('Izin lokasi GPS dinonaktifkan. Izinkan kembali akses lokasi untuk melanjutkan.');
         }
       },
@@ -970,16 +982,21 @@ window.FMCUApp = {
   },
 
   bypassGpsGateForLogin() {
-    // Tombol bypass darurat agar user tidak terblokir di layar login jika berada di ruangan tertutup / PC
+    // Tombol bypass hanya untuk peran admin jika berada di PC / ruangan tanpa GPS satelit
+    if (this.currentUser && this.isLocationTrackingRequired(this.currentUser)) {
+      this.showToast('Akun Visitor/Auditor wajib mengaktifkan GPS perangkat & browser.', 'warning', 4000);
+      this.requestMandatoryGps();
+      return;
+    }
     this.unlockWebWithGps(this.liveGps?.lat || -6.2088, this.liveGps?.lng || 106.8456, 150);
-    this.showToast('Memasuki halaman login. GPS tetap aktif mendeteksi di latar belakang.', 'info', 4000);
+    this.showToast('Memasuki halaman. GPS tetap aktif mendeteksi di latar belakang.', 'info', 4000);
     this.startContinuousGpsWatch();
   },
 
   lockWebForGps(reasonText) {
-    // ATURAN MUTLAK: JANGAN PERNAH GEMBOK LAYAR JIKA USER BELUM LOGIN ATAU TIDAK ADA JADWAL VISIT/NSO HARI INI!
-    if (!this.currentUser || !this.isUserScheduledForVisitOrNsoToday(this.currentUser)) {
-      console.warn('GPS lock bypassed (User tidak terjadwal Visit/NSO hari ini):', reasonText);
+    // ATURAN: Hanya buka kunci otomatis jika akun terbukti bukan visitor/auditor (misal admin super)
+    if (this.currentUser && !this.isLocationTrackingRequired(this.currentUser)) {
+      console.warn('GPS lock bypassed (Akun manajemen/admin tidak wajib GPS):', reasonText);
       const gate = document.getElementById('gps-gate-screen');
       if (gate) gate.classList.add('hidden');
       return;
@@ -1241,12 +1258,16 @@ window.FMCUApp = {
     this.currentUser = user;
     this._simulatedActorClass = null;
     window.FMCUData.setSession(user);
-    if (this.liveGps && this.liveGps.lat !== null && this.liveGps.lng !== null && this.isUserScheduledForVisitOrNsoToday(user)) {
-      window.FMCUData.updateUserLocation(
-        user.id || user.username,
-        this.liveGps.lat,
-        this.liveGps.lng
-      );
+    if (this.isLocationTrackingRequired(user)) {
+      if (this.liveGps && this.liveGps.lat !== null && this.liveGps.lng !== null) {
+        window.FMCUData.updateUserLocation(
+          user.id || user.username,
+          this.liveGps.lat,
+          this.liveGps.lng
+        );
+      }
+      this.requestMandatoryGps();
+      this.startContinuousGpsWatch();
     }
     this.populateHeaderRoleSwitcher();
     this.updateUserHeaderUI();
@@ -5363,7 +5384,7 @@ window.FMCUApp = {
     }
 
     if (this.currentUser) {
-      if (this.isUserScheduledForVisitOrNsoToday(this.currentUser)) {
+      if (this.isLocationTrackingRequired(this.currentUser)) {
         const activeCheckIn = window.FMCUData.getActiveCheckIn();
         const storeName = activeCheckIn?.storeName ? `FamilyMart ${activeCheckIn.storeName}` : null;
         const nowMs = Date.now();
