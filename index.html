@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1793969910079" as="style" />
-  <link rel="preload" href="css/styles.css?v=1793969910079" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1793972285929" as="style" />
+  <link rel="preload" href="css/styles.css?v=1793972285929" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1793969910079" />
-  <link rel="stylesheet" href="css/styles.css?v=1793969910079" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1793972285929" />
+  <link rel="stylesheet" href="css/styles.css?v=1793972285929" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -4569,16 +4569,16 @@ service cloud.firestore {
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js" crossorigin="anonymous"></script>
 
   <!-- Core Application Scripts (Fast Startup & Auth Priority) -->
-  <script defer src="js/holding-time-standards.js?v=1793969910079"></script>
-  <script defer src="js/master-stores-seed.js?v=1793969910079"></script>
-  <script defer src="js/bestie-in-charge-seed.js?v=1793969910079"></script>
-  <script defer src="js/data.js?v=1793969910079"></script>
-  <script defer src="js/pdf-generator.js?v=1793969910079"></script>
-  <script defer src="js/app.js?v=1793969910079"></script>
+  <script defer src="js/holding-time-standards.js?v=1793972285929"></script>
+  <script defer src="js/master-stores-seed.js?v=1793972285929"></script>
+  <script defer src="js/bestie-in-charge-seed.js?v=1793972285929"></script>
+  <script defer src="js/data.js?v=1793972285929"></script>
+  <script defer src="js/pdf-generator.js?v=1793972285929"></script>
+  <script defer src="js/app.js?v=1793972285929"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1793969910079"></script>
+  <script async src="js/pdf-assets.js?v=1793972285929"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================
@@ -5867,7 +5867,7 @@ service cloud.firestore {
                 <h3 class="font-extrabold text-sm sm:text-base text-slate-900 leading-tight">Upload &amp; Auto Ekstrak Jadwal Excel</h3>
                 <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 shrink-0">Auto Classify</span>
               </div>
-              <p class="text-[11px] text-slate-400 truncate">Col A (Nama), Col B/D (Tanggal), Col C/E (Jam 24h), Col F (Agenda), Col G (Lokasi / Toko &amp; &amp;)</p>
+              <p class="text-[11px] text-slate-400 truncate">Col A (Nama), Col B/D (Tanggal), Col C/E (Jam 24h), Col F (Visit / NSO / Agenda), Col G (Lokasi / Toko &amp; &amp;)</p>
             </div>
           </div>
           <button type="button" onclick="FMCUApp.closeScheduleExcelUploadModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition cursor-pointer shrink-0" aria-label="Tutup Dialog">
@@ -5922,12 +5922,12 @@ service cloud.firestore {
               <div class="p-3 rounded-xl bg-teal-50 border border-teal-200/80 flex flex-col justify-between">
                 <div class="text-[10px] font-extrabold text-teal-800 uppercase tracking-wider">Visit Store Toko</div>
                 <div class="text-xl font-black text-teal-950 mt-1" id="stat-excel-store-visits">0</div>
-                <div class="text-[9.5px] text-teal-700 font-semibold" id="stat-excel-stores-matched">Cocok master data</div>
+                <div class="text-[9.5px] text-teal-700 font-semibold" id="stat-excel-stores-matched">Keyword: Visit / Visit Store</div>
               </div>
               <div class="p-3 rounded-xl bg-indigo-50 border border-indigo-200/80 flex flex-col justify-between">
                 <div class="text-[10px] font-extrabold text-indigo-800 uppercase tracking-wider">Agenda Non-Store</div>
                 <div class="text-xl font-black text-indigo-950 mt-1" id="stat-excel-agendas">0</div>
-                <div class="text-[9.5px] text-indigo-700 font-semibold">FMCU / Training / NSO</div>
+                <div class="text-[9.5px] text-indigo-700 font-semibold">NSO / Training / Meeting / FMCU</div>
               </div>
               <div class="p-3 rounded-xl bg-amber-50 border border-amber-200/80 flex flex-col justify-between">
                 <div class="text-[10px] font-extrabold text-amber-800 uppercase tracking-wider">OFF &amp; Weekend</div>

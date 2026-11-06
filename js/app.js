@@ -19382,16 +19382,21 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
       const endTime = this._parseExcelTime24(row[4], '17:30');
       const shiftWindow = `${startTime} - ${endTime}`;
 
-      // 4. Column F: Agenda
+      // 4. Column F & G Rules:
+      // - Visit Store = Visit, Visit Store (diluar keyword ini bukan visit store)
+      // - NSO = NSO, New Store Opening, Reopening (Diluar ini bukan NSO)
+      // - Jika kolom G ada nama store tapi di kolom f tidak ada kata visit maka bukan visit
+      // - Jika kolom F tertulis nama store tapi kolom G tertulis NSO, maka itu bukan visit
+      // - Jika ada tulisan FMCU maka itu bukan store (Non-Store internal)
+      // - Jika ada pemisah & atau newline \n maka itu lebih dari 1 lokasi/toko
       const desc = String(row[5] || '').trim();
-      const descLower = desc.toLowerCase();
-      const isExplicitVisit = /visit/i.test(desc);
-
-      // 5. Column G: Location
       const loc = String(row[6] || '').trim();
 
-      // Cek CUTI
-      if (descLower === 'cuti' || /cuti/i.test(descLower)) {
+      const descLower = desc.toLowerCase();
+      const locLower = loc.toLowerCase();
+
+      // Cek CUTI (Col F)
+      if (descLower === 'cuti' || /\bcuti\b/i.test(desc)) {
         extractedSchedules.push({
           id: `sch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${r}`,
           storeCode: 'CUTI',
@@ -19418,8 +19423,8 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
         continue;
       }
 
-      // Cek OFF
-      if (descLower === 'off' || /^ganti off/i.test(descLower)) {
+      // Cek OFF / GANTI OFF (Col F)
+      if (descLower === 'off' || /\boff\b/i.test(desc) || /^ganti off/i.test(desc)) {
         extractedSchedules.push({
           id: `sch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${r}`,
           storeCode: 'OFF',
@@ -19446,12 +19451,26 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
         continue;
       }
 
+      // Deteksi Keyword Resmi:
+      // Visit Store = Visit, Visit Store (diluar keyword ini bukan visit store)
+      const isVisitF = /\b(visit|visit\s+store)\b/i.test(desc);
+      // NSO = NSO, New Store Opening, Reopening (diluar ini bukan NSO)
+      const isNsoF = /\b(nso|new\s+store\s+opening|reopening)\b/i.test(desc);
+      const isNsoG = /\b(nso|new\s+store\s+opening|reopening)\b/i.test(loc);
+
       // Pisahkan lokasi jika terdapat pemisah simbol & atau baris baru \n (Aturan 5)
       const locParts = loc ? loc.split(/[&\n]+/).map((s) => s.trim()).filter(Boolean) : [];
 
       if (locParts.length === 0) {
-        // Tanpa lokasi -> default agenda
-        const cleanAgenda = desc.replace(/^agenda\s*:\s*/i, '').trim() || 'AGENDA INTERNAL';
+        // Tanpa lokasi -> Agenda Internal
+        const isNso = isNsoF || isNsoG;
+        const agendaCat = isNso
+          ? 'NSO'
+          : (/\b(training|practice|induction|assessment|refreshment)\b/i.test(desc)
+              ? 'TRAINING'
+              : (/\b(meeting|g-meet|briefing)\b/i.test(desc) ? 'MEETING' : 'OFFICE_DUTY'));
+
+        const cleanAgenda = desc.replace(/^agenda\s*:\s*/i, '').trim() || (isNso ? 'NSO' : 'AGENDA INTERNAL');
         extractedSchedules.push({
           id: `sch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${r}`,
           storeCode: 'AGENDA',
@@ -19465,7 +19484,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
           shiftWindow,
           priority: 'NORMAL',
           auditFocus: `Agenda: ${cleanAgenda}`,
-          agendaCategory: /training/i.test(desc) ? 'TRAINING' : (/nso|simulasi/i.test(desc) ? 'NSO' : (/meeting/i.test(desc) ? 'MEETING' : 'OFFICE_DUTY')),
+          agendaCategory: agendaCat,
           agendaLocation: '',
           notes: desc,
           status: 'AGENDA',
@@ -19482,68 +19501,48 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
         continue;
       }
 
-      // Proses setiap bagian lokasi (lebih dari 1 toko jika ada pemisah &)
+      // Proses setiap bagian lokasi (lebih dari 1 jika ada pemisah & atau \n)
       locParts.forEach((part, pIdx) => {
-        const { store, isFmcuNonStore } = this._matchStoreFromLocationPart(part, stores);
+        const hasFmcu = /FMCU/i.test(part);
 
-        if (store) {
-          // Cocok dengan master store!
-          extractedSchedules.push({
-            id: `sch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${r}-${pIdx}`,
-            storeCode: store.code,
-            storeName: store.name,
-            storeType: store.type || 'CVS',
-            auditorId: user.id,
-            auditorName: user.name,
-            auditorUsername: user.username || '',
-            auditorNik: user.nik || user.username || '',
-            scheduledDate: startDate,
-            shiftWindow,
-            priority: 'NORMAL',
-            auditFocus: isExplicitVisit ? (desc || 'Visit Store') : `Visit: ${desc || 'Audit QSC Toko'}`,
-            status: 'PENDING',
-            actualIn: null,
-            actualOut: null,
-            reportId: null,
-            assignedBy,
-            _rawDesc: desc,
-            _rawLoc: part,
-            _categoryType: 'STORE_VISIT'
-          });
-          storeVisitsCount++;
-        } else if (isFmcuNonStore) {
-          // Ada tulisan FMCU -> BUKAN STORE
-          const cleanAgenda = desc.replace(/^agenda\s*:\s*/i, '').trim() || `Kegiatan ${part}`;
-          extractedSchedules.push({
-            id: `sch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${r}-${pIdx}`,
-            storeCode: 'AGENDA',
-            storeName: cleanAgenda,
-            storeType: 'NON_STORE',
-            auditorId: user.id,
-            auditorName: user.name,
-            auditorUsername: user.username || '',
-            auditorNik: user.nik || user.username || '',
-            scheduledDate: startDate,
-            shiftWindow,
-            priority: 'NORMAL',
-            auditFocus: `Agenda: ${cleanAgenda}`,
-            agendaCategory: /training/i.test(desc) ? 'TRAINING' : (/nso|simulasi/i.test(desc) ? 'NSO' : (/meeting/i.test(desc) ? 'MEETING' : 'OFFICE_DUTY')),
-            agendaLocation: part,
-            notes: desc,
-            status: 'AGENDA',
-            isAgenda: true,
-            actualIn: null,
-            actualOut: null,
-            reportId: null,
-            assignedBy,
-            _rawDesc: desc,
-            _rawLoc: part,
-            _categoryType: 'AGENDA'
-          });
-          agendasCount++;
-        } else {
-          // Tidak ada FMCU dan tidak ada di master store:
-          if (isExplicitVisit) {
+        // ATURAN RESMI:
+        // 1. Visit Store = Visit, Visit Store (diluar keyword ini BUKAN visit store)
+        // 2. NSO = NSO, New Store Opening, Reopening (Diluar ini BUKAN NSO)
+        // 3. Jika kolom G ada nama store tapi di kolom F tidak ada kata visit maka BUKAN visit
+        // 4. Jika kolom F tertulis nama store tapi kolom G tertulis NSO, maka itu BUKAN visit
+        // 5. Jika ada tulisan FMCU maka itu BUKAN store (Non-Store)
+        const isStrictVisit = isVisitF && !isNsoG && !hasFmcu;
+
+        if (isStrictVisit) {
+          // ==================================================================
+          // VISIT STORE (Col F ada kata visit, Col G bukan NSO, bukan FMCU)
+          // ==================================================================
+          const { store } = this._matchStoreFromLocationPart(part, stores);
+          if (store) {
+            extractedSchedules.push({
+              id: `sch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${r}-${pIdx}`,
+              storeCode: store.code,
+              storeName: store.name,
+              storeType: store.type || 'CVS',
+              auditorId: user.id,
+              auditorName: user.name,
+              auditorUsername: user.username || '',
+              auditorNik: user.nik || user.username || '',
+              scheduledDate: startDate,
+              shiftWindow,
+              priority: 'NORMAL',
+              auditFocus: 'Visit Store',
+              status: 'PENDING',
+              actualIn: null,
+              actualOut: null,
+              reportId: null,
+              assignedBy,
+              _rawDesc: desc,
+              _rawLoc: part,
+              _categoryType: 'STORE_VISIT'
+            });
+            storeVisitsCount++;
+          } else {
             extractedSchedules.push({
               id: `sch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${r}-${pIdx}`,
               storeCode: 'STORE-NEW',
@@ -19556,7 +19555,7 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
               scheduledDate: startDate,
               shiftWindow,
               priority: 'NORMAL',
-              auditFocus: desc || 'Visit Store',
+              auditFocus: 'Visit Store',
               status: 'PENDING',
               actualIn: null,
               actualOut: null,
@@ -19567,36 +19566,65 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
               _categoryType: 'STORE_VISIT'
             });
             storeVisitsCount++;
-          } else {
-            const cleanAgenda = desc.replace(/^agenda\s*:\s*/i, '').trim() || part;
-            extractedSchedules.push({
-              id: `sch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${r}-${pIdx}`,
-              storeCode: 'AGENDA',
-              storeName: cleanAgenda,
-              storeType: 'NON_STORE',
-              auditorId: user.id,
-              auditorName: user.name,
-              auditorUsername: user.username || '',
-              auditorNik: user.nik || user.username || '',
-              scheduledDate: startDate,
-              shiftWindow,
-              priority: 'NORMAL',
-              auditFocus: `Agenda: ${cleanAgenda}`,
-              agendaCategory: /training/i.test(desc) ? 'TRAINING' : (/nso|simulasi/i.test(desc) ? 'NSO' : (/meeting/i.test(desc) ? 'MEETING' : 'OFFICE_DUTY')),
-              agendaLocation: part,
-              notes: desc,
-              status: 'AGENDA',
-              isAgenda: true,
-              actualIn: null,
-              actualOut: null,
-              reportId: null,
-              assignedBy,
-              _rawDesc: desc,
-              _rawLoc: part,
-              _categoryType: 'AGENDA'
-            });
-            agendasCount++;
           }
+        } else {
+          // ==================================================================
+          // BUKAN VISIT STORE -> KLASIFIKASI AGENDA
+          // (Berlaku jika Col F tidak ada kata 'visit', ATAU Col G tertulis NSO,
+          // ATAU lokasi terdapat kata FMCU, meskipun Col G berisi nama store!)
+          // ==================================================================
+          const isNso = isNsoF || isNsoG;
+          let agendaCat = 'OFFICE_DUTY';
+          if (isNso) {
+            agendaCat = 'NSO';
+          } else if (/\b(training|practice|induction|assessment|refreshment)\b/i.test(desc)) {
+            agendaCat = 'TRAINING';
+          } else if (/\b(meeting|g-meet|briefing)\b/i.test(desc)) {
+            agendaCat = 'MEETING';
+          }
+
+          let agendaTitle = '';
+          let agendaLocation = part;
+
+          // Rule 4: Jika kolom F tertulis nama store tapi kolom G tertulis NSO
+          if (isNsoG && !isNsoF) {
+            agendaTitle = `NSO ${desc.replace(/^agenda\s*:\s*/i, '').trim() || part}`;
+            agendaLocation = desc.replace(/^agenda\s*:\s*/i, '').trim() || part;
+          } else if (isNsoF) {
+            agendaTitle = desc.replace(/^agenda\s*:\s*/i, '').split('\n')[0].trim() || `NSO ${part}`;
+            agendaLocation = part;
+          } else {
+            agendaTitle = desc.replace(/^agenda\s*:\s*/i, '').split('\n')[0].trim() || `Kegiatan ${part}`;
+            agendaLocation = part;
+          }
+
+          extractedSchedules.push({
+            id: `sch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${r}-${pIdx}`,
+            storeCode: 'AGENDA',
+            storeName: agendaTitle,
+            storeType: 'NON_STORE',
+            auditorId: user.id,
+            auditorName: user.name,
+            auditorUsername: user.username || '',
+            auditorNik: user.nik || user.username || '',
+            scheduledDate: startDate,
+            shiftWindow,
+            priority: 'NORMAL',
+            auditFocus: `Agenda: ${agendaTitle}`,
+            agendaCategory: agendaCat,
+            agendaLocation: agendaLocation,
+            notes: desc,
+            status: 'AGENDA',
+            isAgenda: true,
+            actualIn: null,
+            actualOut: null,
+            reportId: null,
+            assignedBy,
+            _rawDesc: desc,
+            _rawLoc: part,
+            _categoryType: 'AGENDA'
+          });
+          agendasCount++;
         }
       });
     }
@@ -19740,13 +19768,21 @@ Outputkan HANYA JSON array valid persis berikut tanpa markdown:
     tbody.innerHTML = displayList.map((item) => {
       let typeBadge = '';
       if (item._categoryType === 'STORE_VISIT') {
-        typeBadge = `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-teal-100 text-teal-800">Visit Store</span>`;
+        typeBadge = `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-teal-100 text-teal-800 border border-teal-200">Visit Store</span>`;
       } else if (item._categoryType === 'AGENDA') {
-        typeBadge = `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-indigo-100 text-indigo-800">Agenda FMCU</span>`;
+        if (item.agendaCategory === 'NSO') {
+          typeBadge = `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-amber-100 text-amber-900 border border-amber-300">NSO</span>`;
+        } else if (item.agendaCategory === 'TRAINING') {
+          typeBadge = `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-sky-100 text-sky-800 border border-sky-300">Training</span>`;
+        } else if (item.agendaCategory === 'MEETING') {
+          typeBadge = `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-purple-100 text-purple-800 border border-purple-300">Meeting</span>`;
+        } else {
+          typeBadge = `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">Agenda FMCU</span>`;
+        }
       } else {
         typeBadge = item._isAutoOff
-          ? `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-amber-100 text-amber-800">Auto OFF</span>`
-          : `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-slate-200 text-slate-700">${item.status}</span>`;
+          ? `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-amber-100 text-amber-800 border border-amber-200">Auto OFF</span>`
+          : `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-slate-200 text-slate-700 border border-slate-300">${item.status}</span>`;
       }
 
       let storeDisplay = '';
