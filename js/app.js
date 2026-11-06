@@ -3460,6 +3460,11 @@ window.FMCUApp = {
     const isAdminVisible = Boolean(admEl && !admEl.classList.contains('hidden'));
     document.body.classList.toggle('admin-quixotic-active', isAdminVisible);
 
+    const stripe = document.querySelector('.fm-top-stripe');
+    if (stripe) stripe.style.display = isAdminVisible ? 'none' : '';
+    const mainWrapper = document.getElementById('app-main-layout-wrapper');
+    if (mainWrapper) mainWrapper.style.paddingTop = isAdminVisible ? '0px' : '';
+
     if (this.currentUser) {
       const welcomeEl = document.getElementById('adm-qx-welcome-name');
       if (welcomeEl) welcomeEl.textContent = this.currentUser.name || 'Admin';
@@ -3656,33 +3661,11 @@ window.FMCUApp = {
   _lastAdminScrollY: 0,
 
   initAdminAutoHideTopNavbar() {
-    if (this._adminAutoHideBound) return;
-    this._adminAutoHideBound = true;
-    this._lastAdminScrollY = window.scrollY || 0;
-
-    window.addEventListener(
-      'scroll',
-      () => {
-        const topNav = document.getElementById('adm-qx-top-navbar');
-        const topRow = document.getElementById('adm-qx-top-header-row');
-        if (!topNav && !topRow) return;
-        const curY = window.scrollY || 0;
-        const delta = curY - this._lastAdminScrollY;
-
-        if (curY < 56) {
-          if (topNav) topNav.classList.remove('qx-nav-hidden');
-          if (topRow) topRow.classList.remove('qx-nav-hidden');
-        } else if (delta > 10) {
-          if (topNav) topNav.classList.add('qx-nav-hidden');
-          if (topRow) topRow.classList.add('qx-nav-hidden');
-        } else if (delta < -8) {
-          if (topNav) topNav.classList.remove('qx-nav-hidden');
-          if (topRow) topRow.classList.remove('qx-nav-hidden');
-        }
-        this._lastAdminScrollY = curY;
-      },
-      { passive: true }
-    );
+    // Top Navbar strictly sticky at top:0 without disappearing or autohiding
+    const topNav = document.getElementById('adm-qx-top-navbar');
+    const topRow = document.getElementById('adm-qx-top-header-row');
+    if (topNav) topNav.classList.remove('qx-nav-hidden');
+    if (topRow) topRow.classList.remove('qx-nav-hidden');
   },
 
   scrollToAdminAnalyticPart(part = 'kpi') {

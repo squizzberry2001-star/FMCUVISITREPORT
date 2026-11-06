@@ -77,16 +77,16 @@
   <link rel="dns-prefetch" href="https://unpkg.com" />
   <link rel="dns-prefetch" href="https://www.gstatic.com" />
   <!-- Preload Critical Production Stylesheets -->
-  <link rel="preload" href="css/tailwind.min.css?v=1793950445671" as="style" />
-  <link rel="preload" href="css/styles.css?v=1793950445671" as="style" />
+  <link rel="preload" href="css/tailwind.min.css?v=1793959746307" as="style" />
+  <link rel="preload" href="css/styles.css?v=1793959746307" as="style" />
   <link rel="preload" href="FMCUICON.png" as="image" />
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- Precompiled Static Tailwind CSS & FMCU Custom Styles (0ms JIT, No MutationObserver) -->
-  <link rel="stylesheet" href="css/tailwind.min.css?v=1793950445671" />
-  <link rel="stylesheet" href="css/styles.css?v=1793950445671" />
+  <link rel="stylesheet" href="css/tailwind.min.css?v=1793959746307" />
+  <link rel="stylesheet" href="css/styles.css?v=1793959746307" />
 
   <!-- FontAwesome Icons & Leaflet Maps CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -505,7 +505,7 @@
   <!-- ====================================================================
        MAIN APPLICATION LAYOUT (Desktop Sidebar + Top Header + Mobile Nav)
        ==================================================================== -->
-  <div class="flex flex-1 pt-[5px]">
+  <div id="app-main-layout-wrapper" class="flex flex-1 pt-[5px]">
 
     <!-- DESKTOP SIDEBAR -->
     <aside role="complementary" aria-label="Sidebar Utama FMCU" class="hidden lg:flex lg:flex-col lg:w-72 lg:fixed lg:inset-y-0 lg:left-0 lg:pt-[5px] bg-white border-r border-slate-200 z-30 select-none">
@@ -2153,10 +2153,12 @@
 
             <!-- STICKY & VERTICALLY CENTERED LEFT SIDE ICON-ONLY NAVBAR (Tanpa Create Jadwal, Master Toko & Export Ringkasan) -->
             <aside id="adm-qx-left-rail" aria-label="Navigasi Utama Admin (Icon Rail)" class="qx-left-icon-rail">
-              <!-- Top Spacer to help center the 4 main icons -->
-              <div class="hidden md:block w-full h-8 shrink-0 pointer-events-none" aria-hidden="true"></div>
+              <!-- Top Mini Brand Logo -->
+              <div class="hidden md:flex flex-col items-center justify-center pt-1 pb-1 shrink-0 cursor-pointer select-none" onclick="FMCUApp.switchAdminQuixoticSection('analytic')" title="FMCU One Gate System">
+                <img src="FMCUICON.png" alt="FMCU" class="w-8 h-8 object-contain drop-shadow-xs hover:scale-105 transition-transform" />
+              </div>
 
-              <!-- Main 4 Sections Group (Centered on Screen) -->
+              <!-- Main 4 Sections Group (Centered Vertically on Screen with Visible Titles) -->
               <div class="qx-rail-group" id="qx-rail-main-group">
                 <span class="qx-rail-active-pill" id="qx-rail-main-pill" aria-hidden="true"></span>
                 <button
@@ -2168,7 +2170,8 @@
                   title="Analytic"
                   aria-label="Analytic Dashboard"
                 >
-                  <i class="fa-solid fa-table-cells-large"></i>
+                  <i class="fa-solid fa-table-cells-large text-base"></i>
+                  <span class="qx-rail-label">Analytic</span>
                 </button>
                 <button
                   type="button"
@@ -2179,7 +2182,8 @@
                   title="Agenda"
                   aria-label="Agenda & Jadwal"
                 >
-                  <i class="fa-regular fa-calendar-check"></i>
+                  <i class="fa-regular fa-calendar-check text-base"></i>
+                  <span class="qx-rail-label">Agenda</span>
                 </button>
                 <button
                   type="button"
@@ -2190,7 +2194,8 @@
                   title="Metric Profile"
                   aria-label="Metric Profile"
                 >
-                  <i class="fa-solid fa-id-card-clip"></i>
+                  <i class="fa-solid fa-id-card-clip text-base"></i>
+                  <span class="qx-rail-label">Profile</span>
                 </button>
                 <button
                   type="button"
@@ -2201,8 +2206,11 @@
                   title="Live Loc Maps"
                   aria-label="Live Loc Maps"
                 >
-                  <i class="fa-solid fa-location-dot"></i>
-                  <span class="w-2 h-2 rounded-full bg-emerald-500 gps-pulse absolute top-1.5 right-1.5 border border-white"></span>
+                  <div class="relative inline-flex items-center justify-center">
+                    <i class="fa-solid fa-location-dot text-base"></i>
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 gps-pulse absolute -top-1 -right-1 border border-white"></span>
+                  </div>
+                  <span class="qx-rail-label">Live Maps</span>
                 </button>
               </div>
 
@@ -2218,17 +2226,19 @@
                   title="Pengaturan Sistem & Master Toko"
                   aria-label="Pengaturan Sistem & Master Toko"
                 >
-                  <i class="fa-solid fa-gear"></i>
+                  <i class="fa-solid fa-gear text-sm"></i>
+                  <span class="qx-rail-label">Setting</span>
                 </button>
                 <button
                   type="button"
                   onclick="FMCUApp.handleLogout()"
-                  class="qx-rail-btn hover:!bg-rose-50 hover:!text-rose-600"
+                  class="qx-rail-btn hover:!bg-rose-50 hover:!text-rose-600 hover:!border-rose-200"
                   data-tip="Keluar / Logout"
                   title="Keluar / Logout"
                   aria-label="Logout"
                 >
-                  <i class="fa-solid fa-right-from-bracket"></i>
+                  <i class="fa-solid fa-right-from-bracket text-sm"></i>
+                  <span class="qx-rail-label">Logout</span>
                 </button>
               </div>
             </aside>
@@ -4526,16 +4536,16 @@ service cloud.firestore {
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js" crossorigin="anonymous"></script>
 
   <!-- Core Application Scripts (Fast Startup & Auth Priority) -->
-  <script defer src="js/holding-time-standards.js?v=1793950445671"></script>
-  <script defer src="js/master-stores-seed.js?v=1793950445671"></script>
-  <script defer src="js/bestie-in-charge-seed.js?v=1793950445671"></script>
-  <script defer src="js/data.js?v=1793950445671"></script>
-  <script defer src="js/pdf-generator.js?v=1793950445671"></script>
-  <script defer src="js/app.js?v=1793950445671"></script>
+  <script defer src="js/holding-time-standards.js?v=1793959746307"></script>
+  <script defer src="js/master-stores-seed.js?v=1793959746307"></script>
+  <script defer src="js/bestie-in-charge-seed.js?v=1793959746307"></script>
+  <script defer src="js/data.js?v=1793959746307"></script>
+  <script defer src="js/pdf-generator.js?v=1793959746307"></script>
+  <script defer src="js/app.js?v=1793959746307"></script>
 
   <!-- Deferred / Async Heavy Document & Export Modules (Non-blocking for Login & Navigation) -->
   <script async src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script async src="js/pdf-assets.js?v=1793950445671"></script>
+  <script async src="js/pdf-assets.js?v=1793959746307"></script>
     <!-- Modal Tambah / Edit News (Super Admin) -->
     
   <!-- ====================================================================
