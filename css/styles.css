@@ -1815,7 +1815,13 @@ body.admin-quixotic-active #mobile-bottom-nav {
 
 body.admin-quixotic-active #main-layout-content-col {
   padding-left: 0 !important;
+  padding-bottom: 2px !important;
+}
+
+body.admin-quixotic-active footer[role="contentinfo"] {
+  padding-top: 4px !important;
   padding-bottom: 4px !important;
+  margin-top: 0 !important;
 }
 
 /* FIX: .view-section memakai transform + contain:layout yang membuat position:fixed
