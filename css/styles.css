@@ -1813,6 +1813,8 @@ body.admin-quixotic-active #mobile-bottom-nav {
 
 body.admin-quixotic-active #view-admin {
   padding-bottom: 8px !important;
+  max-w-none !important;
+  width: 100% !important;
 }
 
 body.admin-quixotic-active #main-layout-content-col {
@@ -1824,6 +1826,12 @@ body.admin-quixotic-active footer[role="contentinfo"] {
   padding-top: 4px !important;
   padding-bottom: 4px !important;
   margin-top: 0 !important;
+}
+
+@media (min-width: 768px) {
+  body.admin-quixotic-active footer[role="contentinfo"] {
+    padding-left: 72px !important;
+  }
 }
 
 /* FIX: .view-section memakai transform + contain:layout yang membuat position:fixed
@@ -1893,6 +1901,26 @@ body.admin-quixotic-active #main-layout-content-col {
   pointer-events: none;
 }
 
+/* TOP NAVBAR: Membentang penuh dari kiri ke kanan di desktop */
+@media (min-width: 768px) {
+  #adm-qx-top-header-row {
+    position: sticky;
+    top: 5px; /* right below top stripe */
+    left: 0;
+    right: 0;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(226, 232, 240, 0.85);
+    box-shadow: 0 4px 20px -4px rgba(15, 23, 42, 0.05);
+    padding: 10px 24px 10px 84px; /* 84px ensures spacing from 72px side rail */
+    z-index: 40;
+    border-radius: 0;
+    margin: 0;
+  }
+}
+
 .qx-workspace-layout {
   display: flex;
   flex-direction: column;
@@ -1905,7 +1933,8 @@ body.admin-quixotic-active #main-layout-content-col {
     flex-direction: row;
     align-items: flex-start;
     gap: 16px;
-    padding-left: 62px;
+    padding-left: 84px; /* Room for full height 72px left side navbar */
+    padding-right: 20px;
   }
 }
 
@@ -1922,21 +1951,28 @@ body.admin-quixotic-active #main-layout-content-col {
   z-index: 45;
 }
 
+/* SIDE NAVBAR: Membentang langsung dari atas ke bawah (full-height 100vh) */
 @media (min-width: 768px) {
   .qx-left-icon-rail {
     flex-direction: column;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
-    gap: 14px;
     position: fixed;
-    left: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    min-height: auto;
-    overflow: visible;
+    left: 0;
+    top: 5px; /* Flush right under top stripe */
+    bottom: 0;
+    height: calc(100vh - 5px);
+    width: 72px;
+    min-height: 100vh;
+    background: #ffffff;
+    border-right: 1px solid rgba(226, 232, 240, 0.9);
+    box-shadow: 2px 0 16px rgba(15, 23, 42, 0.04);
+    padding: 16px 0 20px 0;
+    overflow-y: auto;
+    overflow-x: hidden;
     flex-shrink: 0;
-    padding: 0;
-    z-index: 45;
+    z-index: 50;
+    transform: none !important;
   }
 }
 
@@ -1998,6 +2034,13 @@ body.admin-quixotic-active #main-layout-content-col {
 @media (min-width: 768px) {
   .qx-rail-group {
     flex-direction: column;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    gap: 8px;
+    width: 100%;
+    align-items: center;
   }
 }
 
@@ -2477,8 +2520,17 @@ body.admin-quixotic-active #main-layout-content-col {
 
 /* Rail group on desktop is column */
 @media (min-width: 768px) {
-  .qx-rail-group { flex-direction: column; border-radius: 20px; }
-  .qx-rail-btn { border-radius: 14px; }
+  .qx-rail-group {
+    flex-direction: column;
+    border-radius: 0;
+  }
+  .qx-rail-btn {
+    border-radius: 14px;
+  }
+  .qx-rail-active-pill {
+    left: 2px;
+    width: 3.5px;
+  }
 }
 
 /* Fluid active transition — the button already transitions, we add a soft ripple */
