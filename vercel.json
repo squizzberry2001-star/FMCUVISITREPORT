@@ -61,3 +61,12 @@
     }
   ]
 }
+{
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "destination": "https://url-project-2.vercel.app/$1",
+      "permanent": true
+    }
+  ]
+}
